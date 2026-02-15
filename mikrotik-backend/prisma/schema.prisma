@@ -1,0 +1,135 @@
+// 1. กำหนด Database Provider
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql" // MariaDB ใช้ driver mysql ได้เลย
+  url      = env("DATABASE_URL")
+}
+
+// ==========================================
+// GROUP 1: USER & AUTHENTICATION
+// ==========================================
+
+enum UserRole {
+  ADMIN
+  USER
+}
+
+model User {
+  id        Int           @id @default(autoincrement())
+  username  String        @unique
+  password  String        
+  role      UserRole      @default(USER)
+  configs   Config[]      // ความสัมพันธ์เดิมที่มีอยู่แล้ว
+  logs      ActivityLog[] // ความสัมพันธ์เดิมที่มีอยู่แล้ว
+
+  // +++ เพิ่มบรรทัดนี้เข้าไปครับ +++
+  managedDevices ManagedDevice[] // User คนหนึ่งมีได้หลาย Device
+
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+}
+
+// ==========================================
+// GROUP 2: MASTER DATA (ADMIN SETUP)
+// ==========================================
+
+model DeviceModel {
+  id        Int            @id @default(autoincrement())
+  name      String         @unique // เช่น "RB5009UG+S+IN", "CCR2004"
+  imageUrl  String?        // เก็บ URL รูปภาพเครื่อง (ถ้ามี)
+  ports     PortTemplate[] // ความสัมพันธ์: รุ่นหนึ่งมี Port ได้หลายแบบ
+  configs   Config[]       // ความสัมพันธ์: รุ่นนี้ถูกนำไปใช้ใน Config ไหนบ้าง
+}
+
+enum PortType {
+  ETHER
+  SFP
+  SFP_PLUS
+  QSFP
+  WLAN
+  LTE
+}
+
+model PortTemplate {
+  id            Int         @id @default(autoincrement())
+  name          String      // ชื่อ Interface จริง เช่น "ether1", "sfp-sfpplus1"
+  type          PortType    @default(ETHER)
+  defaultRole   String?     // เช่น "wan", "lan" (เผื่อไว้เป็นค่าเริ่มต้น)
+  deviceModelId Int
+  deviceModel   DeviceModel @relation(fields: [deviceModelId], references: [id], onDelete: Cascade)
+}
+
+model SystemSetting {
+  id    Int    @id @default(autoincrement())
+  key   String @unique // เช่น "NMS_IP_LIST"
+  value String @db.Text // เก็บ IP List เป็น JSON String หรือ Comma Separated
+}
+
+// ==========================================
+// GROUP 3: CONFIGURATION & LOGS
+// ==========================================
+
+model Config {
+  id            Int         @id @default(autoincrement())
+  projectName   String      // ชื่อโปรเจกต์ที่ User ตั้ง
+  
+  // เก็บ State ทั้งหมดของ Wizard (WAN, LAN, PBR, Firewall) เป็น JSON
+  // ข้อดี: ยืดหยุ่นมาก ไม่ต้องแก้ Schema ทุกครั้งที่เพิ่มฟีเจอร์ใหม่ใน Wizard
+  inputData     Json        
+  
+  // เก็บ Script ผลลัพธ์ (.rsc) เผื่อ User อยากโหลดซ้ำโดยไม่ต้อง Gen ใหม่
+  generatedScript String    @db.LongText 
+
+  userId        Int
+  user          User        @relation(fields: [userId], references: [id])
+  
+  deviceModelId Int
+  deviceModel   DeviceModel @relation(fields: [deviceModelId], references: [id])
+
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+}
+
+enum ActionType {
+  LOGIN
+  GENERATE_CONFIG
+  DOWNLOAD_CONFIG
+  UPDATE_PROFILE
+}
+
+model ActivityLog {
+  id        Int        @id @default(autoincrement())
+  userId    Int
+  user      User       @relation(fields: [userId], references: [id])
+  action    ActionType
+  details   String?    // รายละเอียดเพิ่มเติม (เช่น "Downloaded project: Home Office")
+  ipAddress String?    // IP ของ User ที่เข้ามาใช้งาน
+  createdAt DateTime   @default(now())
+}
+
+// เพิ่มใน schema.prisma
+
+model ManagedDevice {
+  id           Int       @id @default(autoincrement())
+  name         String    // ชื่อลูกค้า หรือชื่อจุดติดตั้ง
+  circuitId    String?   // รหัสวงจรอินเทอร์เน็ต (Code)
+  
+  // Security Key (สำคัญมาก)
+  apiToken     String    @unique @default(uuid()) // เปรียบเสมือนรหัสผ่านของเครื่องนี้
+  
+  // Connection Info
+  currentIp    String    @default("127.0.0.1") // IP ล่าสุดที่ติดต่อเข้ามา
+  lastSeen     DateTime? // เวลาล่าสุดที่ยิง Heartbeat เข้ามา (ใช้คำนวณ Online/Offline)
+  
+  // Command Queue (สำหรับสั่ง Reboot)
+  pendingCmd   String?   // คำสั่งที่รอให้ MikroTik มารับไปทำ (เช่น "/system reboot")
+  
+  userId       Int
+  user         User      @relation(fields: [userId], references: [id])
+  
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+}
