@@ -8,7 +8,7 @@ const app = express();
 // Middlewares
 app.use(cors());
 
-// ✅ แก้ไขตรงนี้: เพิ่ม limit เพื่อให้รับ Config ก้อนใหญ่ได้ (แก้ปัญหา Save ไม่ผ่าน)
+// ✅ แก้ไขตรงนี้: เพิ่ม limit เป็น 10mb เพื่อรองรับ Config Data
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
