@@ -1,14 +1,15 @@
 import { useState, useEffect } from 'react';
-import axios from 'axios';
 import { 
   Plus, Router, Activity, LayoutDashboard, Send, X, 
-  FileDown, Settings, Trash2 
+  FileDown, Settings 
 } from 'lucide-react';
+import apiClient from '../utils/apiClient'; // ✅ ใช้ apiClient แทน axios
 import { generateMikrotikScript } from '../utils/mikrotikGenerator'; // Import Generator
 
 const DeviceList = ({ userId, onDeviceCreated, onEditDevice }) => {
   const [devices, setDevices] = useState([]);
   const [loading, setLoading] = useState(true);
+  
   const [isAdding, setIsAdding] = useState(false);
 
   // Form State
@@ -17,7 +18,8 @@ const DeviceList = ({ userId, onDeviceCreated, onEditDevice }) => {
 
   const fetchDevices = async () => {
     try {
-      const res = await axios.get(`http://10.0.0.100:3000/api/devices/user/${userId}`);
+      // ✅ ใช้ apiClient (ตัด URL เต็มออก ใส่แค่ Path)
+      const res = await apiClient.get(`/api/devices/user/${userId}`);
       setDevices(res.data);
     } catch (error) {
       console.error("Error fetching devices:", error);
@@ -33,31 +35,35 @@ const DeviceList = ({ userId, onDeviceCreated, onEditDevice }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const res = await axios.post('http://10.0.0.100:3000/api/devices', {
+      // ✅ ใช้ apiClient ยิง POST
+      const res = await apiClient.post('/api/devices', {
         name,
         circuitId,
         userId
       });
 
       if (res.status === 201) {
-        // ส่งต่อไป Wizard เพื่อเริ่ม Config ครั้งแรก
-        onDeviceCreated(res.data); 
+        // ✅ ลบ Debug Log ออกแล้วตามที่ขอ
+        onDeviceCreated(res.data);
+        
+        // Reset Form & Close
+        setName('');
+        setCircuitId('');
+        setIsAdding(false);
       }
     } catch (error) {
       console.error("Failed to create device:", error);
-      alert("Error creating device");
+      alert("ไม่สามารถบันทึกข้อมูลได้ กรุณาตรวจสอบการเชื่อมต่อกับ Server");
     }
   };
 
   // ✅ ฟังก์ชันดาวน์โหลด Config ย้อนหลัง
   const handleDownloadConfig = (device) => {
-    // เช็คว่ามี Config Data ที่บันทึกไว้ไหม (ต้องให้ Backend เก็บ JSON นี้ด้วยตอน Save Wizard)
-    // หากไม่มี เราอาจต้อง Gen แบบ Default หรือแจ้งเตือน
+    // ดึง Config Data จาก Database (ถ้ามี) หรือใช้ข้อมูลพื้นฐาน
     const configData = device.configData || {
-        // Fallback or Minimal Data if full config not saved
         circuitId: device.circuitId,
-        token: device.token,
-        apiHost: '10.0.0.100',
+        token: device.apiToken || device.token, // รองรับชื่อตัวแปรหลายแบบ
+        apiHost: window.location.hostname || '10.0.0.100', // Fallback
         wanList: [], networks: [], portConfig: {} 
     };
 
@@ -66,12 +72,12 @@ const DeviceList = ({ userId, onDeviceCreated, onEditDevice }) => {
         const element = document.createElement("a");
         const file = new Blob([script], {type: 'text/plain'});
         element.href = URL.createObjectURL(file);
-        element.download = `${device.circuitId}_config.rsc`;
+        element.download = `${device.circuitId || 'router'}_config.rsc`;
         document.body.appendChild(element);
         element.click();
         document.body.removeChild(element);
     } catch (err) {
-        alert("ไม่สามารถสร้าง Config ได้ ข้อมูลไม่ครบถ้วน");
+        alert("ไม่สามารถสร้าง Config ได้ เนื่องจากข้อมูลไม่ครบถ้วน");
         console.error(err);
     }
   };
@@ -120,6 +126,7 @@ const DeviceList = ({ userId, onDeviceCreated, onEditDevice }) => {
                 value={name} onChange={(e) => setName(e.target.value)}
               />
             </div>
+
             <div>
               <label className="block text-xs font-bold text-slate-400 uppercase mb-2 ml-1">Circuit ID (Identity)</label>
               <input 
@@ -129,6 +136,7 @@ const DeviceList = ({ userId, onDeviceCreated, onEditDevice }) => {
                 value={circuitId} onChange={(e) => setCircuitId(e.target.value)}
               />
             </div>
+
             <button 
               type="submit"
               className="flex items-center justify-center gap-2 bg-blue-600 text-white p-3 rounded-xl font-bold hover:bg-blue-700 transition shadow-lg shadow-blue-100"

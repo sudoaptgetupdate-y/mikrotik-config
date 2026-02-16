@@ -10,5 +10,6 @@ router.get('/user/:userId', deviceController.getUserDevices); // ดูราย
 // Group 2: สำหรับ MikroTik (Machine ใช้งาน)
 // สังเกตว่าเราเอา authenticateDevice มาคั่นไว้เพื่อตรวจ Token ก่อน
 router.post('/heartbeat', authenticateDevice, deviceController.handleHeartbeat);
+router.put('/:id', deviceController.updateDevice);
 
 module.exports = router;

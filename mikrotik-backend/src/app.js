@@ -7,10 +7,12 @@ const app = express();
 
 // Middlewares
 app.use(cors());
-app.use(express.json());
+
+// ✅ แก้ไขตรงนี้: เพิ่ม limit เพื่อให้รับ Config ก้อนใหญ่ได้ (แก้ปัญหา Save ไม่ผ่าน)
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Register Routes
-
 app.use('/api/devices', deviceRoutes);
 app.use('/api/master', masterRoutes);
 

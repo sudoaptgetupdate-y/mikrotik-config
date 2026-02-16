@@ -74,7 +74,7 @@ exports.getUserDevices = async (req, res) => {
       orderBy: { createdAt: 'desc' }
     });
     
-    // คำนวณ Online/Offline (Logic 5 นาที)
+    // คำนวณ Online/Offline
     const result = devices.map(d => {
         const isOnline = d.lastSeen && (new Date() - new Date(d.lastSeen) < 5 * 60 * 1000);
         return { ...d, isOnline };
@@ -83,5 +83,25 @@ exports.getUserDevices = async (req, res) => {
     res.json(result);
   } catch (error) {
     res.status(500).json({ error: "Failed to fetch devices" });
+  }
+};
+
+// 4.สำหรับอัปเดต Config (Save / Edit)
+exports.updateDevice = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { configData } = req.body; // รับ JSON ก้อนใหญ่มาจาก Frontend
+
+    const updatedDevice = await prisma.managedDevice.update({
+      where: { id: parseInt(id) },
+      data: {
+        configData: configData // บันทึกลง field ที่เราเพิ่มใหม่
+      }
+    });
+
+    res.json(updatedDevice);
+  } catch (error) {
+    console.error("Update failed:", error);
+    res.status(500).json({ error: "Failed to update device configuration" });
   }
 };

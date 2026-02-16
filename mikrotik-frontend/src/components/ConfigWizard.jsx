@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import axios from 'axios';
 import { CheckCircle, ArrowRight, ArrowLeft } from 'lucide-react';
+import apiClient from '../utils/apiClient'; // ✅ ใช้ apiClient ที่ทำไว้
 
 // Import Modular Components
 import Step1_ModelSelect from './wizard/Step1_ModelSelect';
@@ -11,17 +11,27 @@ import Step5_PortAssign from './wizard/Step5_PortAssign';
 import Step6_PBRSetup from './wizard/Step6_PBRSetup';
 import Step7_Summary from './wizard/Step7_Summary';
 
-const ConfigWizard = ({ initialData }) => {
+const ConfigWizard = ({ initialData, onFinish }) => {
   const [step, setStep] = useState(1);
   const [models, setModels] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // --- [1. GLOBAL STATE] ---
+  // ฟังก์ชันหา Hostname เพื่อส่งให้ Generator สร้าง Script (เช่น http://10.0.0.100:3000 -> 10.0.0.100)
+  const getApiHost = () => {
+    try {
+      const url = new URL(import.meta.env.VITE_API_BASE_URL || window.location.origin);
+      return url.hostname;
+    } catch (e) {
+      return window.location.hostname;
+    }
+  };
+
+  // --- GLOBAL STATE ---
   const [deviceMeta, setDeviceMeta] = useState({
     circuitId: initialData?.circuitId || "", 
-    // ✅ แก้ไข: พยายามดึง Token จากหลาย Key ที่เป็นไปได้
+    // รองรับ Token หลายรูปแบบ
     token: initialData?.token || initialData?.apiToken || initialData?.api_token || "",
-    apiHost: window.location.hostname || "10.0.0.100"
+    apiHost: getApiHost()
   });
 
   const [selectedModel, setSelectedModel] = useState(null);
@@ -32,6 +42,7 @@ const ConfigWizard = ({ initialData }) => {
     allowRemoteRequests: true
   });
 
+  // Default Networks
   const [networks, setNetworks] = useState([
     { id: 'net_10', name: 'vlan10Service1', vlanId: 10, ip: '192.168.10.1/24', type: 'network', dhcp: true, hotspot: false },
     { id: 'net_20', name: 'vlan20service2', vlanId: 20, ip: '192.168.20.1/24', type: 'network', dhcp: true, hotspot: false },
@@ -44,37 +55,77 @@ const ConfigWizard = ({ initialData }) => {
   const [portConfig, setPortConfig] = useState({});
   const [pbrConfig, setPbrConfig] = useState({ enabled: false, mappings: {} });
 
-  // --- [DATA FETCHING & SYNC] ---
+  // --- DATA FETCHING & SYNC ---
   useEffect(() => {
-    const fetchModels = async () => {
+    const initWizard = async () => {
       try {
-        const res = await axios.get('http://localhost:3000/api/master/models');
-        setModels(res.data);
+        // 1. ดึงข้อมูล Models
+        const res = await apiClient.get('/api/master/models');
+        const availableModels = res.data;
+        setModels(availableModels);
+        
+        // 2. ถ้ามีข้อมูลเดิม (Mode Edit) ให้ Restore State
+        if (initialData && initialData.configData) {
+          console.log("Restoring config data...");
+          const savedConfig = typeof initialData.configData === 'string' 
+            ? JSON.parse(initialData.configData) 
+            : initialData.configData;
+
+          // Restore: Selected Model
+          if (savedConfig.selectedModel) {
+            const foundModel = availableModels.find(m => m.id === savedConfig.selectedModel.id);
+            if (foundModel) setSelectedModel(foundModel);
+          }
+
+          // Restore: Other Configs
+          if (savedConfig.wanList) setWanList(savedConfig.wanList);
+          if (savedConfig.dnsConfig) setDnsConfig(savedConfig.dnsConfig);
+          if (savedConfig.networks) setNetworks(savedConfig.networks);
+          if (savedConfig.portConfig) setPortConfig(savedConfig.portConfig);
+          if (savedConfig.pbrConfig) setPbrConfig(savedConfig.pbrConfig);
+        }
+
       } catch (error) {
-        console.error("Error fetching models:", error);
+        console.error("Error init wizard:", error);
       } finally {
         setLoading(false);
       }
     };
-    fetchModels();
-  }, []);
 
-  useEffect(() => {
-    if (initialData) {
-      setDeviceMeta({
-        circuitId: initialData.circuitId,
-        // ✅ แก้ไข: ดึง Token แบบยืดหยุ่น
-        token: initialData.token || initialData.apiToken || initialData.api_token || "",
-        apiHost: window.location.hostname || "10.0.0.100"
-      });
-    }
+    initWizard();
   }, [initialData]);
+
+  // --- ACTION: Save Config to Backend ---
+  const saveConfigToBackend = async (finalConfigData) => {
+    if (!initialData?.id) {
+      console.error("No Device ID found to save config");
+      alert("Error: No Device ID. Cannot save.");
+      return;
+    }
+
+    try {
+      await apiClient.put(`/api/devices/${initialData.id}`, {
+        configData: finalConfigData,
+        isConfigured: true 
+      });
+      
+      console.log("Config saved successfully");
+      
+      // เรียก Callback กลับไปหน้า Dashboard
+      if (onFinish) onFinish();
+
+    } catch (error) {
+      console.error("Failed to save config:", error);
+      alert("Error saving configuration to database!");
+    }
+  };
 
   const nextStep = () => setStep(prev => prev + 1);
   const prevStep = () => setStep(prev => prev - 1);
 
   const canGoNext = () => {
     if (step === 1) return !!selectedModel;
+    // ✅ Step 2: เช็คแค่ PPPoE กับ Static (ตัด DHCP Client ออกแล้ว)
     if (step === 2) return wanList.length > 0 && wanList.every(wan => (wan.type === 'pppoe' ? wan.username : wan.ipAddress));
     if (step === 3) return dnsConfig.servers.every(ip => ip.trim() !== '');
     if (step === 4) return networks.every(n => n.name && n.vlanId && n.ip);
@@ -124,6 +175,8 @@ const ConfigWizard = ({ initialData }) => {
                 networks={networks}
                 portConfig={portConfig}
                 pbrConfig={pbrConfig}
+                // ✅ ส่งฟังก์ชัน Save ไปให้ Step 7
+                onSaveAndFinish={saveConfigToBackend}
               />
             )}
           </>
