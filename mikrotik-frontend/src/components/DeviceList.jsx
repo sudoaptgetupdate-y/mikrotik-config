@@ -1,25 +1,23 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom'; // ✅ เรียกใช้ Hook สำหรับเปลี่ยนหน้า
+import apiClient from '../utils/apiClient';
 import { 
-  Plus, Router, Activity, LayoutDashboard, Send, X, 
-  FileDown, Settings 
+  Search, Plus, RefreshCw, Server, Activity, 
+  Clock, MoreVertical, Settings, Trash2 
 } from 'lucide-react';
-import apiClient from '../utils/apiClient'; // ✅ ใช้ apiClient แทน axios
-import { generateMikrotikScript } from '../utils/mikrotikGenerator'; // Import Generator
 
-const DeviceList = ({ userId, onDeviceCreated, onEditDevice }) => {
+const DeviceList = () => {
+  const navigate = useNavigate(); // ✅ สร้าง function navigate
   const [devices, setDevices] = useState([]);
   const [loading, setLoading] = useState(true);
-  
-  const [isAdding, setIsAdding] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
 
-  // Form State
-  const [name, setName] = useState('');
-  const [circuitId, setCircuitId] = useState('');
-
+  // ฟังก์ชันดึงข้อมูล (เหมือนเดิม)
   const fetchDevices = async () => {
+    setLoading(true);
     try {
-      // ✅ ใช้ apiClient (ตัด URL เต็มออก ใส่แค่ Path)
-      const res = await apiClient.get(`/api/devices/user/${userId}`);
+      // Hardcode userId=1 ไปก่อน (อนาคตค่อยดึงจาก Auth Context)
+      const res = await apiClient.get('/api/devices/user/1');
       setDevices(res.data);
     } catch (error) {
       console.error("Error fetching devices:", error);
@@ -30,177 +28,134 @@ const DeviceList = ({ userId, onDeviceCreated, onEditDevice }) => {
 
   useEffect(() => {
     fetchDevices();
-  }, [userId]);
+  }, []);
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    try {
-      // ✅ ใช้ apiClient ยิง POST
-      const res = await apiClient.post('/api/devices', {
-        name,
-        circuitId,
-        userId
-      });
-
-      if (res.status === 201) {
-        // ✅ ลบ Debug Log ออกแล้วตามที่ขอ
-        onDeviceCreated(res.data);
-        
-        // Reset Form & Close
-        setName('');
-        setCircuitId('');
-        setIsAdding(false);
-      }
-    } catch (error) {
-      console.error("Failed to create device:", error);
-      alert("ไม่สามารถบันทึกข้อมูลได้ กรุณาตรวจสอบการเชื่อมต่อกับ Server");
-    }
+  // ✅ ฟังก์ชันกดปุ่ม Add Device -> ไปหน้า /add-device
+  const handleAddClick = () => {
+    navigate('/add-device');
   };
 
-  // ✅ ฟังก์ชันดาวน์โหลด Config ย้อนหลัง
-  const handleDownloadConfig = (device) => {
-    // ดึง Config Data จาก Database (ถ้ามี) หรือใช้ข้อมูลพื้นฐาน
-    const configData = device.configData || {
-        circuitId: device.circuitId,
-        token: device.apiToken || device.token, // รองรับชื่อตัวแปรหลายแบบ
-        apiHost: window.location.hostname || '10.0.0.100', // Fallback
-        wanList: [], networks: [], portConfig: {} 
-    };
-
-    try {
-        const script = generateMikrotikScript(configData);
-        const element = document.createElement("a");
-        const file = new Blob([script], {type: 'text/plain'});
-        element.href = URL.createObjectURL(file);
-        element.download = `${device.circuitId || 'router'}_config.rsc`;
-        document.body.appendChild(element);
-        element.click();
-        document.body.removeChild(element);
-    } catch (err) {
-        alert("ไม่สามารถสร้าง Config ได้ เนื่องจากข้อมูลไม่ครบถ้วน");
-        console.error(err);
-    }
+  // ✅ ฟังก์ชันกดปุ่ม Edit -> ไปหน้า /edit-device/:id
+  const handleEditClick = (device) => {
+    // ส่ง object device ไปด้วยผ่าน state ไม่ต้องไป fetch ใหม่ในหน้า edit
+    navigate(`/edit-device/${device.id}`, { state: { deviceData: device } });
   };
+
+  // Filter Search
+  const filteredDevices = devices.filter(d => 
+    d.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (d.circuitId && d.circuitId.toLowerCase().includes(searchTerm.toLowerCase()))
+  );
 
   return (
     <div className="space-y-6 animate-fade-in">
       
-      {/* Header */}
-      <div className="flex justify-between items-center mb-4">
+      {/* Header Section */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
-            <LayoutDashboard className="text-blue-600" /> Device Dashboard
-          </h1>
-          <p className="text-slate-500 text-sm">จัดการและติดตามสถานะอุปกรณ์ทั้งหมดของคุณ</p>
+          <h2 className="text-2xl font-bold text-slate-800">Managed Routers</h2>
+          <p className="text-slate-500">Monitor and manage your MikroTik devices</p>
         </div>
-        
         <button 
-          onClick={() => setIsAdding(!isAdding)}
-          className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold transition shadow-lg ${
-            isAdding 
-            ? 'bg-slate-100 text-slate-600 hover:bg-slate-200' 
-            : 'bg-blue-600 text-white hover:bg-blue-700 shadow-blue-100'
-          }`}
+          onClick={handleAddClick} // ✅ เรียกใช้ handleAddClick
+          className="bg-blue-600 text-white px-4 py-2.5 rounded-xl flex items-center gap-2 hover:bg-blue-700 hover:shadow-lg hover:shadow-blue-200 transition-all font-medium"
         >
-          {isAdding ? <><X size={18} /> Cancel</> : <><Plus size={18} /> Add New Device</>}
+          <Plus size={20} /> Add New Device
         </button>
       </div>
 
-      {/* Provision Form */}
-      {isAdding && (
-        <section className="bg-white p-8 rounded-2xl border-2 border-blue-500 shadow-xl shadow-blue-50 animate-scale-in">
-          <div className="mb-6">
-            <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
-              <Plus className="text-blue-600" size={24} /> Provision New Device
-            </h2>
-            <p className="text-sm text-slate-500">กรอกข้อมูลเพื่อลงทะเบียนอุปกรณ์ใหม่และเริ่มการตั้งค่า</p>
-          </div>
+      {/* Search & Filter Bar */}
+      <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col md:flex-row gap-4">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
+          <input 
+            type="text"
+            placeholder="Search by Name, Circuit ID..."
+            className="w-full pl-10 pr-4 py-2 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 transition"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+        </div>
+        <button 
+          onClick={fetchDevices}
+          className="flex items-center gap-2 px-4 py-2 text-slate-600 hover:bg-slate-50 rounded-lg border border-slate-200 transition"
+        >
+          <RefreshCw size={18} /> Refresh
+        </button>
+      </div>
 
-          <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
-            <div>
-              <label className="block text-xs font-bold text-slate-400 uppercase mb-2 ml-1">Site Name</label>
-              <input 
-                type="text" required
-                className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition"
-                placeholder="เช่น Home Office"
-                value={name} onChange={(e) => setName(e.target.value)}
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-bold text-slate-400 uppercase mb-2 ml-1">Circuit ID (Identity)</label>
-              <input 
-                type="text"
-                className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition"
-                placeholder="เช่น CCT-8899"
-                value={circuitId} onChange={(e) => setCircuitId(e.target.value)}
-              />
-            </div>
-
-            <button 
-              type="submit"
-              className="flex items-center justify-center gap-2 bg-blue-600 text-white p-3 rounded-xl font-bold hover:bg-blue-700 transition shadow-lg shadow-blue-100"
-            >
-              <Send size={18} /> Create & Start Config
-            </button>
-          </form>
-        </section>
-      )}
-
-      {/* Device List */}
-      <section className="pt-4">
+      {/* Device Table */}
+      <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
         {loading ? (
-          <div className="text-center py-10 text-slate-400 italic">กำลังโหลดข้อมูลอุปกรณ์...</div>
+          <div className="p-10 text-center text-slate-400">Loading devices...</div>
+        ) : filteredDevices.length === 0 ? (
+          <div className="p-10 text-center text-slate-400 flex flex-col items-center">
+            <Server size={48} className="mb-4 text-slate-200" />
+            <p>No devices found.</p>
+          </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {devices.length > 0 ? devices.map((device) => (
-              <div key={device.id} className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition group relative overflow-hidden">
-                
-                {/* Status Badge */}
-                <div className="flex justify-between items-start mb-4">
-                  <div className={`p-3 rounded-xl ${device.isOnline ? 'bg-green-50 text-green-600' : 'bg-slate-50 text-slate-400'}`}>
-                    <Router size={24} />
-                  </div>
-                  <span className={`flex items-center gap-1.5 text-[10px] font-bold px-2 py-1 rounded-full ${
-                    device.isOnline ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-500'
-                  }`}>
-                    <Activity size={12} /> {device.isOnline ? 'ONLINE' : 'OFFLINE'}
-                  </span>
-                </div>
-
-                <h3 className="font-bold text-slate-800 text-lg group-hover:text-blue-600 transition-colors">{device.name}</h3>
-                <p className="text-xs text-slate-400 font-mono mb-6">{device.circuitId || 'No Circuit ID'}</p>
-
-                {/* ✅ Action Buttons (Download & Edit) */}
-                <div className="grid grid-cols-2 gap-2 mb-4">
-                  <button 
-                    onClick={() => handleDownloadConfig(device)}
-                    className="flex items-center justify-center gap-2 px-3 py-2 bg-slate-100 text-slate-600 rounded-lg text-xs font-bold hover:bg-blue-50 hover:text-blue-600 transition"
-                  >
-                    <FileDown size={14} /> Config
-                  </button>
-                  <button 
-                    onClick={() => onEditDevice && onEditDevice(device)}
-                    className="flex items-center justify-center gap-2 px-3 py-2 bg-slate-100 text-slate-600 rounded-lg text-xs font-bold hover:bg-orange-50 hover:text-orange-600 transition"
-                  >
-                    <Settings size={14} /> Edit
-                  </button>
-                </div>
-
-                <div className="pt-4 border-t border-slate-50 flex justify-between items-center">
-                  <span className="text-[10px] text-slate-400 italic">
-                    Last Seen: {device.lastSeen ? new Date(device.lastSeen).toLocaleTimeString() : 'Never'}
-                  </span>
-                </div>
-              </div>
-            )) : (
-              <div className="col-span-full py-12 text-center bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200 text-slate-400">
-                ยังไม่มีอุปกรณ์ในระบบ กดปุ่ม "Add New Device" เพื่อเริ่มต้น
-              </div>
-            )}
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-slate-50 border-b border-slate-200 text-xs uppercase text-slate-500 font-semibold">
+                  <th className="p-4 pl-6">Status</th>
+                  <th className="p-4">Device Name</th>
+                  <th className="p-4">Circuit ID</th>
+                  <th className="p-4">IP Address</th>
+                  <th className="p-4">Last Seen</th>
+                  <th className="p-4 text-right pr-6">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {filteredDevices.map((device) => (
+                  <tr key={device.id} className="hover:bg-slate-50 transition group">
+                    <td className="p-4 pl-6">
+                      <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ${
+                        device.isOnline 
+                          ? 'bg-green-50 text-green-700 border-green-200' 
+                          : 'bg-slate-100 text-slate-500 border-slate-200'
+                      }`}>
+                        <span className={`w-2 h-2 rounded-full ${device.isOnline ? 'bg-green-500' : 'bg-slate-400'}`}></span>
+                        {device.isOnline ? 'Online' : 'Offline'}
+                      </span>
+                    </td>
+                    <td className="p-4 font-medium text-slate-700">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
+                          <Server size={18} />
+                        </div>
+                        {device.name}
+                      </div>
+                    </td>
+                    <td className="p-4 text-slate-600 font-mono text-sm">{device.circuitId || '-'}</td>
+                    <td className="p-4 text-slate-600 font-mono text-sm">{device.currentIp || '-'}</td>
+                    <td className="p-4 text-slate-500 text-sm">
+                      <div className="flex items-center gap-1">
+                        <Clock size={14} />
+                        {device.lastSeen ? new Date(device.lastSeen).toLocaleString() : 'Never'}
+                      </div>
+                    </td>
+                    <td className="p-4 text-right pr-6">
+                      <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button 
+                          onClick={() => handleEditClick(device)} // ✅ ปุ่ม Edit
+                          className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition"
+                          title="Edit Config"
+                        >
+                          <Settings size={18} />
+                        </button>
+                        <button className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition" title="Delete">
+                          <Trash2 size={18} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
-      </section>
+      </div>
     </div>
   );
 };
