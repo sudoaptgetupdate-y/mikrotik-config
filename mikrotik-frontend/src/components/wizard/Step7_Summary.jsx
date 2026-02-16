@@ -12,7 +12,7 @@ const Step7_Summary = ({
   circuitId, 
   token, 
   apiHost,
-  onFinish // รับ prop เพื่อกลับหน้า Dashboard
+  onSaveAndFinish // ✅ 1. เปลี่ยนชื่อ Prop ให้ตรงกับที่ ConfigWizard ส่งมา
 }) => {
 
   // ฟังก์ชันสำหรับ Gen และ Download
@@ -31,13 +31,19 @@ const Step7_Summary = ({
     const file = new Blob([scriptContent], {type: 'text/plain'});
     element.href = URL.createObjectURL(file);
     element.download = `${circuitId}_config.rsc`;
-    document.body.appendChild(element); // Required for this to work in FireFox
+    document.body.appendChild(element); 
     element.click();
     document.body.removeChild(element);
 
     // 4. Navigate back to Dashboard (Wait a bit for download to start)
     setTimeout(() => {
-      if (onFinish) onFinish(configData); // ส่ง configData กลับไปบันทึก (ถ้ามี backend)
+      // ✅ 2. เรียกใช้ฟังก์ชัน onSaveAndFinish เพื่อบันทึกข้อมูลลง Backend
+      if (onSaveAndFinish) {
+        console.log("Saving config to backend..."); // เพิ่ม Log เพื่อตรวจสอบ
+        onSaveAndFinish(configData); 
+      } else {
+        console.error("onSaveAndFinish prop is missing!");
+      }
     }, 500);
   };
 
