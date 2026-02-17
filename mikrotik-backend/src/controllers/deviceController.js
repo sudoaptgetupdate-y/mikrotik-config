@@ -83,17 +83,26 @@ exports.updateDevice = async (req, res) => {
   }
 };
 
-// 3. รับ Heartbeat (เหมือนเดิม)
+// 3. สำหรับ MikroTik: รับ Heartbeat
 exports.handleHeartbeat = async (req, res) => {
   try {
-    const device = req.device; 
-    const remoteIp = req.socket.remoteAddress || req.ip; 
+    const device = req.device;
+    const remoteIp = req.socket.remoteAddress || req.ip;
 
+    // ✅ รับค่าที่ Router ส่งมา (CPU, RAM, Uptime, Version)
+    const { cpu, ram, uptime, version } = req.body; 
+
+    // อัปเดตสถานะล่าสุด
     await prisma.managedDevice.update({
       where: { id: device.id },
       data: {
         lastSeen: new Date(),
-        currentIp: remoteIp
+        currentIp: remoteIp,
+        // ✅ บันทึกค่าใหม่
+        cpuLoad: cpu ? parseInt(cpu) : undefined,
+        memoryUsage: ram ? parseInt(ram) : undefined,
+        uptime: uptime || undefined,
+        version: version || undefined
       }
     });
 

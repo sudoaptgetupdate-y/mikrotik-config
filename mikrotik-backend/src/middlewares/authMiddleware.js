@@ -2,10 +2,20 @@ const prisma = require('../config/prisma');
 
 exports.authenticateDevice = async (req, res, next) => {
   try {
-    // 1. รับ Token จาก Header หรือ Body
-    const token = req.headers['x-api-token'] || req.body.token;
+    let token = req.headers['x-api-token'] || req.body.token;
 
+    // ✅ เพิ่ม: รองรับการส่งแบบ Authorization: Bearer <token> (มาตรฐานสากล)
+    if (!token && req.headers.authorization) {
+      const authHeader = req.headers.authorization;
+      if (authHeader.startsWith('Bearer ')) {
+        token = authHeader.split(' ')[1]; // ดึงเฉพาะตัว Token หลังคำว่า Bearer
+      }
+    }
+
+    // ถ้ายังหาไม่เจออีก ให้แจ้ง Error กลับไป
     if (!token) {
+      // แถม Header ให้ตามมาตรฐาน HTTP เพื่อแก้ Error ของ Mikrotik ที่ฟ้องว่า should contain www-authenticate
+      res.setHeader('WWW-Authenticate', 'Bearer realm="api"'); 
       return res.status(401).json({ error: "Missing API Token" });
     }
 
@@ -15,6 +25,7 @@ exports.authenticateDevice = async (req, res, next) => {
     });
 
     if (!device) {
+      res.setHeader('WWW-Authenticate', 'Bearer realm="api"');
       return res.status(403).json({ error: "Invalid Token" });
     }
 

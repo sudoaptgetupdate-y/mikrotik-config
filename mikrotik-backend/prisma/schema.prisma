@@ -81,6 +81,11 @@ model ManagedDevice {
   lastSeen   DateTime?
   pendingCmd String?
   configData Json?
+  status      String    @default("ACTIVE") // ACTIVE, INACTIVE, SUSPENDED
+  cpuLoad     Int?      @default(0)
+  memoryUsage Int?      @default(0)
+  uptime      String?
+  version     String?
   userId     Int
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @updatedAt

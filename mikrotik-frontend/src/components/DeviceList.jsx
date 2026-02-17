@@ -1,22 +1,21 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom'; // ✅ เรียกใช้ Hook สำหรับเปลี่ยนหน้า
+import { useNavigate } from 'react-router-dom';
 import apiClient from '../utils/apiClient';
 import { 
   Search, Plus, RefreshCw, Server, Activity, 
-  Clock, MoreVertical, Settings, Trash2 
+  Clock, MoreVertical, Settings, Trash2, Cpu, Zap
 } from 'lucide-react';
 
 const DeviceList = () => {
-  const navigate = useNavigate(); // ✅ สร้าง function navigate
+  const navigate = useNavigate();
   const [devices, setDevices] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
 
-  // ฟังก์ชันดึงข้อมูล (เหมือนเดิม)
   const fetchDevices = async () => {
     setLoading(true);
     try {
-      // Hardcode userId=1 ไปก่อน (อนาคตค่อยดึงจาก Auth Context)
+      // API นี้จะดึง cpuLoad, memoryUsage, uptime, version มาด้วยอัตโนมัติ (เพราะ Prisma default select all)
       const res = await apiClient.get('/api/devices/user/1');
       setDevices(res.data);
     } catch (error) {
@@ -28,27 +27,34 @@ const DeviceList = () => {
 
   useEffect(() => {
     fetchDevices();
+    // (Optional) ตั้ง Auto Refresh ทุก 30 วินาที เพื่อดู Status แบบ Realtime
+    const interval = setInterval(fetchDevices, 30000);
+    return () => clearInterval(interval);
   }, []);
 
-  // ✅ ฟังก์ชันกดปุ่ม Add Device -> ไปหน้า /add-device
   const handleAddClick = () => {
     navigate('/add-device');
   };
 
-  // ✅ ฟังก์ชันกดปุ่ม Edit -> ไปหน้า /edit-device/:id
   const handleEditClick = (device) => {
-    // ส่ง object device ไปด้วยผ่าน state ไม่ต้องไป fetch ใหม่ในหน้า edit
     navigate(`/edit-device/${device.id}`, { state: { deviceData: device } });
   };
 
-  // Filter Search
+  // Helper: เลือกสี Progress Bar ตามความหนัก
+  const getProgressColor = (value, type) => {
+    if (!value) return 'bg-slate-200';
+    if (value > 80) return 'bg-red-500';
+    if (value > 50) return 'bg-orange-400';
+    return type === 'cpu' ? 'bg-blue-500' : 'bg-green-500';
+  };
+
   const filteredDevices = devices.filter(d => 
     d.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     (d.circuitId && d.circuitId.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="space-y-6 animate-fade-in pb-10">
       
       {/* Header Section */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -57,8 +63,8 @@ const DeviceList = () => {
           <p className="text-slate-500">Monitor and manage your MikroTik devices</p>
         </div>
         <button 
-          onClick={handleAddClick} // ✅ เรียกใช้ handleAddClick
-          className="bg-blue-600 text-white px-4 py-2.5 rounded-xl flex items-center gap-2 hover:bg-blue-700 hover:shadow-lg hover:shadow-blue-200 transition-all font-medium"
+          onClick={handleAddClick}
+          className="bg-blue-600 text-white px-4 py-2.5 rounded-xl flex items-center gap-2 hover:bg-blue-700 shadow-sm transition-all font-medium"
         >
           <Plus size={20} /> Add New Device
         </button>
@@ -71,7 +77,7 @@ const DeviceList = () => {
           <input 
             type="text"
             placeholder="Search by Name, Circuit ID..."
-            className="w-full pl-10 pr-4 py-2 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 transition"
+            className="w-full pl-10 pr-4 py-2 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-100 transition"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
@@ -98,18 +104,20 @@ const DeviceList = () => {
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-slate-50 border-b border-slate-200 text-xs uppercase text-slate-500 font-semibold">
-                  <th className="p-4 pl-6">Status</th>
-                  <th className="p-4">Device Name</th>
-                  <th className="p-4">Circuit ID</th>
-                  <th className="p-4">IP Address</th>
-                  <th className="p-4">Last Seen</th>
+                  <th className="p-4 pl-6 w-24">Status</th>
+                  <th className="p-4 w-64">Device Details</th>
+                  <th className="p-4 w-40">Resources</th>
+                  <th className="p-4 w-32">IP Address</th>
+                  <th className="p-4 w-40">Uptime / Seen</th>
                   <th className="p-4 text-right pr-6">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {filteredDevices.map((device) => (
                   <tr key={device.id} className="hover:bg-slate-50 transition group">
-                    <td className="p-4 pl-6">
+                    
+                    {/* 1. Status Column */}
+                    <td className="p-4 pl-6 align-top">
                       <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ${
                         device.isOnline 
                           ? 'bg-green-50 text-green-700 border-green-200' 
@@ -119,26 +127,87 @@ const DeviceList = () => {
                         {device.isOnline ? 'Online' : 'Offline'}
                       </span>
                     </td>
-                    <td className="p-4 font-medium text-slate-700">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
-                          <Server size={18} />
+
+                    {/* 2. Device Details (Name, Circuit, Version) */}
+                    <td className="p-4 align-top">
+                      <div className="flex items-start gap-3">
+                        <div className="w-10 h-10 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 mt-1">
+                          <Server size={20} />
                         </div>
-                        {device.name}
+                        <div>
+                          <div className="font-bold text-slate-700">{device.name}</div>
+                          <div className="text-xs text-slate-500 font-mono mb-1">{device.circuitId || '-'}</div>
+                          {device.version && (
+                            <span className="inline-block text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded border border-slate-200">
+                              v{device.version}
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </td>
-                    <td className="p-4 text-slate-600 font-mono text-sm">{device.circuitId || '-'}</td>
-                    <td className="p-4 text-slate-600 font-mono text-sm">{device.currentIp || '-'}</td>
-                    <td className="p-4 text-slate-500 text-sm">
-                      <div className="flex items-center gap-1">
-                        <Clock size={14} />
-                        {device.lastSeen ? new Date(device.lastSeen).toLocaleString() : 'Never'}
+
+                    {/* 3. Resources (CPU/RAM Progress Bars) */}
+                    <td className="p-4 align-top">
+                      {device.isOnline ? (
+                        <div className="space-y-3 min-w-[120px]">
+                          {/* CPU */}
+                          <div>
+                            <div className="flex justify-between text-[10px] text-slate-500 mb-1">
+                              <span className="flex items-center gap-1"><Cpu size={10} /> CPU</span>
+                              <span className="font-medium">{device.cpuLoad || 0}%</span>
+                            </div>
+                            <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
+                              <div 
+                                className={`h-full transition-all duration-500 ${getProgressColor(device.cpuLoad, 'cpu')}`} 
+                                style={{ width: `${device.cpuLoad || 0}%` }}
+                              ></div>
+                            </div>
+                          </div>
+                          
+                          {/* RAM */}
+                          <div>
+                            <div className="flex justify-between text-[10px] text-slate-500 mb-1">
+                              <span className="flex items-center gap-1"><Zap size={10} /> RAM</span>
+                              <span className="font-medium">{device.memoryUsage || 0}%</span>
+                            </div>
+                            <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
+                              <div 
+                                className={`h-full transition-all duration-500 ${getProgressColor(device.memoryUsage, 'ram')}`} 
+                                style={{ width: `${device.memoryUsage || 0}%` }}
+                              ></div>
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        <span className="text-xs text-slate-400 italic">- No Data -</span>
+                      )}
+                    </td>
+
+                    {/* 4. IP Address */}
+                    <td className="p-4 align-top">
+                      <div className="text-slate-600 font-mono text-sm mt-1">{device.currentIp || '-'}</div>
+                    </td>
+
+                    {/* 5. Uptime & Last Seen */}
+                    <td className="p-4 align-top">
+                      <div className="flex flex-col gap-1">
+                         {/* Uptime (จาก Mikrotik) */}
+                         <div className="text-xs text-slate-700 font-medium" title="Device Uptime">
+                           {device.uptime ? `Up: ${device.uptime}` : '-'}
+                         </div>
+                         {/* Last Seen (จาก Server) */}
+                         <div className="flex items-center gap-1 text-[10px] text-slate-400" title="Last Contact Time">
+                           <Clock size={10} />
+                           {device.lastSeen ? new Date(device.lastSeen).toLocaleTimeString() : 'Never'}
+                         </div>
                       </div>
                     </td>
-                    <td className="p-4 text-right pr-6">
+
+                    {/* 6. Actions */}
+                    <td className="p-4 align-top text-right pr-6">
                       <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                         <button 
-                          onClick={() => handleEditClick(device)} // ✅ ปุ่ม Edit
+                          onClick={() => handleEditClick(device)}
                           className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition"
                           title="Edit Config"
                         >
