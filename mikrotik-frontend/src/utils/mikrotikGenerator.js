@@ -6,6 +6,7 @@ export const generateMikrotikScript = (config = {}) => {
     portConfig = {}, 
     pbrConfig = { enabled: false, mappings: {} }, 
     dnsConfig = { servers: ['8.8.8.8', '1.1.1.1'], allowRemoteRequests: true }, 
+    wirelessConfig = {}, // ✅ 1. รับค่า wirelessConfig เข้ามา
     circuitId = 'MikroTik-Router', 
     token = '', 
     apiHost = '10.0.0.100' // ค่า Default
@@ -15,7 +16,7 @@ export const generateMikrotikScript = (config = {}) => {
   
   // หา LAN Ports
   const wanInterfaces = wanList.map(w => w.interface);
-  const lanPorts = selectedModel?.ports.filter(p => !wanInterfaces.includes(p.name)) || [];
+  const lanPorts = selectedModel?.ports.filter(p => !wanInterfaces.includes(p.name) && p.type !== 'WLAN') || []; // ✅ ยกเว้นพอร์ต WLAN ไม่ให้ไปเข้า Bridge แบบสายแลนปกติ
 
   try {
     let script = `################################################\n`;
@@ -90,7 +91,51 @@ export const generateMikrotikScript = (config = {}) => {
        script += `/interface bridge port add bridge=${bridgeName} interface=${port.name} comment="LAN Port"\n`;
     });
 
-    // --- 6. DNS & FIREWALL BASIC ---
+    // --- 6. WIRELESS CONFIGURATION (NEW! 📡) ---
+    // ✅ 2. เพิ่มส่วนจัดการตั้งค่า Wi-Fi ตามที่กำหนดในหน้าเว็บ
+    if (wirelessConfig && Object.keys(wirelessConfig).length > 0) {
+      script += `\n# --- Wireless Setup ---\n`;
+      Object.entries(wirelessConfig).forEach(([portName, config]) => {
+        if (!config.ssid) return; // ข้ามถ้าไม่มีการตั้งชื่อ SSID
+
+        const secProfileName = `sec_profile_${portName}`;
+        const isNoPassword = config.security === 'none';
+
+        // 6.1 สร้าง Security Profile (รหัสผ่าน Wi-Fi)
+        script += `/interface wireless security-profiles\n`;
+        if (isNoPassword) {
+          script += `add name="${secProfileName}" mode=none\n`;
+        } else {
+          // ถ้าเลือก WPA2 หรือ WPA3
+          const authTypes = config.security === 'wpa2-wpa3-psk' 
+            ? 'wpa2-psk,wpa3-psk' 
+            : 'wpa2-psk';
+
+          script += `add name="${secProfileName}" mode=dynamic-keys authentication-types="${authTypes}" `;
+          script += `wpa2-pre-shared-key="${config.password}" `;
+          if (config.security === 'wpa2-wpa3-psk') {
+            script += `wpa3-pre-shared-key="${config.password}" `;
+          }
+          script += `\n`;
+        }
+
+        // 6.2 ผูก Profile กับ Interface เปิดใช้งาน และเอาเข้า Bridge
+        script += `/interface wireless\n`;
+        script += `set [ find default-name="${portName}" ] mode=ap-bridge ssid="${config.ssid}" `;
+        script += `security-profile="${secProfileName}" disabled=no `;
+        
+        // ถ้ามีการกำหนดคลื่นความถี่
+        if (config.band) {
+          script += `band="${config.band}" `;
+        }
+        script += `\n`;
+
+        // นำพอร์ต Wi-Fi เข้า Bridge ด้วย เพื่อให้รับ IP จาก DHCP ได้
+        script += `/interface bridge port add bridge=${bridgeName} interface=${portName} comment="WLAN Port"\n`;
+      });
+    }
+
+    // --- 7. DNS & FIREWALL BASIC ---
     script += `\n# --- DNS & Firewall ---\n`;
     script += `/ip dns set servers=${dnsConfig.servers.join(',')} allow-remote-requests=${dnsConfig.allowRemoteRequests ? 'yes' : 'no'}\n`;
     
@@ -105,7 +150,7 @@ export const generateMikrotikScript = (config = {}) => {
     script += `add chain=input action=drop in-interface-list=WAN comment="Drop WAN Input" disabled=yes\n`; // Disabled ไว้ก่อน กันพลาดเข้า Winbox ไม่ได้
     script += `add chain=forward action=accept connection-state=established,related comment="Accept Forward Established"\n`;
     
-    // --- 7. MANGLE & PBR (Policy Based Routing) ---
+    // --- 8. MANGLE & PBR (Policy Based Routing) ---
     if (pbrConfig.enabled) {
       script += `\n# --- Policy Based Routing (PBR) ---\n`;
       script += `/ip firewall mangle\n`;
@@ -116,7 +161,6 @@ export const generateMikrotikScript = (config = {}) => {
       networks.forEach(net => {
         const selectedWanId = pbrConfig.mappings[net.id];
         if (selectedWanId) {
-           // หา index ของ WAN ที่เลือก
            const wanIndex = wanList.findIndex(w => String(w.id) === String(selectedWanId)) + 1;
            if (wanIndex > 0) {
               const networkAddr = net.ip.replace('1/24', '0/24');
@@ -133,12 +177,11 @@ export const generateMikrotikScript = (config = {}) => {
       });
     }
 
-    // --- 8. SYSTEM MONITORING & HEARTBEAT (UPDATED) ---
+    // --- 9. SYSTEM MONITORING & HEARTBEAT ---
     script += `\n################################################\n`;
     script += `# Monitoring & Heartbeat System (Auto-Update)\n`;
     script += `################################################\n`;
     
-    // Script Heartbeat ที่แก้ไขแล้ว (รองรับ CPU, RAM, Uptime, Auth Header)
     script += `/system script remove [find name="heartbeat-script"]\n`;
     script += `/system script add name="heartbeat-script" source={\n`;
     script += `  :local serverUrl "http://${apiHost}:3000/api/devices/heartbeat";\n`; 
@@ -151,7 +194,6 @@ export const generateMikrotikScript = (config = {}) => {
     script += `  :local uptime [/system resource get uptime];\n`;
     script += `  :local version [/system resource get version];\n`;
     
-    // JSON Payload (Escape quotes correctly)
     script += `  :local payload "{\\"cpu\\":\\"$cpuLoad\\", \\"ram\\":\\"$memPercent\\", \\"uptime\\":\\"$uptime\\", \\"version\\":\\"$version\\"}";\n`;
     
     script += `  :do {\n`;
@@ -162,7 +204,6 @@ export const generateMikrotikScript = (config = {}) => {
     script += `  }\n`;
     script += `}\n`;
 
-    // Scheduler Setup
     script += `/system scheduler remove [find name="heartbeat-schedule"]\n`;
     script += `/system scheduler add name="heartbeat-schedule" interval=30s on-event="heartbeat-script"\n`;
 

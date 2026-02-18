@@ -8,11 +8,12 @@ import Step2_WANSetup from './wizard/Step2_WANSetup';
 import Step3_DNSSettings from './wizard/Step3_DNSSettings';
 import Step4_LANSetup from './wizard/Step4_LANSetup';
 import Step5_PortAssign from './wizard/Step5_PortAssign';
-import Step6_PBRSetup from './wizard/Step6_PBRSetup';
-import Step7_Summary from './wizard/Step7_Summary';
+import Step6_WirelessSetup from './wizard/Step6_WirelessSetup'; // ✅ หน้า Wi-Fi
+import Step7_PBRSetup from './wizard/Step7_PBRSetup';           // ✅ เลื่อนเป็น 7
+import Step8_Summary from './wizard/Step8_Summary';             // ✅ เลื่อนเป็น 8
 
-const ConfigWizard = ({ mode = 'create', initialData, onFinish }) => { // ✅ รับ prop mode
-  const [step, setStep] = useState(1);
+const ConfigWizard = ({ mode = 'create', initialData, onFinish }) => {
+  const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [models, setModels] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -27,7 +28,7 @@ const ConfigWizard = ({ mode = 'create', initialData, onFinish }) => { // ✅ �
 
   // --- GLOBAL STATE ---
   const [deviceMeta, setDeviceMeta] = useState({
-    name: initialData?.name || "",           // ✅ เพิ่ม name
+    name: initialData?.name || "",
     circuitId: initialData?.circuitId || "", 
     token: initialData?.token || initialData?.apiToken || "",
     apiHost: getApiHost()
@@ -41,6 +42,7 @@ const ConfigWizard = ({ mode = 'create', initialData, onFinish }) => { // ✅ �
     allowRemoteRequests: true
   });
 
+  // ✅ นำข้อมูล Default VLAN ของคุณกลับมาครบ 100%
   const [networks, setNetworks] = useState([
     { id: 'net_10', name: 'vlan10Service1', vlanId: 10, ip: '192.168.10.1/24', type: 'network', dhcp: true, hotspot: false },
     { id: 'net_20', name: 'vlan20service2', vlanId: 20, ip: '192.168.20.1/24', type: 'network', dhcp: true, hotspot: false },
@@ -52,6 +54,34 @@ const ConfigWizard = ({ mode = 'create', initialData, onFinish }) => { // ✅ �
 
   const [portConfig, setPortConfig] = useState({});
   const [pbrConfig, setPbrConfig] = useState({ enabled: false, mappings: {} });
+  
+  // ✅ State สำหรับ Wi-Fi
+  const [wirelessConfig, setWirelessConfig] = useState({}); 
+
+  // --- 🧠 ระบบอัจฉริยะคำนวณสเต็ป (Dynamic Steps) ---
+  const getActiveSteps = () => {
+    const hasWLAN = selectedModel?.ports?.some(p => p.type === 'WLAN');
+    const steps = [
+      { id: 'model', label: 'Device Info' },
+      { id: 'wan', label: 'WAN' },
+      { id: 'dns', label: 'DNS' },
+      { id: 'lan', label: 'LAN' },
+      { id: 'assign', label: 'Assign' },
+    ];
+    
+    // แทรกหน้า Wireless ถ้าอุปกรณ์มี Wi-Fi
+    if (hasWLAN) {
+      steps.push({ id: 'wireless', label: 'Wireless' });
+    }
+    
+    steps.push({ id: 'pbr', label: 'PBR' });
+    steps.push({ id: 'summary', label: 'Finish' });
+    
+    return steps;
+  };
+
+  const activeSteps = getActiveSteps();
+  const currentStepData = activeSteps[currentStepIndex];
 
   // --- DATA FETCHING & SYNC ---
   useEffect(() => {
@@ -62,104 +92,81 @@ const ConfigWizard = ({ mode = 'create', initialData, onFinish }) => { // ✅ �
         setModels(availableModels);
         
         if (mode === 'edit' && initialData && initialData.configData) {
-          console.log("Restoring config data...");
-          const savedConfig = typeof initialData.configData === 'string' 
-            ? JSON.parse(initialData.configData) 
-            : initialData.configData;
-
+          const savedConfig = typeof initialData.configData === 'string' ? JSON.parse(initialData.configData) : initialData.configData;
+          
           if (savedConfig.selectedModel) {
             const foundModel = availableModels.find(m => m.id === savedConfig.selectedModel.id);
             if (foundModel) setSelectedModel(foundModel);
           }
-
           if (savedConfig.wanList) setWanList(savedConfig.wanList);
           if (savedConfig.dnsConfig) setDnsConfig(savedConfig.dnsConfig);
           if (savedConfig.networks) setNetworks(savedConfig.networks);
           if (savedConfig.portConfig) setPortConfig(savedConfig.portConfig);
+          if (savedConfig.wirelessConfig) setWirelessConfig(savedConfig.wirelessConfig);
           if (savedConfig.pbrConfig) setPbrConfig(savedConfig.pbrConfig);
         }
-
       } catch (error) {
         console.error("Error init wizard:", error);
       } finally {
         setLoading(false);
       }
     };
-
     initWizard();
   }, [initialData, mode]);
 
-  // --- ACTION: Save Config (Create or Update) ---
+  // --- ACTION: Save Config ---
   const saveConfigToBackend = async (finalConfigData) => {
     try {
-      // ✅ กรณี Create Mode: ยิง POST เพื่อสร้าง Device ใหม่
+      let response;
       if (mode === 'create') {
-        // ต้องส่ง name, circuitId และ configData ไปพร้อมกัน
-        const payload = {
-          name: deviceMeta.name,
-          circuitId: deviceMeta.circuitId,
-          userId: 1, // Hardcode ไว้ก่อน (อนาคตดึงจาก Auth Context)
-          configData: finalConfigData
-        };
-
-        await apiClient.post('/api/devices', payload);
-        console.log("Device created successfully");
-
+        const payload = { name: deviceMeta.name, circuitId: deviceMeta.circuitId, userId: 1, configData: finalConfigData };
+        response = await apiClient.post('/api/devices', payload);
       } else {
-        // ✅ กรณี Edit Mode: ยิง PUT เพื่ออัปเดต Device เดิม
-        if (!initialData?.id) {
-          throw new Error("Missing Device ID for update");
-        }
-        await apiClient.put(`/api/devices/${initialData.id}`, {
-          configData: finalConfigData,
-          // อาจจะส่ง name/circuitId ไปด้วยถ้าต้องการให้อัปเดตได้
-          name: deviceMeta.name,
-          circuitId: deviceMeta.circuitId
+        if (!initialData?.id) throw new Error("Missing Device ID for update");
+        response = await apiClient.put(`/api/devices/${initialData.id}`, {
+          configData: finalConfigData, name: deviceMeta.name, circuitId: deviceMeta.circuitId
         });
-        console.log("Device updated successfully");
       }
-      
       if (onFinish) onFinish();
-
+      return response.data; 
     } catch (error) {
       console.error("Failed to save config:", error);
       alert(`Error saving configuration: ${error.response?.data?.error || error.message}`);
+      throw error;
     }
   };
 
-  const nextStep = () => setStep(prev => prev + 1);
-  const prevStep = () => setStep(prev => prev - 1);
+  const nextStep = () => setCurrentStepIndex(prev => Math.min(prev + 1, activeSteps.length - 1));
+  const prevStep = () => setCurrentStepIndex(prev => Math.max(prev - 1, 0));
 
   // ✅ Validation Rules
   const canGoNext = () => {
-    if (step === 1) {
-      // ต้องเลือก Model AND กรอกชื่อ AND กรอก Circuit ID
-      return !!selectedModel && deviceMeta.name.trim() !== "" && deviceMeta.circuitId.trim() !== "";
-    }
-    if (step === 2) return wanList.length > 0 && wanList.every(wan => (wan.type === 'pppoe' ? wan.username : wan.ipAddress));
-    if (step === 3) return dnsConfig.servers.every(ip => ip.trim() !== '');
-    if (step === 4) return networks.every(n => n.name && n.vlanId && n.ip);
+    const stepId = currentStepData.id;
+    if (stepId === 'model') return !!selectedModel && deviceMeta.name.trim() !== "" && deviceMeta.circuitId.trim() !== "";
+    if (stepId === 'wan') return wanList.length > 0 && wanList.every(wan => (wan.type === 'pppoe' ? wan.username : wan.ipAddress));
+    if (stepId === 'dns') return dnsConfig.servers.every(ip => ip.trim() !== '');
+    if (stepId === 'lan') return networks.every(n => n.name && n.vlanId && n.ip);
     return true;
   };
 
   return (
     <div className="max-w-6xl mx-auto p-6 bg-white rounded-xl shadow-sm border border-slate-200 my-8">
       
-      {/* Progress Bar (เหมือนเดิม) */}
+      {/* Dynamic Progress Bar */}
       <div className="flex items-center justify-between mb-10 px-4 md:px-10 relative">
         <div className="absolute top-[1.25rem] left-0 w-full h-1 bg-slate-100 -z-0 hidden md:block" /> 
-        {['Device Info', 'WAN', 'DNS', 'LAN', 'Assign', 'PBR', 'Finish'].map((label, idx) => {
+        {activeSteps.map((step, idx) => {
           const stepNum = idx + 1;
-          const isActive = step >= stepNum;
+          const isActive = currentStepIndex >= idx;
           return (
-            <div key={idx} className="flex flex-col items-center relative z-10 bg-white px-2">
+            <div key={step.id} className="flex flex-col items-center relative z-10 bg-white px-2">
               <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold transition-all duration-300 border-2 ${
                 isActive ? 'bg-blue-600 border-blue-600 text-white' : 'bg-white border-slate-200 text-slate-400'
-              } ${step === stepNum ? 'ring-4 ring-blue-100' : ''}`}>
-                {isActive ? (step > stepNum ? <CheckCircle size={20} /> : stepNum) : stepNum}
+              } ${currentStepIndex === idx ? 'ring-4 ring-blue-100' : ''}`}>
+                {isActive ? (currentStepIndex > idx ? <CheckCircle size={20} /> : stepNum) : stepNum}
               </div>
               <span className={`text-[10px] md:text-xs mt-2 font-medium ${isActive ? 'text-blue-600' : 'text-slate-400'}`}>
-                {label}
+                {step.label}
               </span>
             </div>
           );
@@ -171,29 +178,22 @@ const ConfigWizard = ({ mode = 'create', initialData, onFinish }) => { // ✅ �
           <div className="text-center py-20 text-slate-400 font-medium italic">Loading...</div>
         ) : (
           <>
-            {step === 1 && (
-              <Step1_ModelSelect 
-                models={models} 
-                selectedModel={selectedModel} 
-                setSelectedModel={setSelectedModel}
-                // ✅ ส่ง Props สำหรับกรอกข้อมูลไปให้ Step 1
-                deviceMeta={deviceMeta}
-                setDeviceMeta={setDeviceMeta}
-              />
-            )}
-            {step === 2 && <Step2_WANSetup selectedModel={selectedModel} wanList={wanList} setWanList={setWanList} />}
-            {step === 3 && <Step3_DNSSettings dnsConfig={dnsConfig} setDnsConfig={setDnsConfig} />}
-            {step === 4 && <Step4_LANSetup networks={networks} setNetworks={setNetworks} dnsConfig={dnsConfig} />}
-            {step === 5 && <Step5_PortAssign selectedModel={selectedModel} wanList={wanList} networks={networks} portConfig={portConfig} setPortConfig={setPortConfig} />}
-            {step === 6 && <Step6_PBRSetup networks={networks} wanList={wanList} pbrConfig={pbrConfig} setPbrConfig={setPbrConfig} />}
-            {step === 7 && (
-              <Step7_Summary 
-                {...deviceMeta} // ส่ง name, circuitId ไปแสดงผล
+            {currentStepData.id === 'model' && <Step1_ModelSelect models={models} selectedModel={selectedModel} setSelectedModel={setSelectedModel} deviceMeta={deviceMeta} setDeviceMeta={setDeviceMeta} />}
+            {currentStepData.id === 'wan' && <Step2_WANSetup selectedModel={selectedModel} wanList={wanList} setWanList={setWanList} />}
+            {currentStepData.id === 'dns' && <Step3_DNSSettings dnsConfig={dnsConfig} setDnsConfig={setDnsConfig} />}
+            {currentStepData.id === 'lan' && <Step4_LANSetup networks={networks} setNetworks={setNetworks} dnsConfig={dnsConfig} />}
+            {currentStepData.id === 'assign' && <Step5_PortAssign selectedModel={selectedModel} wanList={wanList} networks={networks} portConfig={portConfig} setPortConfig={setPortConfig} />}
+            {currentStepData.id === 'wireless' && <Step6_WirelessSetup selectedModel={selectedModel} wirelessConfig={wirelessConfig} setWirelessConfig={setWirelessConfig} />}
+            {currentStepData.id === 'pbr' && <Step7_PBRSetup networks={networks} wanList={wanList} pbrConfig={pbrConfig} setPbrConfig={setPbrConfig} />}
+            {currentStepData.id === 'summary' && (
+              <Step8_Summary 
+                {...deviceMeta} 
                 selectedModel={selectedModel}
                 wanList={wanList}
                 dnsConfig={dnsConfig}
                 networks={networks}
                 portConfig={portConfig}
+                wirelessConfig={wirelessConfig}
                 pbrConfig={pbrConfig}
                 onSaveAndFinish={saveConfigToBackend}
               />
@@ -203,10 +203,10 @@ const ConfigWizard = ({ mode = 'create', initialData, onFinish }) => { // ✅ �
       </div>
 
       <div className="flex justify-between items-center mt-8 pt-6 border-t border-slate-100">
-        <button onClick={prevStep} disabled={step === 1} className="px-6 py-2 text-slate-600 font-medium hover:bg-slate-50 rounded-lg disabled:opacity-50 transition flex items-center gap-2">
+        <button onClick={prevStep} disabled={currentStepIndex === 0} className="px-6 py-2 text-slate-600 font-medium hover:bg-slate-50 rounded-lg disabled:opacity-50 transition flex items-center gap-2">
           <ArrowLeft size={18} /> Back
         </button>
-        {step < 7 && (
+        {currentStepIndex < activeSteps.length - 1 && (
           <button onClick={nextStep} disabled={!canGoNext()} className="flex items-center gap-2 px-8 py-2.5 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed transition shadow-sm">
             Next Step <ArrowRight size={18} />
           </button>

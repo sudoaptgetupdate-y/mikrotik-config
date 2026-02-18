@@ -2,6 +2,8 @@ const express = require('express');
 const cors = require('cors');
 const deviceRoutes = require('./routes/deviceRoutes'); 
 const masterRoutes = require('./routes/masterRoutes');
+const logRoutes = require('./routes/logRoutes')
+require('./services/cronJobs');
 
 const app = express();
 
@@ -15,6 +17,7 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 // Register Routes
 app.use('/api/devices', deviceRoutes);
 app.use('/api/master', masterRoutes);
+app.use('/api/logs', logRoutes);
 
 // Default Route
 app.get('/', (req, res) => {

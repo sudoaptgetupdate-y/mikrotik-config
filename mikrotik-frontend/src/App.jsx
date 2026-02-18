@@ -2,7 +2,9 @@ import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-
 import MainLayout from './layouts/MainLayout';
 import DeviceList from './components/DeviceList';
 import ConfigWizard from './components/ConfigWizard';
+import AuditLog from './components/AuditLog'; 
 import { useState } from 'react';
+import ModelManager from './components/ModelManager';
 
 // --- Wrapper Components (ตัวช่วยจัดการ Data ก่อนส่งเข้า Wizard) ---
 
@@ -12,7 +14,7 @@ const CreateDevicePage = () => {
   return (
     <ConfigWizard 
       mode="create"
-      onFinish={() => navigate('/dashboard')} // เสร็จแล้วกลับไปหน้า Dashboard
+      onFinish={() => navigate('/dashboard')} 
     />
   );
 };
@@ -22,11 +24,8 @@ const EditDevicePage = () => {
   const navigate = useNavigate();
   const location = useLocation();
   
-  // รับข้อมูลที่ส่งมาจากหน้า DeviceList (ผ่าน state)
   const deviceData = location.state?.deviceData;
 
-  // ถ้าไม่มี data (เช่น User กด Refresh หน้าจอเอง) อาจจะให้ Redirect กลับไป Dashboard หรือ Fetch ใหม่
-  // ในที่นี้ถ้าไม่มี data ให้กลับไป dashboard ก่อนเพื่อความง่าย
   if (!deviceData) {
     return <Navigate to="/dashboard" replace />;
   }
@@ -34,7 +33,7 @@ const EditDevicePage = () => {
   return (
     <ConfigWizard 
       mode="edit"
-      initialData={deviceData} // ส่งข้อมูลเดิมเข้าไป
+      initialData={deviceData} 
       onFinish={() => navigate('/dashboard')} 
     />
   );
@@ -43,8 +42,8 @@ const EditDevicePage = () => {
 // --- Main App Component ---
 function App() {
   return (
+    // ❌ ไม่ต้องใส่ <BrowserRouter> ตรงนี้ เพราะคุณมีอยู่ใน main.jsx แล้ว
     <Routes>
-      {/* ใช้ MainLayout เป็นโครงหลัก (มี Sidebar, Header) */}
       <Route path="/" element={<MainLayout />}>
         
         {/* หน้าแรกให้ Redirect ไป Dashboard ทันที */}
@@ -58,6 +57,14 @@ function App() {
         
         {/* หน้าแก้ไขอุปกรณ์ (รับ id) */}
         <Route path="edit-device/:id" element={<EditDevicePage />} />
+
+        {/* ✅ 2. เพิ่ม Route สำหรับหน้า Audit Logs */}
+        <Route path="audit-logs" element={<AuditLog />} />
+
+        {/* ✅ 3. Catch-all Route: ถ้า URL ไม่ตรงกับด้านบนเลย ให้กลับไปหน้า dashboard */}
+        <Route path="*" element={<Navigate to="/dashboard" replace />} />
+        {/* ✅ 3. เพิ่ม route สำหรับจัดการรุ่นของ mikrotik */}
+        <Route path="models" element={<ModelManager />} />
 
       </Route>
     </Routes>

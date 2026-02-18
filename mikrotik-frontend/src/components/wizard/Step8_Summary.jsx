@@ -1,54 +1,73 @@
-import React from 'react';
-import { FileDown, CheckCircle, Network, ShieldCheck, Globe, Activity } from 'lucide-react';
-import { generateMikrotikScript } from '../../utils/mikrotikGenerator';
+import React, { useState } from 'react';
+import { FileDown, CheckCircle, Network, ShieldCheck, Globe, Loader2 } from 'lucide-react';
+import { generateMikrotikScript } from "../../utils/mikrotikGenerator";
 
-const Step7_Summary = ({ 
+const Step8_Summary = ({ 
   selectedModel, 
   wanList, 
   dnsConfig, 
   networks, 
   portConfig, 
   pbrConfig, 
+  wirelessConfig, // ✅ 1. เพิ่ม wirelessConfig กลับเข้ามาตรงนี้
   circuitId, 
   token, 
   apiHost,
-  onSaveAndFinish // ✅ 1. เปลี่ยนชื่อ Prop ให้ตรงกับที่ ConfigWizard ส่งมา
+  onSaveAndFinish 
 }) => {
 
+  const [isGenerating, setIsGenerating] = useState(false); // State สำหรับปุ่มหมุนๆ
+
   // ฟังก์ชันสำหรับ Gen และ Download
-  const handleGenAndFinish = () => {
-    // 1. Prepare Data
-    const configData = {
-      selectedModel, wanList, networks, portConfig, pbrConfig, 
+  const handleGenAndFinish = async () => { 
+    setIsGenerating(true); // เริ่มโหลด
+    
+    // 1. Prepare Base Data
+    let configData = {
+      selectedModel, wanList, networks, portConfig, pbrConfig, wirelessConfig,
       dnsConfig, circuitId, token, apiHost
     };
 
-    // 2. Generate Script
-    const scriptContent = generateMikrotikScript(configData);
-
-    // 3. Trigger Download
-    const element = document.createElement("a");
-    const file = new Blob([scriptContent], {type: 'text/plain'});
-    element.href = URL.createObjectURL(file);
-    element.download = `${circuitId}_config.rsc`;
-    document.body.appendChild(element); 
-    element.click();
-    document.body.removeChild(element);
-
-    // 4. Navigate back to Dashboard (Wait a bit for download to start)
-    setTimeout(() => {
-      // ✅ 2. เรียกใช้ฟังก์ชัน onSaveAndFinish เพื่อบันทึกข้อมูลลง Backend
+    try {
+      // 2. สั่งบันทึกลง Backend ก่อน และ "รอ" (await) จนกว่าจะเสร็จ
       if (onSaveAndFinish) {
-        console.log("Saving config to backend..."); // เพิ่ม Log เพื่อตรวจสอบ
-        onSaveAndFinish(configData); 
+        console.log("Saving config to backend...");
+        const savedDevice = await onSaveAndFinish(configData);
+
+        // 3. เอา Token จริงที่ Backend สร้างให้ ยัดใส่กลับเข้าไปใน configData
+        if (savedDevice && savedDevice.apiToken) {
+          configData.token = savedDevice.apiToken;
+        } else if (savedDevice && savedDevice.configData && savedDevice.configData.token) {
+          configData.token = savedDevice.configData.token;
+        }
       } else {
         console.error("onSaveAndFinish prop is missing!");
+        setIsGenerating(false);
+        return;
       }
-    }, 500);
+
+      // 4. Generate Script (ตอนนี้ configData มี Token จริงแล้ว!)
+      const scriptContent = generateMikrotikScript(configData);
+
+      // 5. Trigger Download
+      const element = document.createElement("a");
+      const file = new Blob([scriptContent], {type: 'text/plain'});
+      element.href = URL.createObjectURL(file);
+      element.download = `${circuitId}_config.rsc`;
+      document.body.appendChild(element); 
+      element.click();
+      document.body.removeChild(element);
+
+    } catch (error) {
+      console.error("Generation failed:", error);
+      alert("Failed to save and generate config. See console for details.");
+    } finally {
+      setIsGenerating(false); // หยุดโหลด
+    }
   };
 
   return (
-    <div className="max-w-4xl mx-auto animate-fade-in">
+    <div className="max-w-4xl mx-auto animate-fade-in pb-10">
       
       <div className="text-center mb-10">
         <div className="w-20 h-20 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-4 border-4 border-green-50 shadow-sm">
@@ -78,6 +97,10 @@ const Step7_Summary = ({
             <div className="flex justify-between border-b border-slate-50 pb-2">
               <span className="text-slate-600 text-sm">WAN Interfaces</span>
               <span className="font-bold text-slate-800">{wanList.length} Ports</span>
+            </div>
+            <div className="flex justify-between border-b border-slate-50 pb-2">
+               <span className="text-slate-600 text-sm">Wireless Configs</span>
+               <span className="font-bold text-slate-800">{Object.keys(wirelessConfig || {}).length} WLANs</span>
             </div>
             <div className="flex justify-between">
               <span className="text-slate-600 text-sm">DNS Mode</span>
@@ -138,10 +161,15 @@ const Step7_Summary = ({
       <div className="flex justify-center">
         <button 
           onClick={handleGenAndFinish}
-          className="group relative flex items-center gap-3 bg-blue-600 text-white px-10 py-4 rounded-2xl font-bold text-lg shadow-lg shadow-blue-200 hover:bg-blue-700 hover:scale-105 transition-all"
+          disabled={isGenerating}
+          className="group relative flex items-center gap-3 bg-blue-600 text-white px-10 py-4 rounded-2xl font-bold text-lg shadow-lg shadow-blue-200 hover:bg-blue-700 hover:scale-105 transition-all disabled:opacity-70 disabled:hover:scale-100 disabled:cursor-not-allowed"
         >
-          <FileDown size={24} className="group-hover:animate-bounce" />
-          Generate Config & Finish
+          {isGenerating ? (
+            <Loader2 size={24} className="animate-spin" />
+          ) : (
+             <FileDown size={24} className="group-hover:animate-bounce" />
+          )}
+          {isGenerating ? 'Generating & Saving...' : 'Generate Config & Finish'}
         </button>
       </div>
       <p className="text-center text-xs text-slate-400 mt-4">
@@ -152,4 +180,4 @@ const Step7_Summary = ({
   );
 };
 
-export default Step7_Summary;
+export default Step8_Summary;

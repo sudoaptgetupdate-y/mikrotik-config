@@ -77,6 +77,8 @@ model ActivityLog {
   user      User       @relation(fields: [userId], references: [id])
 
   @@index([userId], map: "ActivityLog_userId_fkey")
+  @@index([createdAt]) 
+  @@index([action])
 }
 
 model ManagedDevice {
