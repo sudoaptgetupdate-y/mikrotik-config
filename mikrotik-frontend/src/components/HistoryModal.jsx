@@ -1,13 +1,20 @@
 import React from 'react';
 import { X, Download, Clock, FileText, Loader2 } from 'lucide-react';
 import { generateMikrotikScript } from '../utils/mikrotikGenerator';
+import apiClient from '../utils/apiClient';
 
 const HistoryModal = ({ isOpen, onClose, device, history, loading }) => {
   if (!isOpen) return null;
 
-  const handleDownload = (configEntry) => {
+  const handleDownload = async (configEntry) => { // ✅ เติม async
     try {
-      // Parse JSON กลับมาเป็น Object
+      // ✅ 1. ยิง API ไปเก็บ Log ก่อน (บอกด้วยว่าโหลดเวอร์ชันไหน)
+      await apiClient.post(`/api/devices/${device.id}/log-download`, {
+         userId: 1, // หรือ userId ปัจจุบันที่เข้าระบบอยู่
+         configId: configEntry.id
+      });
+
+      // 2. Parse JSON และ Download เหมือนเดิม
       const configData = typeof configEntry.inputData === 'string' 
         ? JSON.parse(configEntry.inputData) 
         : configEntry.inputData;
@@ -17,7 +24,6 @@ const HistoryModal = ({ isOpen, onClose, device, history, loading }) => {
       const element = document.createElement("a");
       const file = new Blob([script], {type: 'text/plain'});
       element.href = URL.createObjectURL(file);
-      // ตั้งชื่อไฟล์ตามวันที่
       const dateStr = new Date(configEntry.createdAt).toISOString().split('T')[0];
       element.download = `${device.name}_${dateStr}_v${configEntry.id}.rsc`;
       document.body.appendChild(element); 

@@ -59,14 +59,17 @@ const DeviceList = () => {
   };
 
   // 3. Download Latest Config
-  const handleDownloadLatest = (device) => {
+  const handleDownloadLatest = async (device) => { // ✅ เติม async
     if (!device.configData) return alert("No configuration data found for this device.");
     
     try {
-      // แปลงข้อมูลเป็น Script
+      // ✅ 1. ยิง API ไปเก็บ Log ก่อน (สมมติว่า userId ปัจจุบันคือ 1)
+      await apiClient.post(`/api/devices/${device.id}/log-download`, {
+         userId: 1 
+      });
+
+      // 2. Gen Script และ Download เหมือนเดิม
       const script = generateMikrotikScript(device.configData);
-      
-      // สร้างไฟล์และดาวน์โหลด
       const element = document.createElement("a");
       const file = new Blob([script], {type: 'text/plain'});
       element.href = URL.createObjectURL(file);
@@ -75,7 +78,7 @@ const DeviceList = () => {
       element.click();
       document.body.removeChild(element);
     } catch (err) {
-      console.error("Gen script failed:", err);
+      console.error("Download failed:", err);
       alert("Failed to generate script");
     }
   };

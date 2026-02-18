@@ -246,3 +246,27 @@ exports.getDeviceById = async (req, res) => {
     res.status(500).json({ error: "Failed to fetch device detail" });
   }
 };
+
+exports.logDownload = async (req, res) => {
+  try {
+    const { id } = req.params; // ID ของ ManagedDevice
+    const { userId, configId } = req.body; // configId จะมีค่าถ้าโหลดจากหน้า History
+
+    const device = await prisma.managedDevice.findUnique({ where: { id: parseInt(id) } });
+    if (!device) return res.status(404).json({ error: "Device not found" });
+
+    // บันทึกลง ActivityLog
+    await prisma.activityLog.create({
+      data: {
+        userId: parseInt(userId),
+        action: "GENERATE_CONFIG", // ใช้ Enum ที่เรามีอยู่แล้วใน Schema
+        details: `Downloaded config for: ${device.name} ${configId ? `(History Version #${configId})` : '(Latest Version)'}`
+      }
+    });
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error("Log download failed:", error);
+    res.status(500).json({ error: "Failed to log download activity" });
+  }
+};
