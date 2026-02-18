@@ -47,15 +47,22 @@ model SystemSetting {
 model Config {
   id              Int         @id @default(autoincrement())
   projectName     String
-  inputData       String      @db.LongText
-  generatedScript String      @db.LongText
-  userId          Int
-  deviceModelId   Int
-  createdAt       DateTime    @default(now())
-  updatedAt       DateTime    @updatedAt
-  deviceModel     DeviceModel @relation(fields: [deviceModelId], references: [id])
-  user            User        @relation(fields: [userId], references: [id])
+  inputData       Json
+  generatedScript String      @db.Text
+  
+  // ✅ เชื่อมโยงกับ ManagedDevice (สำคัญสำหรับการเปลี่ยน Model)
+  managedDeviceId Int?        
+  managedDevice   ManagedDevice? @relation(fields: [managedDeviceId], references: [id])
 
+  // ยังคงเก็บ Model ไว้ เพื่อให้รู้ว่าประวัตินี้ใช้กับรุ่นไหน
+  deviceModelId   Int
+  deviceModel     DeviceModel @relation(fields: [deviceModelId], references: [id])
+  
+  userId          Int
+  user            User        @relation(fields: [userId], references: [id])
+  createdAt       DateTime    @default(now())
+
+  @@index([managedDeviceId])
   @@index([deviceModelId], map: "Config_deviceModelId_fkey")
   @@index([userId], map: "Config_userId_fkey")
 }
@@ -73,23 +80,29 @@ model ActivityLog {
 }
 
 model ManagedDevice {
-  id         Int       @id @default(autoincrement())
-  name       String
-  circuitId  String?
-  apiToken   String    @unique @default(uuid())
-  currentIp  String    @default("127.0.0.1")
-  lastSeen   DateTime?
-  pendingCmd String?
-  configData Json?
+  id          Int       @id @default(autoincrement())
+  name        String
+  circuitId   String?
+  apiToken    String    @unique @default(uuid())
+  currentIp   String    @default("127.0.0.1")
+  lastSeen    DateTime?
+  pendingCmd  String?
+  configData  Json?
+  
+  // Monitoring Fields
   status      String    @default("ACTIVE") // ACTIVE, INACTIVE, SUSPENDED
   cpuLoad     Int?      @default(0)
   memoryUsage Int?      @default(0)
   uptime      String?
   version     String?
-  userId     Int
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
-  user       User      @relation(fields: [userId], references: [id])
+  
+  userId      Int
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  user        User      @relation(fields: [userId], references: [id])
+  
+  // ✅ Relation ไปยัง Config History
+  configHistory Config[]
 
   @@index([userId], map: "ManagedDevice_userId_fkey")
 }
@@ -102,15 +115,14 @@ enum UserRole {
 enum PortType {
   ETHER
   SFP
-  SFP_PLUS
-  QSFP
   WLAN
-  LTE
 }
 
 enum ActionType {
   LOGIN
+  LOGOUT
+  CREATE_DEVICE
+  UPDATE_DEVICE
+  DELETE_DEVICE
   GENERATE_CONFIG
-  DOWNLOAD_CONFIG
-  UPDATE_PROFILE
 }
