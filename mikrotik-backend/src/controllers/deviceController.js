@@ -155,7 +155,7 @@ exports.handleHeartbeat = async (req, res) => {
         temp: temp || undefined,
         latency: latency || undefined,
 
-        status: "ACTIVE" 
+        status: device.status === 'DELETED' ? 'DELETED' : "ACTIVE" // ป้องกันตัวที่ลบไปแล้วกลับมา Active
       }
     });
 
@@ -197,7 +197,7 @@ exports.getUserDevices = async (req, res) => {
     const devices = await prisma.managedDevice.findMany({
       where: { 
         userId: parseInt(userId),
-        status: { not: 'DELETED' } // กรองตัวที่ลบแล้วทิ้ง (ถ้ามีสถานะ DELETED)
+        // ✅ เอาสถานะออก เพื่อให้ Backend ส่งตัวที่โดน Soft Delete ไปให้ Frontend ทำ Filter ด้วย
       },
       orderBy: { createdAt: 'desc' }
     });
@@ -253,6 +253,7 @@ exports.getDeviceById = async (req, res) => {
   }
 };
 
+// 7. Log การดาวน์โหลด
 exports.logDownload = async (req, res) => {
   try {
     const { id } = req.params; // ID ของ ManagedDevice
@@ -274,5 +275,68 @@ exports.logDownload = async (req, res) => {
   } catch (error) {
     console.error("Log download failed:", error);
     res.status(500).json({ error: "Failed to log download activity" });
+  }
+};
+
+// ✅ 8. ลบอุปกรณ์ (Soft Delete) - เพิ่มเข้ามาใหม่
+exports.deleteDevice = async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // ดึงข้อมูลอุปกรณ์เพื่อนำมาบันทึก Log
+    const device = await prisma.managedDevice.findUnique({ where: { id: parseInt(id) } });
+    if (!device) return res.status(404).json({ error: "Device not found" });
+
+    // 8.1 ทำการ Soft Delete โดยเปลี่ยนสถานะเป็น DELETED
+    await prisma.managedDevice.update({
+      where: { id: parseInt(id) },
+      data: { 
+        status: 'DELETED' 
+      }
+    });
+
+    // 8.2 บันทึก Log การลบ
+    await prisma.activityLog.create({
+      data: {
+        userId: device.userId, // บันทึกว่าถูกลบภายใต้ User นี้
+        action: "UPDATE_DEVICE", 
+        details: `Soft deleted device: ${device.name} (${device.circuitId || '-'})`
+      }
+    });
+
+    res.json({ message: "Device marked as inactive (Soft Delete) successfully" });
+  } catch (error) {
+    console.error("Delete device error:", error);
+    res.status(500).json({ error: "Failed to delete device" });
+  }
+};
+
+// 9. กู้คืนอุปกรณ์ (Restore Soft Deleted)
+exports.restoreDevice = async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    const device = await prisma.managedDevice.findUnique({ where: { id: parseInt(id) } });
+    if (!device) return res.status(404).json({ error: "Device not found" });
+
+    // 9.1 เปลี่ยนสถานะกลับมาเป็น ACTIVE
+    await prisma.managedDevice.update({
+      where: { id: parseInt(id) },
+      data: { status: 'ACTIVE' }
+    });
+
+    // 9.2 บันทึก Log การกู้คืน
+    await prisma.activityLog.create({
+      data: {
+        userId: device.userId,
+        action: "UPDATE_DEVICE", 
+        details: `Restored device: ${device.name} (${device.circuitId || '-'})`
+      }
+    });
+
+    res.json({ message: "Device restored successfully" });
+  } catch (error) {
+    console.error("Restore device error:", error);
+    res.status(500).json({ error: "Failed to restore device" });
   }
 };

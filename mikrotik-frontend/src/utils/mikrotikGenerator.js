@@ -202,9 +202,12 @@ export const generateMikrotikScript = (config = {}) => {
     script += `  :local hddPercent 0;\n`;
     script += `  :if ($totalHdd > 0) do={ :set hddPercent (((($totalHdd - $freeHdd) * 100) / $totalHdd)) };\n`;
 
-    // 3. Temperature (ใช้ do..on-error เพราะบางรุ่นไม่มีเซ็นเซอร์วัดอุณหภูมิ)
+// 3. Temperature (ใช้ :parse ซ่อนคำสั่งไว้ใน String เพื่อป้องกัน Compile Error ในรุ่นที่ไม่มีเมนู system health)
     script += `  :local temp "N/A";\n`;
-    script += `  :do { :set temp [/system health get [find name="temperature"] value] } on-error={};\n`;
+    script += `  :do {\n`;
+    script += `    :local runTemp [:parse "/system health get [find name=\\"temperature\\"] value"];\n`;
+    script += `    :set temp [$runTemp];\n`;
+    script += `  } on-error={};\n`;
 
     // 4. Latency (Ping 8.8.8.8)
     script += `  :local latency "timeout";\n`;

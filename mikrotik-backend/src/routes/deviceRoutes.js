@@ -10,6 +10,8 @@ router.get('/user/:userId', deviceController.getUserDevices); // ดูราย
 router.get('/:id', deviceController.getDeviceById);           // 🟢 ดึงข้อมูล Device 1 ตัว (จำเป็นตอนกดปุ่ม Edit)
 router.get('/:id/history', deviceController.getDeviceHistory); // 🟢 ดูประวัติ Config (History)
 router.post('/:id/log-download', deviceController.logDownload); // บันทึก Log ตอนกดดาวน์โหลด
+router.delete('/:id', deviceController.deleteDevice); // soft delete device ข้อมูลจะเปลี่ยนสถานะเป็น Delete แต่จะไม่หายไป
+router.put('/:id/restore', deviceController.restoreDevice); // กู้คืน Device ที่ถูก Soft Delete
 
 // Group 2: สำหรับ MikroTik (Machine ใช้งาน)
 // สังเกตว่าเราเอา authenticateDevice มาคั่นไว้เพื่อตรวจ Token ก่อน

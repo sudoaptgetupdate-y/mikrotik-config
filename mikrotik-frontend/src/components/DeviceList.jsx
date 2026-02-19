@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import apiClient from '../utils/apiClient';
 import { generateMikrotikScript } from '../utils/mikrotikGenerator';
@@ -7,26 +7,42 @@ import HistoryModal from './HistoryModal';
 import { 
   Search, Plus, RefreshCw, Server, Activity, 
   Clock, Settings, Trash2, Cpu, Zap, Download, History,
-  HardDrive, Thermometer, Wifi, AlertTriangle, CheckCircle, XCircle
+  HardDrive, Thermometer, Wifi, AlertTriangle, CheckCircle, XCircle,
+  Archive, RotateCcw, ChevronDown
 } from 'lucide-react';
+
+// ตัวเลือกสำหรับ Filter
+const FILTER_OPTIONS = [
+  { value: 'ACTIVE_ONLY', label: 'Active Devices', icon: Activity, color: 'text-blue-600', bg: 'bg-blue-100' },
+  { value: 'ONLINE', label: 'Online', icon: CheckCircle, color: 'text-green-600', bg: 'bg-green-100' },
+  { value: 'WARNING', label: 'Warning', icon: AlertTriangle, color: 'text-orange-500', bg: 'bg-orange-100' },
+  { value: 'OFFLINE', label: 'Offline', icon: XCircle, color: 'text-red-500', bg: 'bg-red-100' },
+  { value: 'DELETED', label: 'Inactive (Deleted)', icon: Archive, color: 'text-slate-500', bg: 'bg-slate-200' },
+  { value: 'ALL', label: 'All Devices', icon: Server, color: 'text-slate-600', bg: 'bg-slate-100' },
+];
 
 const DeviceList = () => {
   const navigate = useNavigate();
   const [devices, setDevices] = useState([]);
   const [loading, setLoading] = useState(true);
+  
   const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('ACTIVE_ONLY');
+  
+  // State & Ref สำหรับ Custom Dropdown
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const filterRef = useRef(null);
+
   const [lastUpdated, setLastUpdated] = useState(new Date());
 
-  // State สำหรับ History Modal
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [selectedDeviceHistory, setSelectedDeviceHistory] = useState(null);
   const [historyData, setHistoryData] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(false);
 
-  // 1. Fetch Device List
   const fetchDevices = async () => {
     try {
-      const res = await apiClient.get('/api/devices/user/1'); // Hardcode user 1 ไว้ก่อน
+      const res = await apiClient.get('/api/devices/user/1');
       setDevices(res.data);
       setLastUpdated(new Date());
     } catch (error) {
@@ -38,36 +54,52 @@ const DeviceList = () => {
 
   useEffect(() => {
     fetchDevices();
-    const interval = setInterval(fetchDevices, 30000); // Auto Refresh ทุก 30 วิ
+    const interval = setInterval(fetchDevices, 30000); 
     return () => clearInterval(interval);
   }, []);
 
-  // 2. Actions
-  const handleAddClick = () => navigate('/add-device');
-  
-  const handleEditClick = (device) => {
-    navigate(`/edit-device/${device.id}`, { state: { deviceData: device } });
-  };
+  // ปิด Dropdown เมื่อคลิกที่อื่น
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (filterRef.current && !filterRef.current.contains(event.target)) {
+        setIsFilterOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
-  const handleDeleteClick = async (id) => {
-    if (confirm("Are you sure you want to delete this device? This cannot be undone.")) {
+  const handleAddClick = () => navigate('/add-device');
+  const handleEditClick = (device) => navigate(`/edit-device/${device.id}`, { state: { deviceData: device } });
+
+  const handleDeleteClick = async (device) => {
+    if (confirm(`Are you sure you want to delete "${device.name}"? (It will be marked as inactive)`)) {
         try {
-            alert("Delete feature coming soon (Soft Delete recommended)");
+            await apiClient.delete(`/api/devices/${device.id}`);
+            fetchDevices();
         } catch (e) {
             console.error(e);
+            alert("Failed to delete device");
         }
     }
   };
 
-  // 3. Download Latest Config
+  const handleRestoreClick = async (device) => {
+    if (confirm(`Are you sure you want to restore "${device.name}" to active status?`)) {
+        try {
+            await apiClient.put(`/api/devices/${device.id}/restore`);
+            fetchDevices();
+        } catch (e) {
+            console.error(e);
+            alert("Failed to restore device");
+        }
+    }
+  };
+
   const handleDownloadLatest = async (device) => { 
     if (!device.configData) return alert("No configuration data found for this device.");
-    
     try {
-      await apiClient.post(`/api/devices/${device.id}/log-download`, {
-         userId: 1 
-      });
-
+      await apiClient.post(`/api/devices/${device.id}/log-download`, { userId: 1 });
       const script = generateMikrotikScript(device.configData);
       const element = document.createElement("a");
       const file = new Blob([script], {type: 'text/plain'});
@@ -82,13 +114,11 @@ const DeviceList = () => {
     }
   };
 
-  // 4. View History
   const handleViewHistory = async (device) => {
     setSelectedDeviceHistory(device);
     setIsHistoryOpen(true);
     setHistoryLoading(true);
     setHistoryData([]);
-
     try {
       const res = await apiClient.get(`/api/devices/${device.id}/history`);
       setHistoryData(res.data);
@@ -100,43 +130,23 @@ const DeviceList = () => {
     }
   };
 
-  // --- Helper Functions สำหรับ Heartbeat NMS ---
-  
-  // แปลง Uptime ให้อ่านง่าย
-  const formatUptime = (uptimeStr) => {
-    if (!uptimeStr || uptimeStr === 'undefined') return "N/A";
-    let days = 0;
-    const weeksMatch = uptimeStr.match(/(\d+)w/);
-    const daysMatch = uptimeStr.match(/(\d+)d/);
-    if (weeksMatch) days += parseInt(weeksMatch[1]) * 7;
-    if (daysMatch) days += parseInt(daysMatch[1]);
-    
-    const hoursMatch = uptimeStr.match(/(\d+)h/);
-    const minsMatch = uptimeStr.match(/(\d+)m/);
-    const h = hoursMatch ? hoursMatch[1] : "0";
-    const m = minsMatch ? minsMatch[1] : "0";
-    
-    if (days > 0) return `${days} Days, ${h} Hrs`;
-    if (h > 0) return `${h} Hrs, ${m} Mins`;
-    return `${m} Mins`;
-  };
-
-  // ประเมินสถานะอุปกรณ์ (Online, Warning, Offline)
   const getDeviceStatus = (device) => {
+    if (device.status === 'DELETED') {
+        return { state: 'deleted', color: 'bg-slate-100 text-slate-500 border-slate-200', icon: <Archive size={14}/>, label: 'Inactive' };
+    }
     if (!device.lastSeen) return { state: 'offline', color: 'bg-red-50 text-red-600 border-red-200', icon: <XCircle size={14}/>, label: 'Offline' };
     
     const diffMinutes = (new Date() - new Date(device.lastSeen)) / 1000 / 60;
     if (diffMinutes > 3) return { state: 'offline', color: 'bg-red-50 text-red-600 border-red-200', icon: <XCircle size={14}/>, label: 'Offline' };
     
-    // รองรับชื่อตัวแปรทั้ง 2 แบบ (เก่า/ใหม่)
     const cpu = parseFloat(device.cpu || device.cpuLoad) || 0;
     const ram = parseFloat(device.ram || device.memoryUsage) || 0;
     
     if (cpu > 85 || ram > 85) return { state: 'warning', color: 'bg-orange-50 text-orange-600 border-orange-200', icon: <AlertTriangle size={14}/>, label: 'Warning' };
+    
     return { state: 'online', color: 'bg-green-50 text-green-700 border-green-200', icon: <CheckCircle size={14}/>, label: 'Online' };
   };
 
-  // สีของ Progress Bar
   const getProgressColor = (value, type) => {
     const num = parseFloat(value) || 0;
     if (num > 85) return 'bg-red-500';
@@ -146,16 +156,27 @@ const DeviceList = () => {
     return 'bg-green-500';
   };
 
-  // Filter
-  const filteredDevices = devices.filter(d => 
-    d.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (d.circuitId && d.circuitId.toLowerCase().includes(searchTerm.toLowerCase()))
-  );
+  const filteredDevices = devices.filter(d => {
+    const matchesSearch = d.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                          (d.circuitId && d.circuitId.toLowerCase().includes(searchTerm.toLowerCase()));
+    const statusObj = getDeviceStatus(d);
+    
+    if (statusFilter === 'ACTIVE_ONLY') return statusObj.state !== 'deleted' && matchesSearch;
+    if (statusFilter === 'ONLINE') return statusObj.state === 'online' && matchesSearch;
+    if (statusFilter === 'WARNING') return statusObj.state === 'warning' && matchesSearch;
+    if (statusFilter === 'OFFLINE') return statusObj.state === 'offline' && matchesSearch;
+    if (statusFilter === 'DELETED') return statusObj.state === 'deleted' && matchesSearch;
+    return matchesSearch; 
+  });
+
+  const currentFilterOpt = FILTER_OPTIONS.find(opt => opt.value === statusFilter);
+  // ✅ แก้ไขปัญหา React Render Icon 
+  const CurrentIcon = currentFilterOpt ? currentFilterOpt.icon : Activity;
 
   return (
     <div className="space-y-6 animate-fade-in pb-20">
       
-      {/* --- Header & Search --- */}
+      {/* Header */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
           <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
@@ -174,20 +195,68 @@ const DeviceList = () => {
         </button>
       </div>
 
-      <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col md:flex-row gap-4">
-        <div className="relative flex-1">
+      {/* Toolbar เครื่องมือค้นหาและ Filter */}
+      <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col md:flex-row gap-4 items-center">
+        
+        {/* Search Bar */}
+        <div className="relative flex-1 w-full">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
           <input 
             type="text"
             placeholder="Search by Name, Circuit ID..."
-            className="w-full pl-10 pr-4 py-2 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-100 transition"
+            className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-100 transition"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
-        <button onClick={() => { setLoading(true); fetchDevices(); }} className="flex items-center gap-2 px-4 py-2 text-slate-600 hover:bg-slate-50 rounded-lg border border-slate-200 transition">
+
+        {/* ✅ Custom Dropdown Filter (ปรับแก้ให้เสถียร) */}
+        <div className="relative w-full md:w-56" ref={filterRef}>
+          <button 
+            onClick={() => setIsFilterOpen(!isFilterOpen)}
+            className="w-full flex items-center justify-between px-3 py-2.5 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition focus:outline-none focus:ring-2 focus:ring-blue-100"
+          >
+            <div className="flex items-center gap-2.5">
+              <div className={`p-1 rounded-md ${currentFilterOpt?.bg} ${currentFilterOpt?.color}`}>
+                 <CurrentIcon size={16} />
+              </div>
+              <span className="font-medium text-slate-700 text-sm">{currentFilterOpt?.label}</span>
+            </div>
+            <ChevronDown size={16} className={`text-slate-400 transition-transform duration-300 ${isFilterOpen ? 'rotate-180' : ''}`} />
+          </button>
+
+          {/* เมนู Dropdown ที่ลอยออกมา */}
+          {isFilterOpen && (
+            <div className="absolute z-50 top-full left-0 mt-2 w-full bg-white border border-slate-100 rounded-xl shadow-lg shadow-slate-200/50 py-1.5 animate-in fade-in slide-in-from-top-2 duration-200">
+              {FILTER_OPTIONS.map((opt) => {
+                const DropdownIcon = opt.icon; // ✅ ดึงตัวแปรมาให้ React อ่านง่ายๆ
+                return (
+                  <button 
+                    key={opt.value}
+                    onClick={() => {
+                      setStatusFilter(opt.value);
+                      setIsFilterOpen(false);
+                    }}
+                    className={`w-full text-left px-3 py-2.5 flex items-center gap-3 transition-colors ${statusFilter === opt.value ? 'bg-slate-50' : 'hover:bg-slate-50'}`}
+                  >
+                    <div className={`p-1.5 rounded-md ${opt.bg} ${opt.color}`}>
+                      <DropdownIcon size={14} strokeWidth={2.5} />
+                    </div>
+                    <span className={`text-sm ${statusFilter === opt.value ? 'font-bold text-blue-600' : 'font-medium text-slate-600'}`}>
+                      {opt.label}
+                    </span>
+                    {statusFilter === opt.value && <CheckCircle size={14} className="ml-auto text-blue-600" />}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* Refresh Button */}
+        <button onClick={() => { setLoading(true); fetchDevices(); }} className="w-full md:w-auto flex justify-center items-center gap-2 px-4 py-2.5 text-slate-600 hover:bg-slate-50 rounded-lg border border-slate-200 transition font-medium">
           <RefreshCw size={18} className={loading ? "animate-spin text-blue-500" : ""} />
-          Refresh
+          <span className="md:hidden lg:inline">Refresh</span>
         </button>
       </div>
 
@@ -198,7 +267,7 @@ const DeviceList = () => {
         ) : filteredDevices.length === 0 ? (
           <div className="p-10 text-center text-slate-400 flex flex-col items-center">
             <Server size={48} className="mb-4 text-slate-200" />
-            <p>No devices found.</p>
+            <p>No devices found for the selected filter.</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -216,13 +285,13 @@ const DeviceList = () => {
               <tbody className="divide-y divide-slate-100">
                 {filteredDevices.map((device) => {
                   const status = getDeviceStatus(device);
+                  const isDeleted = status.state === 'deleted'; 
                   const cpuVal = device.cpu || device.cpuLoad || 0;
                   const ramVal = device.ram || device.memoryUsage || 0;
                   const storageVal = device.storage || 0;
 
                   return (
-                    <tr key={device.id} className="hover:bg-slate-50 transition group">
-                      
+                    <tr key={device.id} className={`transition group ${isDeleted ? 'bg-slate-50 opacity-75' : 'hover:bg-slate-50'}`}>
                       {/* 1. Status */}
                       <td className="p-4 pl-6 align-top">
                         <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold border ${status.color}`}>
@@ -233,11 +302,11 @@ const DeviceList = () => {
                       {/* 2. Details */}
                       <td className="p-4 align-top">
                         <div className="flex items-start gap-3">
-                          <div className="w-10 h-10 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 mt-1">
+                          <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 mt-1 ${isDeleted ? 'bg-slate-200 text-slate-400' : 'bg-blue-50 text-blue-600'}`}>
                             <Server size={20} />
                           </div>
                           <div>
-                            <div className="font-bold text-slate-700">{device.name}</div>
+                            <div className={`font-bold ${isDeleted ? 'text-slate-500 line-through' : 'text-slate-700'}`}>{device.name}</div>
                             <div className="text-xs text-slate-500 font-mono mb-1">{device.circuitId || '-'}</div>
                             {device.version && (
                               <span className="inline-block text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded border border-slate-200">
@@ -248,9 +317,9 @@ const DeviceList = () => {
                         </div>
                       </td>
 
-                      {/* 3. Resources (CPU, RAM, Storage) */}
+                      {/* 3. Resources */}
                       <td className="p-4 align-top">
-                        {status.state !== 'offline' ? (
+                        {status.state !== 'offline' && !isDeleted ? (
                           <div className="space-y-3 min-w-[140px]">
                             <div>
                               <div className="flex justify-between text-[10px] text-slate-500 mb-1">
@@ -270,7 +339,7 @@ const DeviceList = () => {
                                 <div className={`h-full transition-all duration-500 ${getProgressColor(ramVal, 'ram')}`} style={{ width: `${Math.min(ramVal, 100)}%` }}></div>
                               </div>
                             </div>
-                            {device.storage && (
+                            {device.storage !== null && device.storage !== undefined && (
                               <div>
                                 <div className="flex justify-between text-[10px] text-slate-500 mb-1">
                                   <span className="flex items-center gap-1"><HardDrive size={10} /> HDD</span>
@@ -287,13 +356,13 @@ const DeviceList = () => {
                         )}
                       </td>
 
-                      {/* 4. Health & Net (IP, Temp, Ping) */}
+                      {/* 4. Health & Net */}
                       <td className="p-4 align-top">
                         <div className="flex flex-col gap-1.5 text-xs">
                           <div className="font-mono text-slate-600 mb-1" title="Current IP Address">
                             {device.currentIp || '-'}
                           </div>
-                          {status.state !== 'offline' && (
+                          {status.state !== 'offline' && !isDeleted && (
                             <>
                               <div className="flex items-center gap-1.5 text-slate-500">
                                 <Thermometer size={14} className="text-orange-500" />
@@ -311,7 +380,7 @@ const DeviceList = () => {
                       {/* 5. Uptime & Last Seen */}
                       <td className="p-4 align-top">
                         <div className="flex flex-col gap-1">
-                           <div className="text-xs text-slate-700 font-medium" title="Device Uptime">
+                           <div className={`text-xs font-medium ${isDeleted ? 'text-slate-400' : 'text-slate-700'}`} title="Device Uptime">
                              {formatUptime(device.uptime)}
                            </div>
                            <div className="flex items-center gap-1 text-[10px] text-slate-400" title="Last Contact Time">
@@ -325,21 +394,31 @@ const DeviceList = () => {
                       <td className="p-4 align-top text-right pr-6">
                         <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                           
-                          <button onClick={() => handleDownloadLatest(device)} className="p-2 text-slate-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition" title="Download Latest Config">
-                            <Download size={16} />
-                          </button>
+                          {!isDeleted && (
+                             <button onClick={() => handleDownloadLatest(device)} className="p-2 text-slate-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition" title="Download Latest Config">
+                               <Download size={16} />
+                             </button>
+                          )}
 
                           <button onClick={() => handleViewHistory(device)} className="p-2 text-slate-400 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition" title="View Config History">
                             <History size={16} />
                           </button>
 
-                          <button onClick={() => handleEditClick(device)} className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition" title="Edit Config">
-                            <Settings size={16} />
-                          </button>
+                          {isDeleted ? (
+                            <button onClick={() => handleRestoreClick(device)} className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition" title="Restore Device">
+                               <RotateCcw size={16} />
+                            </button>
+                          ) : (
+                            <>
+                              <button onClick={() => handleEditClick(device)} className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition" title="Edit Config">
+                                <Settings size={16} />
+                              </button>
 
-                          <button onClick={() => handleDeleteClick(device.id)} className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition" title="Delete">
-                            <Trash2 size={16} />
-                          </button>
+                              <button onClick={() => handleDeleteClick(device)} className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition" title="Deactivate Device">
+                                <Trash2 size={16} />
+                              </button>
+                            </>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -351,7 +430,6 @@ const DeviceList = () => {
         )}
       </div>
 
-      {/* --- History Modal --- */}
       <HistoryModal 
         isOpen={isHistoryOpen}
         onClose={() => setIsHistoryOpen(false)}
