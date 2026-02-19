@@ -134,11 +134,11 @@ exports.updateDevice = async (req, res) => {
 // 3. รับ Heartbeat (Monitoring)
 exports.handleHeartbeat = async (req, res) => {
   try {
-    const device = req.device; // ได้มาจาก authMiddleware
+    const device = req.device; 
     const remoteIp = req.socket.remoteAddress || req.ip; 
 
-    // รับค่า Monitoring Data
-    const { cpu, ram, uptime, version } = req.body; 
+    // 1. เพิ่มการรับค่า storage, temp, latency จาก req.body
+    const { cpu, ram, uptime, version, storage, temp, latency } = req.body; 
 
     await prisma.managedDevice.update({
       where: { id: device.id },
@@ -149,7 +149,13 @@ exports.handleHeartbeat = async (req, res) => {
         memoryUsage: ram ? parseInt(ram) : undefined,
         uptime: uptime || undefined,
         version: version || undefined,
-        status: "ACTIVE" // Auto active เมื่อมีการติดต่อเข้ามา
+        
+        // 2. บันทึกลงฐานข้อมูล
+        storage: storage ? parseInt(storage) : undefined,
+        temp: temp || undefined,
+        latency: latency || undefined,
+
+        status: "ACTIVE" 
       }
     });
 

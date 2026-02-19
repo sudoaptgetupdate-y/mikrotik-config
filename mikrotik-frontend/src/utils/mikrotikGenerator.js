@@ -179,13 +179,15 @@ export const generateMikrotikScript = (config = {}) => {
 
     // --- 9. SYSTEM MONITORING & HEARTBEAT ---
     script += `\n################################################\n`;
-    script += `# Monitoring & Heartbeat System (Auto-Update)\n`;
+    script += `# Monitoring & Heartbeat System\n`;
     script += `################################################\n`;
     
     script += `/system script remove [find name="heartbeat-script"]\n`;
     script += `/system script add name="heartbeat-script" source={\n`;
     script += `  :local serverUrl "http://${apiHost}:3000/api/devices/heartbeat";\n`; 
     script += `  :local apiToken "${token}";\n`;
+    
+    // 1. CPU & RAM
     script += `  :local cpuLoad [/system resource get cpu-load];\n`;
     script += `  :local freeMem [/system resource get free-memory];\n`;
     script += `  :local totalMem [/system resource get total-memory];\n`;
@@ -193,15 +195,27 @@ export const generateMikrotikScript = (config = {}) => {
     script += `  :local memPercent (($usedMem * 100) / $totalMem);\n`;
     script += `  :local uptime [/system resource get uptime];\n`;
     script += `  :local version [/system resource get version];\n`;
+
+    // 2. Storage (HDD)
+    script += `  :local freeHdd [/system resource get free-hdd-space];\n`;
+    script += `  :local totalHdd [/system resource get total-hdd-space];\n`;
+    script += `  :local hddPercent 0;\n`;
+    script += `  :if ($totalHdd > 0) do={ :set hddPercent (((($totalHdd - $freeHdd) * 100) / $totalHdd)) };\n`;
+
+    // 3. Temperature (ใช้ do..on-error เพราะบางรุ่นไม่มีเซ็นเซอร์วัดอุณหภูมิ)
+    script += `  :local temp "N/A";\n`;
+    script += `  :do { :set temp [/system health get [find name="temperature"] value] } on-error={};\n`;
+
+    // 4. Latency (Ping 8.8.8.8)
+    script += `  :local latency "timeout";\n`;
+    script += `  :do { :set latency ([:tostr ([/ping 8.8.8.8 count=1 as-value]->"time")]) } on-error={};\n`;
     
-    script += `  :local payload "{\\"cpu\\":\\"$cpuLoad\\", \\"ram\\":\\"$memPercent\\", \\"uptime\\":\\"$uptime\\", \\"version\\":\\"$version\\"}";\n`;
+    // สร้าง JSON Payload
+    script += `  :local payload "{\\"cpu\\":\\"$cpuLoad\\", \\"ram\\":\\"$memPercent\\", \\"storage\\":\\"$hddPercent\\", \\"temp\\":\\"$temp\\", \\"latency\\":\\"$latency\\", \\"uptime\\":\\"$uptime\\", \\"version\\":\\"$version\\"}";\n`;
     
     script += `  :do {\n`;
     script += `    /tool fetch mode=http url=$serverUrl http-method=post http-header-field="Authorization: Bearer $apiToken,Content-Type: application/json" http-data=$payload keep-result=no;\n`;
-    script += `    :log info "Heartbeat sent: CPU $cpuLoad%, RAM $memPercent%";\n`;
-    script += `  } on-error={\n`;
-    script += `    :log error "Failed to send Heartbeat to Server ($serverUrl)";\n`;
-    script += `  }\n`;
+    script += `  } on-error={ :log error "Failed to send Heartbeat" }\n`;
     script += `}\n`;
 
     script += `/system scheduler remove [find name="heartbeat-schedule"]\n`;

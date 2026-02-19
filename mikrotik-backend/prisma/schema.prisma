@@ -97,6 +97,10 @@ model ManagedDevice {
   memoryUsage Int?      @default(0)
   uptime      String?
   version     String?
+
+  storage     Int?      @default(0)
+  temp        String?
+  latency     String?
   
   userId      Int
   createdAt   DateTime  @default(now())
