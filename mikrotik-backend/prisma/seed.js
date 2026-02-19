@@ -28,7 +28,7 @@ async function main() {
     update: {},
     create: {
       name: 'RB750Gr3 (hEX)',
-      imageUrl: 'https://i.mt.lv/cdn/product_files/RB750Gr3_160325.png',
+      imageUrl: 'https://cdn.mikrotik.com/web-assets/rb_images/1405_lg.webp',
       ports: {
         create: [
           { name: 'ether1', type: 'ETHER', defaultRole: 'wan' },
@@ -48,7 +48,7 @@ async function main() {
     update: {},
     create: {
       name: 'RB4011iGS+RM',
-      imageUrl: 'https://i.mt.lv/cdn/product_files/RB4011iGSplusRM_180628.png',
+      imageUrl: 'https://cdn.mikrotik.com/web-assets/rb_images/1633_lg.webp',
       ports: {
         create: [
           { name: 'sfp-sfpplus1', type: 'SFP', defaultRole: 'wan' },
@@ -74,7 +74,7 @@ async function main() {
     update: {},
     create: {
       name: 'hAP ax2',
-      imageUrl: 'https://i.mt.lv/cdn/product_files/C52iG-5HaxD2HaxD_221014.png',
+      imageUrl: 'https://cdn.mikrotik.com/web-assets/rb_images/1468_lg.webp',
       ports: {
         create: [
           { name: 'ether1', type: 'ETHER', defaultRole: 'wan' },

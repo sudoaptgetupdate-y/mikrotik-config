@@ -23,6 +23,7 @@ model DeviceModel {
   id       Int            @id @default(autoincrement())
   name     String         @unique
   imageUrl String?
+  isActive  Boolean        @default(true)
   configs  Config[]
   ports    PortTemplate[]
 }

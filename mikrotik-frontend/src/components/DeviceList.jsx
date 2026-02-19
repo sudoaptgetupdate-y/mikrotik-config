@@ -226,31 +226,35 @@ const DeviceList = () => {
           </button>
 
           {/* เมนู Dropdown ที่ลอยออกมา */}
-          {isFilterOpen && (
-            <div className="absolute z-50 top-full left-0 mt-2 w-full bg-white border border-slate-100 rounded-xl shadow-lg shadow-slate-200/50 py-1.5 animate-in fade-in slide-in-from-top-2 duration-200">
-              {FILTER_OPTIONS.map((opt) => {
-                const DropdownIcon = opt.icon; // ✅ ดึงตัวแปรมาให้ React อ่านง่ายๆ
-                return (
-                  <button 
-                    key={opt.value}
-                    onClick={() => {
-                      setStatusFilter(opt.value);
-                      setIsFilterOpen(false);
-                    }}
-                    className={`w-full text-left px-3 py-2.5 flex items-center gap-3 transition-colors ${statusFilter === opt.value ? 'bg-slate-50' : 'hover:bg-slate-50'}`}
-                  >
-                    <div className={`p-1.5 rounded-md ${opt.bg} ${opt.color}`}>
-                      <DropdownIcon size={14} strokeWidth={2.5} />
-                    </div>
-                    <span className={`text-sm ${statusFilter === opt.value ? 'font-bold text-blue-600' : 'font-medium text-slate-600'}`}>
-                      {opt.label}
-                    </span>
-                    {statusFilter === opt.value && <CheckCircle size={14} className="ml-auto text-blue-600" />}
-                  </button>
-                );
-              })}
-            </div>
-          )}
+          <div 
+            className={`absolute z-50 top-full left-0 mt-2 w-full bg-white border border-slate-100 rounded-xl shadow-lg shadow-slate-200/50 py-1.5 transform origin-top transition-all duration-200 ease-out ${
+              isFilterOpen 
+                ? 'opacity-100 scale-100 translate-y-0 visible' 
+                : 'opacity-0 scale-95 -translate-y-2 invisible'
+            }`}
+          >
+            {FILTER_OPTIONS.map((opt) => {
+              const DropdownIcon = opt.icon;
+              return (
+                <button 
+                  key={opt.value}
+                  onClick={() => {
+                    setStatusFilter(opt.value);
+                    setIsFilterOpen(false);
+                  }}
+                  className={`w-full text-left px-3 py-2.5 flex items-center gap-3 transition-colors ${statusFilter === opt.value ? 'bg-slate-50' : 'hover:bg-slate-50'}`}
+                >
+                  <div className={`p-1.5 rounded-md ${opt.bg} ${opt.color}`}>
+                    <DropdownIcon size={14} strokeWidth={2.5} />
+                  </div>
+                  <span className={`text-sm ${statusFilter === opt.value ? 'font-bold text-blue-600' : 'font-medium text-slate-600'}`}>
+                    {opt.label}
+                  </span>
+                  {statusFilter === opt.value && <CheckCircle size={14} className="ml-auto text-blue-600" />}
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         {/* Refresh Button */}

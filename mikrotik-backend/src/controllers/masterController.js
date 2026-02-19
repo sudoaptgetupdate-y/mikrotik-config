@@ -1,13 +1,22 @@
 const prisma = require('../config/prisma');
 
-// 1. ดึงข้อมูล Model ทั้งหมดพร้อม Port
+// 1. ดึงข้อมูล Model (รองรับการดูทั้งแบบ Active และ Soft Deleted)
 exports.getModels = async (req, res) => {
   try {
+    // ✅ เช็คค่าที่ส่งมาจาก Frontend (ถ้ากด Archive ค่าจะเป็น 'true')
+    const isShowDeleted = req.query.showDeleted === 'true'; 
+
     const models = await prisma.deviceModel.findMany({
+      where: { 
+        // 👈 จุดสำคัญ: เขียนแบบนี้จะชัวร์ที่สุด 
+        // ถ้า isShowDeleted เป็นจริง -> ให้หาตัวที่ isActive: false (ตัวที่ถูกลบ)
+        // ถ้า isShowDeleted เป็นเท็จ -> ให้หาตัวที่ isActive: true (ตัวปกติ)
+        isActive: isShowDeleted ? false : true 
+      },
       include: { 
         ports: true,
         _count: {
-          select: { configs: true } // ✅ เอากลับมาแล้ว! นับจำนวน Config ที่ใช้รุ่นนี้
+          select: { configs: true } 
         }
       },
       orderBy: { id: 'desc' } 
@@ -21,10 +30,10 @@ exports.getModels = async (req, res) => {
 
 // 2. สร้าง Model ใหม่ พร้อม Port แบบ Dynamic
 exports.createModel = async (req, res) => {
+  // ... (ใช้โค้ดเดิมของคุณได้เลย ไม่ต้องแก้)
   try {
     const { name, imageUrl, ports } = req.body;
     
-    // Validate เบื้องต้น
     if (!name || !ports || ports.length === 0) {
       return res.status(400).json({ error: "Model name and at least one port are required." });
     }
@@ -34,7 +43,7 @@ exports.createModel = async (req, res) => {
         name,
         imageUrl: imageUrl || null,
         ports: {
-          create: ports // รับเป็น Array [{ name, type, defaultRole }]
+          create: ports 
         }
       },
       include: { ports: true }
@@ -47,30 +56,50 @@ exports.createModel = async (req, res) => {
   }
 };
 
-// 3. ลบ Model
+// 3. ลบ Model (Hybrid Delete)
 exports.deleteModel = async (req, res) => {
   try {
     const { id } = req.params;
 
-    // ระบบป้องกัน: เช็คก่อนว่ามี Config หรือ History ไหนใช้งาน Model นี้อยู่ไหม
-    const inUse = await prisma.config.findFirst({ 
+    // ระบบป้องกัน: เช็คว่ามี Config ไหนใช้งาน Model นี้อยู่ไหม โดยการนับจำนวน
+    const inUseCount = await prisma.config.count({ 
       where: { deviceModelId: parseInt(id) } 
     });
     
-    if (inUse) {
-      return res.status(400).json({ 
-        error: "Cannot delete this model because it is currently used in device configurations." 
+    if (inUseCount > 0) {
+      // ✅ Soft Delete: ถ้าเคยถูกใช้งานแล้ว ให้ซ่อนไว้ (เปลี่ยน isActive เป็น false)
+      await prisma.deviceModel.update({
+        where: { id: parseInt(id) },
+        data: { isActive: false }
       });
+      return res.json({ success: true, message: "Model soft-deleted (hidden) successfully. Config history is preserved." });
+    } else {
+      // ✅ Hard Delete: ถ้ายังไม่เคยถูกใช้งานเลย ลบถาวรได้เลย (Ports จะถูก Cascade Delete ไปด้วย)
+      await prisma.deviceModel.delete({
+        where: { id: parseInt(id) }
+      });
+      return res.json({ success: true, message: "Model permanently deleted." });
     }
 
-    // ลบ Model (บรรดา Ports ที่ผูกกับ Model นี้จะถูกลบอัตโนมัติ เพราะเราทำ onDelete: Cascade ไว้ใน Schema)
-    await prisma.deviceModel.delete({
-      where: { id: parseInt(id) }
-    });
-    
-    res.json({ success: true, message: "Model deleted successfully" });
   } catch (error) {
     console.error("Delete model error:", error);
     res.status(500).json({ error: "Failed to delete model" });
+  }
+};
+
+// ฟังก์ชันสำหรับกู้คืน Model
+exports.restoreModel = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    await prisma.deviceModel.update({
+      where: { id: parseInt(id) },
+      data: { isActive: true } // ✅ เปลี่ยนกลับเป็น true
+    });
+    
+    res.json({ success: true, message: "Model restored successfully" });
+  } catch (error) {
+    console.error("Restore model error:", error);
+    res.status(500).json({ error: "Failed to restore model" });
   }
 };

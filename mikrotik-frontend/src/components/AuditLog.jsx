@@ -1,17 +1,34 @@
 import React, { useState, useEffect } from 'react';
 import apiClient from '../utils/apiClient';
-import { Activity, Search, RefreshCw, FileText, Plus, Edit, Download, Trash2 } from 'lucide-react';
+import { Activity, Search, RefreshCw, FileText, Plus, Edit, Download, Trash2, ChevronLeft, ChevronRight, Calendar } from 'lucide-react';
 
 const AuditLog = () => {
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
+  
+  // States สำหรับ Pagination & Filtering
   const [searchTerm, setSearchTerm] = useState('');
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [meta, setMeta] = useState({ total: 0, totalPages: 1 });
 
   const fetchLogs = async () => {
     setLoading(true);
     try {
-      const res = await apiClient.get('/api/logs');
-      setLogs(res.data);
+      const res = await apiClient.get('/api/logs', {
+        params: {
+          page,
+          limit,
+          search: searchTerm,
+          startDate,
+          endDate
+        }
+      });
+      // Backend ส่งมาเป็น { data: [...], meta: {...} }
+      setLogs(res.data.data);
+      setMeta(res.data.meta);
     } catch (error) {
       console.error("Error fetching logs:", error);
     } finally {
@@ -19,11 +36,26 @@ const AuditLog = () => {
     }
   };
 
+  // ดึงข้อมูลใหม่ทุกครั้งที่ page หรือ limit เปลี่ยน
   useEffect(() => {
     fetchLogs();
-  }, []);
+  }, [page, limit]);
 
-  // ฟังก์ชันจัดสีและไอคอนตาม Action
+  const handleSearch = (e) => {
+    e.preventDefault();
+    setPage(1); // ค้นหาใหม่ ให้กลับไปหน้า 1
+    fetchLogs();
+  };
+
+  const handleResetFilters = () => {
+    setSearchTerm('');
+    setStartDate('');
+    setEndDate('');
+    setPage(1);
+    // Note: useEffect จะไม่ trigger ทันทีถ้าล้างค่าเฉยๆ เลยต้องให้ fetchLogs ทำงานแยก
+    setTimeout(() => fetchLogs(), 0);
+  };
+
   const getActionBadge = (action) => {
     switch (action) {
       case 'CREATE_DEVICE': return { color: 'bg-green-100 text-green-700', icon: <Plus size={14} /> };
@@ -34,13 +66,6 @@ const AuditLog = () => {
       default: return { color: 'bg-gray-100 text-gray-700', icon: <FileText size={14} /> };
     }
   };
-
-  // Filter การค้นหา
-  const filteredLogs = logs.filter(log => 
-    log.details?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    log.user?.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    log.action.toLowerCase().includes(searchTerm.toLowerCase())
-  );
 
   return (
     <div className="space-y-6 animate-in fade-in pb-10">
@@ -55,29 +80,58 @@ const AuditLog = () => {
         </div>
       </div>
 
-      {/* Toolbar */}
-      <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col md:flex-row gap-4">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
-          <input 
-            type="text"
-            placeholder="Search logs by action, user, or details..."
-            className="w-full pl-10 pr-4 py-2 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-100 transition"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-        </div>
-        <button onClick={fetchLogs} className="flex items-center gap-2 px-4 py-2 text-slate-600 hover:bg-slate-50 rounded-lg border border-slate-200 transition">
-          <RefreshCw size={18} className={loading ? "animate-spin" : ""} /> Refresh
-        </button>
+      {/* Toolbar & Filters */}
+      <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-4">
+        <form onSubmit={handleSearch} className="flex flex-col md:flex-row gap-4">
+          
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
+            <input 
+              type="text"
+              placeholder="Search by details or username..."
+              className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-100"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Calendar className="text-slate-400" size={20} />
+            <input 
+              type="date" 
+              className="px-3 py-2 border border-slate-200 rounded-lg text-sm text-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-100"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+            />
+            <span className="text-slate-400">-</span>
+            <input 
+              type="date" 
+              className="px-3 py-2 border border-slate-200 rounded-lg text-sm text-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-100"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+            />
+          </div>
+
+          <div className="flex gap-2">
+            <button type="submit" className="bg-blue-600 text-white px-4 py-2.5 rounded-lg font-medium hover:bg-blue-700 transition">
+              Search
+            </button>
+            <button type="button" onClick={handleResetFilters} className="px-4 py-2.5 text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition">
+              Reset
+            </button>
+          </div>
+        </form>
       </div>
 
       {/* Table */}
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
         {loading ? (
-          <div className="p-10 text-center text-slate-400">Loading logs...</div>
-        ) : filteredLogs.length === 0 ? (
-          <div className="p-10 text-center text-slate-400">No activity logs found.</div>
+          <div className="p-10 text-center text-slate-400 flex flex-col items-center">
+            <RefreshCw size={32} className="animate-spin mb-4 text-blue-500" />
+            Loading logs...
+          </div>
+        ) : logs.length === 0 ? (
+          <div className="p-10 text-center text-slate-400">No activity logs found for the selected criteria.</div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
@@ -90,7 +144,7 @@ const AuditLog = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {filteredLogs.map((log) => {
+                {logs.map((log) => {
                   const badge = getActionBadge(log.action);
                   return (
                     <tr key={log.id} className="hover:bg-slate-50 transition">
@@ -102,7 +156,7 @@ const AuditLog = () => {
                       </td>
                       <td className="p-4">
                         <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-bold ${badge.color}`}>
-                          {badge.icon} {log.action.replace('_', ' ')}
+                          {badge.icon} {log.action.replace(/_/g, ' ')}
                         </span>
                       </td>
                       <td className="p-4 text-sm text-slate-600">
@@ -113,6 +167,49 @@ const AuditLog = () => {
                 })}
               </tbody>
             </table>
+          </div>
+        )}
+        
+        {/* Pagination Footer */}
+        {!loading && logs.length > 0 && (
+          <div className="p-4 border-t border-slate-200 bg-slate-50 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="flex items-center gap-2 text-sm text-slate-600">
+              Show
+              <select 
+                value={limit} 
+                onChange={(e) => {
+                  setLimit(Number(e.target.value));
+                  setPage(1); // รีเซ็ตกลับไปหน้า 1 เมื่อเปลี่ยน limit
+                }}
+                className="p-1 border border-slate-300 rounded bg-white outline-none focus:ring-2 focus:ring-blue-100"
+              >
+                <option value={5}>5</option>
+                <option value={10}>10</option>
+                <option value={50}>50</option>
+                <option value={100}>100</option>
+              </select>
+              entries (Total: {meta.total})
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button 
+                onClick={() => setPage(p => Math.max(1, p - 1))}
+                disabled={page === 1}
+                className="p-1.5 rounded-md border border-slate-200 text-slate-600 hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <ChevronLeft size={18} />
+              </button>
+              <span className="text-sm text-slate-600 font-medium px-2">
+                Page {page} of {meta.totalPages}
+              </span>
+              <button 
+                onClick={() => setPage(p => Math.min(meta.totalPages, p + 1))}
+                disabled={page === meta.totalPages}
+                className="p-1.5 rounded-md border border-slate-200 text-slate-600 hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <ChevronRight size={18} />
+              </button>
+            </div>
           </div>
         )}
       </div>

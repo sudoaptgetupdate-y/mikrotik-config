@@ -1,19 +1,28 @@
 import React, { useState, useEffect } from 'react';
 import apiClient from '../utils/apiClient';
-import { Server, Plus, Trash2, X, PlusCircle, Save } from 'lucide-react';
+import { Server, Plus, Trash2, X, PlusCircle, Save, Archive, RotateCcw, Search, ChevronLeft, ChevronRight } from 'lucide-react';
 
 const ModelManager = () => {
   const [models, setModels] = useState([]);
   const [loading, setLoading] = useState(true);
   
+  // State สำหรับ Toggle หน้าจอ (ค่าเริ่มต้น = false คือดูตัวที่ Active)
+  const [showDeleted, setShowDeleted] = useState(false);
+  
   // State สำหรับ Modal เพิ่ม Model
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newModel, setNewModel] = useState({ name: '', imageUrl: '', ports: [] });
 
+  // === States สำหรับ Search & Pagination (Client-Side) ===
+  const [searchTerm, setSearchTerm] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 12; // กำหนด 12 รายการต่อหน้า (ลงตัวกับ Grid 2 และ 3 คอลัมน์)
+
+  // ดึงข้อมูล Models (ส่งค่า showDeleted ไปยัง API เพื่อกรอง)
   const fetchModels = async () => {
     setLoading(true);
     try {
-      const res = await apiClient.get('/api/master/models');
+      const res = await apiClient.get(`/api/master/models?showDeleted=${showDeleted}`);
       setModels(res.data);
     } catch (error) {
       console.error("Fetch error:", error);
@@ -22,7 +31,31 @@ const ModelManager = () => {
     }
   };
 
-  useEffect(() => { fetchModels(); }, []);
+  // โหลดข้อมูลใหม่ทุกครั้งที่สลับหน้า Active <-> Deleted
+  useEffect(() => { 
+    fetchModels(); 
+    setCurrentPage(1); // รีเซ็ตหน้ากลับไปที่ 1 เมื่อสลับโหมด
+    setSearchTerm(''); // ล้างช่องค้นหาเมื่อสลับโหมด
+  }, [showDeleted]);
+
+  // === Logic สำหรับ Filter และ แบ่งหน้า ===
+  const filteredModels = models.filter(model => 
+    model.name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+  
+  const totalPages = Math.ceil(filteredModels.length / itemsPerPage);
+  
+  // ตัด Array เอาเฉพาะข้อมูลของหน้านั้นๆ
+  const paginatedModels = filteredModels.slice(
+    (currentPage - 1) * itemsPerPage, 
+    currentPage * itemsPerPage
+  );
+
+  // เมื่อพิมพ์ค้นหา ให้กลับไปหน้า 1 เสมอ
+  const handleSearchChange = (e) => {
+    setSearchTerm(e.target.value);
+    setCurrentPage(1); 
+  };
 
   // --- Functions สำหรับ Form เพิ่ม Model ---
   const handleAddPort = () => {
@@ -55,6 +88,7 @@ const ModelManager = () => {
       await apiClient.post('/api/master/models', newModel);
       setIsModalOpen(false);
       setNewModel({ name: '', imageUrl: '', ports: [] }); // Reset form
+      setShowDeleted(false); // เด้งกลับมาหน้า Active อัตโนมัติเมื่อสร้างเสร็จ
       fetchModels(); // Refresh table
     } catch (error) {
       console.error("Save error:", error);
@@ -62,6 +96,7 @@ const ModelManager = () => {
     }
   };
 
+  // --- Functions สำหรับ ลบ และ กู้คืน ---
   const handleDeleteModel = async (id, name) => {
     if (confirm(`Are you sure you want to delete ${name}?`)) {
       try {
@@ -73,10 +108,21 @@ const ModelManager = () => {
     }
   };
 
+  const handleRestoreModel = async (id, name) => {
+    if (confirm(`Are you sure you want to restore ${name}?`)) {
+      try {
+        await apiClient.put(`/api/master/models/${id}/restore`);
+        fetchModels(); // โหลดข้อมูลใหม่เมื่อกู้คืนเสร็จ
+      } catch (error) {
+        alert("Failed to restore model");
+      }
+    }
+  };
+
   return (
     <div className="space-y-6 animate-fade-in pb-10">
       
-      {/* Header */}
+      {/* Header & Actions */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
@@ -84,59 +130,142 @@ const ModelManager = () => {
           </h2>
           <p className="text-slate-500">Manage MikroTik device models and port templates</p>
         </div>
-        <button 
-          onClick={() => setIsModalOpen(true)}
-          className="bg-blue-600 text-white px-4 py-2.5 rounded-xl flex items-center gap-2 hover:bg-blue-700 transition"
-        >
-          <Plus size={20} /> Add New Model
-        </button>
+        
+        <div className="flex items-center gap-3">
+          <button 
+            onClick={() => setShowDeleted(!showDeleted)}
+            className={`px-4 py-2.5 rounded-xl flex items-center gap-2 transition font-medium ${
+              showDeleted 
+                ? 'bg-slate-200 text-slate-700 hover:bg-slate-300' 
+                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+            }`}
+          >
+            <Archive size={20} />
+            {showDeleted ? 'View Active Models' : 'Deleted Models'}
+          </button>
+
+          <button 
+            onClick={() => setIsModalOpen(true)}
+            className="bg-blue-600 text-white px-4 py-2.5 rounded-xl flex items-center gap-2 hover:bg-blue-700 transition font-medium shadow-sm"
+          >
+            <Plus size={20} /> Add New Model
+          </button>
+        </div>
+      </div>
+
+      {/* Toolbar: Search Bar */}
+      <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+        <div className="relative w-full md:max-w-md">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
+          <input 
+            type="text"
+            placeholder="Search model name..."
+            className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-100 transition"
+            value={searchTerm}
+            onChange={handleSearchChange}
+          />
+        </div>
       </div>
 
       {/* Models Grid */}
       {loading ? (
         <div className="p-10 text-center text-slate-400">Loading models...</div>
+      ) : filteredModels.length === 0 ? (
+        <div className="p-10 text-center text-slate-400 border border-dashed border-slate-300 rounded-xl bg-slate-50">
+           {searchTerm ? "No models match your search." : (showDeleted ? "No deleted models found." : "No models found. Create a new one!")}
+        </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {models.map(model => (
-            <div key={model.id} className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden hover:shadow-md transition group">
-              <div className="p-4 flex justify-between items-start border-b border-slate-100 bg-slate-50">
-                <div className="font-bold text-slate-800 flex items-center gap-2">
-                  {model.name}
-                  {/* แสดงป้าย Popular ถ้ารุ่นนี้ถูกใช้งานบ่อย */}
-                  {model._count?.configs > 0 && (
-                     <span className="bg-orange-100 text-orange-600 text-[10px] px-2 py-0.5 rounded-full font-bold">
-                       🔥 {model._count.configs} Used
-                     </span>
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {paginatedModels.map(model => (
+              <div key={model.id} className={`bg-white rounded-xl border shadow-sm overflow-hidden hover:shadow-md transition group ${showDeleted ? 'border-red-100 opacity-80 grayscale' : 'border-slate-200'}`}>
+                
+                <div className={`p-4 flex justify-between items-start border-b ${showDeleted ? 'bg-red-50/50 border-red-100' : 'bg-slate-50 border-slate-100'}`}>
+                  <div className="font-bold text-slate-800 flex items-center flex-wrap gap-2">
+                    {model.name}
+                    {model._count?.configs > 0 && (
+                       <span className="bg-orange-100 text-orange-600 text-[10px] px-2 py-0.5 rounded-full font-bold">
+                         🔥 {model._count.configs} Used
+                       </span>
+                    )}
+                    {showDeleted && (
+                       <span className="bg-red-100 text-red-600 text-[10px] px-2 py-0.5 rounded-full font-bold">
+                         Deleted
+                       </span>
+                    )}
+                  </div>
+                  
+                  {/* สลับปุ่มระหว่าง Restore กับ Delete */}
+                  {showDeleted ? (
+                    <button 
+                      onClick={() => handleRestoreModel(model.id, model.name)}
+                      className="text-slate-400 hover:text-green-600 opacity-0 group-hover:opacity-100 transition"
+                      title="Restore Model"
+                    >
+                      <RotateCcw size={18} />
+                    </button>
+                  ) : (
+                    <button 
+                      onClick={() => handleDeleteModel(model.id, model.name)}
+                      className="text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition"
+                      title="Delete Model"
+                    >
+                      <Trash2 size={18} />
+                    </button>
                   )}
                 </div>
-                <button 
-                  onClick={() => handleDeleteModel(model.id, model.name)}
-                  className="text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition"
-                  title="Delete Model"
-                >
-                  <Trash2 size={18} />
-                </button>
-              </div>
-              <div className="p-4 flex gap-4 items-center">
-                {model.imageUrl ? (
-                  <img src={model.imageUrl} alt={model.name} className="w-20 object-contain" />
-                ) : (
-                  <div className="w-20 h-16 bg-slate-100 rounded flex items-center justify-center text-slate-400"><Server size={24}/></div>
-                )}
-                <div>
-                  <div className="text-sm font-semibold text-slate-600 mb-1">Ports ({model.ports.length})</div>
-                  <div className="flex flex-wrap gap-1">
-                    {model.ports.map((p, i) => (
-                      <span key={i} className="text-[10px] px-1.5 py-0.5 bg-slate-100 border border-slate-200 rounded text-slate-600" title={`Type: ${p.type}`}>
-                        {p.name}
-                      </span>
-                    ))}
+                
+                <div className="p-4 flex gap-4 items-center">
+                  {model.imageUrl ? (
+                    <img src={model.imageUrl} alt={model.name} className="w-20 object-contain" />
+                  ) : (
+                    <div className="w-20 h-16 bg-slate-100 rounded flex items-center justify-center text-slate-400"><Server size={24}/></div>
+                  )}
+                  <div>
+                    <div className="text-sm font-semibold text-slate-600 mb-1">Ports ({model.ports.length})</div>
+                    <div className="flex flex-wrap gap-1">
+                      {model.ports.map((p, i) => (
+                        <span key={i} className="text-[10px] px-1.5 py-0.5 bg-slate-100 border border-slate-200 rounded text-slate-600" title={`Type: ${p.type}`}>
+                          {p.name}
+                        </span>
+                      ))}
+                    </div>
                   </div>
                 </div>
+
+              </div>
+            ))}
+          </div>
+
+          {/* Pagination Controls */}
+          {totalPages > 1 && (
+            <div className="flex flex-col sm:flex-row justify-between items-center bg-white p-4 rounded-xl border border-slate-200 shadow-sm gap-4">
+              <div className="text-sm text-slate-500">
+                Showing <span className="font-medium text-slate-700">{(currentPage - 1) * itemsPerPage + 1}</span> to <span className="font-medium text-slate-700">{Math.min(currentPage * itemsPerPage, filteredModels.length)}</span> of <span className="font-medium text-slate-700">{filteredModels.length}</span> models
+              </div>
+              
+              <div className="flex items-center gap-2">
+                <button 
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                  className="p-1.5 rounded-md border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                >
+                  <ChevronLeft size={18} />
+                </button>
+                <span className="text-sm font-medium text-slate-600 px-3 py-1 bg-slate-50 rounded-md border border-slate-100">
+                  Page {currentPage} of {totalPages}
+                </span>
+                <button 
+                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages}
+                  className="p-1.5 rounded-md border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                >
+                  <ChevronRight size={18} />
+                </button>
               </div>
             </div>
-          ))}
-        </div>
+          )}
+        </>
       )}
 
       {/* --- Add Model Modal --- */}
@@ -176,7 +305,6 @@ const ModelManager = () => {
                 ) : (
                   <div className="space-y-2">
                     
-                    {/* ✅ อัปเดตส่วนหัวตารางตรงนี้ ให้เข้าใจง่ายขึ้น */}
                     <div className="flex gap-2 px-2 text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
                       <div className="flex-1">Port Name (in RouterOS)</div>
                       <div className="w-28">Hardware Type</div>
