@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import { Outlet, NavLink } from 'react-router-dom';
-import { Server, PlusCircle, Activity, Menu, X, Router, Database } from 'lucide-react';
+import { Server, PlusCircle, Activity, Menu, X, Router, Database, LayoutDashboard } from 'lucide-react';
 
 const MainLayout = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-  // รายการเมนูทั้งหมด (เพิ่มง่ายขึ้นในอนาคต)
+  // ✅ เพิ่ม Dashboard ไว้เป็นเมนูแรกสุด
   const navItems = [
+    { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
     { to: '/devices', icon: Server, label: 'Managed Routers' },
     { to: '/add-device', icon: PlusCircle, label: 'Add New Device' },
     { to: '/models', icon: Database, label: 'Hardware Models' },
@@ -115,7 +116,7 @@ const MainLayout = () => {
         {/* Page Content (ที่ที่เนื้อหาแต่ละหน้าจะถูกนำมาแสดง) */}
         <main className="flex-1 overflow-y-auto p-4 md:p-8">
           <div className="max-w-7xl mx-auto">
-            {/* Component ของหน้าที่เราเรียกใช้ (เช่น DeviceList, ConfigWizard, AuditLog) จะมาโผล่ตรงนี้ */}
+            {/* Component ของหน้าที่เราเรียกใช้จะมาโผล่ตรงนี้ */}
             <Outlet /> 
           </div>
         </main>

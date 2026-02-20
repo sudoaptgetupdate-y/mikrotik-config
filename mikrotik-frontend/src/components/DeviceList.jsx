@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import apiClient from '../utils/apiClient';
 import { generateMikrotikScript } from '../utils/mikrotikGenerator';
 import { formatUptime, formatLatency } from '../utils/formatters';
@@ -11,7 +11,6 @@ import {
   Archive, RotateCcw, ChevronDown
 } from 'lucide-react';
 
-// ตัวเลือกสำหรับ Filter
 const FILTER_OPTIONS = [
   { value: 'ACTIVE_ONLY', label: 'Active Devices', icon: Activity, color: 'text-blue-600', bg: 'bg-blue-100' },
   { value: 'ONLINE', label: 'Online', icon: CheckCircle, color: 'text-green-600', bg: 'bg-green-100' },
@@ -23,13 +22,13 @@ const FILTER_OPTIONS = [
 
 const DeviceList = () => {
   const navigate = useNavigate();
+  const location = useLocation(); 
+  
   const [devices, setDevices] = useState([]);
   const [loading, setLoading] = useState(true);
   
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('ACTIVE_ONLY');
-  
-  // State & Ref สำหรับ Custom Dropdown
+  const [statusFilter, setStatusFilter] = useState(location.state?.filter || 'ACTIVE_ONLY');
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const filterRef = useRef(null);
 
@@ -39,6 +38,12 @@ const DeviceList = () => {
   const [selectedDeviceHistory, setSelectedDeviceHistory] = useState(null);
   const [historyData, setHistoryData] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(false);
+
+  useEffect(() => {
+    if (location.state?.filter) {
+      setStatusFilter(location.state.filter);
+    }
+  }, [location.state?.filter]);
 
   const fetchDevices = async () => {
     try {
@@ -58,7 +63,6 @@ const DeviceList = () => {
     return () => clearInterval(interval);
   }, []);
 
-  // ปิด Dropdown เมื่อคลิกที่อื่น
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (filterRef.current && !filterRef.current.contains(event.target)) {
@@ -170,7 +174,6 @@ const DeviceList = () => {
   });
 
   const currentFilterOpt = FILTER_OPTIONS.find(opt => opt.value === statusFilter);
-  // ✅ แก้ไขปัญหา React Render Icon 
   const CurrentIcon = currentFilterOpt ? currentFilterOpt.icon : Activity;
 
   return (
@@ -195,10 +198,8 @@ const DeviceList = () => {
         </button>
       </div>
 
-      {/* Toolbar เครื่องมือค้นหาและ Filter */}
+      {/* Toolbar */}
       <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col md:flex-row gap-4 items-center">
-        
-        {/* Search Bar */}
         <div className="relative flex-1 w-full">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
           <input 
@@ -210,7 +211,6 @@ const DeviceList = () => {
           />
         </div>
 
-        {/* ✅ Custom Dropdown Filter (ปรับแก้ให้เสถียร) */}
         <div className="relative w-full md:w-56" ref={filterRef}>
           <button 
             onClick={() => setIsFilterOpen(!isFilterOpen)}
@@ -225,39 +225,33 @@ const DeviceList = () => {
             <ChevronDown size={16} className={`text-slate-400 transition-transform duration-300 ${isFilterOpen ? 'rotate-180' : ''}`} />
           </button>
 
-          {/* เมนู Dropdown ที่ลอยออกมา */}
-          <div 
-            className={`absolute z-50 top-full left-0 mt-2 w-full bg-white border border-slate-100 rounded-xl shadow-lg shadow-slate-200/50 py-1.5 transform origin-top transition-all duration-200 ease-out ${
-              isFilterOpen 
-                ? 'opacity-100 scale-100 translate-y-0 visible' 
-                : 'opacity-0 scale-95 -translate-y-2 invisible'
-            }`}
-          >
-            {FILTER_OPTIONS.map((opt) => {
-              const DropdownIcon = opt.icon;
-              return (
-                <button 
-                  key={opt.value}
-                  onClick={() => {
-                    setStatusFilter(opt.value);
-                    setIsFilterOpen(false);
-                  }}
-                  className={`w-full text-left px-3 py-2.5 flex items-center gap-3 transition-colors ${statusFilter === opt.value ? 'bg-slate-50' : 'hover:bg-slate-50'}`}
-                >
-                  <div className={`p-1.5 rounded-md ${opt.bg} ${opt.color}`}>
-                    <DropdownIcon size={14} strokeWidth={2.5} />
-                  </div>
-                  <span className={`text-sm ${statusFilter === opt.value ? 'font-bold text-blue-600' : 'font-medium text-slate-600'}`}>
-                    {opt.label}
-                  </span>
-                  {statusFilter === opt.value && <CheckCircle size={14} className="ml-auto text-blue-600" />}
-                </button>
-              );
-            })}
-          </div>
+          {isFilterOpen && (
+            <div className="absolute z-50 top-full left-0 mt-2 w-full bg-white border border-slate-100 rounded-xl shadow-lg shadow-slate-200/50 py-1.5 animate-in fade-in slide-in-from-top-2 duration-200">
+              {FILTER_OPTIONS.map((opt) => {
+                const DropdownIcon = opt.icon;
+                return (
+                  <button 
+                    key={opt.value}
+                    onClick={() => {
+                      setStatusFilter(opt.value);
+                      setIsFilterOpen(false);
+                    }}
+                    className={`w-full text-left px-3 py-2.5 flex items-center gap-3 transition-colors ${statusFilter === opt.value ? 'bg-slate-50' : 'hover:bg-slate-50'}`}
+                  >
+                    <div className={`p-1.5 rounded-md ${opt.bg} ${opt.color}`}>
+                      <DropdownIcon size={14} strokeWidth={2.5} />
+                    </div>
+                    <span className={`text-sm ${statusFilter === opt.value ? 'font-bold text-blue-600' : 'font-medium text-slate-600'}`}>
+                      {opt.label}
+                    </span>
+                    {statusFilter === opt.value && <CheckCircle size={14} className="ml-auto text-blue-600" />}
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
 
-        {/* Refresh Button */}
         <button onClick={() => { setLoading(true); fetchDevices(); }} className="w-full md:w-auto flex justify-center items-center gap-2 px-4 py-2.5 text-slate-600 hover:bg-slate-50 rounded-lg border border-slate-200 transition font-medium">
           <RefreshCw size={18} className={loading ? "animate-spin text-blue-500" : ""} />
           <span className="md:hidden lg:inline">Refresh</span>
@@ -305,19 +299,33 @@ const DeviceList = () => {
 
                       {/* 2. Details */}
                       <td className="p-4 align-top">
-                        <div className="flex items-start gap-3">
-                          <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 mt-1 ${isDeleted ? 'bg-slate-200 text-slate-400' : 'bg-blue-50 text-blue-600'}`}>
-                            <Server size={20} />
-                          </div>
+                        <div className="flex flex-col gap-1.5">
+                          
+                          {/* ชื่อและ Circuit ID */}
                           <div>
-                            <div className={`font-bold ${isDeleted ? 'text-slate-500 line-through' : 'text-slate-700'}`}>{device.name}</div>
-                            <div className="text-xs text-slate-500 font-mono mb-1">{device.circuitId || '-'}</div>
+                            <div className={`font-bold ${isDeleted ? 'text-slate-500 line-through' : 'text-slate-800'}`}>
+                              {device.name}
+                            </div>
+                            <div className="text-xs text-slate-500 font-mono mt-0.5">
+                              {device.circuitId || '-'}
+                            </div>
+                          </div>
+                          
+                          {/* ชื่อรุ่นอุปกรณ์ และ Firmware Version (รูปแบบ Text Badge) */}
+                          <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                            
+                            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded border ${isDeleted ? 'bg-slate-50 text-slate-400 border-slate-200' : 'bg-slate-100 text-slate-600 border-slate-200 shadow-sm'}`}>
+                              {device.model?.name || 'Unknown Model'}
+                            </span>
+
                             {device.version && (
-                              <span className="inline-block text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded border border-slate-200">
+                              <span className="text-[10px] font-medium bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded border border-blue-100 shadow-sm">
                                 v{device.version}
                               </span>
                             )}
+                            
                           </div>
+
                         </div>
                       </td>
 
@@ -394,7 +402,7 @@ const DeviceList = () => {
                         </div>
                       </td>
 
-                      {/* 6. Actions (Buttons) */}
+                      {/* 6. Actions */}
                       <td className="p-4 align-top text-right pr-6">
                         <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                           

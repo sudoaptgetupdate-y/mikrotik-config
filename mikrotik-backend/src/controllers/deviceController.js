@@ -43,13 +43,12 @@ exports.createDevice = async (req, res) => {
       }
     });
 
-    // ✅ 1.2 "ยัดไส้" Token กลับเข้าไปใน ConfigData
+    // 1.2 "ยัดไส้" Token กลับเข้าไปใน ConfigData
     let finalConfigData = configData;
     if (configData) {
       finalConfigData = {
         ...configData,
-        token: newDevice.apiToken, // ✅ เอา Token จริงจาก DB ใส่เข้าไป
-        // apiHost: '10.0.0.100' // (Optional) ถ้าอยาก Hardcode IP Server หรือรับจาก req.hostname
+        token: newDevice.apiToken, // เอา Token จริงจาก DB ใส่เข้าไป
       };
 
       // 1.3 อัปเดต Device กลับอีกรอบ เพื่อให้ configData ในตารางหลักมี Token ด้วย
@@ -58,7 +57,7 @@ exports.createDevice = async (req, res) => {
         data: { configData: finalConfigData }
       });
 
-      // 1.4 บันทึก History (ตอนนี้ Script ที่ Gen ออกมาจะมี Token แล้ว!)
+      // 1.4 บันทึก History
       await saveConfigHistory(userId, name, finalConfigData, newDevice.id);
     }
 
@@ -71,7 +70,6 @@ exports.createDevice = async (req, res) => {
       }
     });
 
-    // ส่งข้อมูลที่มี Token แล้วกลับไปให้ Frontend
     res.status(201).json({ ...newDevice, configData: finalConfigData });
 
   } catch (error) {
@@ -86,16 +84,14 @@ exports.updateDevice = async (req, res) => {
     const { id } = req.params;
     const { configData, name, circuitId, status } = req.body; 
 
-    // ดึง Device เก่าเพื่อเอา Token เดิม (เผื่อไม่ได้ส่งมา)
     const oldDevice = await prisma.managedDevice.findUnique({ where: { id: parseInt(id) } });
     if (!oldDevice) return res.status(404).json({ error: "Device not found" });
 
-    // ✅ "ยัดไส้" Token เดิมเข้าไปเสมอ (กันพลาด)
     let finalConfigData = configData;
     if (configData) {
         finalConfigData = {
             ...configData,
-            token: oldDevice.apiToken // ✅ บังคับใช้ Token เดิมของเครื่องนี้เสมอ
+            token: oldDevice.apiToken // บังคับใช้ Token เดิมของเครื่องนี้เสมอ
         };
     }
 
@@ -103,14 +99,14 @@ exports.updateDevice = async (req, res) => {
     const updatedDevice = await prisma.managedDevice.update({
       where: { id: parseInt(id) },
       data: {
-        configData: finalConfigData, // บันทึกแบบมี Token
+        configData: finalConfigData, 
         ...(name && { name }),           
         ...(circuitId && { circuitId }),
         ...(status && { status }) 
       }
     });
 
-    // 2.2 บันทึก History (ส่ง updatedDevice.id ไปด้วย)
+    // 2.2 บันทึก History
     if (finalConfigData) {
       await saveConfigHistory(updatedDevice.userId, updatedDevice.name, finalConfigData, updatedDevice.id);
     }
@@ -137,7 +133,6 @@ exports.handleHeartbeat = async (req, res) => {
     const device = req.device; 
     const remoteIp = req.socket.remoteAddress || req.ip; 
 
-    // 1. เพิ่มการรับค่า storage, temp, latency จาก req.body
     const { cpu, ram, uptime, version, storage, temp, latency } = req.body; 
 
     await prisma.managedDevice.update({
@@ -149,13 +144,10 @@ exports.handleHeartbeat = async (req, res) => {
         memoryUsage: ram ? parseInt(ram) : undefined,
         uptime: uptime || undefined,
         version: version || undefined,
-        
-        // 2. บันทึกลงฐานข้อมูล
         storage: storage ? parseInt(storage) : undefined,
         temp: temp || undefined,
         latency: latency || undefined,
-
-        status: device.status === 'DELETED' ? 'DELETED' : "ACTIVE" // ป้องกันตัวที่ลบไปแล้วกลับมา Active
+        status: device.status === 'DELETED' ? 'DELETED' : "ACTIVE" 
       }
     });
 
@@ -163,17 +155,15 @@ exports.handleHeartbeat = async (req, res) => {
     let commandToSend = "none";
     if (device.pendingCmd) {
       commandToSend = device.pendingCmd;
-      // Clear command หลังส่งไปแล้ว
       await prisma.managedDevice.update({
         where: { id: device.id },
         data: { pendingCmd: null }
       });
       
-      // Log การส่งคำสั่ง
       await prisma.activityLog.create({
         data: {
           userId: device.userId,
-          action: "UPDATE_DEVICE", // หรือ Action: EXECUTE_COMMAND
+          action: "UPDATE_DEVICE", 
           details: `Executed remote command: ${commandToSend} on ${device.name}`
         }
       });
@@ -197,37 +187,46 @@ exports.getUserDevices = async (req, res) => {
     const devices = await prisma.managedDevice.findMany({
       where: { 
         userId: parseInt(userId),
-        // ✅ เอาสถานะออก เพื่อให้ Backend ส่งตัวที่โดน Soft Delete ไปให้ Frontend ทำ Filter ด้วย
       },
       orderBy: { createdAt: 'desc' }
     });
     
-    // คำนวณ Status Online/Offline
     const result = devices.map(d => {
-        // Online ถ้า LastSeen ไม่เกิน 5 นาที
         const isOnline = d.lastSeen && (new Date() - new Date(d.lastSeen) < 5 * 60 * 1000);
-        return { ...d, isOnline };
+        
+        // ✅ [แก้ไขจุดนี้] ดึงข้อมูล model ออกมาจาก JSON ใน configData และแนบไปให้ Frontend
+        let modelObj = null;
+        if (d.configData && d.configData.selectedModel) {
+          modelObj = d.configData.selectedModel;
+        }
+
+        return { 
+          ...d, 
+          isOnline,
+          model: modelObj // ส่ง property .model ให้ตรงกับที่ DeviceList.jsx ร้องขอ
+        };
     });
 
     res.json(result);
   } catch (error) {
+    console.error("Fetch devices error:", error);
     res.status(500).json({ error: "Failed to fetch devices" });
   }
 };
 
-// 5. ดึงประวัติ Config (History) ✅ Logic ใหม่
+// 5. ดึงประวัติ Config (History)
 exports.getDeviceHistory = async (req, res) => {
   try {
-    const { id } = req.params; // id นี้คือ ManagedDevice ID
+    const { id } = req.params; 
     
     const history = await prisma.config.findMany({
-      where: { managedDeviceId: parseInt(id) }, // ดึงจาก ID อุปกรณ์โดยตรง
+      where: { managedDeviceId: parseInt(id) }, 
       include: {
-        deviceModel: { select: { name: true, imageUrl: true } }, // ดึงชื่อรุ่นและรูปมาแสดง
+        deviceModel: { select: { name: true, imageUrl: true } }, 
         user: { select: { username: true } }
       },
       orderBy: { createdAt: 'desc' },
-      take: 20 // เอา 20 รายการล่าสุด
+      take: 20 
     });
     
     res.json(history);
@@ -247,6 +246,11 @@ exports.getDeviceById = async (req, res) => {
     
     if (!device) return res.status(404).json({ error: "Device not found" });
     
+    // ✅ [แก้ไขจุดนี้] ดึง model แนบไปด้วยเช่นกัน
+    if (device.configData && device.configData.selectedModel) {
+      device.model = device.configData.selectedModel;
+    }
+    
     res.json(device);
   } catch (error) {
     res.status(500).json({ error: "Failed to fetch device detail" });
@@ -256,17 +260,16 @@ exports.getDeviceById = async (req, res) => {
 // 7. Log การดาวน์โหลด
 exports.logDownload = async (req, res) => {
   try {
-    const { id } = req.params; // ID ของ ManagedDevice
-    const { userId, configId } = req.body; // configId จะมีค่าถ้าโหลดจากหน้า History
+    const { id } = req.params; 
+    const { userId, configId } = req.body; 
 
     const device = await prisma.managedDevice.findUnique({ where: { id: parseInt(id) } });
     if (!device) return res.status(404).json({ error: "Device not found" });
 
-    // บันทึกลง ActivityLog
     await prisma.activityLog.create({
       data: {
         userId: parseInt(userId),
-        action: "GENERATE_CONFIG", // ใช้ Enum ที่เรามีอยู่แล้วใน Schema
+        action: "GENERATE_CONFIG", 
         details: `Downloaded config for: ${device.name} ${configId ? `(History Version #${configId})` : '(Latest Version)'}`
       }
     });
@@ -278,16 +281,14 @@ exports.logDownload = async (req, res) => {
   }
 };
 
-// ✅ 8. ลบอุปกรณ์ (Soft Delete) - เพิ่มเข้ามาใหม่
+// 8. ลบอุปกรณ์ (Soft Delete)
 exports.deleteDevice = async (req, res) => {
   try {
     const { id } = req.params;
     
-    // ดึงข้อมูลอุปกรณ์เพื่อนำมาบันทึก Log
     const device = await prisma.managedDevice.findUnique({ where: { id: parseInt(id) } });
     if (!device) return res.status(404).json({ error: "Device not found" });
 
-    // 8.1 ทำการ Soft Delete โดยเปลี่ยนสถานะเป็น DELETED
     await prisma.managedDevice.update({
       where: { id: parseInt(id) },
       data: { 
@@ -295,10 +296,9 @@ exports.deleteDevice = async (req, res) => {
       }
     });
 
-    // 8.2 บันทึก Log การลบ
     await prisma.activityLog.create({
       data: {
-        userId: device.userId, // บันทึกว่าถูกลบภายใต้ User นี้
+        userId: device.userId,
         action: "UPDATE_DEVICE", 
         details: `Soft deleted device: ${device.name} (${device.circuitId || '-'})`
       }
@@ -319,13 +319,11 @@ exports.restoreDevice = async (req, res) => {
     const device = await prisma.managedDevice.findUnique({ where: { id: parseInt(id) } });
     if (!device) return res.status(404).json({ error: "Device not found" });
 
-    // 9.1 เปลี่ยนสถานะกลับมาเป็น ACTIVE
     await prisma.managedDevice.update({
       where: { id: parseInt(id) },
       data: { status: 'ACTIVE' }
     });
 
-    // 9.2 บันทึก Log การกู้คืน
     await prisma.activityLog.create({
       data: {
         userId: device.userId,

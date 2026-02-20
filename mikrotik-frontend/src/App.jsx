@@ -1,12 +1,12 @@
 import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import MainLayout from './layouts/MainLayout';
+import Dashboard from './components/Dashboard'; // ✅ อิมพอร์ต Dashboard หน้าใหม่
 import DeviceList from './components/DeviceList';
 import ConfigWizard from './components/ConfigWizard';
 import AuditLog from './components/AuditLog'; 
-import { useState } from 'react';
 import ModelManager from './components/ModelManager';
 
-// --- Wrapper Components (ตัวช่วยจัดการ Data ก่อนส่งเข้า Wizard) ---
+// --- Wrapper Components ---
 
 // 1. หน้าสร้างอุปกรณ์ใหม่
 const CreateDevicePage = () => {
@@ -14,7 +14,8 @@ const CreateDevicePage = () => {
   return (
     <ConfigWizard 
       mode="create"
-      onFinish={() => navigate('/dashboard')} 
+      // ✅ เมื่อสร้างเสร็จ ให้กลับไปหน้ารายการอุปกรณ์ (devices)
+      onFinish={() => navigate('/devices')} 
     />
   );
 };
@@ -27,14 +28,15 @@ const EditDevicePage = () => {
   const deviceData = location.state?.deviceData;
 
   if (!deviceData) {
-    return <Navigate to="/dashboard" replace />;
+    return <Navigate to="/devices" replace />;
   }
 
   return (
     <ConfigWizard 
       mode="edit"
       initialData={deviceData} 
-      onFinish={() => navigate('/dashboard')} 
+      // ✅ เมื่อแก้ไขเสร็จ ให้กลับไปหน้ารายการอุปกรณ์ (devices)
+      onFinish={() => navigate('/devices')} 
     />
   );
 };
@@ -42,15 +44,17 @@ const EditDevicePage = () => {
 // --- Main App Component ---
 function App() {
   return (
-    // ❌ ไม่ต้องใส่ <BrowserRouter> ตรงนี้ เพราะคุณมีอยู่ใน main.jsx แล้ว
     <Routes>
       <Route path="/" element={<MainLayout />}>
         
         {/* หน้าแรกให้ Redirect ไป Dashboard ทันที */}
         <Route index element={<Navigate to="/dashboard" replace />} />
         
-        {/* หน้า Dashboard (ตารางรายชื่อ) */}
-        <Route path="dashboard" element={<DeviceList />} />
+        {/* ✅ หน้า Dashboard ตัวจริง (ภาพรวม) */}
+        <Route path="dashboard" element={<Dashboard />} />
+        
+        {/* ✅ ย้ายตารางรายชื่อมาที่ /devices */}
+        <Route path="devices" element={<DeviceList />} />
         
         {/* หน้าเพิ่มอุปกรณ์ */}
         <Route path="add-device" element={<CreateDevicePage />} />
@@ -58,13 +62,14 @@ function App() {
         {/* หน้าแก้ไขอุปกรณ์ (รับ id) */}
         <Route path="edit-device/:id" element={<EditDevicePage />} />
 
-        {/* ✅ 2. เพิ่ม Route สำหรับหน้า Audit Logs */}
+        {/* หน้า Audit Logs */}
         <Route path="audit-logs" element={<AuditLog />} />
 
-        {/* ✅ 3. Catch-all Route: ถ้า URL ไม่ตรงกับด้านบนเลย ให้กลับไปหน้า dashboard */}
-        <Route path="*" element={<Navigate to="/dashboard" replace />} />
-        {/* ✅ 3. เพิ่ม route สำหรับจัดการรุ่นของ mikrotik */}
+        {/* จัดการรุ่นของ Mikrotik */}
         <Route path="models" element={<ModelManager />} />
+
+        {/* ✅ Catch-all Route: ต้องอยู่ล่างสุดเสมอ! ถ้า URL ไม่ตรง ให้กลับไปหน้า dashboard */}
+        <Route path="*" element={<Navigate to="/dashboard" replace />} />
 
       </Route>
     </Routes>
