@@ -1,5 +1,5 @@
 import React from 'react';
-import { Network, Wifi, Plus, Trash2, Server, ShieldCheck, Settings2 } from 'lucide-react';
+import { Network, Wifi, Plus, Trash2, Server, ShieldCheck, Settings2, Globe } from 'lucide-react';
 
 const Step4_LANSetup = ({ networks, setNetworks, dnsConfig }) => {
   
@@ -30,7 +30,6 @@ const Step4_LANSetup = ({ networks, setNetworks, dnsConfig }) => {
       hotspot: type === 'hotspot'
     };
     
-    // ✅ จุดที่แก้ไข: เอา newNet ขึ้นก่อน แล้วค่อยตามด้วย ...networks 
     setNetworks([newNet, ...networks]);
   };
 
@@ -44,108 +43,127 @@ const Step4_LANSetup = ({ networks, setNetworks, dnsConfig }) => {
   };
 
   return (
-    <div className="max-w-5xl mx-auto animate-fade-in pb-10">
-      <div className="flex flex-col md:flex-row md:justify-between md:items-end mb-8 gap-4">
+    <div className="max-w-4xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500">
+      
+      {/* --- Header Section --- */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
         <div>
-          <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
+          <h2 className="text-xl font-black text-slate-800 flex items-center gap-2">
             <Settings2 className="text-blue-600" /> LAN & VLAN Configuration
           </h2>
-          <p className="text-sm text-slate-500 mt-1">กำหนดวงเครือข่ายภายในและระบบ Hotspot</p>
+          <p className="text-sm text-slate-500 mt-1 font-medium">กำหนดวงเครือข่ายภายในและระบบ Hotspot</p>
         </div>
         
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2 sm:gap-3">
           <button 
             onClick={() => addNetwork('network')}
-            className="flex items-center gap-2 px-3 py-2 bg-blue-50 text-blue-600 rounded-lg border border-blue-200 hover:bg-blue-100 font-bold transition text-sm shadow-sm"
+            className="bg-slate-900 text-white px-4 py-2.5 rounded-xl flex items-center justify-center gap-2 hover:bg-blue-600 hover:shadow-lg hover:shadow-blue-500/20 transition-all duration-300 font-bold text-sm"
           >
             <Plus size={16} /> New Network
           </button>
           <button 
             onClick={() => addNetwork('hotspot')}
-            className="flex items-center gap-2 px-3 py-2 bg-orange-50 text-orange-600 rounded-lg border border-orange-200 hover:bg-orange-100 font-bold transition text-sm shadow-sm"
+            className="bg-orange-500 text-white px-4 py-2.5 rounded-xl flex items-center justify-center gap-2 hover:bg-orange-600 hover:shadow-lg hover:shadow-orange-500/20 transition-all duration-300 font-bold text-sm"
           >
             <Wifi size={16} /> New Hotspot
           </button>
         </div>
       </div>
 
-      <div className="space-y-4">
+      {/* --- Scrollable Content Area --- */}
+      <div className="max-h-[60vh] overflow-y-auto pr-2 pb-4 space-y-5 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-300 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-slate-400 transition-colors">
+        
         {networks.map((net) => {
-          const dnsDisplay = net.hotspot || dnsConfig.allowRemoteRequests 
+          const dnsDisplay = net.hotspot || (dnsConfig && dnsConfig.allowRemoteRequests)
             ? net.ip.split('/')[0] 
-            : dnsConfig.servers.join(', ');
+            : (dnsConfig && dnsConfig.servers ? dnsConfig.servers.join(', ') : '');
 
           return (
             <div 
               key={net.id} 
-              className={`bg-white p-5 rounded-xl border-2 transition-all hover:shadow-md ${
-                net.hotspot ? 'border-orange-100 shadow-sm shadow-orange-50' : 'border-slate-100'
+              className={`bg-white p-6 md:p-8 rounded-2xl border transition-all duration-300 relative group hover:shadow-lg ${
+                net.hotspot 
+                  ? 'border-orange-100 hover:border-orange-300 shadow-sm shadow-orange-50' 
+                  : 'border-slate-200 hover:border-blue-200 shadow-sm'
               }`}
             >
-              <div className="flex flex-wrap md:flex-nowrap gap-4 items-start">
+              <div className="grid grid-cols-1 md:grid-cols-12 gap-5 items-start">
                 
                 {/* VLAN ID */}
-                <div className="w-full md:w-24 shrink-0">
-                  <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">VLAN ID</label>
+                <div className="md:col-span-2">
+                  <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">VLAN ID</label>
                   <input 
                     type="number" 
                     disabled={net.vlanId === 56}
-                    className="w-full p-2 border border-slate-200 rounded-lg font-mono font-bold text-blue-600 text-center bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed focus:ring-2 focus:ring-blue-500 outline-none"
+                    className="w-full px-4 py-2.5 border border-slate-200 rounded-xl font-mono font-bold text-blue-600 text-center bg-slate-50 disabled:opacity-60 disabled:cursor-not-allowed focus:bg-white focus:ring-4 focus:ring-blue-50 focus:border-blue-400 outline-none transition-all"
                     value={net.vlanId}
                     onChange={(e) => updateNetwork(net.id, 'vlanId', parseInt(e.target.value))}
                   />
                 </div>
 
                 {/* Name */}
-                <div className="w-full md:flex-grow">
-                  <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Network Name</label>
-                  <input 
-                    type="text" 
-                    className="w-full p-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition"
-                    value={net.name}
-                    onChange={(e) => updateNetwork(net.id, 'name', e.target.value)}
-                    placeholder="e.g. vlan10Service"
-                  />
+                <div className="md:col-span-4">
+                  <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">Network Name</label>
+                  <div className="relative">
+                    <Network className={`absolute left-3.5 top-1/2 -translate-y-1/2 ${net.hotspot ? 'text-orange-400' : 'text-slate-400'}`} size={16} />
+                    <input 
+                      type="text" 
+                      className={`w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-700 focus:bg-white outline-none transition-all focus:ring-4 ${
+                        net.hotspot ? 'focus:ring-orange-50 focus:border-orange-400' : 'focus:ring-blue-50 focus:border-blue-400'
+                      }`}
+                      value={net.name}
+                      onChange={(e) => updateNetwork(net.id, 'name', e.target.value)}
+                      placeholder="e.g. vlan10Service"
+                    />
+                  </div>
                 </div>
 
                 {/* IP Gateway */}
-                <div className="w-full md:w-48 shrink-0">
-                  <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Gateway / CIDR</label>
+                <div className="md:col-span-4">
+                  <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">Gateway / CIDR</label>
                   <input 
                     type="text" 
-                    className="w-full p-2 border border-slate-200 rounded-lg font-mono text-sm focus:ring-2 focus:ring-blue-500 outline-none transition"
+                    className={`w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-mono text-sm font-medium text-slate-700 focus:bg-white outline-none transition-all focus:ring-4 ${
+                      net.hotspot ? 'focus:ring-orange-50 focus:border-orange-400' : 'focus:ring-blue-50 focus:border-blue-400'
+                    }`}
                     value={net.ip}
                     onChange={(e) => updateNetwork(net.id, 'ip', e.target.value)}
                     placeholder="192.168.10.1/24"
                   />
                 </div>
 
-                {/* Options & Status */}
-                <div className="w-full md:w-auto flex justify-between md:justify-end gap-2 md:pt-5">
-                  <div className="flex gap-2">
-                    {!net.hotspot ? (
+                {/* Options & Status (Delete & Hotspot/DHCP icon) */}
+                <div className="md:col-span-2 flex justify-between md:justify-end gap-3 md:pt-6">
+                  
+                  {/* Status Indicator */}
+                  {!net.hotspot ? (
+                    <div className="flex flex-col items-center justify-center">
                       <button 
                         onClick={() => updateNetwork(net.id, 'dhcp', !net.dhcp)}
-                        className={`flex items-center gap-1.5 px-3 py-2 rounded-lg border transition-colors ${
-                          net.dhcp ? 'bg-green-50 border-green-200 text-green-700' : 'bg-slate-50 border-slate-200 text-slate-400 hover:bg-slate-100'
+                        title="Toggle DHCP Server"
+                        className={`flex items-center justify-center h-11 px-3 rounded-xl border transition-all ${
+                          net.dhcp 
+                            ? 'bg-green-50 border-green-200 text-green-600 shadow-sm' 
+                            : 'bg-slate-50 border-slate-200 text-slate-400 hover:bg-slate-100'
                         }`}
                       >
-                        <Server size={16} />
-                        <span className="text-xs font-bold">DHCP</span>
+                        <Server size={18} />
                       </button>
-                    ) : (
-                      <div className="flex items-center gap-1.5 px-3 py-2 rounded-lg border bg-orange-50 border-orange-200 text-orange-700">
-                        <ShieldCheck size={16} />
-                        <span className="text-xs font-bold">HOTSPOT</span>
-                      </div>
-                    )}
-                  </div>
+                    </div>
+                  ) : (
+                    <div 
+                      title="Hotspot Enabled"
+                      className="flex items-center justify-center h-11 px-3 rounded-xl border bg-orange-50 border-orange-200 text-orange-500 shadow-sm"
+                    >
+                      <ShieldCheck size={18} />
+                    </div>
+                  )}
 
                   {/* Delete Button */}
                   {net.vlanId !== 56 && (
                     <button 
                       onClick={() => removeNetwork(net.id)}
-                      className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                      className="h-11 px-3 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all border border-transparent hover:border-red-100"
                       title="Remove Network"
                     >
                       <Trash2 size={20} />
@@ -154,20 +172,26 @@ const Step4_LANSetup = ({ networks, setNetworks, dnsConfig }) => {
                 </div>
               </div>
 
-              <div className="mt-4 flex flex-wrap items-center gap-4 text-[11px] text-slate-500 border-t border-slate-100 pt-3">
+              {/* Status Footer */}
+              <div className="mt-5 flex flex-wrap items-center gap-4 text-[11px] text-slate-500 border-t border-slate-100 pt-4">
                 <div className="flex items-center gap-1.5">
-                  <span className="font-bold uppercase tracking-wider text-[10px] text-slate-400">DHCP Server:</span> 
+                  <span className="font-bold uppercase tracking-wider text-[10px] text-slate-400 flex items-center gap-1">
+                    <Server size={12}/> DHCP Server:
+                  </span> 
                   <span className={`font-medium ${net.dhcp || net.hotspot ? "text-green-600" : "text-slate-400"}`}>
                     {net.dhcp || net.hotspot ? "Enabled (Auto)" : "Disabled"}
                   </span>
                 </div>
                 {(net.dhcp || net.hotspot) && (
                   <div className="flex items-center gap-1.5">
-                    <span className="font-bold uppercase tracking-wider text-[10px] text-slate-400">DNS:</span> 
-                    <span className="text-blue-600 font-mono bg-blue-50 px-1.5 rounded">{dnsDisplay}</span>
+                    <span className="font-bold uppercase tracking-wider text-[10px] text-slate-400 flex items-center gap-1">
+                      <Globe size={12}/> DNS:
+                    </span> 
+                    <span className="text-blue-600 font-mono bg-blue-50 px-2 py-0.5 rounded-md font-bold">{dnsDisplay}</span>
                   </div>
                 )}
               </div>
+
             </div>
           );
         })}

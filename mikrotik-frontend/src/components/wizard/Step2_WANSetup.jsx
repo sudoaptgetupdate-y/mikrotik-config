@@ -102,7 +102,6 @@ const Step2_WANSetup = ({ selectedModel, wanList, setWanList }) => {
                       );
                     })}
                   </select>
-                  {/* Custom Dropdown Arrow */}
                   <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
                     ▼
                   </div>
@@ -140,9 +139,15 @@ const Step2_WANSetup = ({ selectedModel, wanList, setWanList }) => {
                       <User className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
                       <input 
                         type="text" 
-                        placeholder="user@isp"
+                        placeholder="userisp" // เปลี่ยน placeholder ให้ตรงคอนเซปต์เฉพาะอังกฤษตัวเลข
                         value={wan.username || ''}
-                        onChange={(e) => updateWan(wan.id, 'username', e.target.value)}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          // อนุญาตเฉพาะอังกฤษและตัวเลข
+                          if (/^[a-zA-Z0-9]*$/.test(val)) {
+                            updateWan(wan.id, 'username', val);
+                          }
+                        }}
                         className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-700 focus:outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-50 transition-all placeholder:text-slate-300"
                       />
                     </div>
@@ -152,10 +157,16 @@ const Step2_WANSetup = ({ selectedModel, wanList, setWanList }) => {
                     <div className="relative">
                       <Key className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
                       <input 
-                        type="text" // ตั้งเป็น text เพื่อให้แอดมินเห็นตอน config
+                        type="text" 
                         placeholder="••••••••"
                         value={wan.password || ''}
-                        onChange={(e) => updateWan(wan.id, 'password', e.target.value)}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          // ป้องกันการพิมพ์ภาษาไทย (Thai Unicode Range)
+                          if (!/[\u0E00-\u0E7F]/.test(val)) {
+                            updateWan(wan.id, 'password', val);
+                          }
+                        }}
                         className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-700 focus:outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-50 transition-all placeholder:text-slate-300"
                       />
                     </div>
@@ -167,16 +178,42 @@ const Step2_WANSetup = ({ selectedModel, wanList, setWanList }) => {
               {wan.type === 'static' && (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5 animate-in fade-in zoom-in-95 duration-200">
                   <div>
-                    <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">IP Address (CIDR)</label>
-                    <div className="relative">
-                      <Network className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                      <input 
-                        type="text" 
-                        placeholder="192.168.1.2/24"
-                        value={wan.ipAddress || ''}
-                        onChange={(e) => updateWan(wan.id, 'ipAddress', e.target.value)}
-                        className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-700 focus:outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-50 transition-all placeholder:text-slate-300 font-mono"
-                      />
+                    <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">IP Address & Subnet</label>
+                    <div className="flex items-center gap-2">
+                      <div className="relative flex-1">
+                        <Network className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                        <input 
+                          type="text" 
+                          placeholder="192.168.1.2"
+                          value={(wan.ipAddress || '').split('/')[0] || ''}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            // อนุญาตเฉพาะตัวเลขและจุด
+                            if (/^[0-9.]*$/.test(val)) {
+                              const currentSubnet = (wan.ipAddress || '').split('/')[1] || '';
+                              updateWan(wan.id, 'ipAddress', currentSubnet ? `${val}/${currentSubnet}` : val);
+                            }
+                          }}
+                          className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-700 focus:outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-50 transition-all placeholder:text-slate-300 font-mono"
+                        />
+                      </div>
+                      <span className="text-slate-400 font-bold text-lg">/</span>
+                      <div className="relative w-24">
+                        <input 
+                          type="text" 
+                          placeholder="24"
+                          value={(wan.ipAddress || '').split('/')[1] || ''}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            // อนุญาตเฉพาะตัวเลขและจุด
+                            if (/^[0-9.]*$/.test(val)) {
+                              const currentIp = (wan.ipAddress || '').split('/')[0] || '';
+                              updateWan(wan.id, 'ipAddress', val ? `${currentIp}/${val}` : currentIp);
+                            }
+                          }}
+                          className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-700 focus:outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-50 transition-all placeholder:text-slate-300 font-mono text-center"
+                        />
+                      </div>
                     </div>
                   </div>
                   <div>
@@ -187,7 +224,13 @@ const Step2_WANSetup = ({ selectedModel, wanList, setWanList }) => {
                         type="text" 
                         placeholder="192.168.1.1"
                         value={wan.gateway || ''}
-                        onChange={(e) => updateWan(wan.id, 'gateway', e.target.value)}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          // อนุญาตเฉพาะตัวเลขและจุด
+                          if (/^[0-9.]*$/.test(val)) {
+                            updateWan(wan.id, 'gateway', val);
+                          }
+                        }}
                         className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-700 focus:outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-50 transition-all placeholder:text-slate-300 font-mono"
                       />
                     </div>
