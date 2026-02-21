@@ -70,17 +70,29 @@ export const generateMikrotikScript = (config = {}) => {
       script += `/interface vlan add interface=${bridgeName} name=${vlanInterface} vlan-id=${net.vlanId}\n`;
       script += `/ip address add address=${net.ip} interface=${vlanInterface} comment="${net.name} Gateway"\n`;
       
+      // ดึงตัวแปรที่ใช้ร่วมกันออกมาเพื่อให้ใช้ได้ทั้ง DHCP และ Hotspot
+      const gatewayIP = net.ip.split('/')[0];
+      const poolName = `pool-${net.name}`;
+
       if (net.dhcp) {
         const networkAddr = net.ip.replace('1/24', '0/24');
-        const gatewayIP = net.ip.split('/')[0];
         // คำนวณ Range IP ง่ายๆ (x.x.x.10 - x.x.x.254)
         const ipParts = gatewayIP.split('.');
         ipParts.pop(); 
         const poolRange = `${ipParts.join('.')}.10-${ipParts.join('.')}.254`;
 
-        script += `/ip pool add name="pool-${net.name}" ranges=${poolRange}\n`;
-        script += `/ip dhcp-server add name="dhcp-${net.name}" interface=${vlanInterface} address-pool="pool-${net.name}" disabled=no lease-time=1d\n`;
+        script += `/ip pool add name="${poolName}" ranges=${poolRange}\n`;
+        script += `/ip dhcp-server add name="dhcp-${net.name}" interface=${vlanInterface} address-pool="${poolName}" disabled=no lease-time=1d\n`;
         script += `/ip dhcp-server network add address=${networkAddr} gateway=${gatewayIP} dns-server=${dnsConfig.servers.join(',')}\n`;
+      }
+
+      // ✅ เพิ่มสคริปต์สำหรับการทำ Hotspot Server
+      if (net.hotspot) {
+        script += `\n  # --- Hotspot Server: ${net.name} ---\n`;
+        script += `  /ip hotspot profile add name="hsprof-${net.name}" hotspot-address=${gatewayIP} dns-name="${net.name.toLowerCase()}.hotspot.local" login-by=cookie,http-chap,http-pap\n`;
+        script += `  /ip hotspot add name="hs-${net.name}" interface=${vlanInterface} address-pool="${poolName}" profile="hsprof-${net.name}" disabled=no\n`;
+        script += `  # Default Hotspot Admin User (For testing)\n`;
+        script += `  /ip hotspot user add name="admin" password="password" server="hs-${net.name}" comment="Default Hotspot Admin"\n\n`;
       }
     });
 
@@ -195,6 +207,7 @@ export const generateMikrotikScript = (config = {}) => {
     script += `  :local memPercent (($usedMem * 100) / $totalMem);\n`;
     script += `  :local uptime [/system resource get uptime];\n`;
     script += `  :local version [/system resource get version];\n`;
+    script += `  :local boardName [/system resource get board-name];\n`;
 
     // 2. Storage (HDD)
     script += `  :local freeHdd [/system resource get free-hdd-space];\n`;
@@ -214,8 +227,7 @@ export const generateMikrotikScript = (config = {}) => {
     script += `  :do { :set latency ([:tostr ([/ping 8.8.8.8 count=1 as-value]->"time")]) } on-error={};\n`;
     
     // สร้าง JSON Payload
-    script += `  :local payload "{\\"cpu\\":\\"$cpuLoad\\", \\"ram\\":\\"$memPercent\\", \\"storage\\":\\"$hddPercent\\", \\"temp\\":\\"$temp\\", \\"latency\\":\\"$latency\\", \\"uptime\\":\\"$uptime\\", \\"version\\":\\"$version\\"}";\n`;
-    
+    script += `  :local payload "{\\"cpu\\":\\"$cpuLoad\\", \\"ram\\":\\"$memPercent\\", \\"storage\\":\\"$hddPercent\\", \\"temp\\":\\"$temp\\", \\"latency\\":\\"$latency\\", \\"uptime\\":\\"$uptime\\", \\"version\\":\\"$version\\", \\"boardName\\":\\"$boardName\\"}";\n`;    
     script += `  :do {\n`;
     script += `    /tool fetch mode=http url=$serverUrl http-method=post http-header-field="Authorization: Bearer $apiToken,Content-Type: application/json" http-data=$payload keep-result=no;\n`;
     script += `  } on-error={ :log error "Failed to send Heartbeat" }\n`;

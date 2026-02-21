@@ -133,7 +133,8 @@ exports.handleHeartbeat = async (req, res) => {
     const device = req.device; 
     const remoteIp = req.socket.remoteAddress || req.ip; 
 
-    const { cpu, ram, uptime, version, storage, temp, latency } = req.body; 
+    // ✅ เพิ่มการรับค่า boardName มาจาก req.body
+    const { cpu, ram, uptime, version, storage, temp, latency, boardName } = req.body; 
 
     await prisma.managedDevice.update({
       where: { id: device.id },
@@ -144,6 +145,7 @@ exports.handleHeartbeat = async (req, res) => {
         memoryUsage: ram ? parseInt(ram) : undefined,
         uptime: uptime || undefined,
         version: version || undefined,
+        boardName: boardName || undefined, // ✅ อัปเดต boardName ลง Database ทุกครั้งที่ Heartbeat มา
         storage: storage ? parseInt(storage) : undefined,
         temp: temp || undefined,
         latency: latency || undefined,
@@ -194,7 +196,6 @@ exports.getUserDevices = async (req, res) => {
     const result = devices.map(d => {
         const isOnline = d.lastSeen && (new Date() - new Date(d.lastSeen) < 5 * 60 * 1000);
         
-        // ✅ [แก้ไขจุดนี้] ดึงข้อมูล model ออกมาจาก JSON ใน configData และแนบไปให้ Frontend
         let modelObj = null;
         if (d.configData && d.configData.selectedModel) {
           modelObj = d.configData.selectedModel;
@@ -203,7 +204,7 @@ exports.getUserDevices = async (req, res) => {
         return { 
           ...d, 
           isOnline,
-          model: modelObj // ส่ง property .model ให้ตรงกับที่ DeviceList.jsx ร้องขอ
+          model: modelObj 
         };
     });
 
@@ -246,7 +247,6 @@ exports.getDeviceById = async (req, res) => {
     
     if (!device) return res.status(404).json({ error: "Device not found" });
     
-    // ✅ [แก้ไขจุดนี้] ดึง model แนบไปด้วยเช่นกัน
     if (device.configData && device.configData.selectedModel) {
       device.model = device.configData.selectedModel;
     }

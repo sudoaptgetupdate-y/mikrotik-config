@@ -98,6 +98,7 @@ model ManagedDevice {
   memoryUsage Int?      @default(0)
   uptime      String?
   version     String?
+  boardName   String?
 
   storage     Int?      @default(0)
   temp        String?

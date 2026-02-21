@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { FileDown, CheckCircle, Network, ShieldCheck, Globe, Loader2 } from 'lucide-react';
+import { FileDown, CheckCircle, Network, ShieldCheck, Globe, Loader2, Router, Server } from 'lucide-react';
 import { generateMikrotikScript } from "../../utils/mikrotikGenerator";
 
 const Step8_Summary = ({ 
@@ -9,32 +9,29 @@ const Step8_Summary = ({
   networks, 
   portConfig, 
   pbrConfig, 
-  wirelessConfig, // ✅ 1. เพิ่ม wirelessConfig กลับเข้ามาตรงนี้
+  wirelessConfig, 
   circuitId, 
   token, 
   apiHost,
   onSaveAndFinish 
 }) => {
 
-  const [isGenerating, setIsGenerating] = useState(false); // State สำหรับปุ่มหมุนๆ
+  const [isGenerating, setIsGenerating] = useState(false);
 
-  // ฟังก์ชันสำหรับ Gen และ Download
+  // === ฟังก์ชันสำหรับ Gen และ Download (ของเดิม 100%) ===
   const handleGenAndFinish = async () => { 
-    setIsGenerating(true); // เริ่มโหลด
+    setIsGenerating(true); 
     
-    // 1. Prepare Base Data
     let configData = {
       selectedModel, wanList, networks, portConfig, pbrConfig, wirelessConfig,
       dnsConfig, circuitId, token, apiHost
     };
 
     try {
-      // 2. สั่งบันทึกลง Backend ก่อน และ "รอ" (await) จนกว่าจะเสร็จ
       if (onSaveAndFinish) {
         console.log("Saving config to backend...");
         const savedDevice = await onSaveAndFinish(configData);
 
-        // 3. เอา Token จริงที่ Backend สร้างให้ ยัดใส่กลับเข้าไปใน configData
         if (savedDevice && savedDevice.apiToken) {
           configData.token = savedDevice.apiToken;
         } else if (savedDevice && savedDevice.configData && savedDevice.configData.token) {
@@ -46,10 +43,8 @@ const Step8_Summary = ({
         return;
       }
 
-      // 4. Generate Script (ตอนนี้ configData มี Token จริงแล้ว!)
       const scriptContent = generateMikrotikScript(configData);
 
-      // 5. Trigger Download
       const element = document.createElement("a");
       const file = new Blob([scriptContent], {type: 'text/plain'});
       element.href = URL.createObjectURL(file);
@@ -62,94 +57,120 @@ const Step8_Summary = ({
       console.error("Generation failed:", error);
       alert("Failed to save and generate config. See console for details.");
     } finally {
-      setIsGenerating(false); // หยุดโหลด
+      setIsGenerating(false); 
     }
   };
 
   return (
-    <div className="max-w-4xl mx-auto animate-fade-in pb-10">
+    <div className="max-w-4xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">
       
-      <div className="text-center mb-10">
-        <div className="w-20 h-20 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-4 border-4 border-green-50 shadow-sm">
-          <CheckCircle size={40} />
+      {/* --- Success Header --- */}
+      <div className="text-center mb-10 relative">
+        <div className="w-24 h-24 bg-green-100 text-green-500 rounded-full flex items-center justify-center mx-auto mb-6 border-[8px] border-green-50 shadow-sm relative z-10">
+          <CheckCircle size={48} className="animate-in zoom-in duration-500 delay-150" strokeWidth={2.5} />
         </div>
-        <h2 className="text-3xl font-bold text-slate-800">Setup Complete!</h2>
-        <p className="text-slate-500 mt-2">ตรวจสอบรายละเอียดการตั้งค่าก่อนดาวน์โหลดไฟล์ Config</p>
+        <h2 className="text-3xl font-black text-slate-800 tracking-tight">Setup Ready!</h2>
+        <p className="text-slate-500 mt-2 font-medium">ตรวจสอบรายละเอียดการตั้งค่าก่อนสร้างสคริปต์ Config</p>
       </div>
 
-      {/* --- Summary Cards --- */}
+      {/* --- Summary Cards Grid --- */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
         
-        {/* Device & WAN */}
-        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-          <h3 className="text-sm font-bold text-slate-400 uppercase mb-4 flex items-center gap-2">
-            <Globe size={16} /> Connectivity
-          </h3>
-          <div className="space-y-3">
-            <div className="flex justify-between border-b border-slate-50 pb-2">
-              <span className="text-slate-600 text-sm">Model</span>
-              <span className="font-bold text-slate-800">{selectedModel?.name}</span>
+        {/* Card 1: Device & Connectivity */}
+        <div className="bg-white p-6 md:p-8 rounded-2xl border border-slate-200 shadow-sm hover:shadow-lg transition-all duration-300">
+          <div className="flex items-center gap-2 mb-6 pb-4 border-b border-slate-100">
+            <Globe size={18} className="text-blue-500" />
+            <h3 className="text-sm font-black text-slate-700 uppercase tracking-wider">Connectivity</h3>
+          </div>
+          <div className="space-y-4">
+            <div className="flex justify-between items-center">
+              <span className="text-slate-500 text-sm font-medium flex items-center gap-2">
+                <Router size={16} className="text-slate-400" /> Model
+              </span>
+              <span className="font-bold text-slate-800 bg-slate-100 px-3 py-1 rounded-lg text-sm">{selectedModel?.name}</span>
             </div>
-            <div className="flex justify-between border-b border-slate-50 pb-2">
-              <span className="text-slate-600 text-sm">Identity</span>
+            <div className="flex justify-between items-center">
+              <span className="text-slate-500 text-sm font-medium flex items-center gap-2">
+                <Server size={16} className="text-slate-400" /> Identity
+              </span>
               <span className="font-bold text-blue-600">{circuitId}</span>
             </div>
-            <div className="flex justify-between border-b border-slate-50 pb-2">
-              <span className="text-slate-600 text-sm">WAN Interfaces</span>
+            <div className="flex justify-between items-center">
+              <span className="text-slate-500 text-sm font-medium">WAN Interfaces</span>
               <span className="font-bold text-slate-800">{wanList.length} Ports</span>
             </div>
-            <div className="flex justify-between border-b border-slate-50 pb-2">
-               <span className="text-slate-600 text-sm">Wireless Configs</span>
+            <div className="flex justify-between items-center">
+               <span className="text-slate-500 text-sm font-medium">Wireless Configs</span>
                <span className="font-bold text-slate-800">{Object.keys(wirelessConfig || {}).length} WLANs</span>
             </div>
-            <div className="flex justify-between">
-              <span className="text-slate-600 text-sm">DNS Mode</span>
-              <span className="font-bold text-slate-800">
+            <div className="flex justify-between items-center pt-2 border-t border-slate-50">
+              <span className="text-slate-500 text-sm font-medium">DNS Mode</span>
+              <span className="font-bold text-slate-800 text-sm">
                 {dnsConfig.allowRemoteRequests ? 'Server (Allow Remote)' : 'Client Only'}
               </span>
             </div>
           </div>
         </div>
 
-        {/* Local Network */}
-        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-          <h3 className="text-sm font-bold text-slate-400 uppercase mb-4 flex items-center gap-2">
-            <Network size={16} /> Local Networks
-          </h3>
-          <div className="space-y-2 max-h-40 overflow-y-auto custom-scrollbar pr-2">
-            {networks.map(net => (
-              <div key={net.id} className="flex justify-between items-center p-2 bg-slate-50 rounded-lg">
-                <div className="flex flex-col">
-                  <span className="font-bold text-xs text-slate-700">{net.name}</span>
-                  <span className="text-[10px] text-slate-400">VLAN {net.vlanId}</span>
+        {/* Card 2: Local Networks */}
+        <div className="bg-white p-6 md:p-8 rounded-2xl border border-slate-200 shadow-sm hover:shadow-lg transition-all duration-300 flex flex-col">
+          <div className="flex items-center gap-2 mb-6 pb-4 border-b border-slate-100">
+            <Network size={18} className="text-blue-500" />
+            <h3 className="text-sm font-black text-slate-700 uppercase tracking-wider">Local Networks</h3>
+          </div>
+          
+          <div className="space-y-3 flex-1 overflow-y-auto max-h-[240px] pr-2 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-300 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-slate-400">
+            {networks.length === 0 ? (
+              <div className="text-center text-slate-400 text-sm py-4">ไม่มีข้อมูล Network</div>
+            ) : (
+              networks.map(net => (
+                <div key={net.id} className="flex justify-between items-center p-3.5 bg-slate-50 hover:bg-slate-100 border border-slate-100 rounded-xl transition-colors">
+                  <div className="flex items-center gap-3">
+                    <span className="w-9 h-9 flex items-center justify-center bg-white border border-slate-200 rounded-lg text-xs font-black text-slate-600 shadow-sm">
+                      {net.vlanId}
+                    </span>
+                    <div className="flex flex-col">
+                      <span className="font-bold text-sm text-slate-700">{net.name}</span>
+                      <span className="text-[11px] font-mono text-slate-400">{net.ip}</span>
+                    </div>
+                  </div>
+                  <div className="flex flex-col sm:flex-row gap-1.5">
+                    {net.dhcp && <span className="text-[10px] font-bold px-2 py-1 bg-green-100 border border-green-200 text-green-700 rounded-md text-center">DHCP</span>}
+                    {net.hotspot && <span className="text-[10px] font-bold px-2 py-1 bg-orange-100 border border-orange-200 text-orange-700 rounded-md text-center">HOTSPOT</span>}
+                  </div>
                 </div>
-                <div className="flex gap-1">
-                  {net.dhcp && <span className="text-[10px] px-1.5 py-0.5 bg-green-100 text-green-700 rounded">DHCP</span>}
-                  {net.hotspot && <span className="text-[10px] px-1.5 py-0.5 bg-orange-100 text-orange-700 rounded">Hotspot</span>}
-                </div>
-              </div>
-            ))}
+              ))
+            )}
           </div>
         </div>
 
-        {/* Security & PBR */}
-        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm md:col-span-2">
-          <h3 className="text-sm font-bold text-slate-400 uppercase mb-4 flex items-center gap-2">
-            <ShieldCheck size={16} /> Security & Policy
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="p-3 bg-slate-50 rounded-xl text-center">
-              <p className="text-xs text-slate-500 mb-1">User Management</p>
-              <p className="font-bold text-slate-700">ntadmin (Auto-Created)</p>
+        {/* Card 3: Security & Policy */}
+        <div className="bg-white p-6 md:p-8 rounded-2xl border border-slate-200 shadow-sm hover:shadow-lg transition-all duration-300 md:col-span-2">
+          <div className="flex items-center gap-2 mb-6 pb-4 border-b border-slate-100">
+            <ShieldCheck size={18} className="text-blue-500" />
+            <h3 className="text-sm font-black text-slate-700 uppercase tracking-wider">Security & Policy</h3>
+          </div>
+          
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+            <div className="p-5 bg-slate-50 border border-slate-100 rounded-xl flex flex-col justify-center">
+              <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">User Management</p>
+              <p className="font-black text-slate-700 text-lg">ntadmin</p>
+              <p className="text-[11px] text-slate-500 font-medium">Auto-Created for Centralized Auth</p>
             </div>
-            <div className="p-3 bg-slate-50 rounded-xl text-center">
-              <p className="text-xs text-slate-500 mb-1">Services</p>
-              <p className="font-bold text-green-600">Winbox Only</p>
+            
+            <div className="p-5 bg-slate-50 border border-slate-100 rounded-xl flex flex-col justify-center">
+              <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">Enabled Services</p>
+              <p className="font-black text-green-600 text-lg flex items-center gap-2">Winbox Only <CheckCircle size={16}/></p>
+              <p className="text-[11px] text-slate-500 font-medium">SSH, Telnet, WebFig disabled</p>
             </div>
-            <div className="p-3 bg-slate-50 rounded-xl text-center">
-              <p className="text-xs text-slate-500 mb-1">PBR Status</p>
-              <p className={`font-bold ${pbrConfig.enabled ? 'text-blue-600' : 'text-slate-400'}`}>
-                {pbrConfig.enabled ? 'Enabled' : 'Disabled'}
+            
+            <div className={`p-5 border rounded-xl flex flex-col justify-center transition-colors ${pbrConfig.enabled ? 'bg-blue-50 border-blue-100' : 'bg-slate-50 border-slate-100'}`}>
+              <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">PBR Status</p>
+              <p className={`font-black text-lg ${pbrConfig.enabled ? 'text-blue-700' : 'text-slate-500'}`}>
+                {pbrConfig.enabled ? 'Active' : 'Disabled'}
+              </p>
+              <p className="text-[11px] text-slate-500 font-medium">
+                {pbrConfig.enabled ? 'Custom routing mappings applied' : 'Standard default routing'}
               </p>
             </div>
           </div>
@@ -158,11 +179,11 @@ const Step8_Summary = ({
       </div>
 
       {/* --- Action Button --- */}
-      <div className="flex justify-center">
+      <div className="flex flex-col items-center">
         <button 
           onClick={handleGenAndFinish}
           disabled={isGenerating}
-          className="group relative flex items-center gap-3 bg-blue-600 text-white px-10 py-4 rounded-2xl font-bold text-lg shadow-lg shadow-blue-200 hover:bg-blue-700 hover:scale-105 transition-all disabled:opacity-70 disabled:hover:scale-100 disabled:cursor-not-allowed"
+          className="group relative flex items-center justify-center gap-3 bg-blue-600 text-white w-full sm:w-auto px-12 py-4 rounded-2xl font-bold text-lg shadow-xl shadow-blue-600/20 hover:bg-blue-500 hover:shadow-blue-600/40 hover:-translate-y-1 transition-all duration-300 disabled:opacity-70 disabled:hover:translate-y-0 disabled:cursor-not-allowed"
         >
           {isGenerating ? (
             <Loader2 size={24} className="animate-spin" />
@@ -171,10 +192,10 @@ const Step8_Summary = ({
           )}
           {isGenerating ? 'Generating & Saving...' : 'Generate Config & Finish'}
         </button>
+        <p className="text-center text-sm font-medium text-slate-400 mt-5">
+          ไฟล์ <span className="text-slate-600 font-mono bg-slate-100 px-1.5 py-0.5 rounded">.rsc</span> จะถูกดาวน์โหลด และคุณจะถูกพาไปยังหน้า Dashboard
+        </p>
       </div>
-      <p className="text-center text-xs text-slate-400 mt-4">
-        ไฟล์ .rsc จะถูกดาวน์โหลด และคุณจะถูกพาไปยังหน้า Dashboard
-      </p>
 
     </div>
   );
