@@ -9,11 +9,15 @@ datasource db {
 
 model User {
   id             Int             @id @default(autoincrement())
-  username       String          @unique
+  firstName      String
+  lastName       String
+  email          String          @unique
+  username       String          @unique // (ใช้ชื่อหน้า @ ของ email)
   password       String
-  role           UserRole        @default(USER)
+  role           UserRole        @default(EMPLOYEE)
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
+  
   logs           ActivityLog[]
   configs        Config[]
   managedDevices ManagedDevice[]
@@ -111,7 +115,7 @@ model ManagedDevice {
 
   // Acknowledge System
   isAcknowledged Boolean   @default(false)
-  ackReason      String?
+  ackReason      Json?
   ackByUserId    Int?
   ackAt          DateTime?
   
@@ -122,8 +126,9 @@ model ManagedDevice {
 }
 
 enum UserRole {
+  SUPER_ADMIN
   ADMIN
-  USER
+  EMPLOYEE
 }
 
 enum PortType {

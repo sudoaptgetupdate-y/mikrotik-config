@@ -1,20 +1,27 @@
 const express = require('express');
 const router = express.Router();
 const deviceController = require('../controllers/deviceController');
-const { authenticateDevice } = require('../middlewares/authMiddleware');
 
-// Group 1: สำหรับ Web Frontend (Admin/User ใช้งาน)
-router.post('/', deviceController.createDevice);              // สร้าง Device
-router.put('/:id', deviceController.updateDevice);            // อัปเดต Device (ตอนกด Save)
-router.get('/user/:userId', deviceController.getUserDevices); // ดูรายการ Device ทั้งหมดของ User
-router.get('/:id', deviceController.getDeviceById);           // 🟢 ดึงข้อมูล Device 1 ตัว (จำเป็นตอนกดปุ่ม Edit)
-router.get('/:id/history', deviceController.getDeviceHistory); // 🟢 ดูประวัติ Config (History)
-router.post('/:id/log-download', deviceController.logDownload); // บันทึก Log ตอนกดดาวน์โหลด
-router.delete('/:id', deviceController.deleteDevice); // soft delete device ข้อมูลจะเปลี่ยนสถานะเป็น Delete แต่จะไม่หายไป
-router.put('/:id/restore', deviceController.restoreDevice); // กู้คืน Device ที่ถูก Soft Delete
+// ✅ นำเข้า Middleware
+const { verifyToken, requireRole } = require('../middlewares/authMiddleware');
 
-// Group 2: สำหรับ MikroTik (Machine ใช้งาน)
-// สังเกตว่าเราเอา authenticateDevice มาคั่นไว้เพื่อตรวจ Token ก่อน
-router.post('/heartbeat', authenticateDevice, deviceController.handleHeartbeat);
+// บังคับว่า "ทุก Route ในนี้ต้องมี Token ล็อกอินก่อนถึงจะทำได้"
+router.use(verifyToken);
+
+// 🟢 โซน Read-only: ทุกคน (รวมถึง Employee) ดูข้อมูลได้
+router.get('/user/:userId', deviceController.getUserDevices);
+router.get('/:id', deviceController.getDeviceById);
+router.get('/:id/history', deviceController.getDeviceHistory);
+
+// 🔴 โซน Action: อนุญาตเฉพาะ SUPER_ADMIN และ ADMIN เท่านั้น
+// ถ้า Employee ยิง Postman เข้ามาตรงนี้ จะโดนเตะออก 403 ทันที!
+const writeAccess = requireRole(['SUPER_ADMIN', 'ADMIN']);
+
+router.post('/', writeAccess, deviceController.createDevice);
+router.put('/:id', writeAccess, deviceController.updateDevice);
+router.delete('/:id', writeAccess, deviceController.deleteDevice);
+router.put('/:id/restore', writeAccess, deviceController.restoreDevice);
+router.post('/:id/acknowledge', writeAccess, deviceController.acknowledgeWarning);
+router.post('/:id/log-download', writeAccess, deviceController.logDownload);
 
 module.exports = router;
