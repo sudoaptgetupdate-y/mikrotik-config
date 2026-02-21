@@ -263,11 +263,13 @@ exports.restoreDevice = async (req, res) => {
   }
 };
 
-// ✅ 10. Acknowledge Warning (ปรับให้รองรับการเก็บเป็น Array History)
+// ✅ 10. Acknowledge Warning
 exports.acknowledgeWarning = async (req, res) => {
   try {
     const { id } = req.params;
-    const { userId, reason } = req.body; 
+    
+    // ✅ แก้ไขบรรทัดนี้: เพิ่ม userName เข้าไปในปีกกา เพื่อรับค่าจากหน้าเว็บ
+    const { userId, userName, reason } = req.body; 
 
     const device = await prisma.managedDevice.findUnique({ where: { id: parseInt(id) } });
     if (!device) return res.status(404).json({ error: "Device not found" });
@@ -276,7 +278,7 @@ exports.acknowledgeWarning = async (req, res) => {
     let ackHistory = [];
     if (device.ackReason) {
       if (Array.isArray(device.ackReason)) {
-        ackHistory = device.ackReason; // ถ้าเป็น Array อยู่แล้ว จับใส่เลย
+        ackHistory = device.ackReason; 
       } else if (typeof device.ackReason === 'string') {
         try { ackHistory = JSON.parse(device.ackReason); } catch(e) {}
       }
@@ -287,10 +289,10 @@ exports.acknowledgeWarning = async (req, res) => {
       timestamp: new Date(),
       reason: reason,
       userId: parseInt(userId),
-      userName: userName || "Unknown User"
+      userName: userName || "Unknown User" // ตอนนี้ userName จะมีค่าแล้ว ไม่ error แน่นอนครับ
     });
 
-    // 3. โยน Array กลับลง DB ได้เลยตรงๆ (ไม่ต้อง stringify แล้วเพราะเราใช้ชนิด Json)
+    // 3. โยน Array กลับลง DB
     const updatedDevice = await prisma.managedDevice.update({
       where: { id: parseInt(id) },
       data: {
