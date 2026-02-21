@@ -108,8 +108,14 @@ model ManagedDevice {
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
   user        User      @relation(fields: [userId], references: [id])
+
+  // Acknowledge System
+  isAcknowledged Boolean   @default(false)
+  ackReason      String?
+  ackByUserId    Int?
+  ackAt          DateTime?
   
-  // ✅ Relation ไปยัง Config History
+  // Relation ไปยัง Config History
   configHistory Config[]
 
   @@index([userId], map: "ManagedDevice_userId_fkey")

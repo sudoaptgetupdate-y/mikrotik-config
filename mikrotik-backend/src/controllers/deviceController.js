@@ -338,3 +338,39 @@ exports.restoreDevice = async (req, res) => {
     res.status(500).json({ error: "Failed to restore device" });
   }
 };
+
+// 10. Acknowledge Warning
+exports.acknowledgeWarning = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { userId, reason } = req.body; 
+
+    const device = await prisma.managedDevice.findUnique({ where: { id: parseInt(id) } });
+    if (!device) return res.status(404).json({ error: "Device not found" });
+
+    // อัปเดตสถานะ ACK
+    const updatedDevice = await prisma.managedDevice.update({
+      where: { id: parseInt(id) },
+      data: {
+        isAcknowledged: true,
+        ackReason: reason,
+        ackByUserId: parseInt(userId),
+        ackAt: new Date()
+      }
+    });
+
+    // สร้าง Audit Log ว่าใครเป็นคนกด ACK และรับทราบด้วยเหตุผลอะไร
+    await prisma.activityLog.create({
+      data: {
+        userId: parseInt(userId),
+        action: "UPDATE_DEVICE", 
+        details: `Acknowledged warning on: ${device.name}. Reason: ${reason}`
+      }
+    });
+
+    res.json({ message: "Warning acknowledged successfully", device: updatedDevice });
+  } catch (error) {
+    console.error("Acknowledge error:", error);
+    res.status(500).json({ error: "Failed to acknowledge warning" });
+  }
+};
