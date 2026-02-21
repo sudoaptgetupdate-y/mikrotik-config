@@ -1,78 +1,78 @@
 import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
+
+// --- Context & Protection ---
+import { AuthProvider } from './context/AuthContext';
+import ProtectedRoute from './components/ProtectedRoute';
+
+// --- Layout & Pages ---
 import MainLayout from './layouts/MainLayout';
-import Dashboard from './components/Dashboard'; // ✅ อิมพอร์ต Dashboard หน้าใหม่
+import Login from './components//Login';
+import Dashboard from './components/Dashboard'; 
 import DeviceList from './components/DeviceList';
 import ConfigWizard from './components/ConfigWizard';
 import AuditLog from './components/AuditLog'; 
 import ModelManager from './components/ModelManager';
+import UserManagement from './components/UserManagement';
 
 // --- Wrapper Components ---
-
-// 1. หน้าสร้างอุปกรณ์ใหม่
 const CreateDevicePage = () => {
   const navigate = useNavigate();
-  return (
-    <ConfigWizard 
-      mode="create"
-      // ✅ เมื่อสร้างเสร็จ ให้กลับไปหน้ารายการอุปกรณ์ (devices)
-      onFinish={() => navigate('/devices')} 
-    />
-  );
+  return <ConfigWizard mode="create" onFinish={() => navigate('/devices')} />;
 };
 
-// 2. หน้าแก้ไขอุปกรณ์เดิม
 const EditDevicePage = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  
   const deviceData = location.state?.deviceData;
 
-  if (!deviceData) {
-    return <Navigate to="/devices" replace />;
-  }
-
-  return (
-    <ConfigWizard 
-      mode="edit"
-      initialData={deviceData} 
-      // ✅ เมื่อแก้ไขเสร็จ ให้กลับไปหน้ารายการอุปกรณ์ (devices)
-      onFinish={() => navigate('/devices')} 
-    />
-  );
+  if (!deviceData) return <Navigate to="/devices" replace />;
+  return <ConfigWizard mode="edit" initialData={deviceData} onFinish={() => navigate('/devices')} />;
 };
 
 // --- Main App Component ---
 function App() {
   return (
-    <Routes>
-      <Route path="/" element={<MainLayout />}>
+    // ✅ 1. เอา AuthProvider มาครอบทั้งหมด เพื่อให้ทุกหน้ารู้สถานะการล็อกอิน
+    <AuthProvider>
+      <Routes>
         
-        {/* หน้าแรกให้ Redirect ไป Dashboard ทันที */}
-        <Route index element={<Navigate to="/dashboard" replace />} />
-        
-        {/* ✅ หน้า Dashboard ตัวจริง (ภาพรวม) */}
-        <Route path="dashboard" element={<Dashboard />} />
-        
-        {/* ✅ ย้ายตารางรายชื่อมาที่ /devices */}
-        <Route path="devices" element={<DeviceList />} />
-        
-        {/* หน้าเพิ่มอุปกรณ์ */}
-        <Route path="add-device" element={<CreateDevicePage />} />
-        
-        {/* หน้าแก้ไขอุปกรณ์ (รับ id) */}
-        <Route path="edit-device/:id" element={<EditDevicePage />} />
+        {/* =========================================
+            PUBLIC ROUTE (หน้า Login ไม่ต้องล็อกอินก็เข้าได้)
+            ========================================= */}
+        <Route path="/login" element={<Login />} />
 
-        {/* หน้า Audit Logs */}
-        <Route path="audit-logs" element={<AuditLog />} />
 
-        {/* จัดการรุ่นของ Mikrotik */}
-        <Route path="models" element={<ModelManager />} />
+        {/* =========================================
+            PROTECTED ROUTES (ต้องล็อกอินถึงจะเข้าได้)
+            ========================================= */}
+        <Route element={<ProtectedRoute />}>
+          <Route path="/" element={<MainLayout />}>
+            
+            {/* หน้าแรกให้ Redirect ไป Dashboard ทันที */}
+            <Route index element={<Navigate to="/dashboard" replace />} />
+            
+            {/* 🟢 หน้าที่ทุกคน (รวมถึง EMPLOYEE) เข้าดูได้ (Read-only) */}
+            <Route path="dashboard" element={<Dashboard />} />
+            <Route path="devices" element={<DeviceList />} />
 
-        {/* ✅ Catch-all Route: ต้องอยู่ล่างสุดเสมอ! ถ้า URL ไม่ตรง ให้กลับไปหน้า dashboard */}
-        <Route path="*" element={<Navigate to="/dashboard" replace />} />
 
-      </Route>
-    </Routes>
+            {/* 🔴 หน้าที่ถูกล็อค เข้าได้เฉพาะ SUPER_ADMIN และ ADMIN เท่านั้น */}
+            <Route element={<ProtectedRoute allowedRoles={['SUPER_ADMIN', 'ADMIN']} />}>
+              <Route path="add-device" element={<CreateDevicePage />} />
+              <Route path="edit-device/:id" element={<EditDevicePage />} />
+              <Route path="models" element={<ModelManager />} />
+              <Route path="users" element={<UserManagement />} />
+              <Route path="audit-logs" element={<AuditLog />} />
+            </Route>
+
+            {/* Catch-all Route: ถ้า URL ไม่ตรง ให้กลับไปหน้า dashboard */}
+            <Route path="*" element={<Navigate to="/dashboard" replace />} />
+
+          </Route>
+        </Route>
+
+      </Routes>
+    </AuthProvider>
   );
 }
 

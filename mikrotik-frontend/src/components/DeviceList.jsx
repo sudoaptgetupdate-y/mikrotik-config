@@ -3,21 +3,12 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import apiClient from '../utils/apiClient';
 import { generateMikrotikScript } from '../utils/mikrotikGenerator';
 import HistoryModal from './HistoryModal';
-import DeviceTableRow from './DeviceTableRow'; // ✅ นำเข้าไฟล์ที่เราเพิ่งสร้างใหม่
+import DeviceTableRow from './DeviceTableRow'; 
+import { useAuth } from '../context/AuthContext';
 import { 
   Search, Plus, RefreshCw, Server, Activity, 
-  AlertTriangle, CheckCircle, XCircle, Archive, ChevronDown
+  AlertTriangle, CheckCircle, XCircle, Archive, ChevronDown, X, BellRing, Clock, History, User // ✅ นำเข้าไอคอน User
 } from 'lucide-react';
-
-// ฟังก์ชันกรองและสถานะของอุปกรณ์
-const FILTER_OPTIONS = [
-  { value: 'ACTIVE_ONLY', label: 'Active Devices', icon: Activity, color: 'text-blue-600', bg: 'bg-blue-100' },
-  { value: 'ONLINE', label: 'Online', icon: CheckCircle, color: 'text-green-600', bg: 'bg-green-100' },
-  { value: 'WARNING', label: 'Warning', icon: AlertTriangle, color: 'text-orange-500', bg: 'bg-orange-100' },
-  { value: 'OFFLINE', label: 'Offline', icon: XCircle, color: 'text-red-500', bg: 'bg-red-100' },
-  { value: 'DELETED', label: 'Inactive (Deleted)', icon: Archive, color: 'text-slate-500', bg: 'bg-slate-200' },
-  { value: 'ALL', label: 'All Devices', icon: Server, color: 'text-slate-600', bg: 'bg-slate-100' },
-];
 
 const getDeviceStatus = (device) => {
   if (device.status === 'DELETED') {
@@ -31,15 +22,30 @@ const getDeviceStatus = (device) => {
   const cpu = parseFloat(device.cpu || device.cpuLoad) || 0;
   const ram = parseFloat(device.ram || device.memoryUsage) || 0;
   
-  if (cpu > 85 || ram > 85) return { state: 'warning', color: 'bg-orange-50 text-orange-600 border-orange-200', icon: <AlertTriangle size={14}/>, label: 'Warning' };
+  if (cpu > 85 || ram > 85) {
+    if (device.isAcknowledged) {
+      return { state: 'acknowledged', color: 'bg-blue-50 text-blue-600 border-blue-200', icon: <CheckCircle size={14}/>, label: 'Acknowledged' };
+    }
+    return { state: 'warning', color: 'bg-orange-50 text-orange-600 border-orange-200', icon: <AlertTriangle size={14}/>, label: 'Warning' };
+  }
   
   return { state: 'online', color: 'bg-green-50 text-green-700 border-green-200', icon: <CheckCircle size={14}/>, label: 'Online' };
 };
 
+const FILTER_OPTIONS = [
+  { value: 'ACTIVE_ONLY', label: 'Active Devices', icon: Activity, color: 'text-blue-600', bg: 'bg-blue-100' },
+  { value: 'ONLINE', label: 'Online', icon: CheckCircle, color: 'text-green-600', bg: 'bg-green-100' },
+  { value: 'WARNING', label: 'Warning', icon: AlertTriangle, color: 'text-orange-500', bg: 'bg-orange-100' },
+  { value: 'OFFLINE', label: 'Offline', icon: XCircle, color: 'text-red-500', bg: 'bg-red-100' },
+  { value: 'DELETED', label: 'Inactive (Deleted)', icon: Archive, color: 'text-slate-500', bg: 'bg-slate-200' },
+  { value: 'ALL', label: 'All Devices', icon: Server, color: 'text-slate-600', bg: 'bg-slate-100' },
+];
+
 const DeviceList = () => {
   const navigate = useNavigate();
   const location = useLocation(); 
-  
+  const { user } = useAuth(); // ✅ ดึง user มาใช้
+  const canEdit = user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN';
   const [devices, setDevices] = useState([]);
   const [loading, setLoading] = useState(true);
   
@@ -54,6 +60,12 @@ const DeviceList = () => {
   const [selectedDeviceHistory, setSelectedDeviceHistory] = useState(null);
   const [historyData, setHistoryData] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(false);
+
+  // Modal State
+  const [isAckModalOpen, setIsAckModalOpen] = useState(false);
+  const [deviceToAck, setDeviceToAck] = useState(null);
+  const [ackReason, setAckReason] = useState('');
+  const [isAckSubmitting, setIsAckSubmitting] = useState(false);
 
   useEffect(() => {
     if (location.state?.filter) {
@@ -150,6 +162,31 @@ const DeviceList = () => {
     }
   };
 
+  const handleAcknowledgeClick = (device) => {
+    setDeviceToAck(device);
+    setAckReason(''); 
+    setIsAckModalOpen(true);
+  };
+
+  // ✅ เพิ่มการส่งชื่อ userName เข้าไปยัง Backend ด้วย
+  const submitAcknowledge = async () => {
+    if (!ackReason.trim()) return alert("กรุณากรอกข้อมูลการอัปเดต หรือเหตุผล");
+    setIsAckSubmitting(true);
+    try {
+      await apiClient.post(`/api/devices/${deviceToAck.id}/acknowledge`, {
+        userId: user?.id || 1, 
+        userName: user?.username || "Unknown User",
+        reason: ackReason
+      });
+      setIsAckModalOpen(false);
+      fetchDevices();
+    } catch (error) {
+      alert("Failed to acknowledge warning");
+    } finally {
+      setIsAckSubmitting(false);
+    }
+  };
+
   const filteredDevices = devices.filter(d => {
     const matchesSearch = d.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
                           (d.circuitId && d.circuitId.toLowerCase().includes(searchTerm.toLowerCase()));
@@ -165,6 +202,21 @@ const DeviceList = () => {
 
   const currentFilterOpt = FILTER_OPTIONS.find(opt => opt.value === statusFilter);
   const CurrentIcon = currentFilterOpt ? currentFilterOpt.icon : Activity;
+
+  // อ่านข้อมูล History มาโชว์
+  let modalAckHistory = [];
+  if (deviceToAck?.ackReason) {
+    if (Array.isArray(deviceToAck.ackReason)) {
+      modalAckHistory = deviceToAck.ackReason;
+    } else if (typeof deviceToAck.ackReason === 'string') {
+      try {
+        modalAckHistory = JSON.parse(deviceToAck.ackReason);
+        if (!Array.isArray(modalAckHistory)) modalAckHistory = [];
+      } catch (e) {
+        modalAckHistory = [{ timestamp: deviceToAck.ackAt || new Date(), reason: deviceToAck.ackReason }];
+      }
+    }
+  }
 
   return (
     <div className="space-y-6 animate-fade-in pb-20">
@@ -261,17 +313,17 @@ const DeviceList = () => {
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="bg-slate-50 border-b border-slate-200 text-xs uppercase text-slate-500 font-semibold">
-                  <th className="p-4 pl-6 w-32">Status</th>
-                  <th className="p-4 w-56">Device Details</th>
-                  <th className="p-4 w-48">Resources</th>
-                  <th className="p-4 w-40">Health & Net</th>
-                  <th className="p-4 w-40">Uptime / Seen</th>
-                  <th className="p-4 text-right pr-6 w-40">Actions</th>
+                {/* เพิ่ม text-left เพื่อให้ข้อความชิดซ้ายตรงกับเนื้อหา */}
+                <tr className="bg-slate-50 border-b border-slate-200 text-xs uppercase text-slate-500 font-semibold text-left">
+                  <th className="p-4 pl-6 w-[15%]">Status</th>
+                  <th className="p-4 w-[25%]">Device Details</th>
+                  <th className="p-4 w-[20%]">Resources</th>
+                  <th className="p-4 w-[25%]">Health, Net & Uptime</th>
+                  {/* Actions ชิดขวา */}
+                  <th className="p-4 text-right pr-6 w-[15%]">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {/* ✅ โค้ดที่เคยยาวๆ ถูกย่อเหลือแค่นี้! โดยการเรียกใช้ Component จากไฟล์ใหม่ */}
                 {filteredDevices.map((device) => (
                   <DeviceTableRow 
                     key={device.id} 
@@ -282,6 +334,8 @@ const DeviceList = () => {
                     onRestore={handleRestoreClick}
                     onEdit={handleEditClick}
                     onDelete={handleDeleteClick}
+                    onAcknowledge={handleAcknowledgeClick}
+                    canEdit={canEdit}
                   />
                 ))}
               </tbody>
@@ -289,6 +343,87 @@ const DeviceList = () => {
           </div>
         )}
       </div>
+
+      {/* Acknowledge Modal */}
+      {isAckModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm px-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-4xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            
+            <div className={`flex justify-between items-center p-5 border-b border-slate-100 ${deviceToAck?.isAcknowledged ? 'bg-blue-50/50' : 'bg-orange-50/50'}`}>
+              <h3 className={`font-bold flex items-center gap-2 ${deviceToAck?.isAcknowledged ? 'text-blue-700' : 'text-orange-700'}`}>
+                {deviceToAck?.isAcknowledged ? <BellRing size={18} /> : <AlertTriangle size={18} />} 
+                {deviceToAck?.isAcknowledged ? 'Update Acknowledge' : 'Acknowledge Warning'}
+              </h3>
+              <button onClick={() => setIsAckModalOpen(false)} className="text-slate-400 hover:text-slate-600 transition">
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x border-b border-slate-100">
+              {/* ฝั่งซ้าย: กรอกข้อมูลใหม่ */}
+              <div className="p-6">
+                <p className="text-sm text-slate-600 mb-4">
+                  เครื่อง <strong className="text-slate-800">{deviceToAck?.name}</strong> กำลังมีสถานะโหลดสูง 
+                </p>
+                <label className="block text-sm font-bold text-slate-700 mb-2">ข้อมูลอัปเดตใหม่ (New Note)</label>
+                <textarea 
+                  className={`w-full border border-slate-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 transition-all resize-none h-40 ${deviceToAck?.isAcknowledged ? 'focus:ring-blue-200 focus:border-blue-400' : 'focus:ring-orange-200 focus:border-orange-400'}`}
+                  placeholder="พิมพ์ข้อมูลอัปเดต หรือเหตุผลที่นี่..."
+                  value={ackReason}
+                  onChange={(e) => setAckReason(e.target.value)}
+                ></textarea>
+              </div>
+
+              {/* ฝั่งขวา: ประวัติย้อนหลัง */}
+              <div className="p-6 bg-slate-50">
+                <h4 className="font-bold text-slate-700 mb-4 flex items-center gap-2">
+                  <History size={16} className="text-slate-400" /> Acknowledge History
+                </h4>
+                <div className="max-h-48 overflow-y-auto space-y-3 pr-2 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-300 [&::-webkit-scrollbar-thumb]:rounded-full">
+                  {modalAckHistory.length === 0 ? (
+                    <p className="text-sm text-slate-400 italic text-center py-10">ยังไม่มีประวัติการแจ้งปัญหา</p>
+                  ) : (
+                    modalAckHistory.slice().reverse().map((entry, idx) => (
+                      <div key={idx} className="bg-white p-3.5 rounded-xl border border-slate-200 shadow-sm relative">
+                        {idx === 0 && <span className="absolute top-3 right-3 flex h-2.5 w-2.5"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span><span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-blue-500"></span></span>}
+                        
+                        {/* ✅ เพิ่มการแสดงชื่อคนที่แก้ (userName) */}
+                        <div className="flex items-center gap-3 mb-1.5">
+                          <div className="text-[10px] text-slate-400 font-medium flex items-center gap-1">
+                            <Clock size={10} /> {new Date(entry.timestamp).toLocaleString()}
+                          </div>
+                          <div className="text-[10px] text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded font-bold flex items-center gap-1">
+                            <User size={10} /> {entry.userName || 'System Admin'}
+                          </div>
+                        </div>
+                        
+                        <div className="text-sm text-slate-700">{entry.reason}</div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="p-5 flex justify-end gap-3 bg-white">
+              <button 
+                onClick={() => setIsAckModalOpen(false)}
+                className="px-4 py-2 rounded-xl text-slate-600 hover:bg-slate-100 transition text-sm font-medium"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={submitAcknowledge}
+                disabled={isAckSubmitting}
+                className={`px-5 py-2.5 rounded-xl text-white transition text-sm font-bold shadow-sm disabled:opacity-70 flex items-center gap-2 ${deviceToAck?.isAcknowledged ? 'bg-blue-600 hover:bg-blue-700 shadow-blue-500/30' : 'bg-orange-500 hover:bg-orange-600 shadow-orange-500/30'}`}
+              >
+                {isAckSubmitting ? <RefreshCw size={16} className="animate-spin" /> : <CheckCircle size={16} />}
+                {deviceToAck?.isAcknowledged ? 'Add Update' : 'Confirm ACK'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <HistoryModal 
         isOpen={isHistoryOpen}

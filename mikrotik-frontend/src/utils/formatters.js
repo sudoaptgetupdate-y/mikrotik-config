@@ -1,28 +1,40 @@
 export const formatUptime = (uptimeStr) => {
-  if (!uptimeStr) return "N/A";
-  
-  // แปลง w (สัปดาห์) ให้กลายเป็นวัน
-  let days = 0;
-  const weeksMatch = uptimeStr.match(/(\d+)w/);
-  const daysMatch = uptimeStr.match(/(\d+)d/);
-  
-  if (weeksMatch) days += parseInt(weeksMatch[1]) * 7;
-  if (daysMatch) days += parseInt(daysMatch[1]);
+  if (!uptimeStr) return 'N/A';
 
-  const hoursMatch = uptimeStr.match(/(\d+)h/);
-  const minsMatch = uptimeStr.match(/(\d+)m/);
-
-  const h = hoursMatch ? hoursMatch[1] : "0";
-  const m = minsMatch ? minsMatch[1] : "0";
-
-  // รูปแบบการแสดงผล
-  if (days > 0) {
-    return `${days} Days, ${h} Hrs`; // เช่น "14 Days, 2 Hrs"
-  } else if (h > 0) {
-    return `${h} Hrs, ${m} Mins`;    // เช่น "5 Hrs, 30 Mins"
-  } else {
-    return `${m} Mins`;              // เช่น "15 Mins" (เพิ่งรีบูต)
+  // ป้องกันกรณีส่งมาเป็นตัวเลขเพียวๆ (เผื่อไว้)
+  if (!isNaN(uptimeStr)) {
+    return `${uptimeStr} s`; 
   }
+
+  // ตัวแปรเก็บค่าที่สกัดได้จาก String ของ MikroTik
+  let weeks = 0, days = 0, hours = 0, minutes = 0;
+
+  // ใช้ Regex ดึงตัวเลขที่อยู่หน้า w, d, h, m
+  const wMatch = uptimeStr.match(/(\d+)w/);
+  const dMatch = uptimeStr.match(/(\d+)d/);
+  const hMatch = uptimeStr.match(/(\d+)h/);
+  const mMatch = uptimeStr.match(/(\d+)m/);
+
+  if (wMatch) weeks = parseInt(wMatch[1], 10);
+  if (dMatch) days = parseInt(dMatch[1], 10);
+  if (hMatch) hours = parseInt(hMatch[1], 10);
+  if (mMatch) minutes = parseInt(mMatch[1], 10);
+
+  // คำนวณวันรวม (สัปดาห์ * 7 + วัน)
+  const totalDays = (weeks * 7) + days;
+
+  // จัดรูปแบบการแสดงผลให้อ่านง่าย
+  if (totalDays > 0) {
+    return `${totalDays} Days, ${hours} Hrs`;
+  }
+  if (hours > 0) {
+    return `${hours} Hrs, ${minutes} Mins`;
+  }
+  if (minutes > 0) {
+    return `${minutes} Mins`;
+  }
+  
+  return uptimeStr; // ถ้าต่ำกว่านาที ให้แสดงของเดิม (เช่น 45s)
 };
 
 // ฟังก์ชันแปลง Latency

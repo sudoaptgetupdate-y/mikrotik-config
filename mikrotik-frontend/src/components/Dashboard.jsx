@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import apiClient from '../utils/apiClient';
+import { useAuth } from '../context/AuthContext';
 import { 
   Activity, Router, Server, Plus, ArrowRight, 
   CheckCircle, AlertTriangle, Clock, FileText, Database,
@@ -9,6 +10,8 @@ import {
 
 const Dashboard = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const canEdit = user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN';
   const [loading, setLoading] = useState(true);
   
   const [stats, setStats] = useState({
@@ -39,7 +42,7 @@ const Dashboard = () => {
     setLoading(true);
     try {
       const [devicesRes, modelsRes, logsRes] = await Promise.all([
-        apiClient.get('/api/devices/user/1'),
+        apiClient.get('/api/devices/user/1'), // ควรดึง User ID จาก Context ในอนาคต
         apiClient.get('/api/master/models'),
         apiClient.get('/api/logs?limit=5')
       ]);
@@ -66,7 +69,8 @@ const Dashboard = () => {
 
         if (isOnline) {
           onlineCount++;
-          if (cpuVal > 85 || ramVal > 85) {
+          // ✅ อัปเดตเงื่อนไข: จะนับเป็น Alert ก็ต่อเมื่อโหลดยังสูง "และ" ยังไม่ได้ถูก Acknowledge เท่านั้น
+          if ((cpuVal > 85 || ramVal > 85) && !device.isAcknowledged) {
             alertCount++;
           }
         } else {
@@ -141,16 +145,18 @@ const Dashboard = () => {
         </div>
 
         <div className="relative z-10">
-          <button 
-            onClick={() => navigate('/add-device')}
-            className="w-full md:w-auto bg-slate-900 text-white px-4 py-2 rounded-xl flex items-center justify-center gap-2 hover:bg-blue-600 hover:shadow-lg hover:shadow-blue-600/20 transition-all duration-300 font-medium text-sm"
-          >
-            <Plus size={18} /> Add Device
-          </button>
+          {canEdit && (
+            <button 
+              onClick={() => navigate('/add-device')}
+              className="w-full md:w-auto bg-slate-900 text-white px-4 py-2 rounded-xl flex items-center justify-center gap-2 hover:bg-blue-600 hover:shadow-lg hover:shadow-blue-600/20 transition-all duration-300 font-medium text-sm"
+            >
+              <Plus size={18} /> Add Device
+            </button>
+          )}
         </div>
       </div>
 
-      {/* --- Section 1: Key Metrics (ปรับขนาดให้เล็กลง) --- */}
+      {/* --- Section 1: Key Metrics --- */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         
         {/* Card 1: Total Devices */}

@@ -1,25 +1,38 @@
 import React, { useState } from 'react';
-import { Outlet, NavLink } from 'react-router-dom';
-import { Server, PlusCircle, Activity, Menu, X, Router, Database, LayoutDashboard } from 'lucide-react';
+import { Outlet, NavLink, useNavigate } from 'react-router-dom';
+import { Server, PlusCircle, Activity, Menu, X, Router, Database, LayoutDashboard, Users, LogOut } from 'lucide-react';
+import { useAuth } from '../context/AuthContext'; // ✅ นำเข้า useAuth
 
 const MainLayout = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  
+  // ✅ ดึงข้อมูล user และฟังก์ชัน logout จาก Context
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
 
-  // ✅ เพิ่ม Dashboard ไว้เป็นเมนูแรกสุด
-  const navItems = [
-    { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-    { to: '/devices', icon: Server, label: 'Managed Routers' },
-    { to: '/add-device', icon: PlusCircle, label: 'Add New Device' },
-    { to: '/models', icon: Database, label: 'Hardware Models' },
-    { to: '/audit-logs', icon: Activity, label: 'Audit Logs' },
+  const handleLogout = () => {
+    logout();
+    navigate('/login');
+  };
+
+  // ✅ กำหนดเมนูทั้งหมด
+  const allNavItems = [
+    { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard', roles: ['SUPER_ADMIN', 'ADMIN', 'EMPLOYEE'] },
+    { to: '/devices', icon: Server, label: 'Managed Routers', roles: ['SUPER_ADMIN', 'ADMIN', 'EMPLOYEE'] },
+    { to: '/add-device', icon: PlusCircle, label: 'Add New Device', roles: ['SUPER_ADMIN', 'ADMIN'] },
+    { to: '/models', icon: Database, label: 'Hardware Models', roles: ['SUPER_ADMIN', 'ADMIN'] },
+    { to: '/users', icon: Users, label: 'User Management', roles: ['SUPER_ADMIN', 'ADMIN'] },
+    { to: '/audit-logs', icon: Activity, label: 'Audit Logs', roles: ['SUPER_ADMIN', 'ADMIN'] },
   ];
+
+  // ✅ กรองเมนูให้แสดงเฉพาะที่ Role ของตัวเองมีสิทธิ์เห็น
+  const navItems = allNavItems.filter(item => item.roles.includes(user?.role));
 
   return (
     <div className="min-h-screen bg-slate-50 flex">
       
       {/* --- Sidebar (Desktop) --- */}
       <aside className="hidden md:flex flex-col w-64 bg-slate-900 text-white transition-all duration-300 shadow-xl z-10">
-        {/* Logo Area */}
         <div className="h-16 flex items-center gap-3 px-6 bg-slate-950 border-b border-slate-800 shrink-0">
           <div className="bg-blue-600 p-1.5 rounded-lg">
             <Router size={20} className="text-white" />
@@ -27,7 +40,6 @@ const MainLayout = () => {
           <span className="font-bold text-lg tracking-wide">MikroManager</span>
         </div>
 
-        {/* Navigation */}
         <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto">
           {navItems.map((item) => (
             <NavLink
@@ -35,9 +47,7 @@ const MainLayout = () => {
               to={item.to}
               className={({ isActive }) =>
                 `flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all font-medium ${
-                  isActive
-                    ? 'bg-blue-600 text-white shadow-sm'
-                    : 'text-slate-400 hover:bg-slate-800 hover:text-white'
+                  isActive ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-400 hover:bg-slate-800 hover:text-white'
                 }`
               }
             >
@@ -47,24 +57,25 @@ const MainLayout = () => {
           ))}
         </nav>
 
-        {/* User Area (Bottom) */}
-        <div className="p-4 bg-slate-950 border-t border-slate-800 shrink-0">
+        {/* ✅ User Area & Logout */}
+        <div className="p-4 bg-slate-950 border-t border-slate-800 shrink-0 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center font-bold text-sm text-blue-400">
-              AD
+            <div className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center font-bold text-sm text-blue-400 uppercase">
+              {user?.username ? user.username.substring(0, 2) : 'U'}
             </div>
             <div>
-              <p className="text-sm font-medium text-slate-200">Admin User</p>
-              <p className="text-[10px] text-slate-500 font-mono">ID: 1 • Role: ADMIN</p>
+              <p className="text-sm font-medium text-slate-200 truncate w-28">{user?.firstName || 'User'}</p>
+              <p className="text-[10px] text-slate-500 font-mono">{user?.role}</p>
             </div>
           </div>
+          <button onClick={handleLogout} className="p-2 text-slate-400 hover:text-red-400 hover:bg-slate-800 rounded-lg transition" title="Logout">
+            <LogOut size={18} />
+          </button>
         </div>
       </aside>
 
       {/* --- Main Content Area --- */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
-        
-        {/* Mobile Header */}
         <header className="md:hidden h-16 bg-slate-900 text-white flex items-center justify-between px-4 shrink-0 shadow-md relative z-20">
           <div className="flex items-center gap-2">
             <div className="bg-blue-600 p-1 rounded">
@@ -80,7 +91,6 @@ const MainLayout = () => {
           </button>
         </header>
 
-        {/* Mobile Menu Dropdown */}
         {isMobileMenuOpen && (
           <div className="md:hidden bg-slate-900 text-white border-t border-slate-800 absolute top-16 left-0 right-0 z-50 shadow-2xl animate-in slide-in-from-top-2 duration-200">
             <nav className="px-4 py-4 space-y-2">
@@ -88,12 +98,10 @@ const MainLayout = () => {
                 <NavLink
                   key={item.to}
                   to={item.to}
-                  onClick={() => setIsMobileMenuOpen(false)} // ปิดเมนูเมื่อกดเลือก
+                  onClick={() => setIsMobileMenuOpen(false)} 
                   className={({ isActive }) =>
                     `flex items-center gap-3 px-3 py-3 rounded-lg transition-all font-medium ${
-                      isActive
-                        ? 'bg-blue-600 text-white'
-                        : 'text-slate-400 hover:bg-slate-800 hover:text-white'
+                      isActive ? 'bg-blue-600 text-white' : 'text-slate-400 hover:bg-slate-800 hover:text-white'
                     }`
                   }
                 >
@@ -101,26 +109,24 @@ const MainLayout = () => {
                   {item.label}
                 </NavLink>
               ))}
+              <div className="border-t border-slate-800 mt-2 pt-2">
+                <button onClick={handleLogout} className="w-full flex items-center gap-3 px-3 py-3 rounded-lg text-red-400 hover:bg-slate-800 transition-all font-medium">
+                  <LogOut size={20} /> Logout
+                </button>
+              </div>
             </nav>
           </div>
         )}
 
-        {/* Overlay สำหรับตอนเปิดเมนูมือถือ (กดข้างนอกเพื่อปิด) */}
         {isMobileMenuOpen && (
-           <div 
-             className="md:hidden fixed inset-0 bg-black/50 z-40 top-16" 
-             onClick={() => setIsMobileMenuOpen(false)}
-           />
+           <div className="md:hidden fixed inset-0 bg-black/50 z-40 top-16" onClick={() => setIsMobileMenuOpen(false)} />
         )}
 
-        {/* Page Content (ที่ที่เนื้อหาแต่ละหน้าจะถูกนำมาแสดง) */}
         <main className="flex-1 overflow-y-auto p-4 md:p-8">
           <div className="max-w-7xl mx-auto">
-            {/* Component ของหน้าที่เราเรียกใช้จะมาโผล่ตรงนี้ */}
             <Outlet /> 
           </div>
         </main>
-        
       </div>
     </div>
   );
