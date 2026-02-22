@@ -1,4 +1,6 @@
 const prisma = require('../config/prisma');
+const crypto = require('crypto'); // ✅ สำหรับใช้สร้าง Token แบบ UUID
+const { encrypt, decrypt } = require('../utils/cryptoUtil'); // ✅ นำเข้าฟังก์ชันเข้ารหัสและถอดรหัส
 
 // Helper: บันทึก History ลงตาราง Config
 const saveConfigHistory = async (userId, name, configData, managedDeviceId) => {
@@ -15,7 +17,7 @@ const saveConfigHistory = async (userId, name, configData, managedDeviceId) => {
         }
       });
     } catch (err) {
-      console.error("Error saving history:", err);
+      console.error("Error saving history:", err.message); // 🛡️ บันทึกแค่ข้อความ Error
     }
   }
 };
@@ -25,13 +27,26 @@ exports.createDevice = async (req, res) => {
     const { name, circuitId, userId, configData } = req.body;
     if (!name || !userId) return res.status(400).json({ error: "Name and UserID are required" });
 
+    // ✅ สร้าง Token ขึ้นมาเอง และทำการเข้ารหัสก่อนบันทึกลง Database
+    const plainToken = crypto.randomUUID();
+    const encryptedToken = encrypt(plainToken);
+
     const newDevice = await prisma.managedDevice.create({
-      data: { name, circuitId, userId: parseInt(userId), configData: configData || {}, status: "ACTIVE" }
+      data: { 
+        name, 
+        circuitId, 
+        userId: parseInt(userId), 
+        configData: configData || {}, 
+        status: "ACTIVE",
+        apiToken: encryptedToken // 🔒 เก็บ Token ลง DB แบบเข้ารหัสแล้ว
+      }
     });
 
     let finalConfigData = configData;
     if (configData) {
-      finalConfigData = { ...configData, token: newDevice.apiToken };
+      // เอา Token ฉบับอ่านออก (Plaintext) แปะกลับไปให้ Frontend เอาไปสร้าง Script
+      finalConfigData = { ...configData, token: plainToken };
+      
       await prisma.managedDevice.update({
         where: { id: newDevice.id },
         data: { configData: finalConfigData }
@@ -43,8 +58,10 @@ exports.createDevice = async (req, res) => {
       data: { userId: parseInt(userId), action: "CREATE_DEVICE", details: `Created device: ${name}` }
     });
 
-    res.status(201).json({ ...newDevice, configData: finalConfigData });
+    // ส่งคืน Plaintext กลับไปที่ Frontend
+    res.status(201).json({ ...newDevice, apiToken: plainToken, configData: finalConfigData });
   } catch (error) {
+    console.error("Create device error:", error.message); // 🛡️ ป้องกัน Stack Trace หลุด
     res.status(500).json({ error: "Failed to create device" });
   }
 };
@@ -57,15 +74,17 @@ exports.updateDevice = async (req, res) => {
     const oldDevice = await prisma.managedDevice.findUnique({ where: { id: parseInt(id) } });
     if (!oldDevice) return res.status(404).json({ error: "Device not found" });
 
+    const plainToken = decrypt(oldDevice.apiToken); // 🔓 ถอดรหัส Token เก่าจาก DB
+
     let finalConfigData = configData;
     if (configData) {
-        finalConfigData = { ...configData, token: oldDevice.apiToken };
+        finalConfigData = { ...configData, token: plainToken }; // แปะ Token เข้าไปใน Config ที่อัปเดตใหม่
     }
 
     const updatedDevice = await prisma.managedDevice.update({
       where: { id: parseInt(id) },
       data: {
-        configData: finalConfigData, 
+        configData: finalConfigData || oldDevice.configData, 
         ...(name && { name }),           
         ...(circuitId && { circuitId }),
         ...(status && { status }) 
@@ -80,8 +99,9 @@ exports.updateDevice = async (req, res) => {
       data: { userId: updatedDevice.userId, action: "UPDATE_DEVICE", details: `Updated config for device: ${updatedDevice.name}` }
     });
 
-    res.json(updatedDevice);
+    res.json({ ...updatedDevice, apiToken: plainToken, configData: finalConfigData });
   } catch (error) {
+    console.error("Update device error:", error.message);
     res.status(500).json({ error: "Failed to update device configuration" });
   }
 };
@@ -132,14 +152,13 @@ exports.handleHeartbeat = async (req, res) => {
 
     res.json({ status: "ok", command: commandToSend });
   } catch (error) {
+    console.error("Heartbeat process error:", error.message);
     res.status(500).json({ error: "Heartbeat process failed" });
   }
 };
 
-// 4. ดึงรายการอุปกรณ์ (List) - ปรับให้อ่านได้ "ทั้งหมด" โดยไม่สน userId
 exports.getUserDevices = async (req, res) => {
   try {
-    // เอา userId ออก ไม่ต้องกรองแล้ว ดึงมาหมดเลย!
     const devices = await prisma.managedDevice.findMany({
       orderBy: { createdAt: 'desc' }
     });
@@ -150,12 +169,17 @@ exports.getUserDevices = async (req, res) => {
         if (d.configData && d.configData.selectedModel) {
           modelObj = d.configData.selectedModel;
         }
-        return { ...d, isOnline, model: modelObj };
+        return { 
+          ...d, 
+          isOnline, 
+          model: modelObj,
+          apiToken: decrypt(d.apiToken) // 🔓 ถอดรหัสส่งคืนให้หน้าเว็บเอาไปโชว์
+        };
     });
 
     res.json(result);
   } catch (error) {
-    console.error("Fetch devices error:", error);
+    console.error("Fetch devices error:", error.message);
     res.status(500).json({ error: "Failed to fetch devices" });
   }
 };
@@ -174,6 +198,7 @@ exports.getDeviceHistory = async (req, res) => {
     });
     res.json(history);
   } catch (error) {
+    console.error("Fetch device history error:", error.message);
     res.status(500).json({ error: "Failed to fetch history" });
   }
 };
@@ -183,11 +208,17 @@ exports.getDeviceById = async (req, res) => {
     const { id } = req.params;
     const device = await prisma.managedDevice.findUnique({ where: { id: parseInt(id) } });
     if (!device) return res.status(404).json({ error: "Device not found" });
-    if (device.configData && device.configData.selectedModel) {
-      device.model = device.configData.selectedModel;
+
+    device.apiToken = decrypt(device.apiToken); // 🔓 ถอดรหัสส่งให้หน้าเว็บ
+    
+    if (device.configData) {
+      if (device.configData.selectedModel) device.model = device.configData.selectedModel;
+      device.configData.token = device.apiToken; // แปะ Token ไปใน configData ไว้สร้าง Script
     }
+
     res.json(device);
   } catch (error) {
+    console.error("Fetch device detail error:", error.message);
     res.status(500).json({ error: "Failed to fetch device detail" });
   }
 };
@@ -209,6 +240,7 @@ exports.logDownload = async (req, res) => {
     });
     res.json({ success: true });
   } catch (error) {
+    console.error("Log download error:", error.message);
     res.status(500).json({ error: "Failed to log download activity" });
   }
 };
@@ -234,6 +266,7 @@ exports.deleteDevice = async (req, res) => {
 
     res.json({ message: "Device marked as inactive" });
   } catch (error) {
+    console.error("Delete device error:", error.message);
     res.status(500).json({ error: "Failed to delete device" });
   }
 };
@@ -259,22 +292,19 @@ exports.restoreDevice = async (req, res) => {
 
     res.json({ message: "Device restored successfully" });
   } catch (error) {
+    console.error("Restore device error:", error.message);
     res.status(500).json({ error: "Failed to restore device" });
   }
 };
 
-// ✅ 10. Acknowledge Warning
 exports.acknowledgeWarning = async (req, res) => {
   try {
     const { id } = req.params;
-    
-    // ✅ แก้ไขบรรทัดนี้: เพิ่ม userName เข้าไปในปีกกา เพื่อรับค่าจากหน้าเว็บ
     const { userId, userName, reason } = req.body; 
 
     const device = await prisma.managedDevice.findUnique({ where: { id: parseInt(id) } });
     if (!device) return res.status(404).json({ error: "Device not found" });
 
-    // 1. เช็คว่าเป็น Array มาจาก DB อยู่แล้วหรือไม่
     let ackHistory = [];
     if (device.ackReason) {
       if (Array.isArray(device.ackReason)) {
@@ -284,15 +314,13 @@ exports.acknowledgeWarning = async (req, res) => {
       }
     }
 
-    // 2. เอาของใหม่ใส่ต่อท้าย Array
     ackHistory.push({
       timestamp: new Date(),
       reason: reason,
       userId: parseInt(userId),
-      userName: userName || "Unknown User" // ตอนนี้ userName จะมีค่าแล้ว ไม่ error แน่นอนครับ
+      userName: userName || "Unknown User" 
     });
 
-    // 3. โยน Array กลับลง DB
     const updatedDevice = await prisma.managedDevice.update({
       where: { id: parseInt(id) },
       data: {
@@ -313,7 +341,7 @@ exports.acknowledgeWarning = async (req, res) => {
 
     res.json({ message: "Warning acknowledged successfully", device: updatedDevice });
   } catch (error) {
-    console.error("Acknowledge error:", error);
+    console.error("Acknowledge warning error:", error.message);
     res.status(500).json({ error: "Failed to acknowledge warning" });
   }
 };

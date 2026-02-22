@@ -1,7 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const authController = require('../controllers/authController');
-const rateLimit = require('express-rate-limit'); // ✅ นำเข้า express-rate-limit
+const rateLimit = require('express-rate-limit');
+const { verifyToken } = require('../middlewares/authMiddleware');
 
 // 🛡️ สร้าง Limiter เฉพาะสำหรับ Login (ป้องกัน Brute-force)
 const loginLimiter = rateLimit({
@@ -14,5 +15,6 @@ const loginLimiter = rateLimit({
 
 // ✅ เอา loginLimiter มาสกัดกั้นก่อนเข้า authController.login
 router.post('/login', loginLimiter, authController.login);
+router.post('/logout', verifyToken, authController.logout);
 
 module.exports = router;

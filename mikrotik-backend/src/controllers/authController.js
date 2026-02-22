@@ -1,8 +1,11 @@
 const prisma = require('../config/prisma');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const logger = require('../utils/logger'); // (ใช้ logger จากข้อ 3)
+const logger = require('../utils/logger');
 const JWT_SECRET = process.env.JWT_SECRET;
+
+// 🛡️ แก้ไข 2.3: สร้าง Dummy Hash ไว้ล่วงหน้า (ใช้เวลาคำนวณเท่ากับการเช็ค Hash จริง)
+const DUMMY_HASH = bcrypt.hashSync('dummy_password_for_timing_attack', 10);
 
 exports.login = async (req, res) => {
   try {
@@ -21,32 +24,63 @@ exports.login = async (req, res) => {
       }
     });
 
+    let isMatch = false;
+    
+    // 🛡️ แก้ไข 2.3: ป้องกัน Timing Attack
     if (!user) {
+      // แม้ไม่เจอ User ก็สั่งให้โปรแกรมทำการเปรียบเทียบรหัสผ่าน (ถ่วงเวลาให้เท่ากับเจอ User)
+      await bcrypt.compare(password, DUMMY_HASH); 
       return res.status(401).json({ error: "Invalid username or password" });
+    } else {
+      isMatch = await bcrypt.compare(password, user.password);
+      if (!isMatch) {
+        return res.status(401).json({ error: "Invalid username or password" });
+      }
     }
 
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) {
-      return res.status(401).json({ error: "Invalid username or password" });
-    }
-
-    // ✅ ปรับลดอายุ Token จาก '1d' เป็น '1h' (1 ชั่วโมง) หรือ '2h' (2 ชั่วโมง)
     const token = jwt.sign(
       { id: user.id, username: user.username, role: user.role },
       JWT_SECRET,
-      { expiresIn: '1h' } // หากหมดอายุ User จะต้องล็อคอินใหม่
+      { expiresIn: '1h' } 
     );
 
     delete user.password;
 
-    res.json({
-      message: "Login successful",
-      token,
-      user
-    });
+    res.json({ message: "Login successful", token, user });
 
   } catch (error) {
+    // 🛡️ แก้ไข 2.2: บันทึกเฉพาะข้อความ Error ไม่ส่ง Object ก้อนใหญ่ลง Log 
     logger.error(`Login error: ${error.message}`);
     res.status(500).json({ error: "Server error during login" });
+  }
+};
+
+exports.logout = async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(400).json({ error: "No token provided" });
+    }
+
+    const token = authHeader.split(' ')[1];
+    
+    // ถอดรหัส Token เพื่อเอาเวลาหมดอายุ (exp) มาบันทึก
+    const decoded = jwt.decode(token);
+    if (!decoded) return res.status(400).json({ error: "Invalid token format" });
+
+    const expiresAt = new Date(decoded.exp * 1000);
+
+    // เช็คว่าเคยมีใน Blacklist หรือยัง ถ้ายังให้บันทึกลงไป
+    const existing = await prisma.revokedToken.findFirst({ where: { token } });
+    if (!existing) {
+      await prisma.revokedToken.create({
+        data: { token, expiresAt }
+      });
+    }
+
+    res.json({ message: "Logout successful" });
+  } catch (error) {
+    logger.error(`Logout error: ${error.message}`);
+    res.status(500).json({ error: "Failed to logout" });
   }
 };

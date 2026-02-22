@@ -1,8 +1,11 @@
 const jwt = require('jsonwebtoken');
+const prisma = require('../config/prisma'); 
+const { encrypt } = require('../utils/cryptoUtil'); // ✅ นำเข้าฟังก์ชัน encrypt ที่ถูกต้องตรงนี้
+
 const JWT_SECRET = process.env.JWT_SECRET;
 
-// 1. ฟังก์ชันตรวจ Token (ล็อคไม่ให้คนนอกเข้า)
-exports.verifyToken = (req, res, next) => {
+// 1. ฟังก์ชันตรวจ Token (หน้าเว็บ)
+exports.verifyToken = async (req, res, next) => { // ✅ เติม async
   const authHeader = req.headers.authorization;
 
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -12,10 +15,18 @@ exports.verifyToken = (req, res, next) => {
   const token = authHeader.split(' ')[1];
 
   try {
-    // ถอดรหัส Token
+    // 🛡️ เช็คก่อนเลยว่า Token นี้ถูกแบน (Blacklist) ไปหรือยัง
+    const isRevoked = await prisma.revokedToken.findFirst({
+      where: { token: token }
+    });
+
+    if (isRevoked) {
+      return res.status(401).json({ error: 'Token has been revoked. Please log in again.' });
+    }
+
     const decoded = jwt.verify(token, JWT_SECRET);
-    req.user = decoded; // จะได้ { id, username, role, ... } แปะไปกับ Request
-    next(); // ผ่านด่านไปทำงานต่อได้
+    req.user = decoded; 
+    next(); 
   } catch (error) {
     return res.status(401).json({ error: 'Invalid or expired token.' });
   }
@@ -24,17 +35,14 @@ exports.verifyToken = (req, res, next) => {
 // 2. ฟังก์ชันตรวจสิทธิ์ (Role-Based Access Control)
 exports.requireRole = (allowedRoles) => {
   return (req, res, next) => {
-    // ถ้า User ไม่มี Role หรือ Role ไม่ตรงกับที่กำหนดไว้ใน Array
     if (!req.user || !allowedRoles.includes(req.user.role)) {
       return res.status(403).json({ error: 'Access denied. Insufficient permissions.' });
     }
-    next(); // สิทธิ์ถึง ผ่านได้!
+    next(); 
   };
 };
 
-//3. ฟังก์ชันตรวจ API Key สำหรับอุปกรณ์ MikroTik โดยเฉพาะ
-const prisma = require('../config/prisma'); // ต้อง import prisma มาใช้
-
+// 3. ฟังก์ชันตรวจ API Key สำหรับอุปกรณ์ MikroTik โดยเฉพาะ
 exports.verifyDeviceToken = async (req, res, next) => {
   const authHeader = req.headers.authorization;
   
@@ -42,23 +50,27 @@ exports.verifyDeviceToken = async (req, res, next) => {
     return res.status(401).json({ error: 'Missing device token' });
   }
 
-  const deviceToken = authHeader.split(' ')[1];
+  const deviceToken = authHeader.split(' ')[1]; // Token ที่ MikroTik ส่งมา (Plaintext)
+  const encryptedSearchToken = encrypt(deviceToken); // 🔒 เข้ารหัสก่อนเอาไปค้นหา
 
   try {
-    // หาอุปกรณ์ใน Database ที่มี API Token ตรงกับที่ส่งมา
     const device = await prisma.managedDevice.findFirst({
-      where: { apiToken: deviceToken }
+      where: { 
+        OR: [
+          { apiToken: encryptedSearchToken }, // ค้นหาตัวที่เข้ารหัสแล้ว (ระบบใหม่)
+          { apiToken: deviceToken }           // ค้นหาตัวที่ยังเป็น Plaintext (รองรับอุปกรณ์เดิมใน DB)
+        ]
+      }
     });
 
     if (!device) {
       return res.status(403).json({ error: 'Unauthorized device' });
     }
 
-    // แปะข้อมูล device ใส่ req เพื่อให้ Controller เอาไปใช้ต่อได้ (req.device)
     req.device = device;
     next();
   } catch (error) {
-    console.error("Device verification error:", error);
+    console.error("Device verification error:", error.message);
     return res.status(500).json({ error: 'Internal server error' });
   }
 };

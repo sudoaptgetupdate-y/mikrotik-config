@@ -145,3 +145,12 @@ enum ActionType {
   DELETE_DEVICE
   GENERATE_CONFIG
 }
+
+model RevokedToken {
+  id        Int      @id @default(autoincrement())
+  token     String   @unique @db.VarChar(512)
+  expiresAt DateTime // เก็บเวลาหมดอายุ เพื่อให้เราเขียนระบบลบข้อมูลขยะทิ้งได้
+  createdAt DateTime @default(now())
+
+  @@index([expiresAt]) // ทำ Index เพื่อให้ค้นหาและลบได้เร็วขึ้น
+}

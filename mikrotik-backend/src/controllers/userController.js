@@ -98,15 +98,16 @@ exports.getUserById = async (req, res) => {
     const { id } = req.params;
     const user = await prisma.user.findUnique({
       where: { id: parseInt(id) },
-      // เลือกส่งกลับไปเฉพาะข้อมูลที่ปลอดภัย (ไม่ส่ง password กลับไป)
       select: { id: true, username: true, firstName: true, lastName: true, email: true, role: true }
     });
 
     if (!user) return res.status(404).json({ error: "User not found" });
 
-    // อนุญาตให้ดูได้เฉพาะข้อมูลตัวเอง หรือถ้าเป็น Admin ถึงจะดูของคนอื่นได้
-    if (req.user.id !== user.id && req.user.role === 'EMPLOYEE') {
-        return res.status(403).json({ error: "Access denied" });
+    // 🛡️ ตรวจสอบสิทธิ์: ถ้าไม่ได้ดูข้อมูลตัวเอง ต้องเช็คว่ามีสิทธิ์ดูข้อมูลของคนนี้หรือไม่
+    if (req.user.id !== user.id) {
+      if (!canManageRole(req.user.role, user.role)) {
+        return res.status(403).json({ error: "Access denied. You don't have permission to view this profile." });
+      }
     }
 
     res.json(user);
@@ -122,27 +123,29 @@ exports.updateUser = async (req, res) => {
     const { id } = req.params;
     const { firstName, lastName, currentPassword, newPassword, role, status } = req.body;
 
-    // ตรวจสอบสิทธิ์: แก้ได้เฉพาะตัวเอง หรือต้องเป็น Admin เท่านั้น
-    if (req.user.id !== parseInt(id) && !['SUPER_ADMIN', 'ADMIN'].includes(req.user.role)) {
-      return res.status(403).json({ error: "Access denied. You can only update your own profile." });
-    }
-
     const targetUser = await prisma.user.findUnique({ where: { id: parseInt(id) } });
     if (!targetUser) return res.status(404).json({ error: "User not found" });
 
+    const isUpdatingSelf = req.user.id === targetUser.id;
+
+    // 🛡️ ตรวจสอบสิทธิ์ 1: ถ้าไม่ได้แก้ข้อมูลตัวเอง ต้องมีสิทธิ์จัดการคนๆ นี้
+    if (!isUpdatingSelf) {
+      if (!canManageRole(req.user.role, targetUser.role)) {
+        return res.status(403).json({ error: "Access denied. You don't have permission to update this user." });
+      }
+    }
+
     let updateData = { firstName, lastName };
 
-    // ถ้ามีการส่งรหัสผ่านใหม่มา (แปลว่าต้องการเปลี่ยนรหัสผ่าน)
+    // จัดการเรื่องรหัสผ่าน
     if (newPassword) {
-      
-      // ✅ 1. เพิ่มการตรวจสอบเงื่อนไขและรูปแบบรหัสผ่านใหม่
       if (!validatePassword(newPassword)) {
         return res.status(400).json({ 
           error: "Password must be at least 8 characters long and contain uppercase, lowercase, number, and special character." 
         });
       }
 
-      // 2. ตรวจสอบรหัสผ่านเดิมก่อน
+      // 🛡️ ตรวจสอบรหัสผ่านเดิมเสมอเมื่อมีการขอเปลี่ยนรหัสผ่าน
       if (!currentPassword) {
          return res.status(400).json({ error: "Current password is required" });
       }
@@ -151,15 +154,27 @@ exports.updateUser = async (req, res) => {
          return res.status(400).json({ error: "Incorrect current password" });
       }
       
-      // 3. เข้ารหัส (Hash) รหัสผ่านใหม่
       const salt = await bcrypt.genSalt(10);
       updateData.password = await bcrypt.hash(newPassword, salt);
     }
 
-    // ป้องกันไม่ให้ Employee แอบส่ง API มาเปลี่ยน Role/Status ของตัวเอง
-    if (['SUPER_ADMIN', 'ADMIN'].includes(req.user.role)) {
-       if (role) updateData.role = role;
-       if (status) updateData.status = status;
+    // 🛡️ ตรวจสอบสิทธิ์ 2: การจัดการ Role และ Status
+    if (role || status) {
+      // ห้ามไม่ให้ใครก็ตามเปลี่ยน Role ของตัวเอง (ป้องกัน Employee แอบอัปเกรดตัวเองเป็น Admin)
+      if (isUpdatingSelf && role && role !== targetUser.role) {
+        return res.status(403).json({ error: "You cannot change your own role." });
+      }
+
+      // ถ้าคนอื่นแก้ให้ ต้องตรวจสอบว่าผู้แก้มีสิทธิ์กำหนด Role ระดับใหม่นี้หรือไม่
+      if (role && role !== targetUser.role) {
+        if (!canManageRole(req.user.role, role)) {
+          return res.status(403).json({ error: "You don't have permission to assign this role." });
+        }
+        updateData.role = role;
+      }
+
+      // อัปเดตสถานะ (ถ้ามีการส่งมา)
+      if (status) updateData.status = status;
     }
 
     const updatedUser = await prisma.user.update({
