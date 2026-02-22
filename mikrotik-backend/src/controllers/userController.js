@@ -1,5 +1,6 @@
 const prisma = require('../config/prisma');
 const bcrypt = require('bcryptjs');
+const logger = require('../utils/logger');
 
 // Helper: ตรวจสอบความซับซ้อนของรหัสผ่าน
 const validatePassword = (password) => {
@@ -65,7 +66,7 @@ exports.createUser = async (req, res) => {
     if (error.code === 'P2002' && error.meta.target.includes('email')) {
       return res.status(400).json({ error: "This email is already registered." });
     }
-    console.error(error);
+    logger.error(error);
     res.status(500).json({ error: "Failed to create user" });
   }
 };
@@ -110,7 +111,7 @@ exports.getUserById = async (req, res) => {
 
     res.json(user);
   } catch (error) {
-    console.error("Get user error:", error);
+    logger.error("Get user error:", error);
     res.status(500).json({ error: "Failed to fetch user data" });
   }
 };
@@ -133,7 +134,15 @@ exports.updateUser = async (req, res) => {
 
     // ถ้ามีการส่งรหัสผ่านใหม่มา (แปลว่าต้องการเปลี่ยนรหัสผ่าน)
     if (newPassword) {
-      // 1. ตรวจสอบรหัสผ่านเดิมก่อน
+      
+      // ✅ 1. เพิ่มการตรวจสอบเงื่อนไขและรูปแบบรหัสผ่านใหม่
+      if (!validatePassword(newPassword)) {
+        return res.status(400).json({ 
+          error: "Password must be at least 8 characters long and contain uppercase, lowercase, number, and special character." 
+        });
+      }
+
+      // 2. ตรวจสอบรหัสผ่านเดิมก่อน
       if (!currentPassword) {
          return res.status(400).json({ error: "Current password is required" });
       }
@@ -141,7 +150,8 @@ exports.updateUser = async (req, res) => {
       if (!isMatch) {
          return res.status(400).json({ error: "Incorrect current password" });
       }
-      // 2. เข้ารหัส (Hash) รหัสผ่านใหม่
+      
+      // 3. เข้ารหัส (Hash) รหัสผ่านใหม่
       const salt = await bcrypt.genSalt(10);
       updateData.password = await bcrypt.hash(newPassword, salt);
     }
@@ -160,7 +170,7 @@ exports.updateUser = async (req, res) => {
 
     res.json(updatedUser);
   } catch (error) {
-    console.error("Update user error:", error);
+    logger.error("Update user error:", error);
     res.status(500).json({ error: "Failed to update profile" });
   }
 };
