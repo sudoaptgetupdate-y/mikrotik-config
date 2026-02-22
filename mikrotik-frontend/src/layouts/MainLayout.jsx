@@ -1,12 +1,10 @@
 import React, { useState } from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
-import { Server, PlusCircle, Activity, Menu, X, Router, Database, LayoutDashboard, Users, LogOut } from 'lucide-react';
-import { useAuth } from '../context/AuthContext'; // ✅ นำเข้า useAuth
+import { Server, PlusCircle, Activity, Menu, X, Router, Database, LayoutDashboard, Users, LogOut, User } from 'lucide-react';
+import { useAuth } from '../context/AuthContext'; 
 
 const MainLayout = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  
-  // ✅ ดึงข้อมูล user และฟังก์ชัน logout จาก Context
   const { user, logout } = useAuth();
   const navigate = useNavigate();
 
@@ -15,7 +13,6 @@ const MainLayout = () => {
     navigate('/login');
   };
 
-  // ✅ กำหนดเมนูทั้งหมด
   const allNavItems = [
     { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard', roles: ['SUPER_ADMIN', 'ADMIN', 'EMPLOYEE'] },
     { to: '/devices', icon: Server, label: 'Managed Routers', roles: ['SUPER_ADMIN', 'ADMIN', 'EMPLOYEE'] },
@@ -25,7 +22,6 @@ const MainLayout = () => {
     { to: '/audit-logs', icon: Activity, label: 'Audit Logs', roles: ['SUPER_ADMIN', 'ADMIN'] },
   ];
 
-  // ✅ กรองเมนูให้แสดงเฉพาะที่ Role ของตัวเองมีสิทธิ์เห็น
   const navItems = allNavItems.filter(item => item.roles.includes(user?.role));
 
   return (
@@ -57,18 +53,32 @@ const MainLayout = () => {
           ))}
         </nav>
 
-        {/* ✅ User Area & Logout */}
-        <div className="p-4 bg-slate-950 border-t border-slate-800 shrink-0 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center font-bold text-sm text-blue-400 uppercase">
+        {/* ✅ User Area & Logout (Desktop) ปรับปรุงใหม่ */}
+        <div className="p-4 bg-slate-950 border-t border-slate-800 shrink-0 flex items-center justify-between gap-2">
+          
+          {/* ทำให้กรอบชื่อ/อวตาร คลิกเพื่อไปหน้า Profile ได้เลย */}
+          <NavLink 
+            to="/profile" 
+            className="flex-1 flex items-center gap-3 p-2 -ml-2 rounded-lg hover:bg-slate-800 transition-colors group"
+            title="Go to Profile"
+          >
+            <div className="w-8 h-8 rounded-full bg-slate-800 group-hover:bg-blue-600 flex items-center justify-center font-bold text-sm text-blue-400 group-hover:text-white transition-colors uppercase shrink-0">
               {user?.username ? user.username.substring(0, 2) : 'U'}
             </div>
-            <div>
-              <p className="text-sm font-medium text-slate-200 truncate w-28">{user?.firstName || 'User'}</p>
-              <p className="text-[10px] text-slate-500 font-mono">{user?.role}</p>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-medium text-slate-200 truncate group-hover:text-white transition-colors">
+                {user?.firstName || 'User'}
+              </p>
+              <p className="text-[10px] text-slate-500 font-mono truncate">{user?.role}</p>
             </div>
-          </div>
-          <button onClick={handleLogout} className="p-2 text-slate-400 hover:text-red-400 hover:bg-slate-800 rounded-lg transition" title="Logout">
+          </NavLink>
+          
+          {/* ปุ่ม Logout แยกออกมาให้กดง่าย */}
+          <button 
+            onClick={handleLogout} 
+            className="p-2.5 text-slate-400 hover:text-red-400 hover:bg-slate-800 hover:shadow-inner rounded-lg transition-all shrink-0" 
+            title="Logout"
+          >
             <LogOut size={18} />
           </button>
         </div>
@@ -76,6 +86,8 @@ const MainLayout = () => {
 
       {/* --- Main Content Area --- */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
+        
+        {/* ✅ Mobile Header ปรับปรุงใหม่ */}
         <header className="md:hidden h-16 bg-slate-900 text-white flex items-center justify-between px-4 shrink-0 shadow-md relative z-20">
           <div className="flex items-center gap-2">
             <div className="bg-blue-600 p-1 rounded">
@@ -83,14 +95,25 @@ const MainLayout = () => {
             </div>
             <span className="font-bold text-lg">MikroManager</span>
           </div>
-          <button
-            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-            className="p-2 hover:bg-slate-800 rounded-lg transition focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
-          </button>
+          
+          <div className="flex items-center gap-1">
+            {/* เพิ่มไอคอนอวตารให้ผู้ใช้กดเข้า Profile ได้ง่ายๆ จากแถบบนในมือถือ */}
+            <NavLink 
+              to="/profile" 
+              className="w-8 h-8 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center font-bold text-sm text-blue-400 uppercase mr-1"
+            >
+              {user?.username ? user.username.substring(0, 2) : 'U'}
+            </NavLink>
+            <button
+              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+              className="p-2 hover:bg-slate-800 rounded-lg transition focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
+            </button>
+          </div>
         </header>
 
+        {/* ✅ Mobile Menu ปรับปรุงใหม่ */}
         {isMobileMenuOpen && (
           <div className="md:hidden bg-slate-900 text-white border-t border-slate-800 absolute top-16 left-0 right-0 z-50 shadow-2xl animate-in slide-in-from-top-2 duration-200">
             <nav className="px-4 py-4 space-y-2">
@@ -109,8 +132,24 @@ const MainLayout = () => {
                   {item.label}
                 </NavLink>
               ))}
+              
+              {/* ขีดคั่นแบ่งโซนบัญชีผู้ใช้ */}
               <div className="border-t border-slate-800 mt-2 pt-2">
-                <button onClick={handleLogout} className="w-full flex items-center gap-3 px-3 py-3 rounded-lg text-red-400 hover:bg-slate-800 transition-all font-medium">
+                <NavLink 
+                  to="/profile" 
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className={({ isActive }) =>
+                    `flex items-center gap-3 px-3 py-3 rounded-lg transition-all font-medium ${
+                      isActive ? 'bg-blue-600 text-white' : 'text-slate-400 hover:bg-slate-800 hover:text-white'
+                    }`
+                  }
+                >
+                  <User size={20} /> My Profile
+                </NavLink>
+                <button 
+                  onClick={handleLogout} 
+                  className="w-full flex items-center gap-3 px-3 py-3 rounded-lg text-slate-400 hover:text-red-400 hover:bg-slate-800 transition-all font-medium"
+                >
                   <LogOut size={20} /> Logout
                 </button>
               </div>

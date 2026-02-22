@@ -19,7 +19,8 @@ const UserManagement = () => {
     lastName: '',
     email: '',
     role: 'EMPLOYEE',
-    password: ''
+    password: '',
+    confirmPassword: ''
   });
 
   // สำหรับดึง Username มาโชว์เป็นตัวอย่างตอนพิมพ์ Email
@@ -56,7 +57,7 @@ const UserManagement = () => {
   };
 
   const openAddModal = () => {
-    setFormData({ id: null, firstName: '', lastName: '', email: '', role: 'EMPLOYEE', password: '' });
+    setFormData({ id: null, firstName: '', lastName: '', email: '', role: 'EMPLOYEE', password: '', confirmPassword: '' });
     setIsEditing(false);
     setIsModalOpen(true);
   };
@@ -68,7 +69,8 @@ const UserManagement = () => {
       lastName: user.lastName, 
       email: user.email, 
       role: user.role, 
-      password: '' // เว้นว่างไว้ ถ้าไม่กรอกแปลว่าไม่เปลี่ยนรหัสผ่าน
+      password: '', // เว้นว่างไว้ ถ้าไม่กรอกแปลว่าไม่เปลี่ยนรหัสผ่าน
+      confirmPassword: ''
     });
     setIsEditing(true);
     setIsModalOpen(true);
@@ -90,6 +92,9 @@ const UserManagement = () => {
     
     // ตรวจสอบรหัสผ่าน (บังคับตรวจสอบตอนสร้างใหม่ หรือตอนที่ช่องรหัสผ่านถูกกรอกตอนแก้ไข)
     if (!isEditing || formData.password) {
+      if (formData.password !== formData.confirmPassword) {
+        return alert("รหัสผ่านและการยืนยันรหัสผ่านไม่ตรงกัน");
+      }
       const isValidPassword = passwordRules.every(rule => rule.regex.test(formData.password));
       if (!isValidPassword) {
         return alert("รหัสผ่านไม่ตรงตามเงื่อนไขความปลอดภัย กรุณาตรวจสอบอีกครั้ง");
@@ -291,6 +296,24 @@ const UserManagement = () => {
                       type="password" 
                       name="password" 
                       value={formData.password} 
+                      onChange={handleInputChange} 
+                      className="w-full border border-slate-200 rounded-lg pl-9 p-2.5 text-sm focus:ring-2 focus:ring-blue-100" 
+                      placeholder="••••••••" 
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    ยืนยันรหัสผ่าน (Confirm Password) *
+                  </label>
+                  <div className="relative">
+                    <Lock size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <input 
+                      required={!isEditing || formData.password}
+                      type="password" 
+                      name="confirmPassword" 
+                      value={formData.confirmPassword} 
                       onChange={handleInputChange} 
                       className="w-full border border-slate-200 rounded-lg pl-9 p-2.5 text-sm focus:ring-2 focus:ring-blue-100" 
                       placeholder="••••••••" 

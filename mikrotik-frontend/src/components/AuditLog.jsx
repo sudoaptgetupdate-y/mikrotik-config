@@ -1,36 +1,59 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import apiClient from '../utils/apiClient';
-import { Activity, Search, RefreshCw, FileText, Plus, Edit, Download, Trash2, Calendar, ChevronRight } from 'lucide-react';
+import { Activity, Search, RefreshCw, FileText, Plus, Edit, Download, Trash2, Calendar, ChevronLeft, ChevronRight } from 'lucide-react';
+
+const PAGE_SIZES = [5, 10, 50, 100];
 
 const AuditLog = () => {
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
+  
+  // === State สำหรับการกรองและ Pagination ===
   const [searchTerm, setSearchTerm] = useState('');
-
-  // === States สำหรับการกรองวันที่ ===
   const [activePreset, setActivePreset] = useState('all'); // all, today, 7days, 30days, custom
   const [dateRange, setDateRange] = useState({ start: '', end: '' });
+  const [pageSize, setPageSize] = useState(PAGE_SIZES[0]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(0);
+  const [totalLogs, setTotalLogs] = useState(0);
 
-  const fetchLogs = async () => {
+  const fetchLogs = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await apiClient.get('/api/logs');
-      // ✅ แก้บั๊ก Array/Object เพื่อไม่ให้เกิด Error logs.filter is not a function
-      const logsArray = Array.isArray(res.data) ? res.data : (res.data?.data || []);
-      setLogs(logsArray);
+      const params = new URLSearchParams({
+        page: currentPage,
+        limit: pageSize,
+        search: searchTerm,
+        startDate: dateRange.start,
+        endDate: dateRange.end,
+      });
+      
+      const res = await apiClient.get(`/api/logs?${params.toString()}`);
+
+      setLogs(res.data?.data || []);
+      setTotalLogs(res.data?.meta?.total || 0);
+      setTotalPages(res.data?.meta?.totalPages || 0);
+
     } catch (error) {
       console.error("Error fetching logs:", error);
-      setLogs([]); 
+      setLogs([]);
+      setTotalLogs(0);
+      setTotalPages(0);
     } finally {
       setLoading(false);
     }
-  };
+  }, [currentPage, pageSize, searchTerm, dateRange]);
 
   useEffect(() => {
     fetchLogs();
-  }, []);
+  }, [fetchLogs]);
 
-  // ฟังก์ชันจัดสีและไอคอนตาม Action
+  // Reset page to 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, pageSize, dateRange]);
+
+
   const getActionBadge = (action) => {
     switch (action) {
       case 'CREATE_DEVICE': return { color: 'bg-green-100 text-green-700', icon: <Plus size={14} /> };
@@ -42,7 +65,6 @@ const AuditLog = () => {
     }
   };
 
-  // === ฟังก์ชันจัดการ Quick Presets ===
   const handlePresetClick = (preset) => {
     setActivePreset(preset);
     
@@ -50,59 +72,28 @@ const AuditLog = () => {
       setDateRange({ start: '', end: '' });
       return;
     }
-
-    if (preset === 'custom') {
-      return;
-    }
+    if (preset === 'custom') return;
 
     const end = new Date();
     const start = new Date();
-
     if (preset === 'today') {
-      // วันนี้
+      // no change needed
     } else if (preset === '7days') {
       start.setDate(start.getDate() - 7);
     } else if (preset === '30days') {
       start.setDate(start.getDate() - 30);
     }
-
     setDateRange({
       start: start.toISOString().split('T')[0],
       end: end.toISOString().split('T')[0]
     });
   };
 
-  // === Logic กรองข้อมูลทั้งคำค้นหาและวันที่ ===
-  const filteredLogs = logs.filter(log => {
-    const matchesSearch = 
-      log.details?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      log.user?.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      log.action.toLowerCase().includes(searchTerm.toLowerCase());
-
-    let matchesDate = true;
-    if (dateRange.start || dateRange.end) {
-      const logTime = new Date(log.createdAt).getTime();
-      
-      if (dateRange.start) {
-        const startTime = new Date(dateRange.start);
-        startTime.setHours(0, 0, 0, 0); 
-        if (logTime < startTime.getTime()) matchesDate = false;
-      }
-      
-      if (dateRange.end) {
-        const endTime = new Date(dateRange.end);
-        endTime.setHours(23, 59, 59, 999); 
-        if (logTime > endTime.getTime()) matchesDate = false;
-      }
-    }
-
-    return matchesSearch && matchesDate;
-  });
+  const from = totalLogs > 0 ? (currentPage - 1) * pageSize + 1 : 0;
+  const to = Math.min(currentPage * pageSize, totalLogs);
 
   return (
     <div className="space-y-6 animate-in fade-in pb-10">
-      
-      {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
@@ -112,10 +103,7 @@ const AuditLog = () => {
         </div>
       </div>
 
-      {/* Toolbar & Filters */}
       <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-4">
-        
-        {/* แถวที่ 1: Search & Refresh */}
         <div className="flex flex-col md:flex-row gap-4">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
@@ -132,13 +120,10 @@ const AuditLog = () => {
           </button>
         </div>
 
-        {/* แถวที่ 2: Date Filters */}
         <div className="flex flex-col md:flex-row md:items-center gap-4 pt-4 border-t border-slate-100">
           <div className="flex items-center gap-2 text-sm text-slate-500 font-medium">
             <Calendar size={18} /> Date Range:
           </div>
-          
-          {/* Preset Buttons */}
           <div className="flex flex-wrap gap-2">
             {[
               { id: 'all', label: 'All Time' },
@@ -160,11 +145,8 @@ const AuditLog = () => {
               </button>
             ))}
           </div>
-
-          {/* ✅ Custom Date Inputs (กลับมาใช้แบบคลีนๆ แบบเดิม) */}
           {activePreset === 'custom' && (
             <div className="flex items-center gap-2 animate-in fade-in slide-in-from-left-4">
-              <ChevronRight size={18} className="text-slate-300 hidden md:block" />
               <input 
                 type="date" 
                 value={dateRange.start}
@@ -181,14 +163,12 @@ const AuditLog = () => {
             </div>
           )}
         </div>
-
       </div>
 
-      {/* Table */}
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
         {loading ? (
           <div className="p-10 text-center text-slate-400">Loading logs...</div>
-        ) : filteredLogs.length === 0 ? (
+        ) : logs.length === 0 ? (
           <div className="p-10 text-center text-slate-500 bg-slate-50 flex flex-col items-center justify-center border border-dashed border-slate-200 m-4 rounded-xl">
             <Search size={32} className="text-slate-300 mb-2" />
             <p className="font-medium">No activity logs found.</p>
@@ -206,7 +186,7 @@ const AuditLog = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {filteredLogs.map((log) => {
+                {logs.map((log) => {
                   const badge = getActionBadge(log.action);
                   return (
                     <tr key={log.id} className="hover:bg-slate-50 transition">
@@ -231,8 +211,53 @@ const AuditLog = () => {
             </table>
           </div>
         )}
-      </div>
+        
+        {/* Pagination Controls */}
+        {totalLogs > 0 && (
+          <div className="flex items-center justify-between p-4 bg-white border-t border-slate-200">
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-slate-600">Rows per page:</span>
+              <div className="flex items-center gap-1">
+                {PAGE_SIZES.map(size => (
+                  <button
+                    key={size}
+                    onClick={() => setPageSize(size)}
+                    className={`px-3 py-1 text-sm font-medium rounded-md border transition-all ${
+                      pageSize === size
+                        ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
+                        : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                    }`}
+                  >
+                    {size}
+                  </button>
+                ))}
+              </div>
+            </div>
 
+            <div className="text-sm text-slate-600">
+              Showing <span className="font-medium">{from}</span>-<span className="font-medium">{to}</span> of <span className="font-medium">{totalLogs}</span> logs
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button 
+                onClick={() => setCurrentPage(p => p - 1)}
+                disabled={currentPage === 1}
+                className="px-3 py-1.5 flex items-center gap-1 border border-slate-200 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <ChevronLeft size={16} /> Previous
+              </button>
+              <span className="text-sm text-slate-500 font-medium">Page {currentPage} of {totalPages}</span>
+              <button 
+                onClick={() => setCurrentPage(p => p + 1)}
+                disabled={currentPage === totalPages}
+                className="px-3 py-1.5 flex items-center gap-1 border border-slate-200 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Next <ChevronRight size={16} />
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 };

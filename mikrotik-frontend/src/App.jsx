@@ -13,6 +13,7 @@ import ConfigWizard from './components/ConfigWizard';
 import AuditLog from './components/AuditLog'; 
 import ModelManager from './components/ModelManager';
 import UserManagement from './components/UserManagement';
+import UserProfile from './components/UserProfile';
 
 // --- Wrapper Components ---
 const CreateDevicePage = () => {
@@ -54,6 +55,7 @@ function App() {
             {/* 🟢 หน้าที่ทุกคน (รวมถึง EMPLOYEE) เข้าดูได้ (Read-only) */}
             <Route path="dashboard" element={<Dashboard />} />
             <Route path="devices" element={<DeviceList />} />
+            <Route path="profile" element={<UserProfile />} />
 
 
             {/* 🔴 หน้าที่ถูกล็อค เข้าได้เฉพาะ SUPER_ADMIN และ ADMIN เท่านั้น */}
