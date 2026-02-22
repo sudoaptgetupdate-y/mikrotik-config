@@ -1,8 +1,12 @@
 import axios from 'axios';
 
-// ตั้งค่า Base URL ให้ชี้ไปที่ Backend
+// ให้ระบบเช็คเองว่ากำลังรันอยู่บน Local (Development) หรือ Server (Production)
+// ถ้าเป็น Production (build แล้ว) VITE_API_URL จะเป็นค่าว่าง
+// ถ้าเป็น Local (กำลัง dev) VITE_API_URL จะเป็น http://localhost:3000
+const baseURL = import.meta.env.PROD ? '' : 'http://localhost:3000';
+
 const apiClient = axios.create({
-  baseURL: 'http://localhost:3000', // ปรับ URL ตามเซิร์ฟเวอร์ Backend ของคุณ
+  baseURL: baseURL, 
   headers: {
     'Content-Type': 'application/json',
   },

@@ -32,10 +32,19 @@ export const AuthProvider = ({ children }) => {
     return user;
   };
 
-  const logout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    setUser(null);
+  const logout = async () => {
+    try {
+      // 1. ยิง API ไปบอก Backend ให้นำ Token ปัจจุบันไปใส่ใน Blacklist (RevokedToken)
+      await apiClient.post('/api/auth/logout');
+    } catch (error) {
+      console.error("Logout API failed:", error);
+    } finally {
+      // 2. ไม่ว่าฝั่ง Backend จะตอบกลับสำเร็จหรือมี Error (เช่น Token หมดอายุไปแล้ว)
+      // เราก็ต้องเคลียร์ข้อมูลในเครื่องทิ้งเสมอ เพื่อให้ User หลุดออกจากระบบ
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      setUser(null);
+    }
   };
 
   return (

@@ -63,7 +63,7 @@ const Step1_ModelSelect = ({
               name="name"
               value={deviceMeta.name}
               onChange={handleChange}
-              placeholder="e.g. Customer-A-Bangkok"
+              placeholder="EngineerOffice"
               className="w-full px-4 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-blue-500 outline-none transition"
             />
           </div>
@@ -78,7 +78,7 @@ const Step1_ModelSelect = ({
                 name="circuitId"
                 value={deviceMeta.circuitId}
                 onChange={handleChange}
-                placeholder="e.g. NT-123456789"
+                placeholder="7534j7572"
                 className="w-full pl-10 pr-4 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-blue-500 outline-none transition"
               />
             </div>

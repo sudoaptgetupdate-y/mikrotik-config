@@ -139,12 +139,12 @@ const Step2_WANSetup = ({ selectedModel, wanList, setWanList }) => {
                       <User className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
                       <input 
                         type="text" 
-                        placeholder="userisp" // เปลี่ยน placeholder ให้ตรงคอนเซปต์เฉพาะอังกฤษตัวเลข
+                        placeholder="7534j7572@fftxbiz" // ✅ อัปเดต placeholder ให้สื่อถึงเครื่องหมาย @
                         value={wan.username || ''}
                         onChange={(e) => {
                           const val = e.target.value;
-                          // อนุญาตเฉพาะอังกฤษและตัวเลข
-                          if (/^[a-zA-Z0-9]*$/.test(val)) {
+                          // ✅ แก้ไข Regex ให้อนุญาต @, ., _, - เพื่อรองรับ Username ของ ISP
+                          if (/^[a-zA-Z0-9@._-]*$/.test(val)) {
                             updateWan(wan.id, 'username', val);
                           }
                         }}
@@ -162,7 +162,6 @@ const Step2_WANSetup = ({ selectedModel, wanList, setWanList }) => {
                         value={wan.password || ''}
                         onChange={(e) => {
                           const val = e.target.value;
-                          // ป้องกันการพิมพ์ภาษาไทย (Thai Unicode Range)
                           if (!/[\u0E00-\u0E7F]/.test(val)) {
                             updateWan(wan.id, 'password', val);
                           }
@@ -188,7 +187,6 @@ const Step2_WANSetup = ({ selectedModel, wanList, setWanList }) => {
                           value={(wan.ipAddress || '').split('/')[0] || ''}
                           onChange={(e) => {
                             const val = e.target.value;
-                            // อนุญาตเฉพาะตัวเลขและจุด
                             if (/^[0-9.]*$/.test(val)) {
                               const currentSubnet = (wan.ipAddress || '').split('/')[1] || '';
                               updateWan(wan.id, 'ipAddress', currentSubnet ? `${val}/${currentSubnet}` : val);
@@ -205,7 +203,6 @@ const Step2_WANSetup = ({ selectedModel, wanList, setWanList }) => {
                           value={(wan.ipAddress || '').split('/')[1] || ''}
                           onChange={(e) => {
                             const val = e.target.value;
-                            // อนุญาตเฉพาะตัวเลขและจุด
                             if (/^[0-9.]*$/.test(val)) {
                               const currentIp = (wan.ipAddress || '').split('/')[0] || '';
                               updateWan(wan.id, 'ipAddress', val ? `${currentIp}/${val}` : currentIp);
@@ -226,7 +223,6 @@ const Step2_WANSetup = ({ selectedModel, wanList, setWanList }) => {
                         value={wan.gateway || ''}
                         onChange={(e) => {
                           const val = e.target.value;
-                          // อนุญาตเฉพาะตัวเลขและจุด
                           if (/^[0-9.]*$/.test(val)) {
                             updateWan(wan.id, 'gateway', val);
                           }

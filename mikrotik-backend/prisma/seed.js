@@ -1,4 +1,5 @@
 const { PrismaClient } = require('@prisma/client');
+const bcrypt = require('bcryptjs'); // ✅ 1. เพิ่มการนำเข้า bcryptjs ตรงนี้
 const prisma = new PrismaClient();
 
 // 🛠️ Helper Function: สร้าง Port อัตโนมัติ
@@ -12,41 +13,22 @@ const genPorts = (etherCount, sfpCount, wlanCount, sfpPrefix = "sfp") => {
 
 // 📦 รายการ Hardware Models (เฉพาะ Routers)
 const mikrotikModels = [
-  // ==========================================
-  // 1. HOME & SOHO (Wireless Routers)
-  // ==========================================
   { name: "hAP ac2 (RBD52G-5HacD2HnD-TC)", imageUrl: "https://cdn.mikrotik.com/web-assets/rb_images/1468_xl.webp", ports: genPorts(5, 0, 2) },
   { name: "hAP ax2 (C52iG-5HaxD2HaxD-TC)", imageUrl: "https://cdn.mikrotik.com/web-assets/rb_images/2203_lg.webp", ports: genPorts(5, 0, 2) },
   { name: "hAP ax3 (C53UiG+5HPaxD2HPaxD)", imageUrl: "https://cdn.mikrotik.com/web-assets/rb_images/2213_xl.webp", ports: genPorts(5, 0, 2) },
-
-  // ==========================================
-  // 2. ETHERNET ROUTERS (No Wi-Fi)
-  // ==========================================
   { name: "hEX (RB750Gr3)", imageUrl: "https://cdn.mikrotik.com/web-assets/rb_images/1405_xl.webp", ports: genPorts(5, 0, 0) },
-  
-  // ==========================================
-  // 3. SME & MEDIUM BUSINESS (RB Series & L009)
-  // ==========================================
   { name: "L009UiGS-RM", imageUrl: "https://cdn.mikrotik.com/web-assets/rb_images/2267_lg.webp", ports: genPorts(8, 1, 0) },
   { name: "L009UiGS-2HaxD-IN", imageUrl: "https://cdn.mikrotik.com/web-assets/rb_images/2263_lg.webp", ports: genPorts(8, 1, 1) },
   { name: "RB2011UiAS-RM", imageUrl: "https://cdn.mikrotik.com/web-assets/rb_images/1505_lg.webp", ports: genPorts(10, 1, 0) },
   { name: "RB3011UiAS-RM", imageUrl: "https://cdn.mikrotik.com/web-assets/rb_images/1407_lg.webp", ports: genPorts(10, 1, 0) },
   { name: "RB4011iGS+RM", imageUrl: "https://cdn.mikrotik.com/web-assets/rb_images/1633_lg.webp", ports: genPorts(10, 1, 0, "sfp-sfpplus") },
   { name: "RB5009UG+S+IN", imageUrl: "https://cdn.mikrotik.com/web-assets/rb_images/2065_lg.webp", ports: genPorts(8, 1, 0, "sfp-sfpplus") },
-
-  // ==========================================
-  // 4. CLOUD CORE ROUTER (CCR - Enterprise)
-  // ==========================================
   { name: "CCR1009-7G-1C-1S+", imageUrl: "https://cdn.mikrotik.com/web-assets/rb_images/1228_lg.webp", ports: genPorts(7, 2, 0, "sfp-sfpplus") },
   { name: "CCR1016-12G", imageUrl: "https://cdn.mikrotik.com/web-assets/rb_images/1818_lg.webp", ports: genPorts(12, 0, 0) },
   { name: "CCR1036-12G-4S", imageUrl: "https://cdn.mikrotik.com/web-assets/rb_images/1820_lg.webp", ports: genPorts(12, 4, 0) },
   { name: "CCR1072-1G-8S+", imageUrl: "https://cdn.mikrotik.com/web-assets/rb_images/1055_lg.webp", ports: genPorts(1, 8, 0, "sfp-sfpplus") },
   { name: "CCR2004-16G-2S+", imageUrl: "https://cdn.mikrotik.com/web-assets/rb_images/2563_lg.webp", ports: genPorts(16, 2, 0, "sfp-sfpplus") },
   { name: "CCR2116-12G-4S+", imageUrl: "https://cdn.mikrotik.com/web-assets/rb_images/2115_lg.webp", ports: genPorts(13, 4, 0, "sfp-sfpplus") },
-
-  // ==========================================
-  // 5. ENTERPRISE ROUTERS (RB1100 Series)
-  // ==========================================
   { name: "RB1100AHx2", imageUrl: "https://cdn.mikrotik.com/web-assets/rb_images/718_lg.webp", ports: genPorts(13, 0, 0) },
   { name: "RB1100AHx4", imageUrl: "https://cdn.mikrotik.com/web-assets/rb_images/1344_lg.webp", ports: genPorts(13, 0, 0) },
   { name: "RB1100AHx4 Dude Edition", imageUrl: "https://cdn.mikrotik.com/web-assets/rb_images/1285_lg.webp", ports: genPorts(13, 0, 0) }
@@ -55,16 +37,24 @@ const mikrotikModels = [
 async function main() {
   console.log('🌱 Start seeding MikroTik Routers Models...');
   
-  const adminExists = await prisma.user.findFirst({ where: { username: "admin" } });
+  // ✅ 2. เปลี่ยนให้ค้นหาชื่อ ntadmin แทน admin 
+  const adminExists = await prisma.user.findFirst({ where: { username: "ntadmin" } });
+  
   if (!adminExists) {
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash("nt@nks!234", salt);
+
     await prisma.user.create({
       data: {
-        username: "admin",
-        password: "hashed_password_here", 
-        role: "ADMIN"
+        username: "ntadmin",
+        password: hashedPassword,
+        role: "SUPER_ADMIN",
+        firstName: "Super",
+        lastName: "Admin",
+        email: "admin@ntplcnst.com" 
       }
     });
-    console.log('✅ Created default admin user');
+    console.log('✅ Created default admin user (Username: ntadmin)');
   }
 
   for (const model of mikrotikModels) {
