@@ -11,9 +11,8 @@ const authRoutes = require('./routes/authRoutes');
 require('./services/cronJobs');
 
 const app = express();
-// ✅ ตั้งค่าให้เปิด trust proxy เฉพาะบน Production เพื่อป้องกัน Warning ใน Local Dev
 if (process.env.NODE_ENV === 'production') {
-    app.set('trust proxy', 1); // 1 หมายถึงเชื่อใจ Proxy 1 ชั้น (Nginx) หรือใช้ true
+    app.set('trust proxy', true); 
 }
 // ==========================================
 // 🛡️ 1. Security Headers (Helmet)
