@@ -109,7 +109,7 @@ exports.updateDevice = async (req, res) => {
 exports.handleHeartbeat = async (req, res) => {
   try {
     const device = req.device; 
-    const remoteIp = req.socket.remoteAddress || req.ip; 
+    const remoteIp = req.ip;
     const { cpu, ram, uptime, version, storage, temp, latency, boardName } = req.body; 
 
     const isHighLoad = (cpu && parseInt(cpu) > 85) || (ram && parseInt(ram) > 85);
