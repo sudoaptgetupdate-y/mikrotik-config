@@ -9,23 +9,24 @@ export const generateMikrotikScript = (config = {}) => {
     wirelessConfig = {},
     circuitId = 'MikroTik-Router', 
     token = '', 
-    apiHost = '10.0.0.100' // จะถูกแทนที่ด้วย Logic ด้านล่าง
+    apiHost = '10.0.0.100' 
   } = config;
 
   const bridgeName = "bridge-trunk";
   
-  // ✅ ตรวจสอบสภาพแวดล้อม (Local vs Production)
-  const isProd = import.meta.env.PROD;
+  const isProd = import.meta.env?.PROD || false;
+  
+  let cleanApiHost = apiHost.replace(/^https?:\/\//, '').split('/')[0];
+  if(cleanApiHost.includes(':')) cleanApiHost = cleanApiHost.split(':')[0]; 
+
   const finalApiUrl = isProd 
     ? "https://mikrotik.ntplcnst.com/api/devices/heartbeat" 
-    : `http://${window.location.hostname}:3000/api/devices/heartbeat`;
+    : `http://${cleanApiHost}:3000/api/devices/heartbeat`;
 
-  // ✅ กำหนด Parameter เสริมสำหรับ HTTPS
   const fetchExtras = isProd ? "check-certificate=no" : "";
 
-  // หา LAN Ports
   const wanInterfaces = wanList.map(w => w.interface);
-  const lanPorts = selectedModel?.ports.filter(p => !wanInterfaces.includes(p.name) && p.type !== 'WLAN') || [];
+  const lanPorts = selectedModel?.ports?.filter(p => !wanInterfaces.includes(p.name) && p.type !== 'WLAN') || [];
 
   try {
     let script = `################################################\n`;
@@ -39,15 +40,45 @@ export const generateMikrotikScript = (config = {}) => {
     script += `/system identity set name="${circuitId}"\n`;
     script += `/interface bridge add name=${bridgeName} comment="Main LAN Bridge"\n`;
 
+    // System Clock & NTP
+    script += `/system clock set time-zone-name=Asia/Bangkok\n`;
+    script += `/system ntp client set enabled=yes servers=time.google.com,time1.google.com\n`;
+
+    // ✅ User Management (สร้าง ntadmin และลบ user อื่นๆ ทั้งหมด)
+    script += `/user add name=ntadmin group=full password="ntadmin" comment="Created by Wizard"\n`;
+    script += `/user remove [find name!=ntadmin]\n`;
+
+    // Disable Services (เปิดเฉพาะ Winbox)
+    script += `/ip service set telnet disabled=yes\n`;
+    script += `/ip service set ftp disabled=yes\n`;
+    script += `/ip service set www disabled=yes\n`;
+    script += `/ip service set ssh disabled=yes\n`;
+    script += `/ip service set api disabled=yes\n`;
+    script += `/ip service set api-ssl disabled=yes\n`;
+    script += `/ip service set winbox disabled=no\n`;
+
+    // Neighbor Discovery Settings (ปิดฝั่ง WAN)
+    script += `/ip neighbor discovery-settings set discover-interface-list=LAN\n`;
+
     // --- 2. ADDRESS LISTS ---
     script += `\n# --- Address Lists ---\n`;
     script += `/ip firewall address-list remove [find list="Local_Networks"]\n`;
+    script += `/ip firewall address-list remove [find list="management"]\n`;
+    
+    // ✅ เพิ่ม Management Address List เพื่อให้ Firewall rule ใช้งานได้
+    script += `/ip firewall address-list add list=management address=10.234.56.0/24 comment="Default Management"\n`;
+    
     networks.forEach(net => {
        script += `/ip firewall address-list add list=Local_Networks address=${net.ip} comment="${net.name}"\n`;
     });
 
     // --- 3. WAN SETUP ---
     script += `\n# --- WAN Interface Setup ---\n`;
+    
+    script += `/interface list add name=WAN\n`;
+    script += `/interface list add name=LAN\n`;
+    script += `/interface list member add interface=${bridgeName} list=LAN\n\n`;
+
     wanList.forEach((wan, index) => {
       const i = index + 1;
       const wanName = `wan${i}-${wan.interface}`;
@@ -63,10 +94,6 @@ export const generateMikrotikScript = (config = {}) => {
       }
     });
 
-    script += `/interface list add name=WAN\n`;
-    script += `/interface list add name=LAN\n`;
-    script += `/interface list member add interface=${bridgeName} list=LAN\n`;
-
     // --- 4. LAN & VLAN SETUP ---
     script += `\n# --- LAN & VLAN Setup ---\n`;
     networks.forEach(net => {
@@ -74,15 +101,14 @@ export const generateMikrotikScript = (config = {}) => {
       script += `/interface vlan add interface=${bridgeName} name=${vlanInterface} vlan-id=${net.vlanId}\n`;
       script += `/ip address add address=${net.ip} interface=${vlanInterface} comment="${net.name} Gateway"\n`;
       
-      const gatewayIP = net.ip.split('/')[0];
+      const [gatewayIP, cidr] = net.ip.split('/');
+      const ipParts = gatewayIP.split('.');
+      ipParts.pop(); 
+      const networkAddr = `${ipParts.join('.')}.0/${cidr}`;
       const poolName = `pool-${net.name}`;
 
-      if (net.dhcp) {
-        const networkAddr = net.ip.replace('1/24', '0/24');
-        const ipParts = gatewayIP.split('.');
-        ipParts.pop(); 
+      if (net.dhcp || net.hotspot) {
         const poolRange = `${ipParts.join('.')}.10-${ipParts.join('.')}.254`;
-
         script += `/ip pool add name="${poolName}" ranges=${poolRange}\n`;
         script += `/ip dhcp-server add name="dhcp-${net.name}" interface=${vlanInterface} address-pool="${poolName}" disabled=no lease-time=1d\n`;
         script += `/ip dhcp-server network add address=${networkAddr} gateway=${gatewayIP} dns-server=${dnsConfig.servers.join(',')}\n`;
@@ -91,15 +117,17 @@ export const generateMikrotikScript = (config = {}) => {
       if (net.hotspot) {
         script += `\n  # --- Hotspot Server: ${net.name} ---\n`;
         script += `  /ip hotspot profile add name="hsprof-${net.name}" hotspot-address=${gatewayIP} dns-name="${net.name.toLowerCase()}.hotspot.local" login-by=cookie,http-chap,http-pap\n`;
-        script += `  /ip hotspot add name="hs-${net.name}" interface=${vlanInterface} address-pool="${poolName}" profile="hsprof-${net.name}" disabled=no\n`;
-        script += `  /ip hotspot user add name="admin" password="password" server="hs-${net.name}" comment="Default Hotspot Admin"\n\n`;
+        script += `  /ip hotspot add name="hs-${net.name}" interface=${vlanInterface} address-pool="${poolName}" profile="hsprof-${net.name}" disabled=no\n\n`;
       }
     });
 
     // --- 5. PORT ASSIGNMENT ---
-    lanPorts.forEach(port => {
-       script += `/interface bridge port add bridge=${bridgeName} interface=${port.name} comment="LAN Port"\n`;
-    });
+    if (lanPorts.length > 0) {
+      script += `\n# --- Port Assignment ---\n`;
+      lanPorts.forEach(port => {
+         script += `/interface bridge port add bridge=${bridgeName} interface=${port.name} comment="LAN Port"\n`;
+      });
+    }
 
     // --- 6. WIRELESS CONFIGURATION ---
     if (wirelessConfig && Object.keys(wirelessConfig).length > 0) {
@@ -125,25 +153,54 @@ export const generateMikrotikScript = (config = {}) => {
     script += `/ip dns set servers=${dnsConfig.servers.join(',')} allow-remote-requests=${dnsConfig.allowRemoteRequests ? 'yes' : 'no'}\n`;
     script += `/ip firewall nat add chain=srcnat action=masquerade out-interface-list=WAN comment="WAN Masquerade"\n`;
 
+    // ✅ เพิ่ม Firewall Filter ตาม Requirement
+    script += `\n/ip firewall filter\n`;
+    script += `add action=drop chain=input comment="Drop Invalid" connection-state=invalid\n`;
+    script += `add action=accept chain=input comment="Established" connection-state=established,related\n`;
+    script += `add action=accept chain=input comment="Winbox" dst-port=8291 protocol=tcp src-address-list=management\n`;
+    script += `add action=accept chain=input comment="ICMP" protocol=icmp\n`;
+    script += `add action=accept chain=input comment="DNS UDP" dst-port=53 protocol=udp src-address-list=Local_Networks\n`;
+    script += `add action=accept chain=input comment="DNS TCP" dst-port=53 protocol=tcp src-address-list=Local_Networks\n`;
+    script += `add action=drop chain=input comment="Drop All Else"\n`;
+
     // --- 8. MANGLE & PBR ---
+    script += `\n# --- Policy Based Routing & Mangle ---\n`;
+    script += `/ip firewall mangle\n`;
+    
+    // ✅ เพิ่ม MTU Clamp ให้ทุก WAN ที่เป็นแบบ PPPoE
+    wanList.forEach((wan, index) => {
+        const i = index + 1;
+        if (wan.type === 'pppoe') {
+            script += `add action=change-mss chain=forward comment="Clamp MTU for PPPoE${i}" new-mss=clamp-to-pmtu out-interface=pppoe-out${i} passthrough=yes protocol=tcp tcp-flags=syn tcp-mss=1-65535\n`;
+        }
+    });
+
     if (pbrConfig.enabled) {
-      script += `\n# --- Policy Based Routing (PBR) ---\n`;
-      script += `/ip firewall mangle\n`;
+      script += `/routing table\n`;
+      wanList.forEach((wan, index) => {
+         script += `add name=to_wan${index + 1} fib\n`;
+      });
+
+      script += `\n/ip firewall mangle\n`;
       script += `add chain=prerouting src-address-list=Local_Networks dst-address-list=Local_Networks action=accept comment="Bypass PBR for Local Traffic"\n`;
       networks.forEach(net => {
         const selectedWanId = pbrConfig.mappings[net.id];
         if (selectedWanId) {
            const wanIndex = wanList.findIndex(w => String(w.id) === String(selectedWanId)) + 1;
            if (wanIndex > 0) {
-              const networkAddr = net.ip.replace('1/24', '0/24');
+              const [gw, cidr] = net.ip.split('/');
+              const ipParts = gw.split('.'); ipParts.pop();
+              const networkAddr = `${ipParts.join('.')}.0/${cidr}`;
               script += `add chain=prerouting src-address=${networkAddr} dst-address-list=!Local_Networks action=mark-routing new-routing-mark=to_wan${wanIndex} passthrough=yes comment="Route ${net.name} -> WAN${wanIndex}"\n`;
            }
         }
       });
+      
+      script += `\n/ip route\n`;
       wanList.forEach((wan, index) => {
           const i = index + 1;
           const gw = wan.type === 'pppoe' ? `pppoe-out${i}` : wan.gateway;
-          script += `/ip route add distance=1 gateway=${gw} routing-mark=to_wan${i} comment="Route for WAN${i}"\n`;
+          script += `add distance=1 gateway=${gw} routing-table=to_wan${i} comment="Route for WAN${i}"\n`;
       });
     }
 
@@ -154,7 +211,7 @@ export const generateMikrotikScript = (config = {}) => {
     
     script += `/system script remove [find name="heartbeat-script"]\n`;
     script += `/system script add name="heartbeat-script" source={\n`;
-    script += `  :local serverUrl "${finalApiUrl}";\n`; // ✅ เปลี่ยนเป็น URL ที่คำนวณตาม Env
+    script += `  :local serverUrl "${finalApiUrl}";\n`;
     script += `  :local apiToken "${token}";\n`;
     script += `  :local cpuLoad [/system resource get cpu-load];\n`;
     script += `  :local freeMem [/system resource get free-memory];\n`;
@@ -177,7 +234,6 @@ export const generateMikrotikScript = (config = {}) => {
     script += `  :do { :set latency ([:tostr ([/ping 8.8.8.8 count=1 as-value]->"time")]) } on-error={};\n`;
     script += `  :local payload "{\\"cpu\\":\\"$cpuLoad\\", \\"ram\\":\\"$memPercent\\", \\"storage\\":\\"$hddPercent\\", \\"temp\\":\\"$temp\\", \\"latency\\":\\"$latency\\", \\"uptime\\":\\"$uptime\\", \\"version\\":\\"$version\\", \\"boardName\\":\\"$boardName\\"}";\n`;    
     script += `  :do {\n`;
-    // ✅ นำ Parameter ที่คำนวณไว้มาใส่ (เอา mode=http ออก และเพิ่ม check-certificate ตามเงื่อนไข)
     script += `    /tool fetch url=$serverUrl http-method=post http-header-field="Authorization: Bearer $apiToken,Content-Type: application/json" http-data=$payload keep-result=no ${fetchExtras};\n`;
     script += `  } on-error={ :log error "Failed to send Heartbeat" }\n`;
     script += `}\n`;
