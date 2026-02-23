@@ -4,6 +4,12 @@ import { Globe, Plus, Trash2, User, Key, Network, ShieldCheck, Router } from 'lu
 const Step2_WANSetup = ({ selectedModel, wanList, setWanList }) => {
   
   const addWan = () => {
+    // ✅ 1. เพิ่มเงื่อนไขจำกัดสูงสุด 5 WAN
+    if (wanList.length >= 5) {
+      alert("สามารถตั้งค่าได้สูงสุด 5 WAN เท่านั้น");
+      return;
+    }
+
     const usedPorts = wanList.map(w => w.interface);
     const availablePort = selectedModel.ports.find(p => !usedPorts.includes(p.name));
     
@@ -45,12 +51,22 @@ const Step2_WANSetup = ({ selectedModel, wanList, setWanList }) => {
           </h2>
           <p className="text-sm text-slate-500 mt-1 font-medium">Configure your uplink connections</p>
         </div>
-        <button 
-          onClick={addWan}
-          className="bg-slate-900 text-white px-4 py-2.5 rounded-xl flex items-center justify-center gap-2 hover:bg-blue-600 hover:shadow-lg hover:shadow-blue-500/20 transition-all duration-300 font-bold text-sm"
-        >
-          <Plus size={18} /> Add WAN Link
-        </button>
+        
+        {/* ✅ 2. ซ่อนปุ่มเมื่อครบ 5 WAN และแสดงข้อความแจ้งเตือน */}
+        <div className="flex flex-col items-end">
+          {wanList.length < 5 ? (
+            <button 
+              onClick={addWan}
+              className="bg-slate-900 text-white px-4 py-2.5 rounded-xl flex items-center justify-center gap-2 hover:bg-blue-600 hover:shadow-lg hover:shadow-blue-500/20 transition-all duration-300 font-bold text-sm"
+            >
+              <Plus size={18} /> Add WAN Link
+            </button>
+          ) : (
+            <span className="text-red-600 text-xs font-bold bg-red-50 px-3 py-2 rounded-lg border border-red-100 flex items-center gap-1">
+              * รองรับการทำ PBR / Failover สูงสุดที่ 5 WAN
+            </span>
+          )}
+        </div>
       </div>
 
       {/* --- WAN Cards List --- */}
@@ -139,11 +155,10 @@ const Step2_WANSetup = ({ selectedModel, wanList, setWanList }) => {
                       <User className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
                       <input 
                         type="text" 
-                        placeholder="7534j7572@fftxbiz" // ✅ อัปเดต placeholder ให้สื่อถึงเครื่องหมาย @
+                        placeholder="7534j7572@fftxbiz"
                         value={wan.username || ''}
                         onChange={(e) => {
                           const val = e.target.value;
-                          // ✅ แก้ไข Regex ให้อนุญาต @, ., _, - เพื่อรองรับ Username ของ ISP
                           if (/^[a-zA-Z0-9@._-]*$/.test(val)) {
                             updateWan(wan.id, 'username', val);
                           }
@@ -176,59 +191,63 @@ const Step2_WANSetup = ({ selectedModel, wanList, setWanList }) => {
               {/* Static IP Inputs */}
               {wan.type === 'static' && (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5 animate-in fade-in zoom-in-95 duration-200">
-                  <div>
-                    <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">IP Address & Subnet</label>
-                    <div className="flex items-center gap-2">
-                      <div className="relative flex-1">
-                        <Network className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                        <input 
-                          type="text" 
-                          placeholder="192.168.1.2"
-                          value={(wan.ipAddress || '').split('/')[0] || ''}
-                          onChange={(e) => {
-                            const val = e.target.value;
-                            if (/^[0-9.]*$/.test(val)) {
-                              const currentSubnet = (wan.ipAddress || '').split('/')[1] || '';
-                              updateWan(wan.id, 'ipAddress', currentSubnet ? `${val}/${currentSubnet}` : val);
-                            }
-                          }}
-                          className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-700 focus:outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-50 transition-all placeholder:text-slate-300 font-mono"
-                        />
+                  <div className="col-span-1 md:col-span-2">
+                    <div className="flex flex-col sm:flex-row gap-5">
+                      <div className="flex-1">
+                        <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">IP Address & Subnet</label>
+                        <div className="flex items-center gap-2">
+                          <div className="relative flex-1">
+                            <Network className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                            <input 
+                              type="text" 
+                              placeholder="192.168.1.2"
+                              value={(wan.ipAddress || '').split('/')[0] || ''}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                if (/^[0-9.]*$/.test(val)) {
+                                  const currentSubnet = (wan.ipAddress || '').split('/')[1] || '';
+                                  updateWan(wan.id, 'ipAddress', currentSubnet ? `${val}/${currentSubnet}` : val);
+                                }
+                              }}
+                              className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-700 focus:outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-50 transition-all placeholder:text-slate-300 font-mono"
+                            />
+                          </div>
+                          <span className="text-slate-400 font-bold text-lg">/</span>
+                          <div className="relative w-24">
+                            <input 
+                              type="text" 
+                              placeholder="24"
+                              value={(wan.ipAddress || '').split('/')[1] || ''}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                if (/^[0-9]*$/.test(val)) {
+                                  const currentIp = (wan.ipAddress || '').split('/')[0] || '';
+                                  updateWan(wan.id, 'ipAddress', val ? `${currentIp}/${val}` : currentIp);
+                                }
+                              }}
+                              className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-700 focus:outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-50 transition-all placeholder:text-slate-300 font-mono text-center"
+                            />
+                          </div>
+                        </div>
                       </div>
-                      <span className="text-slate-400 font-bold text-lg">/</span>
-                      <div className="relative w-24">
-                        <input 
-                          type="text" 
-                          placeholder="24"
-                          value={(wan.ipAddress || '').split('/')[1] || ''}
-                          onChange={(e) => {
-                            const val = e.target.value;
-                            if (/^[0-9.]*$/.test(val)) {
-                              const currentIp = (wan.ipAddress || '').split('/')[0] || '';
-                              updateWan(wan.id, 'ipAddress', val ? `${currentIp}/${val}` : currentIp);
-                            }
-                          }}
-                          className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-700 focus:outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-50 transition-all placeholder:text-slate-300 font-mono text-center"
-                        />
+                      <div className="flex-1">
+                        <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">Default Gateway</label>
+                        <div className="relative">
+                          <Globe className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                          <input 
+                            type="text" 
+                            placeholder="192.168.1.1"
+                            value={wan.gateway || ''}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              if (/^[0-9.]*$/.test(val)) {
+                                updateWan(wan.id, 'gateway', val);
+                              }
+                            }}
+                            className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-700 focus:outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-50 transition-all placeholder:text-slate-300 font-mono"
+                          />
+                        </div>
                       </div>
-                    </div>
-                  </div>
-                  <div>
-                    <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">Default Gateway</label>
-                    <div className="relative">
-                      <Globe className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                      <input 
-                        type="text" 
-                        placeholder="192.168.1.1"
-                        value={wan.gateway || ''}
-                        onChange={(e) => {
-                          const val = e.target.value;
-                          if (/^[0-9.]*$/.test(val)) {
-                            updateWan(wan.id, 'gateway', val);
-                          }
-                        }}
-                        className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-700 focus:outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-50 transition-all placeholder:text-slate-300 font-mono"
-                      />
                     </div>
                   </div>
                 </div>

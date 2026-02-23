@@ -1,17 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Network, Layers, CheckCircle, Settings, CheckSquare, X, ChevronDown } from 'lucide-react';
 
 const Step5_PortAssign = ({ selectedModel, wanList, networks, portConfig, setPortConfig }) => {
   
-  // === State สำหรับ Bulk Action ===
-  const [selectedPorts, setSelectedPorts] = useState([]);
-  const [bulkConfig, setBulkConfig] = useState({ 
-    mode: 'access', 
-    pvid: 10, 
-    nativeVlan: 1, 
-    allowed: [] 
-  });
-
   const getLanPorts = () => {
     if (!selectedModel) return [];
     const wanPorts = wanList.map(w => w.interface);
@@ -19,11 +10,32 @@ const Step5_PortAssign = ({ selectedModel, wanList, networks, portConfig, setPor
   };
 
   const lanPorts = getLanPorts();
+  
+  // ✅ หาค่า VLAN ตัวแรกจากสเต็ปที่ 4 เพื่อใช้เป็นค่า PVID ตั้งต้น (ถ้าไม่มีใช้ 1)
+  const defaultVlan = networks && networks.length > 0 ? parseInt(networks[0].vlanId) : 1;
 
-  // === ฟังก์ชันสำหรับ Single Port (ของเดิม) ===
+  // === State สำหรับ Bulk Action ===
+  const [selectedPorts, setSelectedPorts] = useState([]);
+  const [bulkConfig, setBulkConfig] = useState({ 
+    mode: 'access', 
+    pvid: defaultVlan, // ✅ ใช้ defaultVlan แทน 10
+    nativeVlan: 1, 
+    allowed: [] 
+  });
+
+  // ✅ อัปเดต bulkConfig pvid เมื่อมีเครือข่ายใหม่ถูกเพิ่ม/ลบในหน้าก่อนหน้า
+  useEffect(() => {
+    setBulkConfig(prev => ({ 
+      ...prev, 
+      pvid: prev.mode === 'access' ? defaultVlan : prev.pvid 
+    }));
+  }, [defaultVlan]);
+
+  // === ฟังก์ชันสำหรับ Single Port ===
   const updatePortConfig = (portName, field, value) => {
     setPortConfig(prev => {
-      const current = prev[portName] || { mode: 'access', pvid: 10, nativeVlan: 1, allowed: [] };
+      // ✅ ใช้ defaultVlan แทน 10
+      const current = prev[portName] || { mode: 'access', pvid: defaultVlan, nativeVlan: 1, allowed: [] };
       
       if (field === 'mode') {
         return {
@@ -32,7 +44,7 @@ const Step5_PortAssign = ({ selectedModel, wanList, networks, portConfig, setPor
             ...current, 
             mode: value,
             nativeVlan: value === 'trunk' ? 1 : undefined,
-            pvid: value === 'access' ? 10 : 1, 
+            pvid: value === 'access' ? defaultVlan : 1, // ✅ ใช้ defaultVlan แทน 10
             allowed: [] 
           }
         };
@@ -74,7 +86,7 @@ const Step5_PortAssign = ({ selectedModel, wanList, networks, portConfig, setPor
           ...prev,
           mode: value,
           nativeVlan: value === 'trunk' ? 1 : undefined,
-          pvid: value === 'access' ? 10 : 1,
+          pvid: value === 'access' ? defaultVlan : 1, // ✅ ใช้ defaultVlan แทน 10
           allowed: []
         };
       }
@@ -229,7 +241,6 @@ const Step5_PortAssign = ({ selectedModel, wanList, networks, portConfig, setPor
             ไม่พบพอร์ต LAN ที่ว่าง (พอร์ตทั้งหมดอาจถูกตั้งเป็น WAN ไปแล้ว)
           </div>
         ) : (
-          // ใส่ Scroll Container ตรงนี้ max-h-[55vh] คือให้ตารางสูงไม่เกิน 55% ของหน้าจอ
           <div className="max-h-[55vh] overflow-y-auto overflow-x-auto [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar]:h-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-300 [&::-webkit-scrollbar-thumb]:rounded-full relative">
             <table className="w-full text-left border-collapse min-w-[750px]">
               
@@ -252,7 +263,8 @@ const Step5_PortAssign = ({ selectedModel, wanList, networks, portConfig, setPor
               
               <tbody className="divide-y divide-slate-100">
                 {lanPorts.map((port) => {
-                  const config = portConfig[port.name] || { mode: 'access', pvid: 10, nativeVlan: 1, allowed: [] };
+                  // ✅ ใช้ defaultVlan แทน 10
+                  const config = portConfig[port.name] || { mode: 'access', pvid: defaultVlan, nativeVlan: 1, allowed: [] };
                   const isChecked = selectedPorts.includes(port.name);
                   
                   return (
