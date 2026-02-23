@@ -42,11 +42,11 @@ async function main() {
   
   if (!adminExists) {
     const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash("nt@nks!234", salt);
+    const hashedPassword = await bcrypt.hash("admin", salt);
 
     await prisma.user.create({
       data: {
-        username: "ntadmin",
+        username: "admin",
         password: hashedPassword,
         role: "SUPER_ADMIN",
         firstName: "Super",

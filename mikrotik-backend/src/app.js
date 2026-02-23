@@ -11,7 +11,7 @@ const authRoutes = require('./routes/authRoutes');
 require('./services/cronJobs');
 
 const app = express();
-
+app.set('trust proxy', true);
 // ==========================================
 // 🛡️ 1. Security Headers (Helmet)
 // ==========================================
