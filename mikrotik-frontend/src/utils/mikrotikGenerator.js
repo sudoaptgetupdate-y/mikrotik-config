@@ -8,27 +8,33 @@ export const generateMikrotikScript = (config = {}) => {
     dnsConfig = { servers: ['8.8.8.8', '1.1.1.1'], allowRemoteRequests: true }, 
     wirelessConfig = {},
     circuitId = 'MikroTik-Router', 
-    token = '', 
-    apiHost = '10.0.0.100' 
+    token = ''
   } = config;
 
   const bridgeName = "bridge-trunk";
   
   const isProd = import.meta.env?.PROD || false;
-  
-  let cleanApiHost = apiHost.replace(/^https?:\/\//, '').split('/')[0];
-  if(cleanApiHost.includes(':')) cleanApiHost = cleanApiHost.split(':')[0]; 
-
-  const finalApiUrl = isProd 
-    ? "https://mikrotik.ntplcnst.com/api/devices/heartbeat" 
-    : `http://${cleanApiHost}:3000/api/devices/heartbeat`;
-
   const fetchExtras = isProd ? "check-certificate=no" : "";
+
+  const currentHost = window.location.hostname;
+  const currentProtocol = window.location.protocol;
+  const isLocal = currentHost === 'localhost' || 
+                  currentHost === '127.0.0.1' || 
+                  currentHost.startsWith('192.168.') || 
+                  currentHost.startsWith('10.') || 
+                  currentHost.startsWith('172.');
+
+  const dynamicApiUrl = isLocal 
+    ? `http://${currentHost}:3000/api/devices/heartbeat`
+    : `${currentProtocol}//${currentHost}/api/devices/heartbeat`;
+
+  const finalApiUrl = import.meta.env?.VITE_HEARTBEAT_URL || dynamicApiUrl;
 
   const wanInterfaces = wanList.map(w => w.interface);
   const lanPorts = selectedModel?.ports?.filter(p => !wanInterfaces.includes(p.name) && p.type !== 'WLAN') || [];
 
-  const monitorIps = ['8.8.8.8', '1.1.1.1', '208.67.222.222', '9.9.9.9', '8.8.4.4'];
+  // IP สำหรับ Monitor Route
+  const monitorIps = ['1.1.1.1', '203.159.77.77', '8.8.8.8', '203.113.127.199', '1.1.1.1'];
 
   try {
     let script = `################################################\n`;
@@ -42,21 +48,17 @@ export const generateMikrotikScript = (config = {}) => {
     script += `/system identity set name="${circuitId}"\n`;
     script += `/interface bridge add name=${bridgeName} comment="Main LAN Bridge" vlan-filtering=no\n`;
 
-    // Interface Lists
     script += `\n# --- Interface Lists ---\n`;
     script += `/interface list add name=WAN\n`;
     script += `/interface list add name=LAN\n`;
     script += `/interface list member add interface=${bridgeName} list=LAN\n\n`;
 
-    // System Clock & NTP
     script += `/system clock set time-zone-name=Asia/Bangkok\n`;
     script += `/system ntp client set enabled=yes servers=time.google.com,time1.google.com\n`;
 
-    // User Management
     script += `/user add name=ntadmin group=full password="ntadmin" comment="Created by Wizard"\n`;
     script += `/user remove [find name!=ntadmin]\n`;
 
-    // Disable Services 
     script += `/ip service set telnet disabled=yes\n`;
     script += `/ip service set ftp disabled=yes\n`;
     script += `/ip service set www disabled=yes\n`;
@@ -65,7 +67,6 @@ export const generateMikrotikScript = (config = {}) => {
     script += `/ip service set api-ssl disabled=yes\n`;
     script += `/ip service set winbox disabled=no\n`;
 
-    // Security
     script += `/ip neighbor discovery-settings set discover-interface-list=LAN\n`;
     script += `/tool mac-server set allowed-interface-list=LAN\n`;
     script += `/tool mac-server mac-winbox set allowed-interface-list=LAN\n`;
@@ -82,14 +83,13 @@ export const generateMikrotikScript = (config = {}) => {
        script += `/ip firewall address-list add list=Local_Networks address=${net.ip} comment="${net.name}"\n`;
     });
 
-    // --- 3. WAN SETUP (With Recursive Routing) ---
+    // --- 3. WAN SETUP ---
     script += `\n# --- WAN Interface Setup ---\n`;
 
     wanList.forEach((wan, index) => {
       const i = index + 1;
       const wanName = `wan${i}-${wan.interface}`;
       const monitorIp = monitorIps[index % monitorIps.length];
-      
       wan.monitorIp = monitorIp;
 
       script += `:do { /interface set [find default-name=${wan.interface}] name=${wanName} comment="WAN ${i}" } on-error={ :log error "WAN Interface ${wan.interface} not found" }\n`;
@@ -104,9 +104,18 @@ export const generateMikrotikScript = (config = {}) => {
         script += `/interface list member add interface=${wanName} list=WAN\n`;
         actualGw = wan.gateway;
       }
+      wan.actualGw = actualGw; // เก็บ Gateway จริงไว้ใช้สร้าง Route
+    });
 
-      script += `/ip route add dst-address=${monitorIp} gateway=${actualGw} scope=10 comment="Host Route for WAN${i}"\n`;
-      script += `/ip route add dst-address=0.0.0.0/0 gateway=${monitorIp} distance=${i} check-gateway=ping comment="Recursive Default Route WAN${i}"\n`;
+    // --- สร้าง Route ใน Main Table ตามแบบฉบับของคุณ ---
+    script += `\n# --- Main Routing Table (Host Routes & Fallbacks) ---\n`;
+    script += `/ip route\n`;
+    wanList.forEach((wan, index) => {
+      const i = index + 1;
+      // Host Route สำหรับ Ping (กำหนด Scope=10)
+      script += `add dst-address=${wan.monitorIp}/32 gateway=${wan.actualGw} scope=10 comment="Host Route for WAN${i}"\n`;
+      // Default Route สำหรับตัวเราเตอร์เองและทราฟฟิกที่ไม่ได้ทำ PBR
+      script += `add dst-address=0.0.0.0/0 gateway=${wan.actualGw} distance=${i} check-gateway=ping comment="Main Default Route WAN${i}"\n`;
     });
 
     // --- 4. LAN & VLAN SETUP ---
@@ -122,31 +131,25 @@ export const generateMikrotikScript = (config = {}) => {
       const networkAddr = `${ipParts.join('.')}.0/${cidr}`;
       const poolName = `pool-${net.name}`;
 
-      // ✅ เงื่อนไขการแจก DNS ให้ DHCP Client
-      const clientDnsServers = dnsConfig.allowRemoteRequests 
-        ? gatewayIP 
-        : dnsConfig.servers.join(',');
+      const clientDnsServers = dnsConfig.allowRemoteRequests ? gatewayIP : dnsConfig.servers.join(',');
 
       if (net.dhcp || net.hotspot) {
         const poolRange = `${ipParts.join('.')}.10-${ipParts.join('.')}.254`;
         script += `/ip pool add name="${poolName}" ranges=${poolRange}\n`;
         script += `/ip dhcp-server add name="dhcp-${net.name}" interface=${vlanInterface} address-pool="${poolName}" disabled=no lease-time=1d\n`;
-        // ✅ นำ clientDnsServers ไปใส่แทนค่าเก่าที่ฟิกซ์ upstream ไว้
         script += `/ip dhcp-server network add address=${networkAddr} gateway=${gatewayIP} dns-server=${clientDnsServers}\n`;
       }
 
       if (net.hotspot) {
         script += `\n  # --- Hotspot Server: ${net.name} ---\n`;
-        // ✅ อัปเดต dns-name เป็น login.wifi.local และ login-by ตามที่คุณต้องการ
         script += `  /ip hotspot profile add name="hsprof-${net.name}" hotspot-address=${gatewayIP} dns-name="login.wifi.local" login-by=mac-cookie,http-pap\n`;
         script += `  /ip hotspot add name="hs-${net.name}" interface=${vlanInterface} address-pool="${poolName}" profile="hsprof-${net.name}" disabled=no\n\n`;
       }
     });
 
-    // --- 5. PORT ASSIGNMENT (WITH PVID) ---
+    // --- 5. PORT ASSIGNMENT ---
     if (lanPorts.length > 0) {
       script += `\n# --- Port Assignment ---\n`;
-      
       const defaultPvid = networks.length > 0 ? Number(networks[0].vlanId) : 1;
 
       lanPorts.forEach(port => {
@@ -172,7 +175,6 @@ export const generateMikrotikScript = (config = {}) => {
         }
         script += `/interface wireless\n`;
         script += `:do { set [ find default-name="${portName}" ] mode=ap-bridge ssid="${config.ssid}" security-profile="${secProfileName}" disabled=no ${config.band ? `band="${config.band}"` : ''} } on-error={}\n`;
-        
         script += `:do { /interface bridge port add bridge=${bridgeName} interface=${portName} pvid=1 comment="WLAN Port" } on-error={}\n`;
       });
     }
@@ -238,7 +240,7 @@ export const generateMikrotikScript = (config = {}) => {
       script += `add chain=prerouting src-address-list=Local_Networks dst-address-list=Local_Networks action=accept comment="Bypass PBR for Local Traffic"\n`;
       
       networks.forEach(net => {
-        const selectedWanId = pbrConfig.mappings[net.id];
+        const selectedWanId = (pbrConfig.mappings && pbrConfig.mappings[net.id]) || (wanList.length > 0 ? wanList[0].id : null);
         if (selectedWanId) {
            const foundIndex = wanList.findIndex(w => String(w.id) === String(selectedWanId));
            if (foundIndex !== -1) {
@@ -255,7 +257,18 @@ export const generateMikrotikScript = (config = {}) => {
       script += `\n/ip route\n`;
       wanList.forEach((wan, index) => {
           const i = index + 1;
-          script += `add distance=1 dst-address=0.0.0.0/0 gateway=${wan.monitorIp} routing-table=to_wan${i} check-gateway=ping comment="PBR Route for WAN${i}"\n`;
+          
+          // เส้นทางหลักของ PBR นี้ (ทำ Recursive โดยใช้ target-scope=11 แบบที่คุณใช้เป๊ะๆ)
+          script += `add dst-address=0.0.0.0/0 gateway=${wan.monitorIp} distance=1 routing-table=to_wan${i} target-scope=11 check-gateway=ping comment="PBR Primary for WAN${i}"\n`;
+          
+          // ระบบ Failover ภายใน PBR (โยนทราฟฟิกไปหา WAN อื่นๆ ถ้าเส้นหลักขาด)
+          let backupDistance = 2;
+          wanList.forEach((backupWan, backupIndex) => {
+              if (index !== backupIndex) {
+                  script += `add dst-address=0.0.0.0/0 gateway=${backupWan.actualGw} distance=${backupDistance} routing-table=to_wan${i} comment="PBR Backup to WAN${backupIndex + 1}"\n`;
+                  backupDistance++;
+              }
+          });
       });
     }
 
@@ -264,7 +277,7 @@ export const generateMikrotikScript = (config = {}) => {
     script += `# Apply VLAN Filtering & Start Heartbeat\n`;
     script += `################################################\n`;
     
-    script += `/interface bridge set ${bridgeName} vlan-filtering=yes\n`;
+    script += `/interface bridge set bridge-trunk vlan-filtering=yes\n`;
 
     script += `/system script remove [find name="heartbeat-script"]\n`;
     script += `/system script add name="heartbeat-script" source={\n`;
