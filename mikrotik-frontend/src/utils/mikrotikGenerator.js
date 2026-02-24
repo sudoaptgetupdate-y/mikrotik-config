@@ -34,7 +34,7 @@ export const generateMikrotikScript = (config = {}) => {
   const lanPorts = selectedModel?.ports?.filter(p => !wanInterfaces.includes(p.name) && p.type !== 'WLAN') || [];
 
   // IP สำหรับ Monitor Route
-  const monitorIps = ['1.1.1.1', '203.159.77.77', '8.8.8.8', '203.113.127.199', '1.1.1.1'];
+  const monitorIps = ['1.1.1.1', '8.8.8.8', '208.67.222.222', '9.9.9.9', '8.26.56.26'];
 
   try {
     let script = `################################################\n`;
@@ -107,18 +107,19 @@ export const generateMikrotikScript = (config = {}) => {
       wan.actualGw = actualGw; // เก็บ Gateway จริงไว้ใช้สร้าง Route
     });
 
-    // --- สร้าง Route ใน Main Table ตามแบบฉบับของคุณ ---
-    script += `\n# --- Main Routing Table (Host Routes & Fallbacks) ---\n`;
+    // --- 4. Main Routing Table (แก้ไขให้เป็น Recursive 100%) ---
+    script += `\n# --- Main Routing Table (Host Routes & Recursive Defaults) ---\n`;
     script += `/ip route\n`;
     wanList.forEach((wan, index) => {
       const i = index + 1;
-      // Host Route สำหรับ Ping (กำหนด Scope=10)
+      // Host Route สำหรับเชื่อมไปยัง IP Monitor (Scope=10)
       script += `add dst-address=${wan.monitorIp}/32 gateway=${wan.actualGw} scope=10 comment="Host Route for WAN${i}"\n`;
-      // Default Route สำหรับตัวเราเตอร์เองและทราฟฟิกที่ไม่ได้ทำ PBR
-      script += `add dst-address=0.0.0.0/0 gateway=${wan.actualGw} distance=${i} check-gateway=ping comment="Main Default Route WAN${i}"\n`;
+      
+      // ✅ [FIX] เปลี่ยนให้ Default Route ของ Main Table วิ่งไปหา IP Monitor เพื่อทำ Recursive เหมือนกัน
+      script += `add dst-address=0.0.0.0/0 gateway=${wan.monitorIp} distance=${i} check-gateway=ping target-scope=11 comment="Main Recursive Default Route WAN${i}"\n`;
     });
 
-    // --- 4. LAN & VLAN SETUP ---
+    // --- 5. LAN & VLAN SETUP ---
     script += `\n# --- LAN & VLAN Interfaces ---\n`;
     networks.forEach(net => {
       const vlanInterface = `${net.name}-v${net.vlanId}`;
@@ -147,7 +148,7 @@ export const generateMikrotikScript = (config = {}) => {
       }
     });
 
-    // --- 5. PORT ASSIGNMENT ---
+    // --- 6. PORT ASSIGNMENT ---
     if (lanPorts.length > 0) {
       script += `\n# --- Port Assignment ---\n`;
       const defaultPvid = networks.length > 0 ? Number(networks[0].vlanId) : 1;
@@ -160,7 +161,7 @@ export const generateMikrotikScript = (config = {}) => {
       });
     }
 
-    // --- 6. WIRELESS CONFIGURATION ---
+    // --- 7. WIRELESS CONFIGURATION ---
     if (wirelessConfig && Object.keys(wirelessConfig).length > 0) {
       script += `\n# --- Wireless Setup ---\n`;
       Object.entries(wirelessConfig).forEach(([portName, config]) => {
@@ -179,7 +180,7 @@ export const generateMikrotikScript = (config = {}) => {
       });
     }
 
-    // --- 7. BRIDGE VLAN FILTERING TABLE ---
+    // --- 8. BRIDGE VLAN FILTERING TABLE ---
     if (networks.length > 0) {
       script += `\n# --- Bridge VLAN Table ---\n`;
       script += `/interface bridge vlan\n`;
@@ -199,7 +200,7 @@ export const generateMikrotikScript = (config = {}) => {
       });
     }
 
-    // --- 8. DNS & FIREWALL ---
+    // --- 9. DNS & FIREWALL ---
     script += `\n# --- DNS & Firewall ---\n`;
     script += `/ip dns set servers=${dnsConfig.servers.join(',')} allow-remote-requests=${dnsConfig.allowRemoteRequests ? 'yes' : 'no'}\n`;
     script += `/ip firewall nat add chain=srcnat action=masquerade out-interface-list=WAN comment="WAN Masquerade"\n`;
@@ -219,7 +220,7 @@ export const generateMikrotikScript = (config = {}) => {
     script += `add action=drop chain=forward comment="Drop Invalid" connection-state=invalid\n`;
     script += `add action=drop chain=forward comment="Drop incoming from WAN not DST-NATed" connection-nat-state=!dstnat connection-state=new in-interface-list=WAN\n`;
 
-    // --- 9. MANGLE & PBR ---
+    // --- 10. MANGLE & PBR ---
     script += `\n# --- Policy Based Routing & Mangle ---\n`;
     script += `/ip firewall mangle\n`;
     
@@ -258,21 +259,21 @@ export const generateMikrotikScript = (config = {}) => {
       wanList.forEach((wan, index) => {
           const i = index + 1;
           
-          // เส้นทางหลักของ PBR นี้ (ทำ Recursive โดยใช้ target-scope=11 แบบที่คุณใช้เป๊ะๆ)
+          // เส้นทางหลักของ PBR
           script += `add dst-address=0.0.0.0/0 gateway=${wan.monitorIp} distance=1 routing-table=to_wan${i} target-scope=11 check-gateway=ping comment="PBR Primary for WAN${i}"\n`;
           
-          // ระบบ Failover ภายใน PBR (โยนทราฟฟิกไปหา WAN อื่นๆ ถ้าเส้นหลักขาด)
+          // ✅ [FIX] เปลี่ยนเส้นทาง Backup ใน PBR ให้เป็น Recursive ด้วย (ป้องกัน Inactive เมื่อสลับสาย)
           let backupDistance = 2;
           wanList.forEach((backupWan, backupIndex) => {
               if (index !== backupIndex) {
-                  script += `add dst-address=0.0.0.0/0 gateway=${backupWan.actualGw} distance=${backupDistance} routing-table=to_wan${i} comment="PBR Backup to WAN${backupIndex + 1}"\n`;
+                  script += `add dst-address=0.0.0.0/0 gateway=${backupWan.monitorIp} distance=${backupDistance} routing-table=to_wan${i} target-scope=11 check-gateway=ping comment="PBR Backup to WAN${backupIndex + 1}"\n`;
                   backupDistance++;
               }
           });
       });
     }
 
-    // --- 10. ENABLE VLAN FILTERING & HEARTBEAT ---
+    // --- 11. ENABLE VLAN FILTERING & HEARTBEAT ---
     script += `\n################################################\n`;
     script += `# Apply VLAN Filtering & Start Heartbeat\n`;
     script += `################################################\n`;
