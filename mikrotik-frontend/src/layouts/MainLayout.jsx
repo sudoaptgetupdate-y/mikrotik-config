@@ -1,6 +1,19 @@
 import React, { useState } from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
-import { Server, PlusCircle, Activity, Menu, X, Router, Database, LayoutDashboard, Users, LogOut, User } from 'lucide-react';
+import { 
+  Server, 
+  PlusCircle, 
+  Activity, 
+  Menu, 
+  X, 
+  Router, 
+  Database, 
+  LayoutDashboard, 
+  Users, 
+  LogOut, 
+  User,
+  Settings // ✅ เพิ่ม Settings icon
+} from 'lucide-react';
 import { useAuth } from '../context/AuthContext'; 
 
 const MainLayout = () => {
@@ -20,8 +33,11 @@ const MainLayout = () => {
     { to: '/models', icon: Database, label: 'Hardware Models', roles: ['SUPER_ADMIN', 'ADMIN'] },
     { to: '/users', icon: Users, label: 'User Management', roles: ['SUPER_ADMIN', 'ADMIN'] },
     { to: '/audit-logs', icon: Activity, label: 'Audit Logs', roles: ['SUPER_ADMIN', 'ADMIN'] },
+    // ✅ เพิ่มเมนู Global Settings เฉพาะ SUPER_ADMIN เท่านั้น
+    { to: '/global-settings', icon: Settings, label: 'Global Settings', roles: ['SUPER_ADMIN'] },
   ];
 
+  // กรองเมนูตาม Role ของ User ที่ Login อยู่
   const navItems = allNavItems.filter(item => item.roles.includes(user?.role));
 
   return (
@@ -53,10 +69,8 @@ const MainLayout = () => {
           ))}
         </nav>
 
-        {/* ✅ User Area & Logout (Desktop) ปรับปรุงใหม่ */}
+        {/* User Area & Logout (Desktop) */}
         <div className="p-4 bg-slate-950 border-t border-slate-800 shrink-0 flex items-center justify-between gap-2">
-          
-          {/* ทำให้กรอบชื่อ/อวตาร คลิกเพื่อไปหน้า Profile ได้เลย */}
           <NavLink 
             to="/profile" 
             className="flex-1 flex items-center gap-3 p-2 -ml-2 rounded-lg hover:bg-slate-800 transition-colors group"
@@ -73,7 +87,6 @@ const MainLayout = () => {
             </div>
           </NavLink>
           
-          {/* ปุ่ม Logout แยกออกมาให้กดง่าย */}
           <button 
             onClick={handleLogout} 
             className="p-2.5 text-slate-400 hover:text-red-400 hover:bg-slate-800 hover:shadow-inner rounded-lg transition-all shrink-0" 
@@ -87,7 +100,7 @@ const MainLayout = () => {
       {/* --- Main Content Area --- */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
         
-        {/* ✅ Mobile Header ปรับปรุงใหม่ */}
+        {/* Mobile Header */}
         <header className="md:hidden h-16 bg-slate-900 text-white flex items-center justify-between px-4 shrink-0 shadow-md relative z-20">
           <div className="flex items-center gap-2">
             <div className="bg-blue-600 p-1 rounded">
@@ -97,7 +110,6 @@ const MainLayout = () => {
           </div>
           
           <div className="flex items-center gap-1">
-            {/* เพิ่มไอคอนอวตารให้ผู้ใช้กดเข้า Profile ได้ง่ายๆ จากแถบบนในมือถือ */}
             <NavLink 
               to="/profile" 
               className="w-8 h-8 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center font-bold text-sm text-blue-400 uppercase mr-1"
@@ -113,7 +125,7 @@ const MainLayout = () => {
           </div>
         </header>
 
-        {/* ✅ Mobile Menu ปรับปรุงใหม่ */}
+        {/* Mobile Menu */}
         {isMobileMenuOpen && (
           <div className="md:hidden bg-slate-900 text-white border-t border-slate-800 absolute top-16 left-0 right-0 z-50 shadow-2xl animate-in slide-in-from-top-2 duration-200">
             <nav className="px-4 py-4 space-y-2">
@@ -133,7 +145,6 @@ const MainLayout = () => {
                 </NavLink>
               ))}
               
-              {/* ขีดคั่นแบ่งโซนบัญชีผู้ใช้ */}
               <div className="border-t border-slate-800 mt-2 pt-2">
                 <NavLink 
                   to="/profile" 

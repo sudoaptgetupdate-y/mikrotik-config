@@ -12,6 +12,7 @@ import AuditLog from './pages/AuditLog';
 import ModelManager from './pages/ModelManager';
 import UserManagement from './pages/UserManagement';
 import UserProfile from './pages/UserProfile';
+import GlobalSettings from './pages/GlobalSettings';
 
 // --- Components ย่อย ---
 import DeviceList from './pages/DeviceList';
@@ -56,19 +57,24 @@ function App() {
             {/* หน้าแรกให้ Redirect ไป Dashboard ทันที */}
             <Route index element={<Navigate to="/dashboard" replace />} />
             
-            {/* 🟢 หน้าที่ทุกคน (รวมถึง EMPLOYEE) เข้าดูได้ (Read-only) */}
+            {/*หน้าที่ทุกคน (รวมถึง EMPLOYEE) เข้าดูได้ (Read-only) */}
             <Route path="dashboard" element={<Dashboard />} />
             <Route path="devices" element={<DeviceList />} />
             <Route path="profile" element={<UserProfile />} />
 
 
-            {/* 🔴 หน้าที่ถูกล็อค เข้าได้เฉพาะ SUPER_ADMIN และ ADMIN เท่านั้น */}
+            {/*หน้าที่ถูกล็อค เข้าได้เฉพาะ SUPER_ADMIN และ ADMIN เท่านั้น */}
             <Route element={<ProtectedRoute allowedRoles={['SUPER_ADMIN', 'ADMIN']} />}>
               <Route path="add-device" element={<CreateDevicePage />} />
               <Route path="edit-device/:id" element={<EditDevicePage />} />
               <Route path="models" element={<ModelManager />} />
               <Route path="users" element={<UserManagement />} />
               <Route path="audit-logs" element={<AuditLog />} />
+            </Route>
+
+            {/* หน้าที่เข้าได้เฉพาะ SUPER_ADMIN เท่านั้น*/}
+            <Route element={<ProtectedRoute allowedRoles={['SUPER_ADMIN']} />}>
+              <Route path="global-settings" element={<GlobalSettings />} />
             </Route>
 
             {/* Catch-all Route: ถ้า URL ไม่ตรง ให้กลับไปหน้า dashboard */}

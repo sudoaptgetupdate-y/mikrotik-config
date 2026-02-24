@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const masterController = require('../controllers/masterController');
-const { verifyToken, requireRole } = require('../middlewares/authMiddleware'); // ✅ เพิ่มบรรทัดนี้
+const { verifyToken, requireRole } = require('../middlewares/authMiddleware');
 
 // ✅ บังคับให้ทุก Route ต้องล็อคอินก่อน
 router.use(verifyToken);

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { FileDown, CheckCircle, Network, ShieldCheck, Globe, Loader2, Router, Server } from 'lucide-react';
 import { generateMikrotikScript } from "../../../utils/mikrotikGenerator";
+import apiClient from '../../../utils/apiClient'; // ✅ นำเข้า apiClient เพื่อใช้เรียก API
 
 const Step8_Summary = ({ 
   selectedModel, 
@@ -18,20 +19,35 @@ const Step8_Summary = ({
 
   const [isGenerating, setIsGenerating] = useState(false);
 
-  // === ฟังก์ชันสำหรับ Gen และ Download (ของเดิม 100%) ===
   const handleGenAndFinish = async () => { 
     setIsGenerating(true); 
-    
-    let configData = {
-      selectedModel, wanList, networks, portConfig, pbrConfig, wirelessConfig,
-      dnsConfig, circuitId, token, apiHost
-    };
 
     try {
+      // 🚀 1. ดึงข้อมูล Global Settings จาก Backend
+      const settingsRes = await apiClient.get('/api/settings');
+      const globalSettings = {};
+      
+      // แปลงข้อมูลให้อยู่ในรูปแบบ Object (Key: Value)
+      settingsRes.data.forEach(s => {
+        globalSettings[s.key] = s.value;
+      });
+
+      // 📦 2. เตรียมข้อมูลทั้งหมด (รวมข้อมูล Wizard + Global Settings)
+      let configData = {
+        selectedModel, wanList, networks, portConfig, pbrConfig, wirelessConfig,
+        dnsConfig, circuitId, token, apiHost,
+        // เพิ่มค่าที่ดึงมาจาก API ลงไปให้ Generator
+        managementIps: globalSettings.MANAGEMENT_IPS,
+        monitorIps: globalSettings.MONITOR_IPS,
+        adminUsers: globalSettings.ROUTER_ADMINS
+      };
+
+      // 💾 3. บันทึกลง Database
       if (onSaveAndFinish) {
         console.log("Saving config to backend...");
         const savedDevice = await onSaveAndFinish(configData);
 
+        // ดึง Token ที่ได้จาก Backend มาใช้อัปเดต
         if (savedDevice && savedDevice.apiToken) {
           configData.token = savedDevice.apiToken;
         } else if (savedDevice && savedDevice.configData && savedDevice.configData.token) {
@@ -43,8 +59,10 @@ const Step8_Summary = ({
         return;
       }
 
+      // ⚙️ 4. สร้างสคริปต์ MikroTik โดยส่งข้อมูลที่สมบูรณ์แล้วเข้าไป
       const scriptContent = generateMikrotikScript(configData);
 
+      // 📥 5. ดาวน์โหลดไฟล์ .rsc
       const element = document.createElement("a");
       const file = new Blob([scriptContent], {type: 'text/plain'});
       element.href = URL.createObjectURL(file);
@@ -154,8 +172,8 @@ const Step8_Summary = ({
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
             <div className="p-5 bg-slate-50 border border-slate-100 rounded-xl flex flex-col justify-center">
               <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">User Management</p>
-              <p className="font-black text-slate-700 text-lg">ntadmin</p>
-              <p className="text-[11px] text-slate-500 font-medium">Auto-Created for Centralized Auth</p>
+              <p className="font-black text-slate-700 text-lg">Centralized API</p>
+              <p className="text-[11px] text-slate-500 font-medium">Provisioned by Global Settings</p>
             </div>
             
             <div className="p-5 bg-slate-50 border border-slate-100 rounded-xl flex flex-col justify-center">

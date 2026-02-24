@@ -8,7 +8,11 @@ export const generateMikrotikScript = (config = {}) => {
     dnsConfig = { servers: ['8.8.8.8', '1.1.1.1'], allowRemoteRequests: true }, 
     wirelessConfig = {},
     circuitId = 'MikroTik-Router', 
-    token = ''
+    token = '',
+    // --- รับค่า Global Settings จาก API ---
+    managementIps = ['10.234.56.0/24'], // ค่าเริ่มต้นเผื่อ API ล้มเหลว
+    monitorIps = ['1.1.1.1', '8.8.8.8', '208.67.222.222', '9.9.9.9', '8.26.56.26'],
+    adminUsers = [{ username: 'ntadmin', password: 'ntadmin', group: 'full' }]
   } = config;
 
   const bridgeName = "bridge-trunk";
@@ -33,8 +37,10 @@ export const generateMikrotikScript = (config = {}) => {
   const wanInterfaces = wanList.map(w => w.interface);
   const lanPorts = selectedModel?.ports?.filter(p => !wanInterfaces.includes(p.name) && p.type !== 'WLAN') || [];
 
-  // IP สำหรับ Monitor Route
-  const monitorIps = ['1.1.1.1', '8.8.8.8', '208.67.222.222', '9.9.9.9', '8.26.56.26'];
+  // ✅ ป้องกันกรณีส่ง Monitor IPs มาไม่ครบ 5 ค่า (Safe Fallback)
+  const safeMonitorIps = (monitorIps && monitorIps.length >= 5) 
+    ? monitorIps 
+    : ['1.1.1.1', '8.8.8.8', '208.67.222.222', '9.9.9.9', '8.26.56.26'];
 
   try {
     let script = `################################################\n`;
@@ -56,8 +62,17 @@ export const generateMikrotikScript = (config = {}) => {
     script += `/system clock set time-zone-name=Asia/Bangkok\n`;
     script += `/system ntp client set enabled=yes servers=time.google.com,time1.google.com\n`;
 
-    script += `/user add name=ntadmin group=full password="ntadmin" comment="Created by Wizard"\n`;
-    script += `/user remove [find name!=ntadmin]\n`;
+    // ✅ สร้าง User แบบ Dynamic และลบ User อื่นทิ้ง
+    script += `\n# --- Admin Users ---\n`;
+    adminUsers.forEach(admin => {
+      script += `/user add name="${admin.username}" group="${admin.group}" password="${admin.password}" comment="Provisioned by Central API"\n`;
+    });
+    
+    // สร้างคำสั่งเพื่อลบ User ที่ไม่ได้อยู่ในลิสต์
+    const excludeUsers = adminUsers.map(u => `name!="${u.username}"`).join(" and ");
+    if (excludeUsers) {
+        script += `/user remove [find ${excludeUsers}]\n`;
+    }
 
     script += `/ip service set telnet disabled=yes\n`;
     script += `/ip service set ftp disabled=yes\n`;
@@ -77,7 +92,12 @@ export const generateMikrotikScript = (config = {}) => {
     script += `/ip firewall address-list remove [find list="Local_Networks"]\n`;
     script += `/ip firewall address-list remove [find list="management"]\n`;
     
-    script += `/ip firewall address-list add list=management address=10.234.56.0/24 comment="Default Management"\n`;
+    // ✅ นำ Management IPs ที่ได้จากระบบมาวนลูปสร้าง
+    managementIps.forEach(ip => {
+        if(ip.trim() !== '') {
+            script += `/ip firewall address-list add list=management address=${ip} comment="Central Management"\n`;
+        }
+    });
     
     networks.forEach(net => {
        script += `/ip firewall address-list add list=Local_Networks address=${net.ip} comment="${net.name}"\n`;
@@ -89,7 +109,9 @@ export const generateMikrotikScript = (config = {}) => {
     wanList.forEach((wan, index) => {
       const i = index + 1;
       const wanName = `wan${i}-${wan.interface}`;
-      const monitorIp = monitorIps[index % monitorIps.length];
+      
+      // ✅ ดึง IP จาก safeMonitorIps แบบ Dynamic
+      const monitorIp = safeMonitorIps[index % safeMonitorIps.length];
       wan.monitorIp = monitorIp;
 
       script += `:do { /interface set [find default-name=${wan.interface}] name=${wanName} comment="WAN ${i}" } on-error={ :log error "WAN Interface ${wan.interface} not found" }\n`;
@@ -104,18 +126,15 @@ export const generateMikrotikScript = (config = {}) => {
         script += `/interface list member add interface=${wanName} list=WAN\n`;
         actualGw = wan.gateway;
       }
-      wan.actualGw = actualGw; // เก็บ Gateway จริงไว้ใช้สร้าง Route
+      wan.actualGw = actualGw; 
     });
 
-    // --- 4. Main Routing Table (แก้ไขให้เป็น Recursive 100%) ---
+    // --- 4. Main Routing Table ---
     script += `\n# --- Main Routing Table (Host Routes & Recursive Defaults) ---\n`;
     script += `/ip route\n`;
     wanList.forEach((wan, index) => {
       const i = index + 1;
-      // Host Route สำหรับเชื่อมไปยัง IP Monitor (Scope=10)
       script += `add dst-address=${wan.monitorIp}/32 gateway=${wan.actualGw} scope=10 comment="Host Route for WAN${i}"\n`;
-      
-      // ✅ [FIX] เปลี่ยนให้ Default Route ของ Main Table วิ่งไปหา IP Monitor เพื่อทำ Recursive เหมือนกัน
       script += `add dst-address=0.0.0.0/0 gateway=${wan.monitorIp} distance=${i} check-gateway=ping target-scope=11 comment="Main Recursive Default Route WAN${i}"\n`;
     });
 
@@ -209,7 +228,7 @@ export const generateMikrotikScript = (config = {}) => {
     script += `# Input Chain (Protect Router)\n`;
     script += `add action=drop chain=input comment="Drop Invalid" connection-state=invalid\n`;
     script += `add action=accept chain=input comment="Established" connection-state=established,related\n`;
-    script += `add action=accept chain=input comment="Winbox" dst-port=8291 protocol=tcp src-address-list=management\n`;
+    script += `add action=accept chain=input comment="Winbox & API" dst-port=8291 protocol=tcp src-address-list=management\n`;
     script += `add action=accept chain=input comment="ICMP" protocol=icmp\n`;
     script += `add action=accept chain=input comment="DNS UDP" dst-port=53 protocol=udp src-address-list=Local_Networks\n`;
     script += `add action=accept chain=input comment="DNS TCP" dst-port=53 protocol=tcp src-address-list=Local_Networks\n`;
@@ -259,10 +278,8 @@ export const generateMikrotikScript = (config = {}) => {
       wanList.forEach((wan, index) => {
           const i = index + 1;
           
-          // เส้นทางหลักของ PBR
           script += `add dst-address=0.0.0.0/0 gateway=${wan.monitorIp} distance=1 routing-table=to_wan${i} target-scope=11 check-gateway=ping comment="PBR Primary for WAN${i}"\n`;
           
-          // ✅ [FIX] เปลี่ยนเส้นทาง Backup ใน PBR ให้เป็น Recursive ด้วย (ป้องกัน Inactive เมื่อสลับสาย)
           let backupDistance = 2;
           wanList.forEach((backupWan, backupIndex) => {
               if (index !== backupIndex) {

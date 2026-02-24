@@ -42,7 +42,7 @@ const ConfigWizard = ({ mode = 'create', initialData, onFinish }) => {
     allowRemoteRequests: true
   });
 
-  // ✅ นำข้อมูล Default VLAN ของคุณกลับมาครบ 100%
+  // Default VLANs
   const [networks, setNetworks] = useState([
     { id: 'net_10', name: 'vlan10Service1', vlanId: 10, ip: '192.168.10.1/24', type: 'network', dhcp: true, hotspot: false },
     { id: 'net_20', name: 'vlan20service2', vlanId: 20, ip: '192.168.20.1/24', type: 'network', dhcp: true, hotspot: false },
@@ -54,8 +54,6 @@ const ConfigWizard = ({ mode = 'create', initialData, onFinish }) => {
 
   const [portConfig, setPortConfig] = useState({});
   const [pbrConfig, setPbrConfig] = useState({ enabled: false, mappings: {} });
-  
-  // ✅ State สำหรับ Wi-Fi
   const [wirelessConfig, setWirelessConfig] = useState({}); 
 
   // --- 🧠 ระบบอัจฉริยะคำนวณสเต็ป (Dynamic Steps) ---
@@ -70,9 +68,7 @@ const ConfigWizard = ({ mode = 'create', initialData, onFinish }) => {
     ];
     
     // แทรกหน้า Wireless ถ้าอุปกรณ์มี Wi-Fi
-    if (hasWLAN) {
-      steps.push({ id: 'wireless', label: 'Wireless' });
-    }
+    if (hasWLAN) steps.push({ id: 'wireless', label: 'Wireless' });
     
     steps.push({ id: 'pbr', label: 'PBR' });
     steps.push({ id: 'summary', label: 'Finish' });
@@ -139,7 +135,7 @@ const ConfigWizard = ({ mode = 'create', initialData, onFinish }) => {
   const nextStep = () => setCurrentStepIndex(prev => Math.min(prev + 1, activeSteps.length - 1));
   const prevStep = () => setCurrentStepIndex(prev => Math.max(prev - 1, 0));
 
-  // ✅ Validation Rules
+  // --- Validation Rules ---
   const canGoNext = () => {
     const stepId = currentStepData.id;
     if (stepId === 'model') return !!selectedModel && deviceMeta.name.trim() !== "" && deviceMeta.circuitId.trim() !== "";

@@ -8,6 +8,7 @@ const masterRoutes = require('./routes/masterRoutes');
 const logRoutes = require('./routes/logRoutes');
 const userRoutes = require('./routes/userRoutes');
 const authRoutes = require('./routes/authRoutes');
+const settingRoutes = require('./routes/settingRoutes');
 require('./services/cronJobs');
 
 const app = express();
@@ -77,6 +78,7 @@ app.use('/api/master', masterRoutes);
 app.use('/api/logs', logRoutes);
 app.use('/api/users', userRoutes); 
 app.use('/api/auth', authRoutes);
+app.use('/api/settings', settingRoutes);
 
 // ==========================================
 // 🛑 Base Route
