@@ -3,7 +3,7 @@ import {
   Cpu, Zap, HardDrive, Thermometer, Wifi, 
   Clock, Download, History, RotateCcw, Settings, Trash2, BellRing, CheckCircle, Activity
 } from 'lucide-react';
-import { formatUptime, formatLatency } from '../utils/formatters';
+import { formatUptime, formatLatency } from '../../../../utils/formatters';
 
 const getProgressColor = (value, type) => {
   const num = parseFloat(value) || 0;

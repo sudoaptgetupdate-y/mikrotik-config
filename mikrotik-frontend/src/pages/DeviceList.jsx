@@ -2,8 +2,8 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import apiClient from '../utils/apiClient';
 import { generateMikrotikScript } from '../utils/mikrotikGenerator';
-import HistoryModal from './HistoryModal';
-import DeviceTableRow from './DeviceTableRow'; 
+import HistoryModal from './ConfigWizard/components/device/HistoryModal';
+import DeviceTableRow from './ConfigWizard/components/device/DeviceTableRow'; 
 import { useAuth } from '../context/AuthContext';
 import { 
   Search, Plus, RefreshCw, Server, Activity, 

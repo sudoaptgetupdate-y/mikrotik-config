@@ -1,7 +1,7 @@
 import React from 'react';
 import { X, Download, Clock, FileText, Loader2 } from 'lucide-react';
-import { generateMikrotikScript } from '../utils/mikrotikGenerator';
-import apiClient from '../utils/apiClient';
+import { generateMikrotikScript } from '../../../../utils/mikrotikGenerator';
+import apiClient from '../../../../utils/apiClient';
 
 const HistoryModal = ({ isOpen, onClose, device, history, loading }) => {
   if (!isOpen) return null;

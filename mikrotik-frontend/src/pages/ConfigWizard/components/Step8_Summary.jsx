@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { FileDown, CheckCircle, Network, ShieldCheck, Globe, Loader2, Router, Server } from 'lucide-react';
-import { generateMikrotikScript } from "../../utils/mikrotikGenerator";
+import { generateMikrotikScript } from "../../../utils/mikrotikGenerator";
 
 const Step8_Summary = ({ 
   selectedModel, 

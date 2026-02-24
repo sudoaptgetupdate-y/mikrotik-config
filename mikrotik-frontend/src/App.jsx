@@ -4,16 +4,20 @@ import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-
 import { AuthProvider } from './context/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
 
-// --- Layout & Pages ---
+// --- Layout & Pages (ดึงจากโฟลเดอร์ pages/) ---
 import MainLayout from './layouts/MainLayout';
-import Login from './components//Login';
-import Dashboard from './components/Dashboard'; 
-import DeviceList from './components/DeviceList';
-import ConfigWizard from './components/ConfigWizard';
-import AuditLog from './components/AuditLog'; 
-import ModelManager from './components/ModelManager';
-import UserManagement from './components/UserManagement';
-import UserProfile from './components/UserProfile';
+import Login from './pages/Login';
+import Dashboard from './pages/Dashboard'; 
+import AuditLog from './pages/AuditLog'; 
+import ModelManager from './pages/ModelManager';
+import UserManagement from './pages/UserManagement';
+import UserProfile from './pages/UserProfile';
+
+// --- Components ย่อย ---
+import DeviceList from './pages/DeviceList';
+
+// --- Features (ระบบ Wizard แยกเฉพาะ) ---
+import ConfigWizard from './pages/ConfigWizard/ConfigWizard';
 
 // --- Wrapper Components ---
 const CreateDevicePage = () => {

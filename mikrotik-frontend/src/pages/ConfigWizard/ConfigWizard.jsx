@@ -1,16 +1,16 @@
 import { useState, useEffect } from 'react';
 import { CheckCircle, ArrowRight, ArrowLeft } from 'lucide-react';
-import apiClient from '../utils/apiClient';
+import apiClient from '../../utils/apiClient';
 
 // Import Modular Components
-import Step1_ModelSelect from './wizard/Step1_ModelSelect';
-import Step2_WANSetup from './wizard/Step2_WANSetup';
-import Step3_DNSSettings from './wizard/Step3_DNSSettings';
-import Step4_LANSetup from './wizard/Step4_LANSetup';
-import Step5_PortAssign from './wizard/Step5_PortAssign';
-import Step6_WirelessSetup from './wizard/Step6_WirelessSetup'; // ✅ หน้า Wi-Fi
-import Step7_PBRSetup from './wizard/Step7_PBRSetup';           // ✅ เลื่อนเป็น 7
-import Step8_Summary from './wizard/Step8_Summary';             // ✅ เลื่อนเป็น 8
+import Step1_ModelSelect from './components/Step1_ModelSelect';
+import Step2_WANSetup from './components/Step2_WANSetup';
+import Step3_DNSSettings from './components/Step3_DNSSettings';
+import Step4_LANSetup from './components/Step4_LANSetup';
+import Step5_PortAssign from './components/Step5_PortAssign';
+import Step6_WirelessSetup from './components/Step6_WirelessSetup';
+import Step7_PBRSetup from './components/Step7_PBRSetup';
+import Step8_Summary from './components/Step8_Summary';
 
 const ConfigWizard = ({ mode = 'create', initialData, onFinish }) => {
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
