@@ -7,7 +7,7 @@ import DeviceTableRow from './ConfigWizard/components/device/DeviceTableRow';
 import { useAuth } from '../context/AuthContext';
 import { 
   Search, Plus, RefreshCw, Server, Activity, 
-  AlertTriangle, CheckCircle, XCircle, Archive, ChevronDown, X, BellRing, Clock, History, User // ✅ นำเข้าไอคอน User
+  AlertTriangle, CheckCircle, XCircle, Archive, ChevronDown, X, BellRing, Clock, History, User, Loader2 // ✅ เพิ่ม Loader2
 } from 'lucide-react';
 
 const getDeviceStatus = (device) => {
@@ -44,7 +44,7 @@ const FILTER_OPTIONS = [
 const DeviceList = () => {
   const navigate = useNavigate();
   const location = useLocation(); 
-  const { user } = useAuth(); // ✅ ดึง user มาใช้
+  const { user } = useAuth(); 
   const canEdit = user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN';
   const [devices, setDevices] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -66,6 +66,10 @@ const DeviceList = () => {
   const [deviceToAck, setDeviceToAck] = useState(null);
   const [ackReason, setAckReason] = useState('');
   const [isAckSubmitting, setIsAckSubmitting] = useState(false);
+
+  // ✅ State & Ref สำหรับ Infinite Scroll
+  const [displayLimit, setDisplayLimit] = useState(15);
+  const observerTarget = useRef(null);
 
   useEffect(() => {
     if (location.state?.filter) {
@@ -100,6 +104,30 @@ const DeviceList = () => {
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+  // ✅ รีเซ็ตจำนวนที่แสดงเมื่อมีการค้นหา หรือเปลี่ยน Filter
+  useEffect(() => {
+    setDisplayLimit(15);
+  }, [searchTerm, statusFilter]);
+
+  // ✅ ตั้งค่า Intersection Observer เพื่อดักจับตอน Scroll ลงมาสุด
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          // เพิ่มจำนวนแถวที่ต้องการแสดงทีละ 15
+          setDisplayLimit((prev) => prev + 15);
+        }
+      },
+      { threshold: 0.1 }
+    );
+
+    if (observerTarget.current) {
+      observer.observe(observerTarget.current);
+    }
+
+    return () => observer.disconnect();
+  }, [loading]); // อัปเดต observer เมื่อ loading เปลี่ยน
 
   const handleAddClick = () => navigate('/add-device');
   const handleEditClick = (device) => navigate(`/edit-device/${device.id}`, { state: { deviceData: device } });
@@ -168,7 +196,6 @@ const DeviceList = () => {
     setIsAckModalOpen(true);
   };
 
-  // ✅ เพิ่มการส่งชื่อ userName เข้าไปยัง Backend ด้วย
   const submitAcknowledge = async () => {
     if (!ackReason.trim()) return alert("กรุณากรอกข้อมูลการอัปเดต หรือเหตุผล");
     setIsAckSubmitting(true);
@@ -188,8 +215,19 @@ const DeviceList = () => {
   };
 
   const filteredDevices = devices.filter(d => {
-    const matchesSearch = d.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                          (d.circuitId && d.circuitId.toLowerCase().includes(searchTerm.toLowerCase()));
+    const searchLower = searchTerm.toLowerCase();
+    
+    const modelName = typeof d.model === 'string' 
+      ? d.model 
+      : (d.model?.name || '');
+
+    const matchesSearch = 
+      (d.name && d.name.toLowerCase().includes(searchLower)) || 
+      (d.circuitId && d.circuitId.toLowerCase().includes(searchLower)) ||
+      (d.ipAddress && d.ipAddress.toLowerCase().includes(searchLower)) ||
+      (d.boardName && d.boardName.toLowerCase().includes(searchLower)) || 
+      (modelName && modelName.toLowerCase().includes(searchLower));
+
     const statusObj = getDeviceStatus(d);
     
     if (statusFilter === 'ACTIVE_ONLY') return statusObj.state !== 'deleted' && matchesSearch;
@@ -200,10 +238,12 @@ const DeviceList = () => {
     return matchesSearch; 
   });
 
+  // ✅ ตัดข้อมูลให้แสดงแค่จำนวน displayLimit
+  const displayedDevices = filteredDevices.slice(0, displayLimit);
+
   const currentFilterOpt = FILTER_OPTIONS.find(opt => opt.value === statusFilter);
   const CurrentIcon = currentFilterOpt ? currentFilterOpt.icon : Activity;
 
-  // อ่านข้อมูล History มาโชว์
   let modalAckHistory = [];
   if (deviceToAck?.ackReason) {
     if (Array.isArray(deviceToAck.ackReason)) {
@@ -219,129 +259,142 @@ const DeviceList = () => {
   }
 
   return (
-    <div className="space-y-6 animate-fade-in pb-20">
+    <div className="space-y-6 animate-fade-in pb-10 flex flex-col min-h-screen">
       
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
-        <div>
-          <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
-            <Activity className="text-blue-600" /> Managed Routers
-          </h2>
-          <p className="text-slate-500 mt-1">
-            Monitor and manage your MikroTik devices 
-            (Last updated: {lastUpdated.toLocaleTimeString()})
-          </p>
-        </div>
-        <button 
-          onClick={handleAddClick}
-          className="bg-blue-600 text-white px-4 py-2.5 rounded-xl flex items-center gap-2 hover:bg-blue-700 shadow-sm transition-all font-medium"
-        >
-          <Plus size={20} /> Add New Device
-        </button>
-      </div>
-
-      {/* Toolbar */}
-      <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col md:flex-row gap-4 items-center">
-        <div className="relative flex-1 w-full">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
-          <input 
-            type="text"
-            placeholder="Search by Name, Circuit ID..."
-            className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-100 transition"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-        </div>
-
-        <div className="relative w-full md:w-56" ref={filterRef}>
+      {/* ส่วน Content หลัก (จะขยายเต็มพื้นที่เมื่อเนื้อหาน้อย) */}
+      <div className="flex-grow space-y-6">
+        {/* Header */}
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+          <div>
+            <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
+              <Activity className="text-blue-600" /> Managed Routers
+            </h2>
+            <p className="text-slate-500 mt-1">
+              Monitor and manage your MikroTik devices 
+              (Last updated: {lastUpdated.toLocaleTimeString()})
+            </p>
+          </div>
           <button 
-            onClick={() => setIsFilterOpen(!isFilterOpen)}
-            className="w-full flex items-center justify-between px-3 py-2.5 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition focus:outline-none focus:ring-2 focus:ring-blue-100"
+            onClick={handleAddClick}
+            className="bg-blue-600 text-white px-4 py-2.5 rounded-xl flex items-center gap-2 hover:bg-blue-700 shadow-sm transition-all font-medium"
           >
-            <div className="flex items-center gap-2.5">
-              <div className={`p-1 rounded-md ${currentFilterOpt?.bg} ${currentFilterOpt?.color}`}>
-                 <CurrentIcon size={16} />
-              </div>
-              <span className="font-medium text-slate-700 text-sm">{currentFilterOpt?.label}</span>
-            </div>
-            <ChevronDown size={16} className={`text-slate-400 transition-transform duration-300 ${isFilterOpen ? 'rotate-180' : ''}`} />
+            <Plus size={20} /> Add New Device
           </button>
+        </div>
 
-          {isFilterOpen && (
-            <div className="absolute z-50 top-full left-0 mt-2 w-full bg-white border border-slate-100 rounded-xl shadow-lg shadow-slate-200/50 py-1.5 animate-in fade-in slide-in-from-top-2 duration-200">
-              {FILTER_OPTIONS.map((opt) => {
-                const DropdownIcon = opt.icon;
-                return (
-                  <button 
-                    key={opt.value}
-                    onClick={() => {
-                      setStatusFilter(opt.value);
-                      setIsFilterOpen(false);
-                    }}
-                    className={`w-full text-left px-3 py-2.5 flex items-center gap-3 transition-colors ${statusFilter === opt.value ? 'bg-slate-50' : 'hover:bg-slate-50'}`}
-                  >
-                    <div className={`p-1.5 rounded-md ${opt.bg} ${opt.color}`}>
-                      <DropdownIcon size={14} strokeWidth={2.5} />
-                    </div>
-                    <span className={`text-sm ${statusFilter === opt.value ? 'font-bold text-blue-600' : 'font-medium text-slate-600'}`}>
-                      {opt.label}
-                    </span>
-                    {statusFilter === opt.value && <CheckCircle size={14} className="ml-auto text-blue-600" />}
-                  </button>
-                );
-              })}
+        {/* Toolbar */}
+        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col md:flex-row gap-4 items-center">
+          <div className="relative flex-1 w-full">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
+            <input 
+              type="text"
+              placeholder="Search by Name, Circuit ID, IP Address, Model..."
+              className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-100 transition"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+
+          <div className="relative w-full md:w-56" ref={filterRef}>
+            <button 
+              onClick={() => setIsFilterOpen(!isFilterOpen)}
+              className="w-full flex items-center justify-between px-3 py-2.5 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition focus:outline-none focus:ring-2 focus:ring-blue-100"
+            >
+              <div className="flex items-center gap-2.5">
+                <div className={`p-1 rounded-md ${currentFilterOpt?.bg} ${currentFilterOpt?.color}`}>
+                  <CurrentIcon size={16} />
+                </div>
+                <span className="font-medium text-slate-700 text-sm">{currentFilterOpt?.label}</span>
+              </div>
+              <ChevronDown size={16} className={`text-slate-400 transition-transform duration-300 ${isFilterOpen ? 'rotate-180' : ''}`} />
+            </button>
+
+            {isFilterOpen && (
+              <div className="absolute z-50 top-full left-0 mt-2 w-full bg-white border border-slate-100 rounded-xl shadow-lg shadow-slate-200/50 py-1.5 animate-in fade-in slide-in-from-top-2 duration-200">
+                {FILTER_OPTIONS.map((opt) => {
+                  const DropdownIcon = opt.icon;
+                  return (
+                    <button 
+                      key={opt.value}
+                      onClick={() => {
+                        setStatusFilter(opt.value);
+                        setIsFilterOpen(false);
+                      }}
+                      className={`w-full text-left px-3 py-2.5 flex items-center gap-3 transition-colors ${statusFilter === opt.value ? 'bg-slate-50' : 'hover:bg-slate-50'}`}
+                    >
+                      <div className={`p-1.5 rounded-md ${opt.bg} ${opt.color}`}>
+                        <DropdownIcon size={14} strokeWidth={2.5} />
+                      </div>
+                      <span className={`text-sm ${statusFilter === opt.value ? 'font-bold text-blue-600' : 'font-medium text-slate-600'}`}>
+                        {opt.label}
+                      </span>
+                      {statusFilter === opt.value && <CheckCircle size={14} className="ml-auto text-blue-600" />}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          <button onClick={() => { setLoading(true); fetchDevices(); }} className="w-full md:w-auto flex justify-center items-center gap-2 px-4 py-2.5 text-slate-600 hover:bg-slate-50 rounded-lg border border-slate-200 transition font-medium">
+            <RefreshCw size={18} className={loading ? "animate-spin text-blue-500" : ""} />
+            <span className="md:hidden lg:inline">Refresh</span>
+          </button>
+        </div>
+
+        {/* --- Device Table --- */}
+        <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+          {loading && devices.length === 0 ? (
+            <div className="p-10 text-center text-slate-400 flex flex-col items-center">
+              <Loader2 size={32} className="animate-spin text-blue-500 mb-3" />
+              Loading devices...
+            </div>
+          ) : filteredDevices.length === 0 ? (
+            <div className="p-10 text-center text-slate-400 flex flex-col items-center">
+              <Server size={48} className="mb-4 text-slate-200" />
+              <p>No devices found for the selected filter.</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-slate-50 border-b border-slate-200 text-xs uppercase text-slate-500 font-semibold text-left">
+                    <th className="p-4 pl-6 w-[15%]">Status</th>
+                    <th className="p-4 w-[25%]">Device Details</th>
+                    <th className="p-4 w-[20%]">Resources</th>
+                    <th className="p-4 w-[25%]">Health, Net & Uptime</th>
+                    <th className="p-4 text-right pr-6 w-[15%]">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {/* ✅ ลูปจากตัวแปร displayedDevices แทน filteredDevices */}
+                  {displayedDevices.map((device) => (
+                    <DeviceTableRow 
+                      key={device.id} 
+                      device={device}
+                      status={getDeviceStatus(device)}
+                      onDownload={handleDownloadLatest}
+                      onViewHistory={handleViewHistory}
+                      onRestore={handleRestoreClick}
+                      onEdit={handleEditClick}
+                      onDelete={handleDeleteClick}
+                      onAcknowledge={handleAcknowledgeClick}
+                      canEdit={canEdit}
+                    />
+                  ))}
+                </tbody>
+              </table>
+
+              {/* ✅ ตัวจับการ Scroll (Intersection Observer Target) */}
+              {displayLimit < filteredDevices.length && (
+                <div ref={observerTarget} className="p-6 flex justify-center items-center gap-2 text-slate-400 bg-slate-50 border-t border-slate-100">
+                  <Loader2 size={18} className="animate-spin text-blue-400" />
+                  <span className="text-sm font-medium">Loading more devices...</span>
+                </div>
+              )}
             </div>
           )}
         </div>
-
-        <button onClick={() => { setLoading(true); fetchDevices(); }} className="w-full md:w-auto flex justify-center items-center gap-2 px-4 py-2.5 text-slate-600 hover:bg-slate-50 rounded-lg border border-slate-200 transition font-medium">
-          <RefreshCw size={18} className={loading ? "animate-spin text-blue-500" : ""} />
-          <span className="md:hidden lg:inline">Refresh</span>
-        </button>
-      </div>
-
-      {/* --- Device Table --- */}
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-        {loading && devices.length === 0 ? (
-          <div className="p-10 text-center text-slate-400">Loading devices...</div>
-        ) : filteredDevices.length === 0 ? (
-          <div className="p-10 text-center text-slate-400 flex flex-col items-center">
-            <Server size={48} className="mb-4 text-slate-200" />
-            <p>No devices found for the selected filter.</p>
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                {/* เพิ่ม text-left เพื่อให้ข้อความชิดซ้ายตรงกับเนื้อหา */}
-                <tr className="bg-slate-50 border-b border-slate-200 text-xs uppercase text-slate-500 font-semibold text-left">
-                  <th className="p-4 pl-6 w-[15%]">Status</th>
-                  <th className="p-4 w-[25%]">Device Details</th>
-                  <th className="p-4 w-[20%]">Resources</th>
-                  <th className="p-4 w-[25%]">Health, Net & Uptime</th>
-                  {/* Actions ชิดขวา */}
-                  <th className="p-4 text-right pr-6 w-[15%]">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {filteredDevices.map((device) => (
-                  <DeviceTableRow 
-                    key={device.id} 
-                    device={device}
-                    status={getDeviceStatus(device)}
-                    onDownload={handleDownloadLatest}
-                    onViewHistory={handleViewHistory}
-                    onRestore={handleRestoreClick}
-                    onEdit={handleEditClick}
-                    onDelete={handleDeleteClick}
-                    onAcknowledge={handleAcknowledgeClick}
-                    canEdit={canEdit}
-                  />
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
       </div>
 
       {/* Acknowledge Modal */}
@@ -360,7 +413,6 @@ const DeviceList = () => {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x border-b border-slate-100">
-              {/* ฝั่งซ้าย: กรอกข้อมูลใหม่ */}
               <div className="p-6">
                 <p className="text-sm text-slate-600 mb-4">
                   เครื่อง <strong className="text-slate-800">{deviceToAck?.name}</strong> กำลังมีสถานะโหลดสูง 
@@ -374,7 +426,6 @@ const DeviceList = () => {
                 ></textarea>
               </div>
 
-              {/* ฝั่งขวา: ประวัติย้อนหลัง */}
               <div className="p-6 bg-slate-50">
                 <h4 className="font-bold text-slate-700 mb-4 flex items-center gap-2">
                   <History size={16} className="text-slate-400" /> Acknowledge History
@@ -386,8 +437,6 @@ const DeviceList = () => {
                     modalAckHistory.slice().reverse().map((entry, idx) => (
                       <div key={idx} className="bg-white p-3.5 rounded-xl border border-slate-200 shadow-sm relative">
                         {idx === 0 && <span className="absolute top-3 right-3 flex h-2.5 w-2.5"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span><span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-blue-500"></span></span>}
-                        
-                        {/* ✅ เพิ่มการแสดงชื่อคนที่แก้ (userName) */}
                         <div className="flex items-center gap-3 mb-1.5">
                           <div className="text-[10px] text-slate-400 font-medium flex items-center gap-1">
                             <Clock size={10} /> {new Date(entry.timestamp).toLocaleString()}
@@ -396,7 +445,6 @@ const DeviceList = () => {
                             <User size={10} /> {entry.userName || 'System Admin'}
                           </div>
                         </div>
-                        
                         <div className="text-sm text-slate-700">{entry.reason}</div>
                       </div>
                     ))

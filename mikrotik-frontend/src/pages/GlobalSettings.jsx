@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Shield, Network, Globe, Save, Plus, Trash2, AlertTriangle, Loader2, Eye, EyeOff } from 'lucide-react';
 import apiClient from '../utils/apiClient';
 
@@ -16,36 +16,37 @@ const GlobalSettings = () => {
   const [routerAdmins, setRouterAdmins] = useState([]);
   const [newAdmin, setNewAdmin] = useState({ username: '', password: '', group: 'full' });
 
-  // ✅ State สำหรับซ่อน/แสดงรหัสผ่าน
+  // State สำหรับซ่อน/แสดงรหัสผ่าน
   const [showPassword, setShowPassword] = useState({}); 
   const [showNewPassword, setShowNewPassword] = useState(false);
 
   // --- Fetch Data ---
+  // ✅ แก้ปัญหาที่ 1: ย้าย fetchSettings เข้ามาใน useEffect
   useEffect(() => {
+    const fetchSettings = async () => {
+      try {
+        setIsLoading(true);
+        const res = await apiClient.get('/api/settings');
+        const data = res.data;
+  
+        data.forEach(item => {
+          if (item.key === 'MANAGEMENT_IPS') setManagementIps(item.value || []);
+          if (item.key === 'MONITOR_IPS') {
+            const loadedIps = item.value || [];
+            setMonitorIps([...loadedIps, '', '', '', '', ''].slice(0, 5));
+          }
+          if (item.key === 'ROUTER_ADMINS') setRouterAdmins(item.value || []);
+        });
+      } catch (error) {
+        console.error('Failed to fetch settings:', error);
+        alert('ไม่สามารถดึงข้อมูลการตั้งค่าได้');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
     fetchSettings();
-  }, []);
-
-  const fetchSettings = async () => {
-    try {
-      setIsLoading(true);
-      const res = await apiClient.get('/api/settings');
-      const data = res.data;
-
-      data.forEach(item => {
-        if (item.key === 'MANAGEMENT_IPS') setManagementIps(item.value || []);
-        if (item.key === 'MONITOR_IPS') {
-          const loadedIps = item.value || [];
-          setMonitorIps([...loadedIps, '', '', '', '', ''].slice(0, 5));
-        }
-        if (item.key === 'ROUTER_ADMINS') setRouterAdmins(item.value || []);
-      });
-    } catch (error) {
-      console.error('Failed to fetch settings:', error);
-      alert('ไม่สามารถดึงข้อมูลการตั้งค่าได้');
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  }, []); // ไม่ขึ้น Warning เรื่อง Dependency อีกต่อไป
 
   // --- Save Data ---
   const handleSaveSetting = async (key, value) => {
@@ -68,7 +69,7 @@ const GlobalSettings = () => {
     if (!newAdmin.username || !newAdmin.password) return;
     setRouterAdmins([...routerAdmins, newAdmin]);
     setNewAdmin({ username: '', password: '', group: 'full' });
-    setShowNewPassword(false); // ซ่อนรหัสผ่านเมื่อเพิ่มเสร็จ
+    setShowNewPassword(false);
   };
   
   const removeAdmin = (index) => setRouterAdmins(routerAdmins.filter((_, i) => i !== index));
@@ -279,7 +280,8 @@ const GlobalSettings = () => {
                   <div>
                     <h3 className="text-lg font-bold text-slate-800">PBR Check-Gateway Targets</h3>
                     <p className="text-sm text-slate-500">เป้าหมายสำหรับเช็ค Ping ของ WAN แต่ละเส้น (ระบบ PBR Failover)</p>
-                    <p className="text-xs text-orange-600 mt-1 flex items-center gap-1 font-bold bg-orange-50 px-2 py-1 rounded inline-flex"><AlertTriangle size={14}/> บังคับ 5 ช่อง และห้ามใช้ IP ซ้ำกัน</p>
+                    {/* ✅ แก้ปัญหาที่ 2: ลบคำว่า flex ออกเพื่อไม่ให้ Class ชนกับ inline-flex */}
+                    <p className="text-xs text-orange-600 mt-1 items-center gap-1 font-bold bg-orange-50 px-2 py-1 rounded inline-flex"><AlertTriangle size={14}/> บังคับ 5 ช่อง และห้ามใช้ IP ซ้ำกัน</p>
                   </div>
                   <button onClick={() => handleSaveSetting('MONITOR_IPS', monitorIps)} disabled={isSaving || monitorIps.some(ip => !ip)} className="bg-orange-500 hover:bg-orange-600 disabled:bg-slate-300 text-white px-5 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 transition-all">
                     {isSaving ? <Loader2 size={16} className="animate-spin"/> : <Save size={16} />} Save Targets

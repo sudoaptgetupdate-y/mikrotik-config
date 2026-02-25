@@ -49,7 +49,7 @@ const MainLayout = () => {
           <div className="bg-blue-600 p-1.5 rounded-lg">
             <Router size={20} className="text-white" />
           </div>
-          <span className="font-bold text-lg tracking-wide">MikroManager</span>
+          <span className="font-bold text-lg tracking-wide">MiKroTik NMS</span>
         </div>
 
         <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto">
