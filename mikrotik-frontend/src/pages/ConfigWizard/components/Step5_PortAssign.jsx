@@ -233,7 +233,7 @@ const Step5_PortAssign = ({ selectedModel, wanList, networks, portConfig, setPor
         </div>
       )}
 
-      {/* === ตารางพอร์ต (Main Port List - Compact & Scrollable) === */}
+      {/* === ตารางพอร์ต (Main Port List - ปลดล็อกความสูงแล้ว) === */}
       <div className={`bg-white border rounded-2xl shadow-sm overflow-hidden flex flex-col transition-all duration-300 ${selectedPorts.length > 0 ? 'border-blue-300 ring-4 ring-blue-50' : 'border-slate-200'}`}>
         
         {lanPorts.length === 0 ? (
@@ -241,7 +241,7 @@ const Step5_PortAssign = ({ selectedModel, wanList, networks, portConfig, setPor
             ไม่พบพอร์ต LAN ที่ว่าง (พอร์ตทั้งหมดอาจถูกตั้งเป็น WAN ไปแล้ว)
           </div>
         ) : (
-          <div className="max-h-[55vh] overflow-y-auto overflow-x-auto [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar]:h-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-300 [&::-webkit-scrollbar-thumb]:rounded-full relative">
+          <div className="overflow-x-auto [&::-webkit-scrollbar]:h-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-300 [&::-webkit-scrollbar-thumb]:rounded-full relative">
             <table className="w-full text-left border-collapse min-w-[750px]">
               
               {/* Sticky Header */}

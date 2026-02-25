@@ -42,15 +42,8 @@ const ConfigWizard = ({ mode = 'create', initialData, onFinish }) => {
     allowRemoteRequests: true
   });
 
-  // Default VLANs
-  const [networks, setNetworks] = useState([
-    { id: 'net_10', name: 'vlan10Service1', vlanId: 10, ip: '192.168.10.1/24', type: 'network', dhcp: true, hotspot: false },
-    { id: 'net_20', name: 'vlan20service2', vlanId: 20, ip: '192.168.20.1/24', type: 'network', dhcp: true, hotspot: false },
-    { id: 'net_30', name: 'vlan30FreeWiFi', vlanId: 30, ip: '192.168.30.1/24', type: 'hotspot', dhcp: true, hotspot: true },
-    { id: 'net_40', name: 'vlan40CCTV', vlanId: 40, ip: '192.168.40.1/24', type: 'network', dhcp: true, hotspot: false },
-    { id: 'net_50', name: 'vlan50Voice', vlanId: 50, ip: '192.168.50.1/24', type: 'network', dhcp: true, hotspot: false },
-    { id: 'net_56', name: 'vlan56NMS', vlanId: 56, ip: '10.234.56.254/24', type: 'network', dhcp: true, hotspot: false },
-  ]);
+  // Default VLANs (รอโหลดจาก Backend)
+  const [networks, setNetworks] = useState([]);
 
   const [portConfig, setPortConfig] = useState({});
   const [pbrConfig, setPbrConfig] = useState({ enabled: false, mappings: {} });
@@ -83,10 +76,33 @@ const ConfigWizard = ({ mode = 'create', initialData, onFinish }) => {
   useEffect(() => {
     const initWizard = async () => {
       try {
-        const res = await apiClient.get('/api/master/models');
-        const availableModels = res.data;
+        // ⭐ 1. โหลด Models
+        const resModels = await apiClient.get('/api/master/models');
+        const availableModels = resModels.data;
         setModels(availableModels);
         
+        // ⭐ 2. โหลด Settings (เพื่อหา DEFAULT_NETWORKS)
+        const resSettings = await apiClient.get('/api/settings');
+        const defaultNetSetting = resSettings.data.find(s => s.key === 'DEFAULT_NETWORKS');
+        
+        // ค่าเผื่อฉุกเฉิน กรณีที่ใน Database ยังไม่เคยตั้งค่า DEFAULT_NETWORKS เลย
+        let initialNetworks = [
+          { id: 'net_10', name: 'vlan10Service1', vlanId: 10, ip: '192.168.10.1/24', type: 'network', dhcp: true, hotspot: false },
+          { id: 'net_56', name: 'vlan56NMS', vlanId: 56, ip: '10.234.56.254/24', type: 'network', dhcp: true, hotspot: false },
+        ];
+
+        // ถ้า Backend มีค่าเซ็ตไว้ ให้ใช้ค่านั้นแทน
+        if (defaultNetSetting && defaultNetSetting.value) {
+          try {
+            initialNetworks = typeof defaultNetSetting.value === 'string' 
+              ? JSON.parse(defaultNetSetting.value) 
+              : defaultNetSetting.value;
+          } catch (e) {
+            console.error("Error parsing DEFAULT_NETWORKS:", e);
+          }
+        }
+        
+        // ⭐ 3. กำหนดค่า State
         if (mode === 'edit' && initialData && initialData.configData) {
           const savedConfig = typeof initialData.configData === 'string' ? JSON.parse(initialData.configData) : initialData.configData;
           
@@ -96,10 +112,16 @@ const ConfigWizard = ({ mode = 'create', initialData, onFinish }) => {
           }
           if (savedConfig.wanList) setWanList(savedConfig.wanList);
           if (savedConfig.dnsConfig) setDnsConfig(savedConfig.dnsConfig);
-          if (savedConfig.networks) setNetworks(savedConfig.networks);
+          
+          // ใช้ค่าจาก Config เดิมที่เคย Save ไว้ ถ้าไม่มีค่อยใช้ initialNetworks
+          setNetworks(savedConfig.networks || initialNetworks);
+          
           if (savedConfig.portConfig) setPortConfig(savedConfig.portConfig);
           if (savedConfig.wirelessConfig) setWirelessConfig(savedConfig.wirelessConfig);
           if (savedConfig.pbrConfig) setPbrConfig(savedConfig.pbrConfig);
+        } else {
+          // โหมด Create: โยนค่า initialNetworks (ที่โหลดจาก Global Settings) ไปเป็นค่าเริ่มต้นเลย
+          setNetworks(initialNetworks);
         }
       } catch (error) {
         console.error("Error init wizard:", error);

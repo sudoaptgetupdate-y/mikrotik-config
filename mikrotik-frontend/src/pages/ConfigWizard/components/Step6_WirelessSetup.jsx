@@ -41,7 +41,7 @@ const Step6_WirelessSetup = ({ selectedModel, wirelessConfig, setWirelessConfig 
   };
 
   return (
-    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <div className="space-y-6 pb-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="text-center max-w-2xl mx-auto mb-8">
         <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-blue-100 mb-4">
           <Wifi className="text-blue-600" size={32} />

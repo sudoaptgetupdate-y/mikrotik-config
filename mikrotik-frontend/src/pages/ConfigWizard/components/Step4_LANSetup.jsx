@@ -78,8 +78,8 @@ const Step4_LANSetup = ({ networks, setNetworks, dnsConfig }) => {
         </button>
       </div>
 
-      {/* --- Scrollable Content Area --- */}
-      <div className="max-h-[60vh] overflow-y-auto pr-2 pb-4 space-y-5 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-300 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-slate-400 transition-colors">
+      {/* --- Content Area (Removed Scrollbar Classes) --- */}
+      <div className="space-y-5 pb-4">
         
         {networks.map((net) => {
           const dnsDisplay = net.hotspot || (dnsConfig && dnsConfig.allowRemoteRequests)
@@ -102,7 +102,6 @@ const Step4_LANSetup = ({ networks, setNetworks, dnsConfig }) => {
                   <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">VLAN ID</label>
                   <input 
                     type="number" 
-                    // เอาเงื่อนไข disabled={net.vlanId === 56} ออก ให้แก้เลขได้อิสระ
                     className="w-full px-4 py-2.5 border border-slate-200 rounded-xl font-mono font-bold text-blue-600 text-center bg-slate-50 focus:bg-white focus:ring-4 focus:ring-blue-50 focus:border-blue-400 outline-none transition-all"
                     value={net.vlanId}
                     onChange={(e) => updateNetwork(net.id, 'vlanId', parseInt(e.target.value))}
@@ -173,7 +172,7 @@ const Step4_LANSetup = ({ networks, setNetworks, dnsConfig }) => {
                     </span>
                   </button>
 
-                  {/* Delete Button - ลบเงื่อนไข {net.vlanId !== 56 && ...} ออก */}
+                  {/* Delete Button */}
                   <button 
                     onClick={() => removeNetwork(net.id)}
                     className="flex items-center justify-center h-11 w-11 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all border border-transparent hover:border-red-100 shrink-0 ml-1"

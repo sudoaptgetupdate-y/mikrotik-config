@@ -1,3 +1,58 @@
+// ==========================================
+// Helper Functions: คำนวณ Subnet & IP Pool
+// ==========================================
+
+// แปลง IP เป็นตัวเลข Integer
+const ipToInt = (ip) => {
+  return ip.split('.').reduce((acc, octet) => (acc * 256) + parseInt(octet, 10), 0);
+};
+
+// แปลงตัวเลข Integer กลับเป็น IP
+const intToIp = (int) => {
+  return [
+    Math.floor(int / Math.pow(256, 3)) % 256,
+    Math.floor(int / Math.pow(256, 2)) % 256,
+    Math.floor(int / 256) % 256,
+    int % 256
+  ].join('.');
+};
+
+// คำนวณ Network Address และ IP Pool Range ตามรูปแบบ CIDR
+const calculatePoolRange = (gatewayIP, cidr) => {
+  const ipInt = ipToInt(gatewayIP);
+  const prefix = parseInt(cidr, 10);
+  const totalIps = Math.pow(2, 32 - prefix);
+  
+  const networkInt = Math.floor(ipInt / totalIps) * totalIps;
+  const broadcastInt = networkInt + totalIps - 1;
+  
+  let poolStartInt = networkInt + 11;
+  let poolEndInt = broadcastInt - 11;
+
+  if (poolStartInt > poolEndInt) {
+    poolStartInt = networkInt + 1;
+    poolEndInt = broadcastInt - 1;
+  }
+
+  let poolRange = '';
+  if (ipInt >= poolStartInt && ipInt <= poolEndInt) {
+    const ranges = [];
+    if (poolStartInt <= ipInt - 1) ranges.push(`${intToIp(poolStartInt)}-${intToIp(ipInt - 1)}`);
+    if (ipInt + 1 <= poolEndInt) ranges.push(`${intToIp(ipInt + 1)}-${intToIp(poolEndInt)}`);
+    poolRange = ranges.join(',');
+  } else {
+    poolRange = `${intToIp(poolStartInt)}-${intToIp(poolEndInt)}`;
+  }
+
+  return {
+    networkAddr: `${intToIp(networkInt)}/${cidr}`,
+    poolRange: poolRange
+  };
+};
+
+// ==========================================
+// Main Generator Function
+// ==========================================
 export const generateMikrotikScript = (config = {}) => {
   const { 
     selectedModel,
@@ -9,8 +64,7 @@ export const generateMikrotikScript = (config = {}) => {
     wirelessConfig = {},
     circuitId = 'MikroTik-Router', 
     token = '',
-    // --- รับค่า Global Settings จาก API ---
-    managementIps = ['10.234.56.0/24'], // ค่าเริ่มต้นเผื่อ API ล้มเหลว
+    managementIps = ['10.234.56.0/24'],
     monitorIps = ['1.1.1.1', '8.8.8.8', '208.67.222.222', '9.9.9.9', '8.26.56.26'],
     adminUsers = [{ username: 'ntadmin', password: 'ntadmin', group: 'full' }]
   } = config;
@@ -37,7 +91,6 @@ export const generateMikrotikScript = (config = {}) => {
   const wanInterfaces = wanList.map(w => w.interface);
   const lanPorts = selectedModel?.ports?.filter(p => !wanInterfaces.includes(p.name) && p.type !== 'WLAN') || [];
 
-  // ✅ ป้องกันกรณีส่ง Monitor IPs มาไม่ครบ 5 ค่า (Safe Fallback)
   const safeMonitorIps = (monitorIps && monitorIps.length >= 5) 
     ? monitorIps 
     : ['1.1.1.1', '8.8.8.8', '208.67.222.222', '9.9.9.9', '8.26.56.26'];
@@ -62,13 +115,12 @@ export const generateMikrotikScript = (config = {}) => {
     script += `/system clock set time-zone-name=Asia/Bangkok\n`;
     script += `/system ntp client set enabled=yes servers=time.google.com,time1.google.com\n`;
 
-    // ✅ สร้าง User แบบ Dynamic และลบ User อื่นทิ้ง
+    // ✅ ป้องกัน Error: User ชนกัน
     script += `\n# --- Admin Users ---\n`;
     adminUsers.forEach(admin => {
-      script += `/user add name="${admin.username}" group="${admin.group}" password="${admin.password}" comment="Provisioned by Central API"\n`;
+      script += `:do { /user add name="${admin.username}" group="${admin.group}" password="${admin.password}" comment="Provisioned by Central API" } on-error={ /user set [find name="${admin.username}"] group="${admin.group}" password="${admin.password}" }\n`;
     });
     
-    // สร้างคำสั่งเพื่อลบ User ที่ไม่ได้อยู่ในลิสต์
     const excludeUsers = adminUsers.map(u => `name!="${u.username}"`).join(" and ");
     if (excludeUsers) {
         script += `/user remove [find ${excludeUsers}]\n`;
@@ -92,11 +144,10 @@ export const generateMikrotikScript = (config = {}) => {
     script += `/ip firewall address-list remove [find list="Local_Networks"]\n`;
     script += `/ip firewall address-list remove [find list="management"]\n`;
     
-    // ✅ นำ Management IPs ที่ได้จากระบบมาวนลูปสร้าง
-    managementIps.forEach(ip => {
-        if(ip.trim() !== '') {
-            script += `/ip firewall address-list add list=management address=${ip} comment="Central Management"\n`;
-        }
+    // ✅ ป้องกัน Error: IP ซ้ำใน Address List
+    const uniqueMgmtIps = [...new Set(managementIps.map(ip => ip.trim()).filter(ip => ip !== ''))];
+    uniqueMgmtIps.forEach(ip => {
+        script += `/ip firewall address-list add list=management address=${ip} comment="Central Management"\n`;
     });
     
     networks.forEach(net => {
@@ -110,7 +161,6 @@ export const generateMikrotikScript = (config = {}) => {
       const i = index + 1;
       const wanName = `wan${i}-${wan.interface}`;
       
-      // ✅ ดึง IP จาก safeMonitorIps แบบ Dynamic
       const monitorIp = safeMonitorIps[index % safeMonitorIps.length];
       wan.monitorIp = monitorIp;
 
@@ -146,15 +196,13 @@ export const generateMikrotikScript = (config = {}) => {
       script += `/ip address add address=${net.ip} interface=${vlanInterface} comment="${net.name} Gateway"\n`;
       
       const [gatewayIP, cidr] = net.ip.split('/');
-      const ipParts = gatewayIP.split('.');
-      ipParts.pop(); 
-      const networkAddr = `${ipParts.join('.')}.0/${cidr}`;
+      
+      const { networkAddr, poolRange } = calculatePoolRange(gatewayIP, cidr);
       const poolName = `pool-${net.name}`;
 
       const clientDnsServers = dnsConfig.allowRemoteRequests ? gatewayIP : dnsConfig.servers.join(',');
 
       if (net.dhcp || net.hotspot) {
-        const poolRange = `${ipParts.join('.')}.10-${ipParts.join('.')}.254`;
         script += `/ip pool add name="${poolName}" ranges=${poolRange}\n`;
         script += `/ip dhcp-server add name="dhcp-${net.name}" interface=${vlanInterface} address-pool="${poolName}" disabled=no lease-time=1d\n`;
         script += `/ip dhcp-server network add address=${networkAddr} gateway=${gatewayIP} dns-server=${clientDnsServers}\n`;
@@ -266,8 +314,8 @@ export const generateMikrotikScript = (config = {}) => {
            if (foundIndex !== -1) {
               const wanNum = foundIndex + 1;
               const [gw, cidr] = net.ip.split('/');
-              const ipParts = gw.split('.'); ipParts.pop();
-              const networkAddr = `${ipParts.join('.')}.0/${cidr}`;
+              
+              const { networkAddr } = calculatePoolRange(gw, cidr);
               
               script += `add chain=prerouting src-address=${networkAddr} dst-address-list=!Local_Networks action=mark-routing new-routing-mark=to_wan${wanNum} passthrough=no comment="Route ${net.name} -> WAN${wanNum}"\n`;
            }
