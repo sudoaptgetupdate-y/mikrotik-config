@@ -1,24 +1,27 @@
 import React, { useState, useEffect } from 'react';
 import apiClient from '../utils/apiClient';
-import { Server, Plus, Trash2, X, PlusCircle, Save, Archive, RotateCcw, Search, ChevronLeft, ChevronRight } from 'lucide-react';
+import { useAuth } from '../context/AuthContext'; // ✅ ดึง Context เพื่อเช็คสิทธิ์
+import { Server, Plus, Trash2, X, PlusCircle, Save, Archive, RotateCcw, Search, ChevronLeft, ChevronRight, Edit } from 'lucide-react';
 
 const ModelManager = () => {
+  const { user } = useAuth(); // ✅ ดึงข้อมูล User ปัจจุบัน
+  const isSuperAdmin = user?.role === 'SUPER_ADMIN'; // ✅ เช็คว่าเป็น Super Admin หรือไม่
+
   const [models, setModels] = useState([]);
   const [loading, setLoading] = useState(true);
   
-  // State สำหรับ Toggle หน้าจอ (ค่าเริ่มต้น = false คือดูตัวที่ Active)
   const [showDeleted, setShowDeleted] = useState(false);
   
-  // State สำหรับ Modal เพิ่ม Model
+  // State สำหรับ Modal เพิ่ม/แก้ไข Model
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false); // ✅ แยกโหมด
+  const [editingId, setEditingId] = useState(null); // ✅ เก็บ ID ที่กำลังแก้
   const [newModel, setNewModel] = useState({ name: '', imageUrl: '', ports: [] });
 
-  // === States สำหรับ Search & Pagination (Client-Side) ===
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 12; // กำหนด 12 รายการต่อหน้า (ลงตัวกับ Grid 2 และ 3 คอลัมน์)
+  const itemsPerPage = 12;
 
-  // ดึงข้อมูล Models (ส่งค่า showDeleted ไปยัง API เพื่อกรอง)
   const fetchModels = async () => {
     setLoading(true);
     try {
@@ -31,33 +34,46 @@ const ModelManager = () => {
     }
   };
 
-  // โหลดข้อมูลใหม่ทุกครั้งที่สลับหน้า Active <-> Deleted
   useEffect(() => { 
     fetchModels(); 
-    setCurrentPage(1); // รีเซ็ตหน้ากลับไปที่ 1 เมื่อสลับโหมด
-    setSearchTerm(''); // ล้างช่องค้นหาเมื่อสลับโหมด
+    setCurrentPage(1);
+    setSearchTerm('');
   }, [showDeleted]);
 
-  // === Logic สำหรับ Filter และ แบ่งหน้า ===
   const filteredModels = models.filter(model => 
     model.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
   
   const totalPages = Math.ceil(filteredModels.length / itemsPerPage);
-  
-  // ตัด Array เอาเฉพาะข้อมูลของหน้านั้นๆ
-  const paginatedModels = filteredModels.slice(
-    (currentPage - 1) * itemsPerPage, 
-    currentPage * itemsPerPage
-  );
+  const paginatedModels = filteredModels.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
-  // เมื่อพิมพ์ค้นหา ให้กลับไปหน้า 1 เสมอ
   const handleSearchChange = (e) => {
     setSearchTerm(e.target.value);
     setCurrentPage(1); 
   };
 
-  // --- Functions สำหรับ Form เพิ่ม Model ---
+  // --- Functions สำหรับเปิด Modal ---
+  const handleOpenCreate = () => {
+    setIsEditMode(false);
+    setEditingId(null);
+    setNewModel({ name: '', imageUrl: '', ports: [] });
+    setIsModalOpen(true);
+  };
+
+  const handleOpenEdit = (model) => {
+    setIsEditMode(true);
+    setEditingId(model.id);
+    // ดึงเฉพาะข้อมูล Port ที่จำเป็นไปแสดง
+    const cleanPorts = model.ports.map(p => ({
+      name: p.name,
+      type: p.type,
+      defaultRole: p.defaultRole || 'lan'
+    }));
+    setNewModel({ name: model.name, imageUrl: model.imageUrl || '', ports: cleanPorts });
+    setIsModalOpen(true);
+  };
+
+  // --- Functions สำหรับ Port ---
   const handleAddPort = () => {
     setNewModel(prev => ({
       ...prev,
@@ -80,19 +96,25 @@ const ModelManager = () => {
     });
   };
 
+  // --- Functions สำหรับ Save (รองรับ Create และ Update) ---
   const handleSaveModel = async () => {
     if (!newModel.name) return alert("Please enter model name");
     if (newModel.ports.length === 0) return alert("Please add at least 1 port");
 
     try {
-      await apiClient.post('/api/master/models', newModel);
+      if (isEditMode) {
+        // อัปเดต Model เดิม
+        await apiClient.put(`/api/master/models/${editingId}`, newModel);
+      } else {
+        // สร้าง Model ใหม่
+        await apiClient.post('/api/master/models', newModel);
+        setShowDeleted(false);
+      }
       setIsModalOpen(false);
-      setNewModel({ name: '', imageUrl: '', ports: [] }); // Reset form
-      setShowDeleted(false); // เด้งกลับมาหน้า Active อัตโนมัติเมื่อสร้างเสร็จ
-      fetchModels(); // Refresh table
+      fetchModels();
     } catch (error) {
       console.error("Save error:", error);
-      alert("Failed to save model");
+      alert(error.response?.data?.error || "Failed to save model");
     }
   };
 
@@ -112,7 +134,7 @@ const ModelManager = () => {
     if (confirm(`Are you sure you want to restore ${name}?`)) {
       try {
         await apiClient.put(`/api/master/models/${id}/restore`);
-        fetchModels(); // โหลดข้อมูลใหม่เมื่อกู้คืนเสร็จ
+        fetchModels();
       } catch (error) {
         alert("Failed to restore model");
       }
@@ -145,7 +167,7 @@ const ModelManager = () => {
           </button>
 
           <button 
-            onClick={() => setIsModalOpen(true)}
+            onClick={handleOpenCreate}
             className="bg-blue-600 text-white px-4 py-2.5 rounded-xl flex items-center gap-2 hover:bg-blue-700 transition font-medium shadow-sm"
           >
             <Plus size={20} /> Add New Model
@@ -195,24 +217,36 @@ const ModelManager = () => {
                     )}
                   </div>
                   
-                  {/* สลับปุ่มระหว่าง Restore กับ Delete */}
-                  {showDeleted ? (
-                    <button 
-                      onClick={() => handleRestoreModel(model.id, model.name)}
-                      className="text-slate-400 hover:text-green-600 opacity-0 group-hover:opacity-100 transition"
-                      title="Restore Model"
-                    >
-                      <RotateCcw size={18} />
-                    </button>
-                  ) : (
-                    <button 
-                      onClick={() => handleDeleteModel(model.id, model.name)}
-                      className="text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition"
-                      title="Delete Model"
-                    >
-                      <Trash2 size={18} />
-                    </button>
-                  )}
+                  {/* Action Buttons */}
+                  <div className="flex items-center gap-1">
+                    {!showDeleted && isSuperAdmin && (
+                      <button 
+                        onClick={() => handleOpenEdit(model)}
+                        className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg opacity-0 group-hover:opacity-100 transition"
+                        title="Edit Model"
+                      >
+                        <Edit size={16} />
+                      </button>
+                    )}
+
+                    {showDeleted ? (
+                      <button 
+                        onClick={() => handleRestoreModel(model.id, model.name)}
+                        className="p-1.5 text-slate-400 hover:text-green-600 hover:bg-green-50 rounded-lg opacity-0 group-hover:opacity-100 transition"
+                        title="Restore Model"
+                      >
+                        <RotateCcw size={16} />
+                      </button>
+                    ) : (
+                      <button 
+                        onClick={() => handleDeleteModel(model.id, model.name)}
+                        className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg opacity-0 group-hover:opacity-100 transition"
+                        title="Delete Model"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    )}
+                  </div>
                 </div>
                 
                 <div className="p-4 flex gap-4 items-center">
@@ -268,13 +302,16 @@ const ModelManager = () => {
         </>
       )}
 
-      {/* --- Add Model Modal --- */}
+      {/* --- Add / Edit Model Modal --- */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200">
             
             <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
-              <h3 className="font-bold text-lg">Create New Hardware Model</h3>
+              <h3 className="font-bold text-lg flex items-center gap-2">
+                {isEditMode ? <Edit className="text-blue-600" size={20} /> : <PlusCircle className="text-green-600" size={20} />}
+                {isEditMode ? 'Edit Hardware Model' : 'Create New Hardware Model'}
+              </h3>
               <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-600"><X size={24} /></button>
             </div>
             
@@ -343,7 +380,7 @@ const ModelManager = () => {
             <div className="p-4 border-t border-slate-100 bg-slate-50 flex justify-end gap-3">
               <button onClick={() => setIsModalOpen(false)} className="px-4 py-2 text-slate-600 hover:bg-slate-200 rounded-lg">Cancel</button>
               <button onClick={handleSaveModel} className="px-4 py-2 bg-blue-600 text-white flex items-center gap-2 rounded-lg hover:bg-blue-700">
-                <Save size={18} /> Save Model
+                <Save size={18} /> {isEditMode ? 'Save Changes' : 'Save Model'}
               </button>
             </div>
             

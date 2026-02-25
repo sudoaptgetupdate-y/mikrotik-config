@@ -16,7 +16,6 @@ const GlobalSettings = () => {
   const [routerAdmins, setRouterAdmins] = useState([]);
   const [newAdmin, setNewAdmin] = useState({ username: '', password: '', group: 'full' });
 
-  // ⭐ State สำหรับ Default Networks
   const [defaultNetworks, setDefaultNetworks] = useState([]);
 
   const [showPassword, setShowPassword] = useState({}); 
@@ -37,7 +36,6 @@ const GlobalSettings = () => {
             setMonitorIps([...loadedIps, '', '', '', '', ''].slice(0, 5));
           }
           if (item.key === 'ROUTER_ADMINS') setRouterAdmins(item.value || []);
-          // ⭐ โหลด DEFAULT_NETWORKS
           if (item.key === 'DEFAULT_NETWORKS') {
             try {
               setDefaultNetworks(typeof item.value === 'string' ? JSON.parse(item.value) : item.value);
@@ -61,7 +59,6 @@ const GlobalSettings = () => {
   const handleSaveSetting = async (key, value) => {
     setIsSaving(true);
     try {
-      // ถ้าเป็น DEFAULT_NETWORKS ให้ stringify ก่อนส่ง
       const payloadValue = key === 'DEFAULT_NETWORKS' ? JSON.stringify(value) : value;
       await apiClient.put(`/api/settings/${key}`, { value: payloadValue });
       alert(`บันทึกข้อมูล ${key} สำเร็จ!`);
@@ -110,7 +107,7 @@ const GlobalSettings = () => {
   };
 
   // ==========================================
-  // ⭐ Handlers: Default Networks
+  // Handlers: Default Networks
   // ==========================================
   const addDefaultNetwork = () => {
     const customVlans = defaultNetworks.filter(n => n.vlanId !== 56).map(n => n.vlanId);
@@ -144,12 +141,17 @@ const GlobalSettings = () => {
   };
 
   return (
-    <div className="max-w-5xl mx-auto p-6">
-      <div className="mb-8">
-        <h1 className="text-3xl font-black text-slate-800 flex items-center gap-3">
-          <Shield className="text-blue-600" size={32} /> Global System Settings
-        </h1>
-        <p className="text-slate-500 mt-2">ตั้งค่าพารามิเตอร์ส่วนกลางสำหรับระบบ Generator</p>
+    // ✅ เปลี่ยนจาก <div className="max-w-5xl mx-auto p-6"> เป็นคลาส Layout หลัก
+    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">
+      
+      {/* ✅ ปรับ Header ให้หน้าตาและขนาดเหมือนกับหน้า ModelManager / Dashboard */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
+            <Shield className="text-blue-600" size={28} /> Global System Settings
+          </h2>
+          <p className="text-slate-500 mt-1 font-medium">ตั้งค่าพารามิเตอร์ส่วนกลางสำหรับระบบ Generator</p>
+        </div>
       </div>
 
       {isLoading ? (
@@ -159,7 +161,8 @@ const GlobalSettings = () => {
         </div>
       ) : (
         <>
-          <div className="flex border-b border-slate-200 mb-6 overflow-x-auto">
+          {/* Tabs */}
+          <div className="flex border-b border-slate-200 overflow-x-auto">
             <button onClick={() => setActiveTab('ADMINS')} className={`flex items-center gap-2 px-6 py-3 font-bold border-b-2 transition-colors whitespace-nowrap ${activeTab === 'ADMINS' ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>
               <Shield size={18} /> Router Admins
             </button>
@@ -169,17 +172,15 @@ const GlobalSettings = () => {
             <button onClick={() => setActiveTab('PBR')} className={`flex items-center gap-2 px-6 py-3 font-bold border-b-2 transition-colors whitespace-nowrap ${activeTab === 'PBR' ? 'border-orange-500 text-orange-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>
               <Globe size={18} /> PBR Monitor Targets
             </button>
-            {/* ⭐ Tab ใหม่สำหรับ Default Networks */}
             <button onClick={() => setActiveTab('DEFAULTS')} className={`flex items-center gap-2 px-6 py-3 font-bold border-b-2 transition-colors whitespace-nowrap ${activeTab === 'DEFAULTS' ? 'border-purple-600 text-purple-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>
               <Settings2 size={18} /> Default LAN/VLAN
             </button>
           </div>
 
-          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm min-h-[400px] flex flex-col">
+          <div className="bg-white p-6 md:p-8 rounded-2xl border border-slate-200 shadow-sm min-h-[400px] flex flex-col">
             
-            {/* TAB 1: ROUTER ADMINS (คงเดิม) */}
+            {/* TAB 1: ROUTER ADMINS */}
             {activeTab === 'ADMINS' && (
-              // ... โค้ดส่วน Admin เดิม
               <div className="flex-1">
                 <div className="flex items-center justify-between mb-6 pb-4 border-b border-slate-100">
                   <div>
@@ -225,14 +226,13 @@ const GlobalSettings = () => {
               </div>
             )}
 
-            {/* TAB 2: MANAGEMENT NETWORKS (คงเดิม) */}
+            {/* TAB 2: MANAGEMENT NETWORKS */}
             {activeTab === 'NETWORKS' && (
-              // ... โค้ดส่วน Management IPs เดิม
               <div className="flex-1 flex flex-col">
                 <div className="mb-6 pb-4 border-b border-slate-100">
                   <h3 className="text-lg font-bold text-slate-800">Management IPs (Allow List)</h3>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
                   {managementIps.map((ip, idx) => (
                     <div key={idx} className="flex items-center gap-2 bg-slate-50 p-2.5 rounded-xl border border-slate-200 focus-within:border-emerald-400 focus-within:ring-2 focus-within:ring-emerald-50 transition-all">
                       <input type="text" value={ip} onChange={(e) => updateManagementIp(idx, e.target.value)} className="flex-1 bg-transparent px-2 py-1 text-sm font-mono text-emerald-800 outline-none w-full"/>
@@ -251,9 +251,8 @@ const GlobalSettings = () => {
               </div>
             )}
 
-            {/* TAB 3: PBR MONITOR TARGETS (คงเดิม) */}
+            {/* TAB 3: PBR MONITOR TARGETS */}
             {activeTab === 'PBR' && (
-              // ... โค้ดส่วน PBR เดิม
               <div className="flex-1">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 pb-4 border-b border-slate-100 gap-4">
                   <div>
@@ -275,7 +274,7 @@ const GlobalSettings = () => {
               </div>
             )}
 
-            {/* ⭐ TAB 4: DEFAULT NETWORKS (เพิ่มใหม่) */}
+            {/* TAB 4: DEFAULT NETWORKS */}
             {activeTab === 'DEFAULTS' && (
               <div className="flex-1 flex flex-col">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 pb-4 border-b border-slate-100 gap-4">
@@ -293,33 +292,33 @@ const GlobalSettings = () => {
                   </div>
                 </div>
 
-                <div className="space-y-3 overflow-y-auto pr-2 pb-4">
+                <div className="space-y-3">
                   {defaultNetworks.map((net) => (
-                    <div key={net.id} className="grid grid-cols-1 md:grid-cols-12 gap-3 items-center bg-slate-50 p-4 rounded-xl border border-slate-200">
+                    <div key={net.id} className="grid grid-cols-1 md:grid-cols-12 gap-3 items-center bg-slate-50 p-4 rounded-xl border border-slate-200 transition-all hover:border-purple-200 hover:shadow-sm">
                       
                       <div className="md:col-span-2">
                         <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">VLAN ID</label>
-                        <input type="number" className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm text-center font-mono outline-none" value={net.vlanId} onChange={(e) => updateDefaultNetwork(net.id, 'vlanId', parseInt(e.target.value))} />
+                        <input type="number" className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm text-center font-mono outline-none focus:border-purple-400 focus:ring-2 focus:ring-purple-50 transition-all" value={net.vlanId} onChange={(e) => updateDefaultNetwork(net.id, 'vlanId', parseInt(e.target.value))} />
                       </div>
 
                       <div className="md:col-span-3">
                         <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Network Name</label>
-                        <input type="text" className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm outline-none" value={net.name} onChange={(e) => updateDefaultNetwork(net.id, 'name', e.target.value)} />
+                        <input type="text" className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm outline-none focus:border-purple-400 focus:ring-2 focus:ring-purple-50 transition-all" value={net.name} onChange={(e) => updateDefaultNetwork(net.id, 'name', e.target.value)} />
                       </div>
 
                       <div className="md:col-span-3">
                         <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">IP / CIDR</label>
-                        <input type="text" className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm font-mono outline-none" value={net.ip} onChange={(e) => updateDefaultNetwork(net.id, 'ip', e.target.value)} />
+                        <input type="text" className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm font-mono outline-none focus:border-purple-400 focus:ring-2 focus:ring-purple-50 transition-all" value={net.ip} onChange={(e) => updateDefaultNetwork(net.id, 'ip', e.target.value)} />
                       </div>
 
-                      <div className="md:col-span-4 flex justify-end gap-2 mt-4 md:mt-0">
-                        <button onClick={() => updateDefaultNetwork(net.id, 'dhcp', !net.dhcp)} className={`flex items-center px-3 py-2 rounded-lg border text-[11px] font-bold ${net.dhcp ? 'bg-green-50 border-green-200 text-green-700' : 'bg-white border-slate-200 text-slate-400'}`}>
+                      <div className="md:col-span-4 flex justify-end gap-2 mt-4 md:mt-0 pt-4 md:pt-0">
+                        <button onClick={() => updateDefaultNetwork(net.id, 'dhcp', !net.dhcp)} className={`flex items-center px-3 py-2 rounded-lg border text-[11px] font-bold transition-colors ${net.dhcp ? 'bg-green-50 border-green-200 text-green-700' : 'bg-white border-slate-200 text-slate-400 hover:bg-slate-50'}`}>
                           <Server size={14} className="mr-1" /> DHCP
                         </button>
-                        <button onClick={() => toggleDefaultHotspot(net.id, net.hotspot)} className={`flex items-center px-3 py-2 rounded-lg border text-[11px] font-bold ${net.hotspot ? 'bg-orange-50 border-orange-200 text-orange-700' : 'bg-white border-slate-200 text-slate-400'}`}>
+                        <button onClick={() => toggleDefaultHotspot(net.id, net.hotspot)} className={`flex items-center px-3 py-2 rounded-lg border text-[11px] font-bold transition-colors ${net.hotspot ? 'bg-orange-50 border-orange-200 text-orange-700' : 'bg-white border-slate-200 text-slate-400 hover:bg-slate-50'}`}>
                           <ShieldCheck size={14} className="mr-1" /> HOTSPOT
                         </button>
-                        <button onClick={() => removeDefaultNetwork(net.id)} className="p-2 text-slate-400 hover:text-red-600 bg-white border border-slate-200 hover:border-red-200 rounded-lg">
+                        <button onClick={() => removeDefaultNetwork(net.id)} className="p-2.5 text-slate-400 hover:text-red-600 bg-white border border-slate-200 hover:border-red-200 hover:bg-red-50 rounded-lg transition-all">
                           <Trash2 size={16} />
                         </button>
                       </div>
@@ -327,7 +326,7 @@ const GlobalSettings = () => {
                     </div>
                   ))}
                   {defaultNetworks.length === 0 && (
-                    <div className="text-center py-10 text-slate-400 text-sm">ยังไม่มีการตั้งค่า Network เริ่มต้น</div>
+                    <div className="text-center py-10 text-slate-400 text-sm border border-dashed border-slate-300 rounded-xl bg-slate-50">ยังไม่มีการตั้งค่า Network เริ่มต้น</div>
                   )}
                 </div>
               </div>

@@ -21,10 +21,10 @@ const Step7_PBRSetup = ({ networks = [], wanList = [], pbrConfig, setPbrConfig }
       {/* --- Header Section --- */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
         <div>
-          <h2 className="text-xl font-black text-slate-800 flex items-center gap-2">
+          <h2 className="text-xl text-slate-800 flex items-center gap-2">
             <Route className="text-blue-600" /> Policy-Based Routing (PBR)
           </h2>
-          <p className="text-sm text-slate-500 mt-1 font-medium">กำหนดเส้นทางออกอินเทอร์เน็ตเฉพาะเจาะจงให้กับแต่ละวงเครือข่าย (VLAN)</p>
+          <p className="text-sm text-slate-500 mt-1">กำหนดเส้นทางออกอินเทอร์เน็ตเฉพาะเจาะจงให้กับแต่ละวงเครือข่าย (VLAN)</p>
         </div>
 
         {/* Toggle PBR Switch */}
@@ -52,7 +52,7 @@ const Step7_PBRSetup = ({ networks = [], wanList = [], pbrConfig, setPbrConfig }
             <div className="bg-white px-6 py-4 rounded-2xl shadow-lg border border-slate-200 flex items-center gap-3">
               <ShieldAlert className="text-orange-500" size={24} />
               <div>
-                <p className="font-bold text-slate-800">PBR is Disabled</p>
+                <p className="text-slate-800">PBR is Disabled</p>
                 <p className="text-xs text-slate-500">Enable to configure specific routing rules.</p>
               </div>
             </div>
@@ -60,7 +60,7 @@ const Step7_PBRSetup = ({ networks = [], wanList = [], pbrConfig, setPbrConfig }
         )}
 
         {networks.length === 0 ? (
-          <div className="p-8 text-center text-slate-500 font-medium bg-slate-50/50">
+          <div className="p-8 text-center text-slate-500 bg-slate-50/50">
             ไม่พบข้อมูล Network (VLAN) กรุณาสร้าง Network ก่อนใช้งาน PBR
           </div>
         ) : (
@@ -70,8 +70,8 @@ const Step7_PBRSetup = ({ networks = [], wanList = [], pbrConfig, setPbrConfig }
               
               <thead className="bg-slate-50/90 backdrop-blur-md border-b border-slate-200 sticky top-0 z-10 shadow-sm">
                 <tr>
-                  <th className="p-4 pl-6 text-[11px] font-bold text-slate-500 uppercase tracking-wider w-[40%]">Local Network (Source)</th>
-                  <th className="p-4 pr-6 text-[11px] font-bold text-slate-500 uppercase tracking-wider w-[60%]">Route via WAN (Destination)</th>
+                  <th className="p-4 pl-6 text-[11px] text-slate-500 uppercase tracking-wider w-[40%]">Local Network (Source)</th>
+                  <th className="p-4 pr-6 text-[11px] text-slate-500 uppercase tracking-wider w-[60%]">Route via WAN (Destination)</th>
                 </tr>
               </thead>
               
@@ -88,7 +88,7 @@ const Step7_PBRSetup = ({ networks = [], wanList = [], pbrConfig, setPbrConfig }
                             <Network size={18} />
                           </div>
                           <div>
-                            <p className="font-bold text-slate-800 text-sm">VLAN {net.vlanId} • {net.name}</p>
+                            <p className="text-slate-800 text-sm">VLAN {net.vlanId} • {net.name}</p>
                             <p className="text-xs font-mono text-slate-500 mt-0.5">{net.ip}</p>
                           </div>
                         </div>
@@ -100,7 +100,7 @@ const Step7_PBRSetup = ({ networks = [], wanList = [], pbrConfig, setPbrConfig }
                           <select 
                             value={selectedWan}
                             onChange={(e) => setNetworkWan(net.id, e.target.value)}
-                            className={`w-full pl-10 pr-10 py-3 border rounded-xl text-[13px] font-bold outline-none transition-all appearance-none shadow-sm relative cursor-pointer ${
+                            className={`w-full pl-10 pr-10 py-3 border rounded-xl text-[13px] outline-none transition-all appearance-none shadow-sm relative cursor-pointer ${
                               pbrConfig.enabled 
                                 ? 'bg-white border-blue-200 text-blue-800 focus:border-blue-400 focus:ring-4 focus:ring-blue-50 hover:border-blue-300'
                                 : 'bg-slate-50 border-slate-200 text-slate-500'

@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Router, CheckCircle, Hash, MapPin, Search, Star, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Router, CheckCircle, MapPin, Search, Star, ChevronLeft, ChevronRight } from 'lucide-react';
 
 const Step1_ModelSelect = ({ 
   models, 
@@ -71,17 +71,15 @@ const Step1_ModelSelect = ({
             <label className="block text-sm font-medium text-slate-700 mb-1">
               Circuit ID / User Ref <span className="text-red-500">*</span>
             </label>
-            <div className="relative">
-              <Hash className="absolute left-3 top-2.5 text-slate-400" size={18} />
-              <input
-                type="text"
-                name="circuitId"
-                value={deviceMeta.circuitId}
-                onChange={handleChange}
-                placeholder="7534j7572"
-                className="w-full pl-10 pr-4 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-blue-500 outline-none transition"
-              />
-            </div>
+            {/* ✅ ลบ <Hash /> และเปลี่ยน pl-10 เป็น px-4 ให้เหมือนช่องซ้าย */}
+            <input
+              type="text"
+              name="circuitId"
+              value={deviceMeta.circuitId}
+              onChange={handleChange}
+              placeholder="7534j7572"
+              className="w-full px-4 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-blue-500 outline-none transition"
+            />
           </div>
         </div>
       </div>

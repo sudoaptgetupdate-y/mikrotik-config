@@ -30,7 +30,6 @@ exports.getModels = async (req, res) => {
 
 // 2. สร้าง Model ใหม่ พร้อม Port แบบ Dynamic
 exports.createModel = async (req, res) => {
-  // ... (ใช้โค้ดเดิมของคุณได้เลย ไม่ต้องแก้)
   try {
     const { name, imageUrl, ports } = req.body;
     
@@ -87,7 +86,7 @@ exports.deleteModel = async (req, res) => {
   }
 };
 
-// ฟังก์ชันสำหรับกู้คืน Model
+// 4. ฟังก์ชันสำหรับกู้คืน Model
 exports.restoreModel = async (req, res) => {
   try {
     const { id } = req.params;
@@ -101,5 +100,48 @@ exports.restoreModel = async (req, res) => {
   } catch (error) {
     console.error("Restore model error:", error);
     res.status(500).json({ error: "Failed to restore model" });
+  }
+};
+
+// 5. แก้ไข Model (เพิ่มใหม่ - เฉพาะ Super Admin)
+exports.updateModel = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, imageUrl, ports } = req.body;
+
+    if (!name || !ports || ports.length === 0) {
+      return res.status(400).json({ error: "Model name and at least one port are required." });
+    }
+
+    // ลบ Ports เก่าออกทั้งหมดก่อน
+    await prisma.portTemplate.deleteMany({
+      where: { deviceModelId: parseInt(id) }
+    });
+
+    // อัปเดตข้อมูล Model และสร้าง Ports ใหม่
+    const updatedModel = await prisma.deviceModel.update({
+      where: { id: parseInt(id) },
+      data: {
+        name,
+        imageUrl: imageUrl || null,
+        ports: {
+          create: ports.map(p => ({
+            name: p.name,
+            type: p.type,
+            defaultRole: p.defaultRole
+          }))
+        }
+      },
+      include: { ports: true }
+    });
+
+    res.json(updatedModel);
+  } catch (error) {
+    console.error("Update model error:", error);
+    // กรณีที่แก้ชื่อซ้ำกับ Model อื่นที่มีอยู่แล้ว
+    if (error.code === 'P2002') {
+      return res.status(400).json({ error: "Model name already exists." });
+    }
+    res.status(500).json({ error: "Failed to update model" });
   }
 };

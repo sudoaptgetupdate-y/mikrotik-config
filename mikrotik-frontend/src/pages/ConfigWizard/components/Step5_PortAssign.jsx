@@ -18,7 +18,7 @@ const Step5_PortAssign = ({ selectedModel, wanList, networks, portConfig, setPor
   const [selectedPorts, setSelectedPorts] = useState([]);
   const [bulkConfig, setBulkConfig] = useState({ 
     mode: 'access', 
-    pvid: defaultVlan, // ✅ ใช้ defaultVlan แทน 10
+    pvid: defaultVlan, 
     nativeVlan: 1, 
     allowed: [] 
   });
@@ -34,7 +34,6 @@ const Step5_PortAssign = ({ selectedModel, wanList, networks, portConfig, setPor
   // === ฟังก์ชันสำหรับ Single Port ===
   const updatePortConfig = (portName, field, value) => {
     setPortConfig(prev => {
-      // ✅ ใช้ defaultVlan แทน 10
       const current = prev[portName] || { mode: 'access', pvid: defaultVlan, nativeVlan: 1, allowed: [] };
       
       if (field === 'mode') {
@@ -44,7 +43,7 @@ const Step5_PortAssign = ({ selectedModel, wanList, networks, portConfig, setPor
             ...current, 
             mode: value,
             nativeVlan: value === 'trunk' ? 1 : undefined,
-            pvid: value === 'access' ? defaultVlan : 1, // ✅ ใช้ defaultVlan แทน 10
+            pvid: value === 'access' ? defaultVlan : 1, 
             allowed: [] 
           }
         };
@@ -86,7 +85,7 @@ const Step5_PortAssign = ({ selectedModel, wanList, networks, portConfig, setPor
           ...prev,
           mode: value,
           nativeVlan: value === 'trunk' ? 1 : undefined,
-          pvid: value === 'access' ? defaultVlan : 1, // ✅ ใช้ defaultVlan แทน 10
+          pvid: value === 'access' ? defaultVlan : 1, 
           allowed: []
         };
       }
@@ -119,22 +118,22 @@ const Step5_PortAssign = ({ selectedModel, wanList, networks, portConfig, setPor
       {/* --- Header Section --- */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5 bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
         <div>
-          <h2 className="text-xl font-black text-slate-800 flex items-center gap-2">
+          <h2 className="text-xl text-slate-800 flex items-center gap-2">
             <Layers className="text-blue-600" /> Port Assignment (VLAN)
           </h2>
-          <p className="text-sm text-slate-500 mt-1 font-medium">
+          <p className="text-sm text-slate-500 mt-1">
             กำหนด VLAN ให้กับพอร์ต LAN (สามารถใช้ Checkbox เพื่อตั้งค่าหลายพอร์ตพร้อมกันได้)
           </p>
         </div>
       </div>
 
-      {/* === แถบควบคุม Bulk Action (Floating & Sticky) === */}
+      {/* === แถบควบคุม Bulk Action (Floating & Sticky) กลับมาเป็นโทนสีดำเหมือนเดิม === */}
       {selectedPorts.length > 0 && (
         <div className="sticky top-4 z-20 mb-5 bg-slate-900 border border-slate-800 rounded-2xl p-3.5 shadow-xl shadow-slate-900/20 animate-in fade-in slide-in-from-top-4 flex flex-col lg:flex-row gap-4 lg:items-center justify-between">
           
           <div className="flex flex-col md:flex-row md:items-center gap-4 flex-1">
             {/* Selected Count Badge */}
-            <div className="flex items-center gap-2 font-bold text-white bg-blue-600 px-3 py-2 rounded-xl shrink-0 shadow-sm text-sm">
+            <div className="flex items-center gap-2 text-white bg-blue-600 px-3 py-2 rounded-xl shrink-0 shadow-sm text-sm">
               <CheckSquare size={16} /> {selectedPorts.length} Ports Selected
             </div>
             
@@ -145,7 +144,7 @@ const Step5_PortAssign = ({ selectedModel, wanList, networks, portConfig, setPor
                 <select 
                   value={bulkConfig.mode}
                   onChange={(e) => updateBulkConfig('mode', e.target.value)}
-                  className="pl-3 pr-8 py-2 bg-slate-700 border border-slate-600 rounded-lg text-sm font-bold text-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors appearance-none cursor-pointer"
+                  className="pl-3 pr-8 py-2 bg-slate-700 border border-slate-600 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors appearance-none cursor-pointer"
                 >
                   <option value="access">Access Mode</option>
                   <option value="trunk">Trunk Mode</option>
@@ -158,12 +157,12 @@ const Step5_PortAssign = ({ selectedModel, wanList, networks, portConfig, setPor
               {/* Dynamic Bulk Config based on Mode */}
               {bulkConfig.mode === 'access' ? (
                 <div className="flex items-center gap-2 w-full">
-                  <span className="text-[11px] text-slate-400 font-bold uppercase tracking-wider shrink-0">Assign VLAN:</span>
+                  <span className="text-[11px] text-slate-400 uppercase tracking-wider shrink-0">Assign VLAN:</span>
                   <div className="relative w-full md:w-64">
                     <select 
                       value={bulkConfig.pvid}
                       onChange={(e) => updateBulkConfig('pvid', parseInt(e.target.value))}
-                      className="w-full pl-3 pr-8 py-2 bg-slate-700 border border-slate-600 rounded-lg text-sm font-medium text-white focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none cursor-pointer"
+                      className="w-full pl-3 pr-8 py-2 bg-slate-700 border border-slate-600 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none cursor-pointer"
                     >
                       {networks.map(n => (
                         <option key={n.id} value={n.vlanId}>VLAN {n.vlanId} - {n.name}</option>
@@ -175,11 +174,11 @@ const Step5_PortAssign = ({ selectedModel, wanList, networks, portConfig, setPor
               ) : (
                 <div className="flex flex-col xl:flex-row xl:items-center gap-3 w-full">
                   <div className="flex items-center gap-2 shrink-0">
-                    <span className="text-[10px] font-bold text-purple-400 uppercase tracking-wider">Native:</span>
+                    <span className="text-[10px] text-purple-400 uppercase tracking-wider">Native:</span>
                     <select 
                       value={bulkConfig.nativeVlan || 1}
                       onChange={(e) => updateBulkConfig('nativeVlan', parseInt(e.target.value))}
-                      className="pl-2 pr-6 py-1.5 bg-slate-700 border border-slate-600 rounded-lg text-xs font-medium text-white outline-none focus:ring-2 focus:ring-purple-500 appearance-none cursor-pointer"
+                      className="pl-2 pr-6 py-1.5 bg-slate-700 border border-slate-600 rounded-lg text-xs text-white outline-none focus:ring-2 focus:ring-purple-500 appearance-none cursor-pointer"
                     >
                       <option value={1}>VLAN 1 (Default)</option>
                       {networks.map(n => (
@@ -189,7 +188,7 @@ const Step5_PortAssign = ({ selectedModel, wanList, networks, portConfig, setPor
                   </div>
                   
                   <div className="flex items-center gap-2 w-full">
-                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider shrink-0 xl:hidden">Allowed:</span>
+                    <span className="text-[10px] text-slate-400 uppercase tracking-wider shrink-0 xl:hidden">Allowed:</span>
                     <div className="flex flex-wrap gap-1.5">
                       {networks.map(n => {
                         if (n.vlanId === (bulkConfig.nativeVlan || 1)) return null;
@@ -198,7 +197,7 @@ const Step5_PortAssign = ({ selectedModel, wanList, networks, portConfig, setPor
                           <button 
                             key={`bulk-${n.id}`}
                             onClick={() => updateBulkConfig('toggleVlan', n.vlanId)}
-                            className={`px-2 py-1 rounded-md text-[10px] font-bold border transition-all flex items-center gap-1 duration-200 ${
+                            className={`px-2 py-1 rounded-md text-[10px] border transition-all flex items-center gap-1 duration-200 ${
                               isSelected 
                                 ? 'bg-purple-600 border-purple-500 text-white shadow-sm shadow-purple-500/20' 
                                 : 'bg-slate-700 border-slate-600 text-slate-300 hover:bg-slate-600'
@@ -218,14 +217,14 @@ const Step5_PortAssign = ({ selectedModel, wanList, networks, portConfig, setPor
           <div className="flex items-center gap-2 shrink-0 pt-2 lg:pt-0 border-t lg:border-t-0 border-slate-700/50 mt-1 lg:mt-0 lg:pl-2">
             <button 
               onClick={() => setSelectedPorts([])}
-              className="px-3 py-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-xl transition-colors font-bold text-sm flex items-center gap-1"
+              className="px-3 py-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-xl transition-colors text-sm flex items-center gap-1"
               title="Cancel Selection"
             >
               <X size={16} /> Cancel
             </button>
             <button 
               onClick={applyBulkConfig}
-              className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-sm font-bold rounded-xl flex items-center gap-1.5 transition-all shadow-md shadow-blue-900/50"
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-sm rounded-xl flex items-center gap-1.5 transition-all shadow-md shadow-blue-900/50"
             >
               <Settings size={16} /> Apply Config
             </button>
@@ -233,11 +232,11 @@ const Step5_PortAssign = ({ selectedModel, wanList, networks, portConfig, setPor
         </div>
       )}
 
-      {/* === ตารางพอร์ต (Main Port List - ปลดล็อกความสูงแล้ว) === */}
-      <div className={`bg-white border rounded-2xl shadow-sm overflow-hidden flex flex-col transition-all duration-300 ${selectedPorts.length > 0 ? 'border-blue-300 ring-4 ring-blue-50' : 'border-slate-200'}`}>
+      {/* === ตารางพอร์ต (ปรับคลาส border ให้เป็นสีฟ้าเรืองแสงตลอดเวลา) === */}
+      <div className="bg-white border rounded-2xl shadow-sm overflow-hidden flex flex-col transition-all duration-300 border-blue-300 ring-4 ring-blue-50">
         
         {lanPorts.length === 0 ? (
-          <div className="p-8 text-center text-slate-500 font-medium bg-slate-50/50">
+          <div className="p-8 text-center text-slate-500 bg-slate-50/50">
             ไม่พบพอร์ต LAN ที่ว่าง (พอร์ตทั้งหมดอาจถูกตั้งเป็น WAN ไปแล้ว)
           </div>
         ) : (
@@ -255,15 +254,14 @@ const Step5_PortAssign = ({ selectedModel, wanList, networks, portConfig, setPor
                       onChange={handleSelectAll}
                     />
                   </th>
-                  <th className="p-3 text-[11px] font-bold text-slate-500 uppercase tracking-wider w-36">Interface</th>
-                  <th className="p-3 text-[11px] font-bold text-slate-500 uppercase tracking-wider w-40">Mode</th>
-                  <th className="p-3 pr-5 text-[11px] font-bold text-slate-500 uppercase tracking-wider">VLAN Configuration</th>
+                  <th className="p-3 text-[11px] text-slate-500 uppercase tracking-wider w-36">Interface</th>
+                  <th className="p-3 text-[11px] text-slate-500 uppercase tracking-wider w-40">Mode</th>
+                  <th className="p-3 pr-5 text-[11px] text-slate-500 uppercase tracking-wider">VLAN Configuration</th>
                 </tr>
               </thead>
               
               <tbody className="divide-y divide-slate-100">
                 {lanPorts.map((port) => {
-                  // ✅ ใช้ defaultVlan แทน 10
                   const config = portConfig[port.name] || { mode: 'access', pvid: defaultVlan, nativeVlan: 1, allowed: [] };
                   const isChecked = selectedPorts.includes(port.name);
                   
@@ -283,7 +281,7 @@ const Step5_PortAssign = ({ selectedModel, wanList, networks, portConfig, setPor
                       {/* Port Name */}
                       <td className="p-3 align-top pt-3">
                         <div 
-                          className={`inline-flex items-center gap-1.5 font-black px-2.5 py-1.5 rounded-lg text-sm border transition-colors cursor-pointer ${
+                          className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-sm border transition-colors cursor-pointer ${
                             isChecked 
                               ? 'bg-blue-100 border-blue-200 text-blue-700' 
                               : 'bg-slate-100 border-slate-200 text-slate-700 group-hover:border-blue-200 group-hover:bg-blue-50'
@@ -302,7 +300,7 @@ const Step5_PortAssign = ({ selectedModel, wanList, networks, portConfig, setPor
                             value={config.mode}
                             onChange={(e) => updatePortConfig(port.name, 'mode', e.target.value)}
                             disabled={isChecked}
-                            className={`w-full pl-3 pr-8 py-2 border rounded-xl text-[13px] font-bold outline-none transition-all appearance-none shadow-sm ${
+                            className={`w-full pl-3 pr-8 py-2 border rounded-xl text-[13px] outline-none transition-all appearance-none shadow-sm ${
                               isChecked 
                                 ? 'opacity-40 cursor-not-allowed bg-slate-50 border-slate-200 text-slate-500' 
                                 : config.mode === 'trunk'
@@ -323,12 +321,12 @@ const Step5_PortAssign = ({ selectedModel, wanList, networks, portConfig, setPor
                           
                           {config.mode === 'access' ? (
                             <div className="animate-in fade-in zoom-in-95 duration-200 flex items-center gap-3">
-                              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider shrink-0">VLAN (PVID)</label>
+                              <label className="text-[10px] text-slate-400 uppercase tracking-wider shrink-0">VLAN (PVID)</label>
                               <div className="relative w-full max-w-[200px]">
                                 <select 
                                   value={config.pvid}
                                   onChange={(e) => updatePortConfig(port.name, 'pvid', parseInt(e.target.value))}
-                                  className="w-full pl-3 pr-8 py-1.5 bg-white border border-slate-200 rounded-lg text-[13px] font-medium text-slate-700 focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-50 transition-all cursor-pointer appearance-none"
+                                  className="w-full pl-3 pr-8 py-1.5 bg-white border border-slate-200 rounded-lg text-[13px] text-slate-700 focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-50 transition-all cursor-pointer appearance-none"
                                 >
                                   {networks.map(n => (
                                     <option key={n.id} value={n.vlanId}>VLAN {n.vlanId} {n.name ? `(${n.name})` : ''}</option>
@@ -341,12 +339,12 @@ const Step5_PortAssign = ({ selectedModel, wanList, networks, portConfig, setPor
                             <div className="animate-in fade-in zoom-in-95 duration-200 space-y-3">
                               {/* Native VLAN */}
                               <div className="flex items-center gap-3">
-                                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider shrink-0 w-20">Native</label>
+                                <label className="text-[10px] text-slate-400 uppercase tracking-wider shrink-0 w-20">Native</label>
                                 <div className="relative w-full max-w-[200px]">
                                   <select 
                                     value={config.nativeVlan || 1}
                                     onChange={(e) => updatePortConfig(port.name, 'nativeVlan', parseInt(e.target.value))}
-                                    className="w-full pl-3 pr-8 py-1.5 bg-white border border-purple-200 rounded-lg text-[13px] font-medium text-purple-700 focus:outline-none focus:border-purple-400 focus:ring-2 focus:ring-purple-50 transition-all cursor-pointer appearance-none"
+                                    className="w-full pl-3 pr-8 py-1.5 bg-white border border-purple-200 rounded-lg text-[13px] text-purple-700 focus:outline-none focus:border-purple-400 focus:ring-2 focus:ring-purple-50 transition-all cursor-pointer appearance-none"
                                   >
                                     <option value={1}>VLAN 1 (Default)</option>
                                     {networks.map(n => (
@@ -359,7 +357,7 @@ const Step5_PortAssign = ({ selectedModel, wanList, networks, portConfig, setPor
 
                               {/* Allowed VLANs */}
                               <div className="flex items-start gap-3">
-                                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider shrink-0 w-20 pt-1.5">Allowed</label>
+                                <label className="text-[10px] text-slate-400 uppercase tracking-wider shrink-0 w-20 pt-1.5">Allowed</label>
                                 <div className="flex flex-wrap gap-1.5">
                                   {networks.map(n => {
                                     if (n.vlanId === (config.nativeVlan || 1)) return null;
@@ -368,7 +366,7 @@ const Step5_PortAssign = ({ selectedModel, wanList, networks, portConfig, setPor
                                       <button 
                                         key={n.id}
                                         onClick={() => updatePortConfig(port.name, 'toggleVlan', n.vlanId)}
-                                        className={`px-2.5 py-1 rounded-md text-[11px] font-bold border transition-all flex items-center gap-1 duration-200 ${
+                                        className={`px-2.5 py-1 rounded-md text-[11px] border transition-all flex items-center gap-1 duration-200 ${
                                           isSelected 
                                             ? 'bg-purple-600 border-purple-600 text-white shadow-sm' 
                                             : 'bg-white border-slate-200 text-slate-500 hover:border-purple-300 hover:text-purple-600'
