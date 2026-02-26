@@ -41,7 +41,7 @@ const MainLayout = () => {
           <div className="bg-blue-500 p-1.5 rounded-lg mr-3 shadow-lg shadow-blue-500/20">
             <Router size={22} className="text-white" />
           </div>
-          <span className="font-bold text-lg text-white tracking-wide">MikroManager</span>
+          <span className="font-bold text-lg text-white tracking-wide">Generate Config</span>
         </div>
 
         <nav className="flex-1 px-4 py-6 space-y-1.5 overflow-y-auto custom-scrollbar">

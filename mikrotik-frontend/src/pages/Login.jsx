@@ -41,7 +41,7 @@ const Login = () => {
           </div>
           
           <h2 className="text-2xl font-black text-center text-slate-800 tracking-tight mb-2">
-            Mikrotik Managemnet
+            Mikrotik Config Generate
           </h2>
           <p className="text-center text-slate-500 text-sm mb-8 font-medium">
             Sign in to manage your network devices
