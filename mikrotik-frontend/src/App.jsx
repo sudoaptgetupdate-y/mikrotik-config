@@ -74,7 +74,7 @@ function App() {
 
             {/* หน้าที่เข้าได้เฉพาะ SUPER_ADMIN เท่านั้น*/}
             <Route element={<ProtectedRoute allowedRoles={['SUPER_ADMIN']} />}>
-              <Route path="global-settings" element={<GlobalSettings />} />
+              <Route path="settings" element={<GlobalSettings />} />
             </Route>
 
             {/* Catch-all Route: ถ้า URL ไม่ตรง ให้กลับไปหน้า dashboard */}
