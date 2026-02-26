@@ -1,9 +1,20 @@
-import React from 'react';
-import { Route, Network, Globe, ChevronDown, ShieldAlert } from 'lucide-react';
+import React, { useEffect } from 'react';
+import { Route, Network, Globe, ChevronDown, ShieldAlert, Lock } from 'lucide-react';
 
 const Step7_PBRSetup = ({ networks = [], wanList = [], pbrConfig, setPbrConfig }) => {
   
+  // ✅ 1. ตัวแปรสำหรับเช็คว่ามี WAN ตั้งแต่ 2 ช่องทางขึ้นไปหรือไม่
+  const isMultiWan = wanList.length >= 2;
+
+  // ✅ 2. บังคับปิด PBR อัตโนมัติ ถ้าผู้ใช้ย้อนกลับไปลบ WAN จนเหลือน้อยกว่า 2
+  useEffect(() => {
+    if (!isMultiWan && pbrConfig.enabled) {
+      setPbrConfig(prev => ({ ...prev, enabled: false, mappings: {} }));
+    }
+  }, [isMultiWan, pbrConfig.enabled, setPbrConfig]);
+
   const togglePbr = () => {
+    if (!isMultiWan) return; // ป้องกันการกดเปลี่ยน State ถ้า WAN ไม่ถึง 2
     setPbrConfig(prev => ({ ...prev, enabled: !prev.enabled }));
   };
 
@@ -21,109 +32,111 @@ const Step7_PBRSetup = ({ networks = [], wanList = [], pbrConfig, setPbrConfig }
       {/* --- Header Section --- */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
         <div>
-          <h2 className="text-xl text-slate-800 flex items-center gap-2">
+          <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
             <Route className="text-blue-600" /> Policy-Based Routing (PBR)
           </h2>
-          <p className="text-sm text-slate-500 mt-1">กำหนดเส้นทางออกอินเทอร์เน็ตเฉพาะเจาะจงให้กับแต่ละวงเครือข่าย (VLAN)</p>
+          <p className="text-sm text-slate-500 mt-1">กำหนดเส้นทางออกอินเทอร์เน็ตเฉพาะเจาะจงให้กับแต่ละวงเครือข่าย</p>
         </div>
 
-        {/* Toggle PBR Switch */}
-        <button 
-          onClick={togglePbr}
-          className={`relative inline-flex h-7 w-14 shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 ${
-            pbrConfig.enabled ? 'bg-blue-600' : 'bg-slate-300'
-          }`}
-        >
-          <span className="sr-only">Enable PBR</span>
-          <span
-            className={`pointer-events-none inline-block h-6 w-6 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out ${
-              pbrConfig.enabled ? 'translate-x-7' : 'translate-x-0'
-            }`}
-          />
-        </button>
+        {/* Toggle Switch */}
+        <div className="flex items-center gap-3">
+          {/* ✅ แสดงข้อความแจ้งเตือนข้างๆ ปุ่มปิด-เปิด กรณีที่ WAN ไม่ถึง 2 */}
+          {!isMultiWan && (
+            <span className="text-xs font-bold text-red-500 flex items-center gap-1 bg-red-50 px-2.5 py-1.5 rounded-lg border border-red-100">
+              <Lock size={14} /> ต้องมี 2 WAN ขึ้นไป
+            </span>
+          )}
+
+          <button
+            onClick={togglePbr}
+            disabled={!isMultiWan}
+            className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors focus:outline-none ${
+              pbrConfig.enabled ? 'bg-blue-600' : 'bg-slate-300'
+            } ${!isMultiWan ? 'opacity-50 cursor-not-allowed grayscale' : 'cursor-pointer hover:ring-4 ring-blue-50'}`}
+          >
+            <span className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform shadow-sm ${
+              pbrConfig.enabled ? 'translate-x-6' : 'translate-x-1'
+            }`} />
+          </button>
+        </div>
       </div>
 
-      {/* --- Content Area --- */}
-      <div className={`bg-white border rounded-2xl shadow-sm overflow-hidden flex flex-col transition-all duration-300 relative ${pbrConfig.enabled ? 'border-blue-300 ring-4 ring-blue-50' : 'border-slate-200'}`}>
-        
-        {/* Overlay Block (เมื่อปิด PBR) */}
-        {!pbrConfig.enabled && (
-          <div className="absolute inset-0 z-10 bg-white/60 backdrop-blur-[2px] flex items-center justify-center">
-            <div className="bg-white px-6 py-4 rounded-2xl shadow-lg border border-slate-200 flex items-center gap-3">
-              <ShieldAlert className="text-orange-500" size={24} />
-              <div>
-                <p className="text-slate-800">PBR is Disabled</p>
-                <p className="text-xs text-slate-500">Enable to configure specific routing rules.</p>
-              </div>
+      {/* --- Content Section --- */}
+      {/* ✅ ถ้า WAN ไม่ถึง 2 ให้โชว์หน้าจอแจ้งเตือนแทนตาราง */}
+      {!isMultiWan ? (
+        <div className="bg-slate-50 border border-dashed border-slate-300 rounded-2xl p-10 text-center flex flex-col items-center justify-center">
+          <div className="bg-slate-200 p-4 rounded-full mb-4">
+            <ShieldAlert size={40} className="text-slate-400" />
+          </div>
+          <h3 className="text-lg font-bold text-slate-700 mb-2">ฟีเจอร์นี้รองรับเฉพาะระบบ Multi-WAN</h3>
+          <p className="text-sm text-slate-500 max-w-md mx-auto">
+            ปัจจุบันคุณตั้งค่าอินเทอร์เน็ต (WAN) ไว้เพียง <b>{wanList.length} ช่องทาง</b><br/>
+            ระบบ Policy-Based Routing จะสามารถเปิดใช้งานได้เมื่อมีการตั้งค่า WAN ตั้งแต่ 2 ช่องทางขึ้นไปเท่านั้น
+          </p>
+        </div>
+      ) : (
+        /* ✅ ตาราง PBR เดิม (ซ่อนไว้เมื่อปิด PBR) */
+        <div className={`transition-all duration-300 ${pbrConfig.enabled ? 'opacity-100' : 'opacity-40 pointer-events-none grayscale-[50%]'}`}>
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-slate-50 border-b border-slate-200 text-xs uppercase text-slate-500 font-bold">
+                    <th className="p-4 pl-6 w-1/3">LAN / VLAN Network</th>
+                    <th className="p-4 w-1/3">Target WAN Interface</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {networks.map((net) => {
+                    const selectedWan = pbrConfig.mappings?.[net.id] || (wanList[0]?.id || '');
+                    return (
+                      <tr key={net.id} className="hover:bg-slate-50/50 transition-colors">
+                        
+                        {/* คอลัมน์ที่ 1: ชื่อเครือข่าย */}
+                        <td className="p-4 pl-6">
+                          <div className="flex items-center gap-3">
+                            <div className="p-2 bg-purple-50 text-purple-600 rounded-lg border border-purple-100">
+                              <Network size={18} />
+                            </div>
+                            <div>
+                              <div className="font-bold text-slate-800 text-sm">{net.name}</div>
+                              <div className="text-[11px] font-mono text-slate-500 mt-0.5">{net.ip} (VLAN {net.vlanId})</div>
+                            </div>
+                          </div>
+                        </td>
+                        
+                        {/* คอลัมน์ที่ 2: Dropdown เลือก WAN */}
+                        <td className="p-4 pr-6">
+                          <div className="relative max-w-sm">
+                            <Globe size={16} className={`absolute left-3.5 top-1/2 -translate-y-1/2 ${pbrConfig.enabled ? 'text-blue-500' : 'text-slate-400'}`} />
+                            <select 
+                              value={selectedWan}
+                              onChange={(e) => setNetworkWan(net.id, e.target.value)}
+                              className={`w-full pl-10 pr-10 py-3 border rounded-xl text-[13px] font-medium outline-none transition-all appearance-none shadow-sm relative cursor-pointer ${
+                                pbrConfig.enabled 
+                                  ? 'bg-white border-blue-200 text-blue-800 focus:border-blue-400 focus:ring-4 focus:ring-blue-50 hover:border-blue-300'
+                                  : 'bg-slate-50 border-slate-200 text-slate-500'
+                              }`}
+                            >
+                              {wanList.map((wan, idx) => (
+                                <option key={wan.id} value={wan.id}>
+                                  WAN {idx + 1} • {wan.interface} ({wan.type.toUpperCase()})
+                                </option>
+                              ))}
+                            </select>
+                            <ChevronDown size={16} className={`absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none ${pbrConfig.enabled ? 'text-blue-400' : 'text-slate-400'}`} />
+                          </div>
+                        </td>
+                        
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
           </div>
-        )}
-
-        {networks.length === 0 ? (
-          <div className="p-8 text-center text-slate-500 bg-slate-50/50">
-            ไม่พบข้อมูล Network (VLAN) กรุณาสร้าง Network ก่อนใช้งาน PBR
-          </div>
-        ) : (
-          /* เอา max-h-[...] และ overflow-y-auto ออก ปล่อยให้ตารางสูงตามจริง */
-          <div className="overflow-x-auto [&::-webkit-scrollbar]:h-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-300 [&::-webkit-scrollbar-thumb]:rounded-full relative">
-            <table className="w-full text-left border-collapse min-w-[700px]">
-              
-              <thead className="bg-slate-50/90 backdrop-blur-md border-b border-slate-200 sticky top-0 z-10 shadow-sm">
-                <tr>
-                  <th className="p-4 pl-6 text-[11px] text-slate-500 uppercase tracking-wider w-[40%]">Local Network (Source)</th>
-                  <th className="p-4 pr-6 text-[11px] text-slate-500 uppercase tracking-wider w-[60%]">Route via WAN (Destination)</th>
-                </tr>
-              </thead>
-              
-              <tbody className="divide-y divide-slate-100">
-                {networks.map((net) => {
-                  const selectedWan = (pbrConfig.mappings && pbrConfig.mappings[net.id]) || (wanList.length > 0 ? wanList[0].id : '');
-
-                  return (
-                    <tr key={net.id} className={`transition-colors group hover:bg-slate-50/50 ${!pbrConfig.enabled ? 'opacity-50 pointer-events-none' : ''}`}>
-                      
-                      <td className="p-4 pl-6 align-middle">
-                        <div className="flex items-center gap-3">
-                          <div className={`p-2 rounded-lg ${pbrConfig.enabled ? 'bg-blue-100 text-blue-600' : 'bg-slate-100 text-slate-400'}`}>
-                            <Network size={18} />
-                          </div>
-                          <div>
-                            <p className="text-slate-800 text-sm">VLAN {net.vlanId} • {net.name}</p>
-                            <p className="text-xs font-mono text-slate-500 mt-0.5">{net.ip}</p>
-                          </div>
-                        </div>
-                      </td>
-
-                      <td className="p-4 pr-6 align-middle">
-                        <div className="relative">
-                          <Globe className={`absolute left-3.5 top-1/2 -translate-y-1/2 z-10 ${pbrConfig.enabled ? 'text-blue-500' : 'text-slate-400'}`} size={16} />
-                          <select 
-                            value={selectedWan}
-                            onChange={(e) => setNetworkWan(net.id, e.target.value)}
-                            className={`w-full pl-10 pr-10 py-3 border rounded-xl text-[13px] outline-none transition-all appearance-none shadow-sm relative cursor-pointer ${
-                              pbrConfig.enabled 
-                                ? 'bg-white border-blue-200 text-blue-800 focus:border-blue-400 focus:ring-4 focus:ring-blue-50 hover:border-blue-300'
-                                : 'bg-slate-50 border-slate-200 text-slate-500'
-                            }`}
-                          >
-                            {wanList.map((wan, idx) => (
-                              <option key={wan.id} value={wan.id}>
-                                WAN {idx + 1} • {wan.interface} ({wan.type.toUpperCase()})
-                              </option>
-                            ))}
-                          </select>
-                          <ChevronDown size={16} className={`absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none ${pbrConfig.enabled ? 'text-blue-400' : 'text-slate-400'}`} />
-                        </div>
-                      </td>
-                      
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
+        </div>
+      )}
 
     </div>
   );
