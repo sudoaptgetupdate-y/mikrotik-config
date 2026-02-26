@@ -146,7 +146,7 @@ const AuditLog = () => {
             ))}
           </div>
           {activePreset === 'custom' && (
-            <div className="flex items-center gap-2 animate-in fade-in slide-in-from-left-4">
+            <div className="flex flex-wrap items-center gap-2 animate-in fade-in slide-in-from-left-4">
               <input 
                 type="date" 
                 value={dateRange.start}
@@ -214,10 +214,10 @@ const AuditLog = () => {
         
         {/* Pagination Controls */}
         {totalLogs > 0 && (
-          <div className="flex items-center justify-between p-4 bg-white border-t border-slate-200">
-            <div className="flex items-center gap-2">
+          <div className="flex flex-col md:flex-row items-center justify-between p-4 bg-white border-t border-slate-200 gap-4">
+            <div className="flex flex-wrap items-center justify-center gap-2">
               <span className="text-sm text-slate-600">Rows per page:</span>
-              <div className="flex items-center gap-1">
+              <div className="flex flex-wrap items-center justify-center gap-1">
                 {PAGE_SIZES.map(size => (
                   <button
                     key={size}
@@ -234,11 +234,11 @@ const AuditLog = () => {
               </div>
             </div>
 
-            <div className="text-sm text-slate-600">
+            <div className="text-sm text-slate-600 text-center">
               Showing <span className="font-medium">{from}</span>-<span className="font-medium">{to}</span> of <span className="font-medium">{totalLogs}</span> logs
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center justify-center gap-2">
               <button 
                 onClick={() => setCurrentPage(p => p - 1)}
                 disabled={currentPage === 1}
@@ -246,7 +246,7 @@ const AuditLog = () => {
               >
                 <ChevronLeft size={16} /> Previous
               </button>
-              <span className="text-sm text-slate-500 font-medium">Page {currentPage} of {totalPages}</span>
+              <span className="text-sm text-slate-500 font-medium whitespace-nowrap">Page {currentPage} of {totalPages}</span>
               <button 
                 onClick={() => setCurrentPage(p => p + 1)}
                 disabled={currentPage === totalPages}

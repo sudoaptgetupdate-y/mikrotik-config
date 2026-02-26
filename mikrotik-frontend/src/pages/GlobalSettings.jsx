@@ -141,10 +141,8 @@ const GlobalSettings = () => {
   };
 
   return (
-    // ✅ เปลี่ยนจาก <div className="max-w-5xl mx-auto p-6"> เป็นคลาส Layout หลัก
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">
       
-      {/* ✅ ปรับ Header ให้หน้าตาและขนาดเหมือนกับหน้า ModelManager / Dashboard */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
@@ -161,66 +159,70 @@ const GlobalSettings = () => {
         </div>
       ) : (
         <>
-          {/* Tabs */}
-          <div className="flex border-b border-slate-200 overflow-x-auto">
-            <button onClick={() => setActiveTab('ADMINS')} className={`flex items-center gap-2 px-6 py-3 font-bold border-b-2 transition-colors whitespace-nowrap ${activeTab === 'ADMINS' ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>
+          {/* ✅ จุดที่ 1: ซ่อน Scrollbar แนวนอนของ Tabs แต่ให้เลื่อนได้ปกติ */}
+          <div className="flex border-b border-slate-200 overflow-x-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+            <button onClick={() => setActiveTab('ADMINS')} className={`flex items-center gap-2 px-4 sm:px-6 py-3 font-bold border-b-2 transition-colors whitespace-nowrap ${activeTab === 'ADMINS' ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>
               <Shield size={18} /> Router Admins
             </button>
-            <button onClick={() => setActiveTab('NETWORKS')} className={`flex items-center gap-2 px-6 py-3 font-bold border-b-2 transition-colors whitespace-nowrap ${activeTab === 'NETWORKS' ? 'border-emerald-600 text-emerald-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>
+            <button onClick={() => setActiveTab('NETWORKS')} className={`flex items-center gap-2 px-4 sm:px-6 py-3 font-bold border-b-2 transition-colors whitespace-nowrap ${activeTab === 'NETWORKS' ? 'border-emerald-600 text-emerald-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>
               <Network size={18} /> Management IPs
             </button>
-            <button onClick={() => setActiveTab('PBR')} className={`flex items-center gap-2 px-6 py-3 font-bold border-b-2 transition-colors whitespace-nowrap ${activeTab === 'PBR' ? 'border-orange-500 text-orange-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>
-              <Globe size={18} /> PBR Monitor Targets
+            <button onClick={() => setActiveTab('PBR')} className={`flex items-center gap-2 px-4 sm:px-6 py-3 font-bold border-b-2 transition-colors whitespace-nowrap ${activeTab === 'PBR' ? 'border-orange-500 text-orange-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>
+              <Globe size={18} /> PBR Targets
             </button>
-            <button onClick={() => setActiveTab('DEFAULTS')} className={`flex items-center gap-2 px-6 py-3 font-bold border-b-2 transition-colors whitespace-nowrap ${activeTab === 'DEFAULTS' ? 'border-purple-600 text-purple-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>
+            <button onClick={() => setActiveTab('DEFAULTS')} className={`flex items-center gap-2 px-4 sm:px-6 py-3 font-bold border-b-2 transition-colors whitespace-nowrap ${activeTab === 'DEFAULTS' ? 'border-purple-600 text-purple-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>
               <Settings2 size={18} /> Default LAN/VLAN
             </button>
           </div>
 
-          <div className="bg-white p-6 md:p-8 rounded-2xl border border-slate-200 shadow-sm min-h-[400px] flex flex-col">
+          <div className="bg-white p-4 sm:p-6 md:p-8 rounded-2xl border border-slate-200 shadow-sm min-h-[400px] flex flex-col">
             
             {/* TAB 1: ROUTER ADMINS */}
             {activeTab === 'ADMINS' && (
               <div className="flex-1">
-                <div className="flex items-center justify-between mb-6 pb-4 border-b border-slate-100">
+                {/* ✅ จัด Header ปุ่ม Save ให้อยู่ด้านล่างในจอมือถือ หรือจัดให้อยู่คนละบรรทัด */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 pb-4 border-b border-slate-100 gap-4">
                   <div>
                     <h3 className="text-lg font-bold text-slate-800">Default Router Admins</h3>
                   </div>
-                  <button onClick={() => handleSaveSetting('ROUTER_ADMINS', routerAdmins)} disabled={isSaving} className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 transition-all">
+                  <button onClick={() => handleSaveSetting('ROUTER_ADMINS', routerAdmins)} disabled={isSaving} className="w-full sm:w-auto justify-center bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 transition-all">
                     {isSaving ? <Loader2 size={16} className="animate-spin"/> : <Save size={16} />} Save Admins
                   </button>
                 </div>
                 
                 <div className="space-y-4">
                   {routerAdmins.map((admin, idx) => (
-                    <div key={idx} className="flex flex-wrap md:flex-nowrap items-center gap-3 bg-slate-50 p-3 rounded-xl border border-slate-200 focus-within:border-blue-400 focus-within:ring-2 focus-within:ring-blue-50 transition-all">
-                      <input type="text" value={admin.username} onChange={(e) => updateAdmin(idx, 'username', e.target.value)} placeholder="Username" className="flex-1 bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm font-bold outline-none" />
-                      <div className="flex-1 relative">
+                    // ✅ จุดที่ 2: ใช้ Grid บนมือถือ เพื่อจัด Username, Password, ปุ่ม ให้อยู่ถูกที่
+                    <div key={idx} className="grid grid-cols-2 md:flex items-center gap-3 bg-slate-50 p-3 rounded-xl border border-slate-200 focus-within:border-blue-400 focus-within:ring-2 focus-within:ring-blue-50 transition-all">
+                      <input type="text" value={admin.username} onChange={(e) => updateAdmin(idx, 'username', e.target.value)} placeholder="Username" className="col-span-2 md:flex-1 bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm font-bold outline-none" />
+                      <div className="col-span-2 md:flex-1 relative">
                         <input type={showPassword[idx] ? "text" : "password"} value={admin.password} onChange={(e) => updateAdmin(idx, 'password', e.target.value)} placeholder="Password" className="w-full bg-white border border-slate-200 rounded-lg pl-3 pr-10 py-2 text-sm outline-none font-mono" />
                         <button type="button" onClick={() => togglePasswordVisibility(idx)} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 focus:outline-none">
                           {showPassword[idx] ? <EyeOff size={16} /> : <Eye size={16} />}
                         </button>
                       </div>
-                      <select value={admin.group} onChange={(e) => updateAdmin(idx, 'group', e.target.value)} className="w-32 bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm font-bold text-indigo-700 outline-none">
+                      <select value={admin.group} onChange={(e) => updateAdmin(idx, 'group', e.target.value)} className="col-span-1 md:w-32 bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm font-bold text-indigo-700 outline-none">
                         <option value="full">Full</option>
                         <option value="read">Read</option>
                       </select>
-                      <button onClick={() => removeAdmin(idx)} className="text-red-400 hover:text-red-600 bg-red-50 hover:bg-red-100 p-2.5 rounded-lg transition-colors"><Trash2 size={18} /></button>
+                      <button onClick={() => removeAdmin(idx)} className="col-span-1 flex justify-center text-red-400 hover:text-red-600 bg-red-50 hover:bg-red-100 p-2.5 rounded-lg transition-colors"><Trash2 size={18} /></button>
                     </div>
                   ))}
-                  <div className="flex flex-wrap md:flex-nowrap gap-3 pt-4 mt-4 border-t border-slate-100">
-                    <input type="text" placeholder="New Username" value={newAdmin.username} onChange={e => setNewAdmin({...newAdmin, username: e.target.value})} className="flex-1 border border-slate-300 rounded-xl px-4 py-2 text-sm outline-none focus:border-blue-500" />
-                    <div className="flex-1 relative">
+
+                  {/* ✅ ฟอร์มเพิ่ม Admin (ทำเป็น Grid ในมือถือเช่นกัน) */}
+                  <div className="grid grid-cols-2 md:flex items-center gap-3 pt-4 mt-4 border-t border-slate-100">
+                    <input type="text" placeholder="New Username" value={newAdmin.username} onChange={e => setNewAdmin({...newAdmin, username: e.target.value})} className="col-span-2 md:flex-1 border border-slate-300 rounded-xl px-4 py-2 text-sm outline-none focus:border-blue-500" />
+                    <div className="col-span-2 md:flex-1 relative">
                       <input type={showNewPassword ? "text" : "password"} placeholder="New Password" value={newAdmin.password} onChange={e => setNewAdmin({...newAdmin, password: e.target.value})} className="w-full border border-slate-300 rounded-xl pl-4 pr-10 py-2 text-sm outline-none focus:border-blue-500 font-mono" />
                       <button type="button" onClick={() => setShowNewPassword(!showNewPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 focus:outline-none">
                         {showNewPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                       </button>
                     </div>
-                    <select value={newAdmin.group} onChange={e => setNewAdmin({...newAdmin, group: e.target.value})} className="w-32 border border-slate-300 rounded-xl px-4 py-2 text-sm outline-none focus:border-blue-500">
+                    <select value={newAdmin.group} onChange={e => setNewAdmin({...newAdmin, group: e.target.value})} className="col-span-1 md:w-32 border border-slate-300 rounded-xl px-4 py-2 text-sm outline-none focus:border-blue-500">
                       <option value="full">Full</option>
                       <option value="read">Read</option>
                     </select>
-                    <button onClick={addAdmin} className="bg-slate-800 hover:bg-slate-900 text-white px-5 py-2 rounded-xl flex items-center gap-2 font-bold transition-all"><Plus size={18} /> Add</button>
+                    <button onClick={addAdmin} className="col-span-1 justify-center bg-slate-800 hover:bg-slate-900 text-white px-5 py-2 rounded-xl flex items-center gap-2 font-bold transition-all"><Plus size={18} /> Add</button>
                   </div>
                 </div>
               </div>
@@ -240,13 +242,17 @@ const GlobalSettings = () => {
                     </div>
                   ))}
                 </div>
-                <div className="flex flex-wrap sm:flex-nowrap items-center gap-3 pt-4 border-t border-slate-100 mt-auto">
-                  <input type="text" placeholder="e.g. 10.234.56.0/24" value={newManagementIp} onChange={e => setNewManagementIp(e.target.value)} onKeyDown={e => e.key === 'Enter' && addManagementIp()} className="flex-1 md:max-w-sm border border-slate-300 rounded-xl px-4 py-2.5 text-sm font-mono outline-none focus:border-emerald-500" />
-                  <button onClick={addManagementIp} className="bg-slate-800 hover:bg-slate-900 text-white px-5 py-2.5 rounded-xl flex items-center justify-center gap-2 font-bold transition-all whitespace-nowrap"><Plus size={18} /> Add IP</button>
-                  <div className="w-px h-8 bg-slate-200 hidden sm:block mx-1"></div>
-                  <button onClick={() => handleSaveSetting('MANAGEMENT_IPS', managementIps)} disabled={isSaving} className="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-2.5 rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-all whitespace-nowrap w-full sm:w-auto">
-                    {isSaving ? <Loader2 size={16} className="animate-spin"/> : <Save size={16} />} Save IPs
-                  </button>
+                
+                {/* ✅ จัดช่อง Input และปุ่มบนมือถือให้ขยายเต็มและแบ่งบรรทัดได้ */}
+                <div className="flex flex-col sm:flex-row items-center gap-3 pt-4 border-t border-slate-100 mt-auto">
+                  <input type="text" placeholder="e.g. 10.234.56.0/24" value={newManagementIp} onChange={e => setNewManagementIp(e.target.value)} onKeyDown={e => e.key === 'Enter' && addManagementIp()} className="w-full sm:flex-1 md:max-w-sm border border-slate-300 rounded-xl px-4 py-2.5 text-sm font-mono outline-none focus:border-emerald-500" />
+                  <div className="flex w-full sm:w-auto gap-3">
+                    <button onClick={addManagementIp} className="flex-1 sm:flex-none bg-slate-800 hover:bg-slate-900 text-white px-5 py-2.5 rounded-xl flex items-center justify-center gap-2 font-bold transition-all whitespace-nowrap"><Plus size={18} /> Add IP</button>
+                    <div className="w-px h-8 bg-slate-200 hidden sm:block"></div>
+                    <button onClick={() => handleSaveSetting('MANAGEMENT_IPS', managementIps)} disabled={isSaving} className="flex-1 sm:flex-none bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-2.5 rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-all whitespace-nowrap">
+                      {isSaving ? <Loader2 size={16} className="animate-spin"/> : <Save size={16} />} Save IPs
+                    </button>
+                  </div>
                 </div>
               </div>
             )}
@@ -259,7 +265,7 @@ const GlobalSettings = () => {
                     <h3 className="text-lg font-bold text-slate-800">PBR Check-Gateway Targets</h3>
                     <p className="text-xs text-orange-600 mt-1 items-center gap-1 font-bold bg-orange-50 px-2 py-1 rounded inline-flex"><AlertTriangle size={14}/> บังคับ 5 ช่อง และห้ามใช้ IP ซ้ำกัน</p>
                   </div>
-                  <button onClick={() => handleSaveSetting('MONITOR_IPS', monitorIps)} disabled={isSaving || monitorIps.some(ip => !ip)} className="bg-orange-500 hover:bg-orange-600 disabled:bg-slate-300 text-white px-5 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 transition-all">
+                  <button onClick={() => handleSaveSetting('MONITOR_IPS', monitorIps)} disabled={isSaving || monitorIps.some(ip => !ip)} className="w-full sm:w-auto justify-center bg-orange-500 hover:bg-orange-600 disabled:bg-slate-300 text-white px-5 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 transition-all">
                     {isSaving ? <Loader2 size={16} className="animate-spin"/> : <Save size={16} />} Save Targets
                   </button>
                 </div>
@@ -282,11 +288,11 @@ const GlobalSettings = () => {
                     <h3 className="text-lg font-bold text-slate-800">Default LAN & VLAN</h3>
                     <p className="text-sm text-slate-500">ค่าเริ่มต้นของวงเครือข่ายเมื่อสร้าง Config ใหม่</p>
                   </div>
-                  <div className="flex gap-2">
-                    <button onClick={addDefaultNetwork} className="bg-slate-800 hover:bg-slate-900 text-white px-5 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 transition-all">
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <button onClick={addDefaultNetwork} className="justify-center bg-slate-800 hover:bg-slate-900 text-white px-5 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 transition-all">
                       <Plus size={16} /> Add Network
                     </button>
-                    <button onClick={() => handleSaveSetting('DEFAULT_NETWORKS', defaultNetworks)} disabled={isSaving} className="bg-purple-600 hover:bg-purple-700 text-white px-5 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 transition-all">
+                    <button onClick={() => handleSaveSetting('DEFAULT_NETWORKS', defaultNetworks)} disabled={isSaving} className="justify-center bg-purple-600 hover:bg-purple-700 text-white px-5 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 transition-all">
                       {isSaving ? <Loader2 size={16} className="animate-spin"/> : <Save size={16} />} Save Defaults
                     </button>
                   </div>
@@ -294,30 +300,33 @@ const GlobalSettings = () => {
 
                 <div className="space-y-3">
                   {defaultNetworks.map((net) => (
-                    <div key={net.id} className="grid grid-cols-1 md:grid-cols-12 gap-3 items-center bg-slate-50 p-4 rounded-xl border border-slate-200 transition-all hover:border-purple-200 hover:shadow-sm">
+                    // ✅ จุดที่ 3: ใช้ Grid ควบคุมโครงสร้าง Network บังคับให้ VLAN และ Name อยู่แถวเดียวกันบนมือถือ
+                    <div key={net.id} className="grid grid-cols-2 md:grid-cols-12 gap-3 items-center bg-slate-50 p-4 rounded-xl border border-slate-200 transition-all hover:border-purple-200 hover:shadow-sm">
                       
-                      <div className="md:col-span-2">
+                      <div className="col-span-1 md:col-span-2">
                         <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">VLAN ID</label>
                         <input type="number" className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm text-center font-mono outline-none focus:border-purple-400 focus:ring-2 focus:ring-purple-50 transition-all" value={net.vlanId} onChange={(e) => updateDefaultNetwork(net.id, 'vlanId', parseInt(e.target.value))} />
                       </div>
 
-                      <div className="md:col-span-3">
+                      <div className="col-span-1 md:col-span-3">
                         <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Network Name</label>
                         <input type="text" className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm outline-none focus:border-purple-400 focus:ring-2 focus:ring-purple-50 transition-all" value={net.name} onChange={(e) => updateDefaultNetwork(net.id, 'name', e.target.value)} />
                       </div>
 
-                      <div className="md:col-span-3">
+                      <div className="col-span-2 md:col-span-3">
                         <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">IP / CIDR</label>
                         <input type="text" className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm font-mono outline-none focus:border-purple-400 focus:ring-2 focus:ring-purple-50 transition-all" value={net.ip} onChange={(e) => updateDefaultNetwork(net.id, 'ip', e.target.value)} />
                       </div>
 
-                      <div className="md:col-span-4 flex justify-end gap-2 mt-4 md:mt-0 pt-4 md:pt-0">
-                        <button onClick={() => updateDefaultNetwork(net.id, 'dhcp', !net.dhcp)} className={`flex items-center px-3 py-2 rounded-lg border text-[11px] font-bold transition-colors ${net.dhcp ? 'bg-green-50 border-green-200 text-green-700' : 'bg-white border-slate-200 text-slate-400 hover:bg-slate-50'}`}>
-                          <Server size={14} className="mr-1" /> DHCP
-                        </button>
-                        <button onClick={() => toggleDefaultHotspot(net.id, net.hotspot)} className={`flex items-center px-3 py-2 rounded-lg border text-[11px] font-bold transition-colors ${net.hotspot ? 'bg-orange-50 border-orange-200 text-orange-700' : 'bg-white border-slate-200 text-slate-400 hover:bg-slate-50'}`}>
-                          <ShieldCheck size={14} className="mr-1" /> HOTSPOT
-                        </button>
+                      <div className="col-span-2 md:col-span-4 flex justify-between md:justify-end gap-2 mt-2 md:mt-0 md:pt-4">
+                        <div className="flex gap-2">
+                          <button onClick={() => updateDefaultNetwork(net.id, 'dhcp', !net.dhcp)} className={`flex items-center px-3 py-2 rounded-lg border text-[11px] font-bold transition-colors flex-1 md:flex-none justify-center ${net.dhcp ? 'bg-green-50 border-green-200 text-green-700' : 'bg-white border-slate-200 text-slate-400 hover:bg-slate-50'}`}>
+                            <Server size={14} className="mr-1" /> DHCP
+                          </button>
+                          <button onClick={() => toggleDefaultHotspot(net.id, net.hotspot)} className={`flex items-center px-3 py-2 rounded-lg border text-[11px] font-bold transition-colors flex-1 md:flex-none justify-center ${net.hotspot ? 'bg-orange-50 border-orange-200 text-orange-700' : 'bg-white border-slate-200 text-slate-400 hover:bg-slate-50'}`}>
+                            <ShieldCheck size={14} className="mr-1" /> HOTSPOT
+                          </button>
+                        </div>
                         <button onClick={() => removeDefaultNetwork(net.id)} className="p-2.5 text-slate-400 hover:text-red-600 bg-white border border-slate-200 hover:border-red-200 hover:bg-red-50 rounded-lg transition-all">
                           <Trash2 size={16} />
                         </button>

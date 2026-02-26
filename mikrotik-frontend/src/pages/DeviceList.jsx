@@ -67,7 +67,7 @@ const DeviceList = () => {
   const [ackReason, setAckReason] = useState('');
   const [isAckSubmitting, setIsAckSubmitting] = useState(false);
 
-  // ✅ State & Ref สำหรับ Infinite Scroll
+  // State & Ref สำหรับ Infinite Scroll
   const [displayLimit, setDisplayLimit] = useState(15);
   const observerTarget = useRef(null);
 
@@ -105,12 +105,12 @@ const DeviceList = () => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // ✅ รีเซ็ตจำนวนที่แสดงเมื่อมีการค้นหา หรือเปลี่ยน Filter
+  // รีเซ็ตจำนวนที่แสดงเมื่อมีการค้นหา หรือเปลี่ยน Filter
   useEffect(() => {
     setDisplayLimit(15);
   }, [searchTerm, statusFilter]);
 
-  // ✅ ตั้งค่า Intersection Observer เพื่อดักจับตอน Scroll ลงมาสุด
+  // ตั้งค่า Intersection Observer เพื่อดักจับตอน Scroll ลงมาสุด
   useEffect(() => {
     const observer = new IntersectionObserver(
       (entries) => {
@@ -127,7 +127,7 @@ const DeviceList = () => {
     }
 
     return () => observer.disconnect();
-  }, [loading]); // อัปเดต observer เมื่อ loading เปลี่ยน
+  }, [loading]);
 
   const handleAddClick = () => navigate('/add-device');
   const handleEditClick = (device) => navigate(`/edit-device/${device.id}`, { state: { deviceData: device } });
@@ -238,12 +238,12 @@ const DeviceList = () => {
     return matchesSearch; 
   });
 
-  // ✅ ตัดข้อมูลให้แสดงแค่จำนวน displayLimit
   const displayedDevices = filteredDevices.slice(0, displayLimit);
 
   const currentFilterOpt = FILTER_OPTIONS.find(opt => opt.value === statusFilter);
   const CurrentIcon = currentFilterOpt ? currentFilterOpt.icon : Activity;
 
+  // สำหรับ Modal (คุณคอมเมนต์ไว้ จึงเก็บโครงสร้างส่วนนี้เอาไว้เหมือนเดิม)
   let modalAckHistory = [];
   if (deviceToAck?.ackReason) {
     if (Array.isArray(deviceToAck.ackReason)) {
@@ -272,9 +272,10 @@ const DeviceList = () => {
             (Last updated: {lastUpdated.toLocaleTimeString()})
           </p>
         </div>
+        {/* ✅ ปรับปุ่มให้กางเต็มความกว้างและจัดกลางบนมือถือ */}
         <button 
           onClick={handleAddClick}
-          className="bg-blue-600 text-white px-4 py-2.5 rounded-xl flex items-center gap-2 hover:bg-blue-700 shadow-sm transition-all font-medium"
+          className="bg-blue-600 text-white w-full md:w-auto px-4 py-2.5 rounded-xl flex items-center justify-center gap-2 hover:bg-blue-700 shadow-sm transition-all font-medium shrink-0"
         >
           <Plus size={20} /> Add New Device
         </button>
@@ -354,18 +355,19 @@ const DeviceList = () => {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
+            {/* ✅ เพิ่ม min-w-[1000px] (หรือค่าความกว้างที่เหมาะสมกับคอลัมน์) เพื่อกันตารางโดนบีบ */}
+            <table className="w-full text-left border-collapse min-w-[1000px]">
               <thead>
                 <tr className="bg-slate-50 border-b border-slate-200 text-xs uppercase text-slate-500 font-semibold text-left">
-                  <th className="p-4 pl-6 w-[15%]">Status</th>
-                  <th className="p-4 w-[25%]">Device Details</th>
-                  <th className="p-4 w-[20%]">Resources</th>
-                  <th className="p-4 w-[25%]">Health, Net & Uptime</th>
-                  <th className="p-4 text-right pr-6 w-[15%]">Actions</th>
+                  {/* ✅ เพิ่ม whitespace-nowrap เพื่อไม่ให้ข้อความหัวตารางตัดบรรทัด */}
+                  <th className="p-4 pl-6 w-[15%] whitespace-nowrap">Status</th>
+                  <th className="p-4 w-[25%] whitespace-nowrap">Device Details</th>
+                  <th className="p-4 w-[20%] whitespace-nowrap">Resources</th>
+                  <th className="p-4 w-[25%] whitespace-nowrap">Health, Net & Uptime</th>
+                  <th className="p-4 text-right pr-6 w-[15%] whitespace-nowrap">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {/* ✅ ลูปจากตัวแปร displayedDevices */}
                 {displayedDevices.map((device) => (
                   <DeviceTableRow 
                     key={device.id} 
@@ -383,7 +385,7 @@ const DeviceList = () => {
               </tbody>
             </table>
 
-            {/* ✅ ตัวจับการ Scroll (Intersection Observer Target) */}
+            {/* ตัวจับการ Scroll (Intersection Observer Target) */}
             {displayLimit < filteredDevices.length && (
               <div ref={observerTarget} className="p-6 flex justify-center items-center gap-2 text-slate-400 bg-slate-50 border-t border-slate-100">
                 <Loader2 size={18} className="animate-spin text-blue-400" />

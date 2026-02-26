@@ -1,21 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import apiClient from '../utils/apiClient';
-import { useAuth } from '../context/AuthContext'; // ✅ ดึง Context เพื่อเช็คสิทธิ์
+import { useAuth } from '../context/AuthContext';
 import { Server, Plus, Trash2, X, PlusCircle, Save, Archive, RotateCcw, Search, ChevronLeft, ChevronRight, Edit } from 'lucide-react';
 
 const ModelManager = () => {
-  const { user } = useAuth(); // ✅ ดึงข้อมูล User ปัจจุบัน
-  const isSuperAdmin = user?.role === 'SUPER_ADMIN'; // ✅ เช็คว่าเป็น Super Admin หรือไม่
+  const { user } = useAuth();
+  const isSuperAdmin = user?.role === 'SUPER_ADMIN';
 
   const [models, setModels] = useState([]);
   const [loading, setLoading] = useState(true);
   
   const [showDeleted, setShowDeleted] = useState(false);
   
-  // State สำหรับ Modal เพิ่ม/แก้ไข Model
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isEditMode, setIsEditMode] = useState(false); // ✅ แยกโหมด
-  const [editingId, setEditingId] = useState(null); // ✅ เก็บ ID ที่กำลังแก้
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [editingId, setEditingId] = useState(null);
   const [newModel, setNewModel] = useState({ name: '', imageUrl: '', ports: [] });
 
   const [searchTerm, setSearchTerm] = useState('');
@@ -52,7 +51,6 @@ const ModelManager = () => {
     setCurrentPage(1); 
   };
 
-  // --- Functions สำหรับเปิด Modal ---
   const handleOpenCreate = () => {
     setIsEditMode(false);
     setEditingId(null);
@@ -63,7 +61,6 @@ const ModelManager = () => {
   const handleOpenEdit = (model) => {
     setIsEditMode(true);
     setEditingId(model.id);
-    // ดึงเฉพาะข้อมูล Port ที่จำเป็นไปแสดง
     const cleanPorts = model.ports.map(p => ({
       name: p.name,
       type: p.type,
@@ -73,7 +70,6 @@ const ModelManager = () => {
     setIsModalOpen(true);
   };
 
-  // --- Functions สำหรับ Port ---
   const handleAddPort = () => {
     setNewModel(prev => ({
       ...prev,
@@ -96,17 +92,14 @@ const ModelManager = () => {
     });
   };
 
-  // --- Functions สำหรับ Save (รองรับ Create และ Update) ---
   const handleSaveModel = async () => {
     if (!newModel.name) return alert("Please enter model name");
     if (newModel.ports.length === 0) return alert("Please add at least 1 port");
 
     try {
       if (isEditMode) {
-        // อัปเดต Model เดิม
         await apiClient.put(`/api/master/models/${editingId}`, newModel);
       } else {
-        // สร้าง Model ใหม่
         await apiClient.post('/api/master/models', newModel);
         setShowDeleted(false);
       }
@@ -118,7 +111,6 @@ const ModelManager = () => {
     }
   };
 
-  // --- Functions สำหรับ ลบ และ กู้คืน ---
   const handleDeleteModel = async (id, name) => {
     if (confirm(`Are you sure you want to delete ${name}?`)) {
       try {
@@ -153,10 +145,10 @@ const ModelManager = () => {
           <p className="text-slate-500">Manage MikroTik device models and port templates</p>
         </div>
         
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <button 
             onClick={() => setShowDeleted(!showDeleted)}
-            className={`px-4 py-2.5 rounded-xl flex items-center gap-2 transition font-medium ${
+            className={`px-4 py-2.5 rounded-xl flex items-center gap-2 transition font-medium w-full md:w-auto justify-center ${
               showDeleted 
                 ? 'bg-slate-200 text-slate-700 hover:bg-slate-300' 
                 : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
@@ -168,7 +160,7 @@ const ModelManager = () => {
 
           <button 
             onClick={handleOpenCreate}
-            className="bg-blue-600 text-white px-4 py-2.5 rounded-xl flex items-center gap-2 hover:bg-blue-700 transition font-medium shadow-sm"
+            className="bg-blue-600 text-white px-4 py-2.5 rounded-xl flex items-center gap-2 hover:bg-blue-700 transition font-medium shadow-sm w-full md:w-auto justify-center"
           >
             <Plus size={20} /> Add New Model
           </button>
@@ -222,7 +214,7 @@ const ModelManager = () => {
                     {!showDeleted && isSuperAdmin && (
                       <button 
                         onClick={() => handleOpenEdit(model)}
-                        className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg opacity-0 group-hover:opacity-100 transition"
+                        className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg md:opacity-0 group-hover:opacity-100 transition"
                         title="Edit Model"
                       >
                         <Edit size={16} />
@@ -232,7 +224,7 @@ const ModelManager = () => {
                     {showDeleted ? (
                       <button 
                         onClick={() => handleRestoreModel(model.id, model.name)}
-                        className="p-1.5 text-slate-400 hover:text-green-600 hover:bg-green-50 rounded-lg opacity-0 group-hover:opacity-100 transition"
+                        className="p-1.5 text-slate-400 hover:text-green-600 hover:bg-green-50 rounded-lg md:opacity-0 group-hover:opacity-100 transition"
                         title="Restore Model"
                       >
                         <RotateCcw size={16} />
@@ -240,7 +232,7 @@ const ModelManager = () => {
                     ) : (
                       <button 
                         onClick={() => handleDeleteModel(model.id, model.name)}
-                        className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg opacity-0 group-hover:opacity-100 transition"
+                        className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg md:opacity-0 group-hover:opacity-100 transition"
                         title="Delete Model"
                       >
                         <Trash2 size={16} />
@@ -307,7 +299,7 @@ const ModelManager = () => {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200">
             
-            <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+            <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50 shrink-0">
               <h3 className="font-bold text-lg flex items-center gap-2">
                 {isEditMode ? <Edit className="text-blue-600" size={20} /> : <PlusCircle className="text-green-600" size={20} />}
                 {isEditMode ? 'Edit Hardware Model' : 'Create New Hardware Model'}
@@ -315,8 +307,9 @@ const ModelManager = () => {
               <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-600"><X size={24} /></button>
             </div>
             
-            <div className="p-6 overflow-y-auto flex-1 space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+            <div className="p-4 sm:p-6 overflow-y-auto flex-1 space-y-6">
+              {/* ✅ แก้ไขเป็น 1 คอลัมน์บนมือถือ 2 คอลัมน์บนจอคอม */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-bold text-slate-700 mb-1">Model Name *</label>
                   <input type="text" className="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500" placeholder="e.g. RB5009UG+S+IN"
@@ -332,17 +325,18 @@ const ModelManager = () => {
               <div className="pt-4 border-t border-slate-100">
                 <div className="flex justify-between items-center mb-3">
                   <label className="text-sm font-bold text-slate-700">Port Templates</label>
-                  <button onClick={handleAddPort} className="text-sm text-blue-600 flex items-center gap-1 hover:text-blue-800 font-medium bg-blue-50 px-2 py-1 rounded">
+                  <button onClick={handleAddPort} className="text-sm text-blue-600 flex items-center gap-1 hover:text-blue-800 font-medium bg-blue-50 px-3 py-1.5 rounded-lg transition">
                     <PlusCircle size={16} /> Add Port
                   </button>
                 </div>
                 
                 {newModel.ports.length === 0 ? (
-                  <div className="text-center p-6 text-sm text-slate-400 border border-dashed rounded-lg">No ports added yet.</div>
+                  <div className="text-center p-6 text-sm text-slate-400 border border-dashed rounded-lg bg-slate-50">No ports added yet.</div>
                 ) : (
-                  <div className="space-y-2">
+                  <div className="space-y-3 sm:space-y-2">
                     
-                    <div className="flex gap-2 px-2 text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
+                    {/* ✅ ซ่อน Header นี้ในจอมือถือ */}
+                    <div className="hidden sm:flex gap-2 px-2 text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
                       <div className="flex-1">Port Name (in RouterOS)</div>
                       <div className="w-28">Hardware Type</div>
                       <div className="w-24">Default Role</div>
@@ -350,24 +344,46 @@ const ModelManager = () => {
                     </div>
                     
                     {newModel.ports.map((port, index) => (
-                      <div key={index} className="flex gap-2 items-center bg-slate-50 p-2 rounded-lg border border-slate-200 hover:border-blue-300 transition-colors">
-                        <input type="text" className="flex-1 p-1.5 border border-slate-300 rounded text-sm focus:ring-2 focus:ring-blue-500 outline-none" placeholder="e.g. ether1"
-                          value={port.name} onChange={(e) => handlePortChange(index, 'name', e.target.value)} />
+                      /* ✅ ปรับให้เป็นแนวตั้งบนมือถือ แนวนอนบน Desktop */
+                      <div key={index} className="flex flex-col sm:flex-row gap-3 sm:gap-2 sm:items-center bg-slate-50 p-4 sm:p-2 rounded-lg border border-slate-200 hover:border-blue-300 transition-colors">
                         
-                        <select className="w-28 p-1.5 border border-slate-300 rounded text-sm bg-white focus:ring-2 focus:ring-blue-500 outline-none"
-                          value={port.type} onChange={(e) => handlePortChange(index, 'type', e.target.value)}>
-                          <option value="ETHER">ETHER</option>
-                          <option value="SFP">SFP</option>
-                          <option value="WLAN">WLAN</option>
-                        </select>
+                        {/* Header ของมือถือ แสดงคำว่า Port 1, Port 2 + ปุ่มลบ */}
+                        <div className="flex justify-between items-center sm:hidden pb-2 border-b border-slate-200">
+                           <span className="text-sm font-bold text-slate-700">Port {index + 1}</span>
+                           <button onClick={() => handleRemovePort(index)} className="p-1.5 text-red-500 hover:bg-red-100 bg-red-50 rounded-md transition">
+                              <Trash2 size={16}/>
+                           </button>
+                        </div>
+
+                        <div className="w-full sm:flex-1">
+                          <label className="text-xs font-bold text-slate-500 sm:hidden mb-1 block">Port Name</label>
+                          <input type="text" className="w-full p-2.5 sm:p-1.5 border border-slate-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 outline-none" placeholder="e.g. ether1"
+                            value={port.name} onChange={(e) => handlePortChange(index, 'name', e.target.value)} />
+                        </div>
                         
-                        <select className="w-24 p-1.5 border border-slate-300 rounded text-sm bg-white focus:ring-2 focus:ring-blue-500 outline-none"
-                          value={port.defaultRole} onChange={(e) => handlePortChange(index, 'defaultRole', e.target.value)}>
-                          <option value="wan">WAN</option>
-                          <option value="lan">LAN</option>
-                        </select>
-                        
-                        <button onClick={() => handleRemovePort(index)} className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded transition">
+                        <div className="flex gap-3 sm:gap-2 w-full sm:w-auto">
+                          <div className="flex-1 sm:w-28">
+                            <label className="text-xs font-bold text-slate-500 sm:hidden mb-1 block">Type</label>
+                            <select className="w-full p-2.5 sm:p-1.5 border border-slate-300 rounded-md text-sm bg-white focus:ring-2 focus:ring-blue-500 outline-none"
+                              value={port.type} onChange={(e) => handlePortChange(index, 'type', e.target.value)}>
+                              <option value="ETHER">ETHER</option>
+                              <option value="SFP">SFP</option>
+                              <option value="WLAN">WLAN</option>
+                            </select>
+                          </div>
+                          
+                          <div className="flex-1 sm:w-24">
+                            <label className="text-xs font-bold text-slate-500 sm:hidden mb-1 block">Role</label>
+                            <select className="w-full p-2.5 sm:p-1.5 border border-slate-300 rounded-md text-sm bg-white focus:ring-2 focus:ring-blue-500 outline-none"
+                              value={port.defaultRole} onChange={(e) => handlePortChange(index, 'defaultRole', e.target.value)}>
+                              <option value="wan">WAN</option>
+                              <option value="lan">LAN</option>
+                            </select>
+                          </div>
+                        </div>
+
+                        {/* ปุ่มลบสำหรับจอ Desktop */}
+                        <button onClick={() => handleRemovePort(index)} className="hidden sm:block p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded transition">
                           <Trash2 size={18}/>
                         </button>
                       </div>
@@ -377,9 +393,9 @@ const ModelManager = () => {
               </div>
             </div>
 
-            <div className="p-4 border-t border-slate-100 bg-slate-50 flex justify-end gap-3">
-              <button onClick={() => setIsModalOpen(false)} className="px-4 py-2 text-slate-600 hover:bg-slate-200 rounded-lg">Cancel</button>
-              <button onClick={handleSaveModel} className="px-4 py-2 bg-blue-600 text-white flex items-center gap-2 rounded-lg hover:bg-blue-700">
+            <div className="p-4 border-t border-slate-100 bg-slate-50 flex justify-end gap-3 shrink-0">
+              <button onClick={() => setIsModalOpen(false)} className="px-5 py-2.5 text-slate-600 font-medium hover:bg-slate-200 rounded-xl transition">Cancel</button>
+              <button onClick={handleSaveModel} className="px-5 py-2.5 bg-blue-600 text-white font-medium flex items-center gap-2 rounded-xl hover:bg-blue-700 transition shadow-sm">
                 <Save size={18} /> {isEditMode ? 'Save Changes' : 'Save Model'}
               </button>
             </div>

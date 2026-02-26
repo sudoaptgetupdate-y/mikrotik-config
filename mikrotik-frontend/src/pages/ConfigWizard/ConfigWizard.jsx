@@ -168,30 +168,37 @@ const ConfigWizard = ({ mode = 'create', initialData, onFinish }) => {
   };
 
   return (
-    <div className="max-w-6xl mx-auto p-6 bg-white rounded-xl shadow-sm border border-slate-200 my-8">
+    // ✅ จุดที่ 1: ปรับ Padding และ Margin บนมือถือให้แคบลง (p-4 my-4) และกว้างปกติบนจอใหญ่ (sm:p-6 sm:my-8)
+    <div className="max-w-6xl mx-auto p-4 sm:p-6 bg-white sm:rounded-xl shadow-sm border-0 sm:border border-slate-200 my-4 sm:my-8">
       
       {/* Dynamic Progress Bar */}
-      <div className="flex items-center justify-between mb-10 px-4 md:px-10 relative">
-        <div className="absolute top-[1.25rem] left-0 w-full h-1 bg-slate-100 -z-0 hidden md:block" /> 
-        {activeSteps.map((step, idx) => {
-          const stepNum = idx + 1;
-          const isActive = currentStepIndex >= idx;
-          return (
-            <div key={step.id} className="flex flex-col items-center relative z-10 bg-white px-2">
-              <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold transition-all duration-300 border-2 ${
-                isActive ? 'bg-blue-600 border-blue-600 text-white' : 'bg-white border-slate-200 text-slate-400'
-              } ${currentStepIndex === idx ? 'ring-4 ring-blue-100' : ''}`}>
-                {isActive ? (currentStepIndex > idx ? <CheckCircle size={20} /> : stepNum) : stepNum}
+      {/* ✅ จุดที่ 2: เพิ่ม overflow-x-auto และซ่อน Scrollbar เพื่อให้เลื่อนซ้ายขวาได้บนมือถือ */}
+      <div className="relative mb-8 sm:mb-10">
+        <div className="absolute top-[1.25rem] sm:top-[1.25rem] left-0 w-full h-1 bg-slate-100 hidden sm:block" /> 
+        
+        <div className="flex items-start justify-between gap-4 sm:gap-0 overflow-x-auto px-1 sm:px-4 md:px-10 pb-2 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+          {activeSteps.map((step, idx) => {
+            const stepNum = idx + 1;
+            const isActive = currentStepIndex >= idx;
+            return (
+              // ✅ บังคับขนาดความกว้างขั้นต่ำ (min-w) บนมือถือเพื่อไม่ให้โดนบีบ
+              <div key={step.id} className="flex flex-col items-center relative z-10 bg-white px-2 min-w-[64px] sm:min-w-[80px]">
+                <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center text-xs sm:text-base font-bold transition-all duration-300 border-2 ${
+                  isActive ? 'bg-blue-600 border-blue-600 text-white' : 'bg-white border-slate-200 text-slate-400'
+                } ${currentStepIndex === idx ? 'ring-4 ring-blue-100' : ''}`}>
+                  {isActive ? (currentStepIndex > idx ? <CheckCircle size={16} className="sm:w-5 sm:h-5" /> : stepNum) : stepNum}
+                </div>
+                <span className={`text-[10px] sm:text-xs mt-2 font-medium text-center leading-tight ${isActive ? 'text-blue-600' : 'text-slate-400'}`}>
+                  {step.label}
+                </span>
               </div>
-              <span className={`text-[10px] md:text-xs mt-2 font-medium ${isActive ? 'text-blue-600' : 'text-slate-400'}`}>
-                {step.label}
-              </span>
-            </div>
-          );
-        })}
+            );
+          })}
+        </div>
       </div>
 
-      <div className="min-h-[450px]">
+      {/* ✅ จุดที่ 3: ปรับความสูงขั้นต่ำให้ยืดหยุ่นบนมือถือ */}
+      <div className="min-h-[300px] sm:min-h-[450px]">
         {loading ? (
           <div className="text-center py-20 text-slate-400 font-medium italic">Loading...</div>
         ) : (
@@ -220,12 +227,21 @@ const ConfigWizard = ({ mode = 'create', initialData, onFinish }) => {
         )}
       </div>
 
-      <div className="flex justify-between items-center mt-8 pt-6 border-t border-slate-100">
-        <button onClick={prevStep} disabled={currentStepIndex === 0} className="px-6 py-2 text-slate-600 font-medium hover:bg-slate-50 rounded-lg disabled:opacity-50 transition flex items-center gap-2">
+      {/* ✅ จุดที่ 4: เปลี่ยนปุ่มให้เป็นแถวแนวตั้งบนมือถือ (Back อยู่ล่าง Next อยู่บน) หรือเรียงคู่กันให้เต็มจอ */}
+      <div className="flex flex-col-reverse sm:flex-row justify-between items-center mt-8 pt-6 border-t border-slate-100 gap-3">
+        <button 
+          onClick={prevStep} 
+          disabled={currentStepIndex === 0} 
+          className="w-full sm:w-auto flex justify-center items-center gap-2 px-6 py-2.5 text-slate-600 font-medium hover:bg-slate-50 border border-slate-200 sm:border-transparent rounded-lg disabled:opacity-50 transition"
+        >
           <ArrowLeft size={18} /> Back
         </button>
         {currentStepIndex < activeSteps.length - 1 && (
-          <button onClick={nextStep} disabled={!canGoNext()} className="flex items-center gap-2 px-8 py-2.5 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed transition shadow-sm">
+          <button 
+            onClick={nextStep} 
+            disabled={!canGoNext()} 
+            className="w-full sm:w-auto flex justify-center items-center gap-2 px-8 py-2.5 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed transition shadow-sm"
+          >
             Next Step <ArrowRight size={18} />
           </button>
         )}

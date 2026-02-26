@@ -136,8 +136,8 @@ const Dashboard = () => {
             <Activity size={16} />
             <span className="text-[11px] font-bold uppercase tracking-wider">System Overview</span>
           </div>
-          <h2 className="text-2xl md:text-3xl font-black text-slate-800 tracking-tight">
-            {getGreeting()}, Admin! 👋
+          <h2 className="text-2xl font-bold text-slate-800">
+            {getGreeting()}, {user?.username || user?.firstName || 'User'}! 👋
           </h2>
           <p className="text-sm text-slate-500 mt-1 flex items-center gap-1.5 font-medium">
             <Calendar size={14} /> {currentDate}
