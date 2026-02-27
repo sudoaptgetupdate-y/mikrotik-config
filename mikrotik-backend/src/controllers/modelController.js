@@ -3,14 +3,10 @@ const prisma = require('../config/prisma');
 // 1. ดึงข้อมูล Model (รองรับการดูทั้งแบบ Active และ Soft Deleted)
 exports.getModels = async (req, res) => {
   try {
-    // ✅ เช็คค่าที่ส่งมาจาก Frontend (ถ้ากด Archive ค่าจะเป็น 'true')
     const isShowDeleted = req.query.showDeleted === 'true'; 
 
     const models = await prisma.deviceModel.findMany({
       where: { 
-        // 👈 จุดสำคัญ: เขียนแบบนี้จะชัวร์ที่สุด 
-        // ถ้า isShowDeleted เป็นจริง -> ให้หาตัวที่ isActive: false (ตัวที่ถูกลบ)
-        // ถ้า isShowDeleted เป็นเท็จ -> ให้หาตัวที่ isActive: true (ตัวปกติ)
         isActive: isShowDeleted ? false : true 
       },
       include: { 
@@ -32,6 +28,7 @@ exports.getModels = async (req, res) => {
 exports.createModel = async (req, res) => {
   try {
     const { name, imageUrl, ports } = req.body;
+    const actionUserId = req.user.id; // ✅ ดึง ID คนที่สร้างจาก Token
     
     if (!name || !ports || ports.length === 0) {
       return res.status(400).json({ error: "Model name and at least one port are required." });
@@ -48,6 +45,15 @@ exports.createModel = async (req, res) => {
       include: { ports: true }
     });
     
+    // ✅ บันทึก Audit Log
+    await prisma.activityLog.create({
+      data: { 
+        userId: actionUserId, 
+        action: "CREATE_DEVICE", // ใช้ Action นี้แทนหมวดการสร้าง
+        details: `Created hardware model: ${name}` 
+      }
+    });
+
     res.status(201).json(newModel);
   } catch (error) {
     console.error("Create model error:", error);
@@ -59,6 +65,11 @@ exports.createModel = async (req, res) => {
 exports.deleteModel = async (req, res) => {
   try {
     const { id } = req.params;
+    const actionUserId = req.user.id; // ✅ ดึง ID คนที่ลบจาก Token
+
+    // ดึงข้อมูลเดิมขึ้นมาก่อนเพื่อเอาชื่อไปบันทึก Log ให้สวยงาม
+    const targetModel = await prisma.deviceModel.findUnique({ where: { id: parseInt(id) } });
+    if (!targetModel) return res.status(404).json({ error: "Model not found" });
 
     // ระบบป้องกัน: เช็คว่ามี Config ไหนใช้งาน Model นี้อยู่ไหม โดยการนับจำนวน
     const inUseCount = await prisma.config.count({ 
@@ -66,17 +77,37 @@ exports.deleteModel = async (req, res) => {
     });
     
     if (inUseCount > 0) {
-      // ✅ Soft Delete: ถ้าเคยถูกใช้งานแล้ว ให้ซ่อนไว้ (เปลี่ยน isActive เป็น false)
+      // ✅ Soft Delete
       await prisma.deviceModel.update({
         where: { id: parseInt(id) },
         data: { isActive: false }
       });
+      
+      // ✅ บันทึก Audit Log (Soft Delete)
+      await prisma.activityLog.create({
+        data: { 
+          userId: actionUserId, 
+          action: "DELETE_DEVICE", 
+          details: `Soft deleted hardware model: ${targetModel.name}` 
+        }
+      });
+
       return res.json({ success: true, message: "Model soft-deleted (hidden) successfully. Config history is preserved." });
     } else {
-      // ✅ Hard Delete: ถ้ายังไม่เคยถูกใช้งานเลย ลบถาวรได้เลย (Ports จะถูก Cascade Delete ไปด้วย)
+      // ✅ Hard Delete
       await prisma.deviceModel.delete({
         where: { id: parseInt(id) }
       });
+
+      // ✅ บันทึก Audit Log (Hard Delete)
+      await prisma.activityLog.create({
+        data: { 
+          userId: actionUserId, 
+          action: "DELETE_DEVICE", 
+          details: `Permanently deleted hardware model: ${targetModel.name}` 
+        }
+      });
+
       return res.json({ success: true, message: "Model permanently deleted." });
     }
 
@@ -90,12 +121,22 @@ exports.deleteModel = async (req, res) => {
 exports.restoreModel = async (req, res) => {
   try {
     const { id } = req.params;
+    const actionUserId = req.user.id; // ✅ ดึง ID คนที่ทำรายการจาก Token
 
-    await prisma.deviceModel.update({
+    const updatedModel = await prisma.deviceModel.update({
       where: { id: parseInt(id) },
       data: { isActive: true } // ✅ เปลี่ยนกลับเป็น true
     });
     
+    // ✅ บันทึก Audit Log
+    await prisma.activityLog.create({
+      data: { 
+        userId: actionUserId, 
+        action: "UPDATE_DEVICE", 
+        details: `Restored hardware model: ${updatedModel.name}` 
+      }
+    });
+
     res.json({ success: true, message: "Model restored successfully" });
   } catch (error) {
     console.error("Restore model error:", error);
@@ -108,6 +149,7 @@ exports.updateModel = async (req, res) => {
   try {
     const { id } = req.params;
     const { name, imageUrl, ports } = req.body;
+    const actionUserId = req.user.id; // ✅ ดึง ID คนที่แก้จาก Token
 
     if (!name || !ports || ports.length === 0) {
       return res.status(400).json({ error: "Model name and at least one port are required." });
@@ -133,6 +175,15 @@ exports.updateModel = async (req, res) => {
         }
       },
       include: { ports: true }
+    });
+
+    // ✅ บันทึก Audit Log
+    await prisma.activityLog.create({
+      data: { 
+        userId: actionUserId, 
+        action: "UPDATE_DEVICE", 
+        details: `Updated hardware model: ${name}` 
+      }
     });
 
     res.json(updatedModel);

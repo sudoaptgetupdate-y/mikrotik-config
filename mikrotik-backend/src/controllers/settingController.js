@@ -1,6 +1,5 @@
 // src/controllers/settingController.js
-const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
+const prisma = require('../config/prisma'); // ✅ เปลี่ยนมาใช้ Shared Prisma Client
 
 // 1. ดึงการตั้งค่าทั้งหมด (หรือดึงตาม Key)
 exports.getSettings = async (req, res) => {
@@ -32,6 +31,8 @@ exports.updateSetting = async (req, res) => {
   try {
     const { key } = req.params;
     const { value, description } = req.body; // value ที่ส่งมาต้องเป็น Array หรือ Object
+    
+    const actionUserId = req.user.id; // ✅ ดึง ID ของ Super Admin ที่ทำการแก้ไขจาก Token
 
     // 🛡️ [Security & Logic Check]: ป้องกันการบันทึก Monitor IP น้อยกว่า 5 ตัว
     if (key === 'MONITOR_IPS') {
@@ -53,6 +54,15 @@ exports.updateSetting = async (req, res) => {
         key, 
         value: JSON.stringify(value),
         description: description || `System configuration for ${key}`
+      }
+    });
+
+    // ✅ บันทึก Audit Log แจ้งว่ามีการอัปเดตระบบการตั้งค่า
+    await prisma.activityLog.create({
+      data: {
+        userId: actionUserId, 
+        action: "UPDATE_DEVICE", // อาศัย Action นี้เป็นหมวดหมู่หลักของการแก้ไข
+        details: `Updated global setting: ${key}` // ระบุชัดเจนว่าแก้ค่าอะไร
       }
     });
 

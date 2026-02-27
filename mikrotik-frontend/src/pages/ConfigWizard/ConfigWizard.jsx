@@ -137,7 +137,7 @@ const ConfigWizard = ({ mode = 'create', initialData, onFinish }) => {
     try {
       let response;
       if (mode === 'create') {
-        const payload = { name: deviceMeta.name, circuitId: deviceMeta.circuitId, userId: 1, configData: finalConfigData };
+        const payload = { name: deviceMeta.name, circuitId: deviceMeta.circuitId, configData: finalConfigData };
         response = await apiClient.post('/api/devices', payload);
       } else {
         if (!initialData?.id) throw new Error("Missing Device ID for update");

@@ -24,8 +24,7 @@ const AddDeviceModal = ({ userId, onDeviceAdded }) => {
     try {
       // 1. ยิง API สร้างอุปกรณ์
       const res = await axios.post('http://localhost:3000/api/devices', {
-        ...formData,
-        userId
+        ...formData
       });
 
       // 2. สร้าง Script จาก Token ที่ได้มา

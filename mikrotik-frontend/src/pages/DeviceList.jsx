@@ -159,7 +159,7 @@ const DeviceList = () => {
   const handleDownloadLatest = async (device) => { 
     if (!device.configData) return alert("No configuration data found for this device.");
     try {
-      await apiClient.post(`/api/devices/${device.id}/log-download`, { userId: 1 });
+      await apiClient.post(`/api/devices/${device.id}/log-download`, {});
       const script = generateMikrotikScript(device.configData);
       const element = document.createElement("a");
       const file = new Blob([script], {type: 'text/plain'});

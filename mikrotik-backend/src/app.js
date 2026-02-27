@@ -4,7 +4,7 @@ const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 
 const deviceRoutes = require('./routes/deviceRoutes'); 
-const masterRoutes = require('./routes/masterRoutes');
+const modelRoutes = require('./routes/modelRoutes');
 const logRoutes = require('./routes/logRoutes');
 const userRoutes = require('./routes/userRoutes');
 const authRoutes = require('./routes/authRoutes');
@@ -68,7 +68,7 @@ app.use(express.urlencoded({ extended: true, limit: '500kb' }));
 // 🚦 Register Routes
 // ==========================================
 app.use('/api/devices', deviceRoutes);
-app.use('/api/master', masterRoutes);
+app.use('/api/master', modelRoutes);
 app.use('/api/logs', logRoutes);
 app.use('/api/users', userRoutes); 
 app.use('/api/auth', authRoutes);

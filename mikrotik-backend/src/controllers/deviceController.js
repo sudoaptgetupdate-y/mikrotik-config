@@ -24,8 +24,10 @@ const saveConfigHistory = async (userId, name, configData, managedDeviceId) => {
 
 exports.createDevice = async (req, res) => {
   try {
-    const { name, circuitId, userId, configData } = req.body;
-    if (!name || !userId) return res.status(400).json({ error: "Name and UserID are required" });
+    const { name, circuitId, configData } = req.body; // เอา userId ออก
+    const actionUserId = req.user.id; // ใช้ ID จาก Token ผู้ล็อกอิน
+
+    if (!name || !actionUserId) return res.status(400).json({ error: "Name and UserID are required" });
 
     // ✅ สร้าง Token ขึ้นมาเอง และทำการเข้ารหัสก่อนบันทึกลง Database
     const plainToken = crypto.randomUUID();
@@ -35,7 +37,7 @@ exports.createDevice = async (req, res) => {
       data: { 
         name, 
         circuitId, 
-        userId: parseInt(userId), 
+        userId: actionUserId, // ตั้งค่าคนสร้างเป็นคนที่กำลังล็อกอิน
         configData: configData || {}, 
         status: "ACTIVE",
         apiToken: encryptedToken // 🔒 เก็บ Token ลง DB แบบเข้ารหัสแล้ว
@@ -51,11 +53,15 @@ exports.createDevice = async (req, res) => {
         where: { id: newDevice.id },
         data: { configData: finalConfigData }
       });
-      await saveConfigHistory(userId, name, finalConfigData, newDevice.id);
+      await saveConfigHistory(actionUserId, name, finalConfigData, newDevice.id);
     }
 
     await prisma.activityLog.create({
-      data: { userId: parseInt(userId), action: "CREATE_DEVICE", details: `Created device: ${name}` }
+      data: { 
+        userId: actionUserId, // บันทึก Log ด้วย ID ของคนล็อกอิน
+        action: "CREATE_DEVICE", 
+        details: `Created device: ${name}` 
+      }
     });
 
     // ส่งคืน Plaintext กลับไปที่ Frontend
@@ -70,6 +76,7 @@ exports.updateDevice = async (req, res) => {
   try {
     const { id } = req.params;
     const { configData, name, circuitId, status } = req.body; 
+    const actionUserId = req.user.id; // ใช้ ID จาก Token
 
     const oldDevice = await prisma.managedDevice.findUnique({ where: { id: parseInt(id) } });
     if (!oldDevice) return res.status(404).json({ error: "Device not found" });
@@ -92,11 +99,16 @@ exports.updateDevice = async (req, res) => {
     });
 
     if (finalConfigData) {
-      await saveConfigHistory(updatedDevice.userId, updatedDevice.name, finalConfigData, updatedDevice.id);
+      // บันทึก History โดยใช้ ID ของคนที่ทำการอัปเดต
+      await saveConfigHistory(actionUserId, updatedDevice.name, finalConfigData, updatedDevice.id);
     }
 
     await prisma.activityLog.create({
-      data: { userId: updatedDevice.userId, action: "UPDATE_DEVICE", details: `Updated config for device: ${updatedDevice.name}` }
+      data: { 
+        userId: actionUserId, // บันทึก Log ด้วย ID ของคนล็อกอิน
+        action: "UPDATE_DEVICE", 
+        details: `Updated config for device: ${updatedDevice.name}` 
+      }
     });
 
     res.json({ ...updatedDevice, apiToken: plainToken, configData: finalConfigData });
@@ -226,14 +238,15 @@ exports.getDeviceById = async (req, res) => {
 exports.logDownload = async (req, res) => {
   try {
     const { id } = req.params; 
-    const { userId, configId } = req.body; 
+    const { configId } = req.body; // เอา userId ออก
+    const actionUserId = req.user.id; // ใช้ ID จาก Token
 
     const device = await prisma.managedDevice.findUnique({ where: { id: parseInt(id) } });
     if (!device) return res.status(404).json({ error: "Device not found" });
 
     await prisma.activityLog.create({
       data: {
-        userId: parseInt(userId),
+        userId: actionUserId, // บันทึก Log ด้วย ID ของคนล็อกอิน
         action: "GENERATE_CONFIG", 
         details: `Downloaded config for: ${device.name} ${configId ? `(History Version #${configId})` : '(Latest Version)'}`
       }
@@ -248,6 +261,8 @@ exports.logDownload = async (req, res) => {
 exports.deleteDevice = async (req, res) => {
   try {
     const { id } = req.params;
+    const actionUserId = req.user.id; // ใช้ ID จาก Token
+
     const device = await prisma.managedDevice.findUnique({ where: { id: parseInt(id) } });
     if (!device) return res.status(404).json({ error: "Device not found" });
 
@@ -258,7 +273,7 @@ exports.deleteDevice = async (req, res) => {
 
     await prisma.activityLog.create({
       data: {
-        userId: device.userId,
+        userId: actionUserId, // บันทึก Log ด้วย ID ของคนล็อกอิน
         action: "UPDATE_DEVICE", 
         details: `Soft deleted device: ${device.name}`
       }
@@ -274,6 +289,8 @@ exports.deleteDevice = async (req, res) => {
 exports.restoreDevice = async (req, res) => {
   try {
     const { id } = req.params;
+    const actionUserId = req.user.id; // ใช้ ID จาก Token
+
     const device = await prisma.managedDevice.findUnique({ where: { id: parseInt(id) } });
     if (!device) return res.status(404).json({ error: "Device not found" });
 
@@ -284,7 +301,7 @@ exports.restoreDevice = async (req, res) => {
 
     await prisma.activityLog.create({
       data: {
-        userId: device.userId,
+        userId: actionUserId, // บันทึก Log ด้วย ID ของคนล็อกอิน
         action: "UPDATE_DEVICE", 
         details: `Restored device: ${device.name}`
       }
@@ -300,7 +317,10 @@ exports.restoreDevice = async (req, res) => {
 exports.acknowledgeWarning = async (req, res) => {
   try {
     const { id } = req.params;
-    const { userId, userName, reason } = req.body; 
+    const { reason } = req.body; // เอา userId และ userName ออก
+    
+    const actionUserId = req.user.id; // ใช้ข้อมูลจาก Token แทน
+    const actionUserName = req.user.username; 
 
     const device = await prisma.managedDevice.findUnique({ where: { id: parseInt(id) } });
     if (!device) return res.status(404).json({ error: "Device not found" });
@@ -317,8 +337,8 @@ exports.acknowledgeWarning = async (req, res) => {
     ackHistory.push({
       timestamp: new Date(),
       reason: reason,
-      userId: parseInt(userId),
-      userName: userName || "Unknown User" 
+      userId: actionUserId,
+      userName: actionUserName || "Unknown User" 
     });
 
     const updatedDevice = await prisma.managedDevice.update({
@@ -326,14 +346,14 @@ exports.acknowledgeWarning = async (req, res) => {
       data: {
         isAcknowledged: true,
         ackReason: ackHistory, 
-        ackByUserId: parseInt(userId),
+        ackByUserId: actionUserId,
         ackAt: new Date()
       }
     });
 
     await prisma.activityLog.create({
       data: {
-        userId: parseInt(userId),
+        userId: actionUserId, // บันทึก Log ด้วย ID ของคนล็อกอิน
         action: "UPDATE_DEVICE", 
         details: `Acknowledged update on: ${device.name}. Reason: ${reason}`
       }
