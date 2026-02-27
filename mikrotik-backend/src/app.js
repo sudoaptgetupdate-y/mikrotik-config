@@ -12,9 +12,9 @@ const settingRoutes = require('./routes/settingRoutes');
 require('./services/cronJobs');
 
 const app = express();
-
-    app.set('trust proxy', 1); 
-
+if (process.env.NODE_ENV === 'production') {
+    app.set('trust proxy', true); 
+}
 
 // ==========================================
 // 🛡️ 1. Security Headers (Helmet)
