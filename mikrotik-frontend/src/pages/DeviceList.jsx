@@ -4,10 +4,12 @@ import apiClient from '../utils/apiClient';
 import { generateMikrotikScript } from '../utils/mikrotikGenerator';
 import HistoryModal from './ConfigWizard/components/device/HistoryModal';
 import DeviceTableRow from './ConfigWizard/components/device/DeviceTableRow'; 
+// ✅ นำเข้า AcknowledgeModal ที่เราเพิ่งแยกออกไป
+import AcknowledgeModal from './ConfigWizard/components/device/AcknowledgeModal'; 
 import { useAuth } from '../context/AuthContext';
 import { 
   Search, Plus, RefreshCw, Server, Activity, 
-  AlertTriangle, CheckCircle, XCircle, Archive, ChevronDown, X, BellRing, Clock, History, User, Loader2
+  AlertTriangle, CheckCircle, XCircle, Archive, ChevronDown, Loader2
 } from 'lucide-react';
 
 const getDeviceStatus = (device) => {
@@ -61,7 +63,7 @@ const DeviceList = () => {
   const [historyData, setHistoryData] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(false);
 
-  // Modal State
+  // Modal State สำหรับ Acknowledge
   const [isAckModalOpen, setIsAckModalOpen] = useState(false);
   const [deviceToAck, setDeviceToAck] = useState(null);
   const [ackReason, setAckReason] = useState('');
@@ -115,7 +117,6 @@ const DeviceList = () => {
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries[0].isIntersecting) {
-          // เพิ่มจำนวนแถวที่ต้องการแสดงทีละ 15
           setDisplayLimit((prev) => prev + 15);
         }
       },
@@ -200,9 +201,8 @@ const DeviceList = () => {
     if (!ackReason.trim()) return alert("กรุณากรอกข้อมูลการอัปเดต หรือเหตุผล");
     setIsAckSubmitting(true);
     try {
+      // ✅ ไม่ต้องส่ง userId เพราะฝั่ง Backend ดึงจาก Token แล้ว (ตามที่เราแก้กันไป)
       await apiClient.post(`/api/devices/${deviceToAck.id}/acknowledge`, {
-        userId: user?.id || 1, 
-        userName: user?.username || "Unknown User",
         reason: ackReason
       });
       setIsAckModalOpen(false);
@@ -239,24 +239,8 @@ const DeviceList = () => {
   });
 
   const displayedDevices = filteredDevices.slice(0, displayLimit);
-
   const currentFilterOpt = FILTER_OPTIONS.find(opt => opt.value === statusFilter);
   const CurrentIcon = currentFilterOpt ? currentFilterOpt.icon : Activity;
-
-  // สำหรับ Modal (คุณคอมเมนต์ไว้ จึงเก็บโครงสร้างส่วนนี้เอาไว้เหมือนเดิม)
-  let modalAckHistory = [];
-  if (deviceToAck?.ackReason) {
-    if (Array.isArray(deviceToAck.ackReason)) {
-      modalAckHistory = deviceToAck.ackReason;
-    } else if (typeof deviceToAck.ackReason === 'string') {
-      try {
-        modalAckHistory = JSON.parse(deviceToAck.ackReason);
-        if (!Array.isArray(modalAckHistory)) modalAckHistory = [];
-      } catch (e) {
-        modalAckHistory = [{ timestamp: deviceToAck.ackAt || new Date(), reason: deviceToAck.ackReason }];
-      }
-    }
-  }
 
   return (
     <div className="space-y-6 animate-fade-in pb-4">
@@ -272,7 +256,6 @@ const DeviceList = () => {
             (Last updated: {lastUpdated.toLocaleTimeString()})
           </p>
         </div>
-        {/* ✅ ปรับปุ่มให้กางเต็มความกว้างและจัดกลางบนมือถือ */}
         <button 
           onClick={handleAddClick}
           className="bg-blue-600 text-white w-full md:w-auto px-4 py-2.5 rounded-xl flex items-center justify-center gap-2 hover:bg-blue-700 shadow-sm transition-all font-medium shrink-0"
@@ -355,11 +338,9 @@ const DeviceList = () => {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            {/* ✅ เพิ่ม min-w-[1000px] (หรือค่าความกว้างที่เหมาะสมกับคอลัมน์) เพื่อกันตารางโดนบีบ */}
             <table className="w-full text-left border-collapse min-w-[1000px]">
               <thead>
                 <tr className="bg-slate-50 border-b border-slate-200 text-xs uppercase text-slate-500 font-semibold text-left">
-                  {/* ✅ เพิ่ม whitespace-nowrap เพื่อไม่ให้ข้อความหัวตารางตัดบรรทัด */}
                   <th className="p-4 pl-6 w-[15%] whitespace-nowrap">Status</th>
                   <th className="p-4 w-[25%] whitespace-nowrap">Device Details</th>
                   <th className="p-4 w-[20%] whitespace-nowrap">Resources</th>
@@ -385,7 +366,7 @@ const DeviceList = () => {
               </tbody>
             </table>
 
-            {/* ตัวจับการ Scroll (Intersection Observer Target) */}
+            {/* Intersection Observer Target */}
             {displayLimit < filteredDevices.length && (
               <div ref={observerTarget} className="p-6 flex justify-center items-center gap-2 text-slate-400 bg-slate-50 border-t border-slate-100">
                 <Loader2 size={18} className="animate-spin text-blue-400" />
@@ -396,8 +377,16 @@ const DeviceList = () => {
         )}
       </div>
 
-      {/* Modal และ HistoryModal ส่วนอื่นคงเดิม */}
-      {/* ... */}
+      {/* ✅ เรียกใช้ AcknowledgeModal Component ตรงนี้ */}
+      <AcknowledgeModal 
+        isOpen={isAckModalOpen}
+        onClose={() => setIsAckModalOpen(false)}
+        device={deviceToAck}
+        ackReason={ackReason}
+        setAckReason={setAckReason}
+        onSubmit={submitAcknowledge}
+        isSubmitting={isAckSubmitting}
+      />
       
       <HistoryModal 
         isOpen={isHistoryOpen}
