@@ -123,8 +123,39 @@ exports.handleHeartbeat = async (req, res) => {
     const { cpu, ram, storage, temp, latency, uptime, version } = req.body;
     const remoteIp = req.ip;
 
-    const device = await prisma.managedDevice.findUnique({ where: { apiToken: token } });
-    if (!device) return res.status(404).json({ error: "Device not found" });
+    // ==========================================
+    // 🚨 ระบบค้นหา Device แบบถอดรหัส (รองรับทั้งเก่าและใหม่)
+    // ==========================================
+    // ดึงเฉพาะ id และ apiToken ของทุกอุปกรณ์มาเช็ก
+    const allDevices = await prisma.managedDevice.findMany({
+      select: { id: true, apiToken: true }
+    });
+
+    let matchedDeviceId = null;
+
+    for (const d of allDevices) {
+      // 1. ลองเทียบแบบ Plain Text เผื่อเป็นอุปกรณ์เก่าที่ยังไม่เข้ารหัส
+      if (d.apiToken === token) {
+        matchedDeviceId = d.id;
+        break;
+      }
+      
+      // 2. ลองถอดรหัสของตัวเครื่องใหม่ แล้วเทียบกับค่าที่ MikroTik ส่งมา
+      try {
+        if (decrypt(d.apiToken) === token) {
+          matchedDeviceId = d.id;
+          break;
+        }
+      } catch (err) {
+        // ถ้าถอดรหัสไม่ได้ (อาจเป็น Plain Text เก่า) ให้ข้ามไป
+      }
+    }
+
+    // ถ้าหาไม่เจอจริงๆ ค่อยเด้ง 404
+    if (!matchedDeviceId) return res.status(404).json({ error: "Device not found" });
+
+    // เมื่อเจอ ID ที่ถูกต้องแล้ว ค่อยดึงข้อมูลเต็มๆ ออกมาทำงานต่อ
+    const device = await prisma.managedDevice.findUnique({ where: { id: matchedDeviceId } });
 
     // ==========================================
     // 🟢 🔴 🟠 ระบบตรวจจับการเปลี่ยนสถานะ (Event Detection)
