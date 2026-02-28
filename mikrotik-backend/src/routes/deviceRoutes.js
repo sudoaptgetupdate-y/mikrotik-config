@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const deviceController = require('../controllers/deviceController');
 
-// ✅ นำเข้า Middleware ใหม่ (verifyDeviceToken) มาด้วย
+// ✅ นำเข้า Middleware 
 const { verifyToken, requireRole, verifyDeviceToken } = require('../middlewares/authMiddleware');
 
 // =========================================================
@@ -18,6 +18,10 @@ router.post('/heartbeat', verifyDeviceToken, deviceController.handleHeartbeat);
 // =========================================================
 // บังคับว่าทุก Route ต่อจากบรรทัดนี้ ต้องล็อกอินหน้าเว็บก่อน
 router.use(verifyToken);
+
+// 🛠️ โซน Maintenance: อนุญาตเฉพาะ SUPER_ADMIN เท่านั้น
+// (วางไว้ตรงนี้เพื่อให้ Express ดักจับ Path นี้ก่อนที่จะโดนตีความว่าเป็น /:id)
+router.post('/maintenance/clear-ack', requireRole(['SUPER_ADMIN']), deviceController.clearAckHistory);
 
 // 🟢 โซน Read-only: ทุกคน (รวมถึง Employee) ดูข้อมูลได้
 router.get('/user/:userId', deviceController.getUserDevices);

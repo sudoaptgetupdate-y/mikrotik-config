@@ -129,7 +129,6 @@ exports.handleHeartbeat = async (req, res) => {
     if (!isHighLoad) {
       resetAckData = {
         isAcknowledged: false,
-        ackReason: null,
         ackByUserId: null,
         ackAt: null
       };
@@ -317,9 +316,9 @@ exports.restoreDevice = async (req, res) => {
 exports.acknowledgeWarning = async (req, res) => {
   try {
     const { id } = req.params;
-    const { reason } = req.body; // เอา userId และ userName ออก
+    const { reason, warningData } = req.body;
     
-    const actionUserId = req.user.id; // ใช้ข้อมูลจาก Token แทน
+    const actionUserId = req.user.id;
     const actionUserName = req.user.username; 
 
     const device = await prisma.managedDevice.findUnique({ where: { id: parseInt(id) } });
@@ -337,6 +336,7 @@ exports.acknowledgeWarning = async (req, res) => {
     ackHistory.push({
       timestamp: new Date(),
       reason: reason,
+      warningData: warningData || null,
       userId: actionUserId,
       userName: actionUserName || "Unknown User" 
     });
@@ -363,5 +363,58 @@ exports.acknowledgeWarning = async (req, res) => {
   } catch (error) {
     console.error("Acknowledge warning error:", error.message);
     res.status(500).json({ error: "Failed to acknowledge warning" });
+  }
+};
+
+exports.clearAckHistory = async (req, res) => {
+  try {
+    const { days } = req.body; 
+    if (!days || isNaN(days)) return res.status(400).json({ error: "Invalid days parameter" });
+
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - parseInt(days));
+
+    // ดึงเฉพาะอุปกรณ์ที่เคยมีประวัติ
+    const devices = await prisma.managedDevice.findMany({
+      where: { ackReason: { not: null } }
+    });
+
+    let updatedCount = 0;
+
+    for (const device of devices) {
+      let history = [];
+      if (typeof device.ackReason === 'string') {
+         try { history = JSON.parse(device.ackReason); } catch(e) {}
+      } else if (Array.isArray(device.ackReason)) {
+         history = device.ackReason;
+      }
+
+      if (history.length > 0) {
+         // กรองเก็บไว้เฉพาะที่ใหม่กว่า cutoffDate
+         const filteredHistory = history.filter(h => new Date(h.timestamp) >= cutoffDate);
+         
+         if (filteredHistory.length !== history.length) {
+            await prisma.managedDevice.update({
+               where: { id: device.id },
+               data: { ackReason: filteredHistory.length > 0 ? filteredHistory : null }
+            });
+            updatedCount++;
+         }
+      }
+    }
+
+    // บันทึก Log การกระทำของ Super Admin
+    await prisma.activityLog.create({
+       data: {
+         userId: req.user.id,
+         action: "UPDATE_DEVICE",
+         details: `Cleared global acknowledge history older than ${days} days (Affected ${updatedCount} devices)`
+       }
+    });
+
+    res.json({ message: `Cleared history older than ${days} days`, affectedDevices: updatedCount });
+  } catch (error) {
+    console.error("Clear Ack History Error:", error);
+    res.status(500).json({ error: "Failed to clear history" });
   }
 };

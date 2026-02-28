@@ -11,7 +11,7 @@ const AcknowledgeModal = ({
 }) => {
   if (!isOpen) return null;
 
-  // Logic จัดการประวัติ
+  // 1. Logic จัดการประวัติ
   let modalAckHistory = [];
   if (device?.ackReason) {
     if (Array.isArray(device.ackReason)) {
@@ -25,6 +25,14 @@ const AcknowledgeModal = ({
       }
     }
   }
+
+  // 2. Logic คำนวณ Warning ปัจจุบันเพื่อแสดงผลบนหน้าจอให้คนกรอกรับทราบ
+  const cpu = parseFloat(device?.cpu || device?.cpuLoad) || 0;
+  const ram = parseFloat(device?.ram || device?.memoryUsage) || 0;
+  let warningText = [];
+  if (cpu > 85) warningText.push(`CPU ${cpu}%`);
+  if (ram > 85) warningText.push(`RAM ${ram}%`);
+  const currentWarning = warningText.length > 0 ? warningText.join(', ') : 'Unknown Load';
 
   return (
     <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
@@ -47,6 +55,13 @@ const AcknowledgeModal = ({
             <label className="block text-sm font-bold text-slate-700 mb-1">
               Device: <span className="text-blue-600">{device?.name}</span>
             </label>
+
+            {/* ✅ กล่องแสดงค่า Warning ปัจจุบันที่กำลังเกิดขึ้น */}
+            <div className="bg-orange-50 text-orange-700 p-3 rounded-lg text-sm border border-orange-200 mt-2 mb-3 flex items-center gap-2 font-medium">
+               <AlertTriangle size={16}/> 
+               Current Issue: <span className="font-bold text-red-600">{currentWarning}</span>
+            </div>
+
             <p className="text-xs text-slate-500">กรุณาระบุสาเหตุหรือหมายเหตุสำหรับการรับทราบการแจ้งเตือนนี้</p>
           </div>
           
@@ -68,10 +83,17 @@ const AcknowledgeModal = ({
                 {modalAckHistory.slice().reverse().map((h, i) => (
                   <div key={i} className="bg-slate-50 p-2.5 rounded-lg border border-slate-200 text-xs">
                     <div className="flex justify-between items-start mb-1">
-                      <span className="font-bold text-slate-700 flex items-center gap-1">
+                      <span className="font-bold text-slate-700 flex items-center gap-1 flex-wrap">
                         <User size={12} className="text-blue-500"/> {h.userName || "Unknown"}
+                        
+                        {/* ✅ แสดง Tag Warning ที่บันทึกไว้ในอดีต (ถ้ามี) */}
+                        {h.warningData && (
+                          <span className="ml-1 bg-red-100 text-red-600 px-1.5 py-0.5 rounded text-[10px] font-black tracking-wide">
+                            {h.warningData}
+                          </span>
+                        )}
                       </span>
-                      <span className="text-slate-400 flex items-center gap-1 font-medium">
+                      <span className="text-slate-400 flex items-center gap-1 font-medium whitespace-nowrap">
                         <Clock size={12}/> {new Date(h.timestamp).toLocaleString('th-TH', { dateStyle: 'short', timeStyle: 'short' })}
                       </span>
                     </div>

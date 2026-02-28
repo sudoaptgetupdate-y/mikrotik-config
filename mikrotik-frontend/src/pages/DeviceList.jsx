@@ -1,83 +1,54 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { Activity, Plus } from 'lucide-react';
 import apiClient from '../utils/apiClient';
 import { generateMikrotikScript } from '../utils/mikrotikGenerator';
-import HistoryModal from './ConfigWizard/components/device/HistoryModal';
-import DeviceTableRow from './ConfigWizard/components/device/DeviceTableRow'; 
-// ✅ นำเข้า AcknowledgeModal ที่เราเพิ่งแยกออกไป
-import AcknowledgeModal from './ConfigWizard/components/device/AcknowledgeModal'; 
 import { useAuth } from '../context/AuthContext';
-import { 
-  Search, Plus, RefreshCw, Server, Activity, 
-  AlertTriangle, CheckCircle, XCircle, Archive, ChevronDown, Loader2
-} from 'lucide-react';
 
-const getDeviceStatus = (device) => {
-  if (device.status === 'DELETED') {
-      return { state: 'deleted', color: 'bg-slate-100 text-slate-500 border-slate-200', icon: <Archive size={14}/>, label: 'Inactive' };
-  }
-  if (!device.lastSeen) return { state: 'offline', color: 'bg-red-50 text-red-600 border-red-200', icon: <XCircle size={14}/>, label: 'Offline' };
-  
-  const diffMinutes = (new Date() - new Date(device.lastSeen)) / 1000 / 60;
-  if (diffMinutes > 3) return { state: 'offline', color: 'bg-red-50 text-red-600 border-red-200', icon: <XCircle size={14}/>, label: 'Offline' };
-  
-  const cpu = parseFloat(device.cpu || device.cpuLoad) || 0;
-  const ram = parseFloat(device.ram || device.memoryUsage) || 0;
-  
-  if (cpu > 85 || ram > 85) {
-    if (device.isAcknowledged) {
-      return { state: 'acknowledged', color: 'bg-blue-50 text-blue-600 border-blue-200', icon: <CheckCircle size={14}/>, label: 'Acknowledged' };
-    }
-    return { state: 'warning', color: 'bg-orange-50 text-orange-600 border-orange-200', icon: <AlertTriangle size={14}/>, label: 'Warning' };
-  }
-  
-  return { state: 'online', color: 'bg-green-50 text-green-700 border-green-200', icon: <CheckCircle size={14}/>, label: 'Online' };
-};
-
-const FILTER_OPTIONS = [
-  { value: 'ACTIVE_ONLY', label: 'Active Devices', icon: Activity, color: 'text-blue-600', bg: 'bg-blue-100' },
-  { value: 'ONLINE', label: 'Online', icon: CheckCircle, color: 'text-green-600', bg: 'bg-green-100' },
-  { value: 'WARNING', label: 'Warning', icon: AlertTriangle, color: 'text-orange-500', bg: 'bg-orange-100' },
-  { value: 'OFFLINE', label: 'Offline', icon: XCircle, color: 'text-red-500', bg: 'bg-red-100' },
-  { value: 'DELETED', label: 'Inactive (Deleted)', icon: Archive, color: 'text-slate-500', bg: 'bg-slate-200' },
-  { value: 'ALL', label: 'All Devices', icon: Server, color: 'text-slate-600', bg: 'bg-slate-100' },
-];
+// นำเข้า Components ย่อยที่เราเพิ่งแยก
+import { getDeviceStatus } from './ConfigWizard/components/device/deviceHelpers';
+import DeviceListToolbar from './ConfigWizard/components/device/DeviceListToolbar';
+import DeviceTable from './ConfigWizard/components/device/DeviceTable';
+import AcknowledgeModal from './ConfigWizard/components/device/AcknowledgeModal'; 
+import HistoryModal from './ConfigWizard/components/device/HistoryModal';
 
 const DeviceList = () => {
   const navigate = useNavigate();
   const location = useLocation(); 
   const { user } = useAuth(); 
   const canEdit = user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN';
+  
   const [devices, setDevices] = useState([]);
   const [loading, setLoading] = useState(true);
-  
-  const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState(location.state?.filter || 'ACTIVE_ONLY');
-  const [isFilterOpen, setIsFilterOpen] = useState(false);
-  const filterRef = useRef(null);
-
   const [lastUpdated, setLastUpdated] = useState(new Date());
 
+  // Filter & Search States
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState(location.state?.filter || 'ACTIVE_ONLY');
+
+  // Infinite Scroll States
+  const [displayLimit, setDisplayLimit] = useState(15);
+  const observerTarget = useRef(null);
+
+  // Modal States
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [selectedDeviceHistory, setSelectedDeviceHistory] = useState(null);
   const [historyData, setHistoryData] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(false);
 
-  // Modal State สำหรับ Acknowledge
   const [isAckModalOpen, setIsAckModalOpen] = useState(false);
   const [deviceToAck, setDeviceToAck] = useState(null);
   const [ackReason, setAckReason] = useState('');
   const [isAckSubmitting, setIsAckSubmitting] = useState(false);
 
-  // State & Ref สำหรับ Infinite Scroll
-  const [displayLimit, setDisplayLimit] = useState(15);
-  const observerTarget = useRef(null);
+  // --- Effects ---
+  useEffect(() => {
+    if (location.state?.filter) setStatusFilter(location.state.filter);
+  }, [location.state?.filter]);
 
   useEffect(() => {
-    if (location.state?.filter) {
-      setStatusFilter(location.state.filter);
-    }
-  }, [location.state?.filter]);
+    setDisplayLimit(15);
+  }, [searchTerm, statusFilter]);
 
   const fetchDevices = async () => {
     try {
@@ -98,62 +69,34 @@ const DeviceList = () => {
   }, []);
 
   useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (filterRef.current && !filterRef.current.contains(event.target)) {
-        setIsFilterOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
+    const observer = new IntersectionObserver((entries) => {
+      if (entries[0].isIntersecting) setDisplayLimit((prev) => prev + 15);
+    }, { threshold: 0.1 });
 
-  // รีเซ็ตจำนวนที่แสดงเมื่อมีการค้นหา หรือเปลี่ยน Filter
-  useEffect(() => {
-    setDisplayLimit(15);
-  }, [searchTerm, statusFilter]);
-
-  // ตั้งค่า Intersection Observer เพื่อดักจับตอน Scroll ลงมาสุด
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0].isIntersecting) {
-          setDisplayLimit((prev) => prev + 15);
-        }
-      },
-      { threshold: 0.1 }
-    );
-
-    if (observerTarget.current) {
-      observer.observe(observerTarget.current);
-    }
-
+    if (observerTarget.current) observer.observe(observerTarget.current);
     return () => observer.disconnect();
   }, [loading]);
+
+  // --- Handlers ---
+  const handleRefresh = () => {
+    setLoading(true);
+    fetchDevices();
+  };
 
   const handleAddClick = () => navigate('/add-device');
   const handleEditClick = (device) => navigate(`/edit-device/${device.id}`, { state: { deviceData: device } });
 
   const handleDeleteClick = async (device) => {
     if (confirm(`Are you sure you want to delete "${device.name}"? (It will be marked as inactive)`)) {
-        try {
-            await apiClient.delete(`/api/devices/${device.id}`);
-            fetchDevices();
-        } catch (e) {
-            console.error(e);
-            alert("Failed to delete device");
-        }
+        try { await apiClient.delete(`/api/devices/${device.id}`); fetchDevices(); } 
+        catch (e) { alert("Failed to delete device"); }
     }
   };
 
   const handleRestoreClick = async (device) => {
     if (confirm(`Are you sure you want to restore "${device.name}" to active status?`)) {
-        try {
-            await apiClient.put(`/api/devices/${device.id}/restore`);
-            fetchDevices();
-        } catch (e) {
-            console.error(e);
-            alert("Failed to restore device");
-        }
+        try { await apiClient.put(`/api/devices/${device.id}/restore`); fetchDevices(); } 
+        catch (e) { alert("Failed to restore device"); }
     }
   };
 
@@ -163,32 +106,23 @@ const DeviceList = () => {
       await apiClient.post(`/api/devices/${device.id}/log-download`, {});
       const script = generateMikrotikScript(device.configData);
       const element = document.createElement("a");
-      const file = new Blob([script], {type: 'text/plain'});
-      element.href = URL.createObjectURL(file);
+      element.href = URL.createObjectURL(new Blob([script], {type: 'text/plain'}));
       element.download = `${device.name.replace(/\s+/g, '_')}_latest.rsc`;
       document.body.appendChild(element); 
       element.click();
       document.body.removeChild(element);
-    } catch (err) {
-      console.error("Download failed:", err);
-      alert("Failed to generate script");
-    }
+    } catch (err) { alert("Failed to generate script"); }
   };
 
   const handleViewHistory = async (device) => {
     setSelectedDeviceHistory(device);
     setIsHistoryOpen(true);
     setHistoryLoading(true);
-    setHistoryData([]);
     try {
       const res = await apiClient.get(`/api/devices/${device.id}/history`);
       setHistoryData(res.data);
-    } catch (error) {
-      console.error("Fetch history failed:", error);
-      alert("Failed to load history");
-    } finally {
-      setHistoryLoading(false);
-    }
+    } catch (error) { alert("Failed to load history"); } 
+    finally { setHistoryLoading(false); }
   };
 
   const handleAcknowledgeClick = (device) => {
@@ -201,32 +135,32 @@ const DeviceList = () => {
     if (!ackReason.trim()) return alert("กรุณากรอกข้อมูลการอัปเดต หรือเหตุผล");
     setIsAckSubmitting(true);
     try {
-      // ✅ ไม่ต้องส่ง userId เพราะฝั่ง Backend ดึงจาก Token แล้ว (ตามที่เราแก้กันไป)
+      const cpu = parseFloat(deviceToAck?.cpu || deviceToAck?.cpuLoad) || 0;
+      const ram = parseFloat(deviceToAck?.ram || deviceToAck?.memoryUsage) || 0;
+      let currentWarning = [];
+      if (cpu > 85) currentWarning.push(`CPU ${cpu}%`);
+      if (ram > 85) currentWarning.push(`RAM ${ram}%`);
+
       await apiClient.post(`/api/devices/${deviceToAck.id}/acknowledge`, {
-        reason: ackReason
+        reason: ackReason,
+        warningData: currentWarning.length > 0 ? currentWarning.join(', ') : 'Unknown Load'
       });
       setIsAckModalOpen(false);
       fetchDevices();
-    } catch (error) {
-      alert("Failed to acknowledge warning");
-    } finally {
-      setIsAckSubmitting(false);
-    }
+    } catch (error) { alert("Failed to acknowledge warning"); } 
+    finally { setIsAckSubmitting(false); }
   };
 
+  // --- Filtering Logic ---
   const filteredDevices = devices.filter(d => {
     const searchLower = searchTerm.toLowerCase();
-    
-    const modelName = typeof d.model === 'string' 
-      ? d.model 
-      : (d.model?.name || '');
-
+    const modelName = typeof d.model === 'string' ? d.model : (d.model?.name || '');
     const matchesSearch = 
-      (d.name && d.name.toLowerCase().includes(searchLower)) || 
-      (d.circuitId && d.circuitId.toLowerCase().includes(searchLower)) ||
-      (d.ipAddress && d.ipAddress.toLowerCase().includes(searchLower)) ||
-      (d.boardName && d.boardName.toLowerCase().includes(searchLower)) || 
-      (modelName && modelName.toLowerCase().includes(searchLower));
+      (d.name?.toLowerCase().includes(searchLower)) || 
+      (d.circuitId?.toLowerCase().includes(searchLower)) ||
+      (d.ipAddress?.toLowerCase().includes(searchLower)) ||
+      (d.boardName?.toLowerCase().includes(searchLower)) || 
+      (modelName?.toLowerCase().includes(searchLower));
 
     const statusObj = getDeviceStatus(d);
     
@@ -239,8 +173,6 @@ const DeviceList = () => {
   });
 
   const displayedDevices = filteredDevices.slice(0, displayLimit);
-  const currentFilterOpt = FILTER_OPTIONS.find(opt => opt.value === statusFilter);
-  const CurrentIcon = currentFilterOpt ? currentFilterOpt.icon : Activity;
 
   return (
     <div className="space-y-6 animate-fade-in pb-4">
@@ -264,120 +196,34 @@ const DeviceList = () => {
         </button>
       </div>
 
-      {/* Toolbar */}
-      <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col md:flex-row gap-4 items-center">
-        <div className="relative flex-1 w-full">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
-          <input 
-            type="text"
-            placeholder="Search by Name, Circuit ID, IP Address, Model..."
-            className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-100 transition"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-        </div>
+      <DeviceListToolbar 
+        searchTerm={searchTerm}
+        setSearchTerm={setSearchTerm}
+        statusFilter={statusFilter}
+        setStatusFilter={setStatusFilter}
+        onRefresh={handleRefresh}
+        loading={loading}
+      />
 
-        <div className="relative w-full md:w-56" ref={filterRef}>
-          <button 
-            onClick={() => setIsFilterOpen(!isFilterOpen)}
-            className="w-full flex items-center justify-between px-3 py-2.5 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition focus:outline-none focus:ring-2 focus:ring-blue-100"
-          >
-            <div className="flex items-center gap-2.5">
-              <div className={`p-1 rounded-md ${currentFilterOpt?.bg} ${currentFilterOpt?.color}`}>
-                <CurrentIcon size={16} />
-              </div>
-              <span className="font-medium text-slate-700 text-sm">{currentFilterOpt?.label}</span>
-            </div>
-            <ChevronDown size={16} className={`text-slate-400 transition-transform duration-300 ${isFilterOpen ? 'rotate-180' : ''}`} />
-          </button>
-
-          {isFilterOpen && (
-            <div className="absolute z-50 top-full left-0 mt-2 w-full bg-white border border-slate-100 rounded-xl shadow-lg shadow-slate-200/50 py-1.5 animate-in fade-in slide-in-from-top-2 duration-200">
-              {FILTER_OPTIONS.map((opt) => {
-                const DropdownIcon = opt.icon;
-                return (
-                  <button 
-                    key={opt.value}
-                    onClick={() => {
-                      setStatusFilter(opt.value);
-                      setIsFilterOpen(false);
-                    }}
-                    className={`w-full text-left px-3 py-2.5 flex items-center gap-3 transition-colors ${statusFilter === opt.value ? 'bg-slate-50' : 'hover:bg-slate-50'}`}
-                  >
-                    <div className={`p-1.5 rounded-md ${opt.bg} ${opt.color}`}>
-                      <DropdownIcon size={14} strokeWidth={2.5} />
-                    </div>
-                    <span className={`text-sm ${statusFilter === opt.value ? 'font-bold text-blue-600' : 'font-medium text-slate-600'}`}>
-                      {opt.label}
-                    </span>
-                    {statusFilter === opt.value && <CheckCircle size={14} className="ml-auto text-blue-600" />}
-                  </button>
-                );
-              })}
-            </div>
-          )}
-        </div>
-
-        <button onClick={() => { setLoading(true); fetchDevices(); }} className="w-full md:w-auto flex justify-center items-center gap-2 px-4 py-2.5 text-slate-600 hover:bg-slate-50 rounded-lg border border-slate-200 transition font-medium">
-          <RefreshCw size={18} className={loading ? "animate-spin text-blue-500" : ""} />
-          <span className="md:hidden lg:inline">Refresh</span>
-        </button>
-      </div>
-
-      {/* --- Device Table --- */}
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
-        {loading && devices.length === 0 ? (
-          <div className="p-10 text-center text-slate-400 flex flex-col items-center">
-            <Loader2 size={32} className="animate-spin text-blue-500 mb-3" />
-            Loading devices...
-          </div>
-        ) : filteredDevices.length === 0 ? (
-          <div className="p-10 text-center text-slate-400 flex flex-col items-center">
-            <Server size={48} className="mb-4 text-slate-200" />
-            <p>No devices found for the selected filter.</p>
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse min-w-[1000px]">
-              <thead>
-                <tr className="bg-slate-50 border-b border-slate-200 text-xs uppercase text-slate-500 font-semibold text-left">
-                  <th className="p-4 pl-6 w-[15%] whitespace-nowrap">Status</th>
-                  <th className="p-4 w-[25%] whitespace-nowrap">Device Details</th>
-                  <th className="p-4 w-[20%] whitespace-nowrap">Resources</th>
-                  <th className="p-4 w-[25%] whitespace-nowrap">Health, Net & Uptime</th>
-                  <th className="p-4 text-right pr-6 w-[15%] whitespace-nowrap">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {displayedDevices.map((device) => (
-                  <DeviceTableRow 
-                    key={device.id} 
-                    device={device}
-                    status={getDeviceStatus(device)}
-                    onDownload={handleDownloadLatest}
-                    onViewHistory={handleViewHistory}
-                    onRestore={handleRestoreClick}
-                    onEdit={handleEditClick}
-                    onDelete={handleDeleteClick}
-                    onAcknowledge={handleAcknowledgeClick}
-                    canEdit={canEdit}
-                  />
-                ))}
-              </tbody>
-            </table>
-
-            {/* Intersection Observer Target */}
-            {displayLimit < filteredDevices.length && (
-              <div ref={observerTarget} className="p-6 flex justify-center items-center gap-2 text-slate-400 bg-slate-50 border-t border-slate-100">
-                <Loader2 size={18} className="animate-spin text-blue-400" />
-                <span className="text-sm font-medium">Loading more devices...</span>
-              </div>
-            )}
-          </div>
-        )}
+        <DeviceTable 
+          loading={loading}
+          devices={displayedDevices}
+          filteredCount={filteredDevices.length}
+          displayLimit={displayLimit}
+          observerTarget={observerTarget}
+          canEdit={canEdit}
+          handlers={{
+            onDownload: handleDownloadLatest,
+            onViewHistory: handleViewHistory,
+            onRestore: handleRestoreClick,
+            onEdit: handleEditClick,
+            onDelete: handleDeleteClick,
+            onAcknowledge: handleAcknowledgeClick
+          }}
+        />
       </div>
 
-      {/* ✅ เรียกใช้ AcknowledgeModal Component ตรงนี้ */}
       <AcknowledgeModal 
         isOpen={isAckModalOpen}
         onClose={() => setIsAckModalOpen(false)}
