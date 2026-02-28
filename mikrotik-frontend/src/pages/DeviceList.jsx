@@ -11,6 +11,7 @@ import DeviceListToolbar from './ConfigWizard/components/device/DeviceListToolba
 import DeviceTable from './ConfigWizard/components/device/DeviceTable';
 import AcknowledgeModal from './ConfigWizard/components/device/AcknowledgeModal'; 
 import HistoryModal from './ConfigWizard/components/device/HistoryModal';
+import EventLogModal from './ConfigWizard/components/device/EventLogModal';
 
 const DeviceList = () => {
   const navigate = useNavigate();
@@ -40,6 +41,10 @@ const DeviceList = () => {
   const [deviceToAck, setDeviceToAck] = useState(null);
   const [ackReason, setAckReason] = useState('');
   const [isAckSubmitting, setIsAckSubmitting] = useState(false);
+  const [isEventOpen, setIsEventOpen] = useState(false);
+  const [selectedDeviceEvent, setSelectedDeviceEvent] = useState(null);
+  const [eventData, setEventData] = useState([]);
+  const [eventLoading, setEventLoading] = useState(false);
 
   // --- Effects ---
   useEffect(() => {
@@ -123,6 +128,21 @@ const DeviceList = () => {
       setHistoryData(res.data);
     } catch (error) { alert("Failed to load history"); } 
     finally { setHistoryLoading(false); }
+  };
+
+  const handleViewEvents = async (device) => {
+    setSelectedDeviceEvent(device);
+    setIsEventOpen(true);
+    setEventLoading(true);
+    try {
+      const res = await apiClient.get(`/api/devices/${device.id}/events`);
+      setEventData(res.data);
+    } catch (error) {
+      console.error("Fetch events failed:", error);
+      alert("Failed to load event history");
+    } finally {
+      setEventLoading(false);
+    }
   };
 
   const handleAcknowledgeClick = (device) => {
@@ -216,6 +236,7 @@ const DeviceList = () => {
           handlers={{
             onDownload: handleDownloadLatest,
             onViewHistory: handleViewHistory,
+            onViewEvents: handleViewEvents,
             onRestore: handleRestoreClick,
             onEdit: handleEditClick,
             onDelete: handleDeleteClick,
@@ -240,6 +261,13 @@ const DeviceList = () => {
         device={selectedDeviceHistory}
         history={historyData}
         loading={historyLoading}
+      />
+      <EventLogModal 
+        isOpen={isEventOpen}
+        onClose={() => setIsEventOpen(false)}
+        device={selectedDeviceEvent}
+        events={eventData}
+        loading={eventLoading}
       />
 
     </div>

@@ -24,8 +24,8 @@ const saveConfigHistory = async (userId, name, configData, managedDeviceId) => {
 
 exports.createDevice = async (req, res) => {
   try {
-    const { name, circuitId, configData } = req.body; // เอา userId ออก
-    const actionUserId = req.user.id; // ใช้ ID จาก Token ผู้ล็อกอิน
+    const { name, circuitId, configData } = req.body; 
+    const actionUserId = req.user.id; 
 
     if (!name || !actionUserId) return res.status(400).json({ error: "Name and UserID are required" });
 
@@ -37,16 +37,15 @@ exports.createDevice = async (req, res) => {
       data: { 
         name, 
         circuitId, 
-        userId: actionUserId, // ตั้งค่าคนสร้างเป็นคนที่กำลังล็อกอิน
+        userId: actionUserId, 
         configData: configData || {}, 
         status: "ACTIVE",
-        apiToken: encryptedToken // 🔒 เก็บ Token ลง DB แบบเข้ารหัสแล้ว
+        apiToken: encryptedToken 
       }
     });
 
     let finalConfigData = configData;
     if (configData) {
-      // เอา Token ฉบับอ่านออก (Plaintext) แปะกลับไปให้ Frontend เอาไปสร้าง Script
       finalConfigData = { ...configData, token: plainToken };
       
       await prisma.managedDevice.update({
@@ -58,16 +57,15 @@ exports.createDevice = async (req, res) => {
 
     await prisma.activityLog.create({
       data: { 
-        userId: actionUserId, // บันทึก Log ด้วย ID ของคนล็อกอิน
+        userId: actionUserId, 
         action: "CREATE_DEVICE", 
         details: `Created device: ${name}` 
       }
     });
 
-    // ส่งคืน Plaintext กลับไปที่ Frontend
     res.status(201).json({ ...newDevice, apiToken: plainToken, configData: finalConfigData });
   } catch (error) {
-    console.error("Create device error:", error.message); // 🛡️ ป้องกัน Stack Trace หลุด
+    console.error("Create device error:", error.message); 
     res.status(500).json({ error: "Failed to create device" });
   }
 };
@@ -76,16 +74,16 @@ exports.updateDevice = async (req, res) => {
   try {
     const { id } = req.params;
     const { configData, name, circuitId, status } = req.body; 
-    const actionUserId = req.user.id; // ใช้ ID จาก Token
+    const actionUserId = req.user.id; 
 
     const oldDevice = await prisma.managedDevice.findUnique({ where: { id: parseInt(id) } });
     if (!oldDevice) return res.status(404).json({ error: "Device not found" });
 
-    const plainToken = decrypt(oldDevice.apiToken); // 🔓 ถอดรหัส Token เก่าจาก DB
+    const plainToken = decrypt(oldDevice.apiToken); 
 
     let finalConfigData = configData;
     if (configData) {
-        finalConfigData = { ...configData, token: plainToken }; // แปะ Token เข้าไปใน Config ที่อัปเดตใหม่
+        finalConfigData = { ...configData, token: plainToken }; 
     }
 
     const updatedDevice = await prisma.managedDevice.update({
@@ -99,13 +97,12 @@ exports.updateDevice = async (req, res) => {
     });
 
     if (finalConfigData) {
-      // บันทึก History โดยใช้ ID ของคนที่ทำการอัปเดต
       await saveConfigHistory(actionUserId, updatedDevice.name, finalConfigData, updatedDevice.id);
     }
 
     await prisma.activityLog.create({
       data: { 
-        userId: actionUserId, // บันทึก Log ด้วย ID ของคนล็อกอิน
+        userId: actionUserId, 
         action: "UPDATE_DEVICE", 
         details: `Updated config for device: ${updatedDevice.name}` 
       }
@@ -120,11 +117,47 @@ exports.updateDevice = async (req, res) => {
 
 exports.handleHeartbeat = async (req, res) => {
   try {
-    const device = req.device; 
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith("Bearer ")) return res.status(401).json({ error: "Unauthorized" });
+    const token = authHeader.split(" ")[1];
+    const { cpu, ram, storage, temp, latency, uptime, version } = req.body;
     const remoteIp = req.ip;
-    const { cpu, ram, uptime, version, storage, temp, latency, boardName } = req.body; 
 
+    const device = await prisma.managedDevice.findUnique({ where: { apiToken: token } });
+    if (!device) return res.status(404).json({ error: "Device not found" });
+
+    // ==========================================
+    // 🟢 🔴 🟠 ระบบตรวจจับการเปลี่ยนสถานะ (Event Detection)
+    // ==========================================
     const isHighLoad = (cpu && parseInt(cpu) > 85) || (ram && parseInt(ram) > 85);
+    const wasHighLoad = (device.cpuLoad && parseInt(device.cpuLoad) > 85) || (device.memoryUsage && parseInt(device.memoryUsage) > 85);
+    
+    let justCameOnline = false;
+    if (device.lastSeen) {
+      const diffMinutes = (new Date() - new Date(device.lastSeen)) / 1000 / 60;
+      if (diffMinutes > 3) {
+        justCameOnline = true;
+        await prisma.deviceEventLog.create({
+          data: { deviceId: device.id, eventType: 'ONLINE', details: 'Device is back online' }
+        });
+      }
+    }
+
+    if (isHighLoad && !wasHighLoad) {
+      await prisma.deviceEventLog.create({
+        data: { deviceId: device.id, eventType: 'WARNING', details: `High Load Detected - CPU: ${cpu}%, RAM: ${ram}%` }
+      });
+    }
+
+    if (!isHighLoad && wasHighLoad && !justCameOnline) {
+      await prisma.deviceEventLog.create({
+        data: { deviceId: device.id, eventType: 'ONLINE', details: 'System load is back to normal' }
+      });
+    }
+
+    // ==========================================
+    // อัปเดตข้อมูลสถานะล่าสุดลง Database
+    // ==========================================
     let resetAckData = {};
     if (!isHighLoad) {
       resetAckData = {
@@ -138,33 +171,22 @@ exports.handleHeartbeat = async (req, res) => {
       where: { id: device.id },
       data: {
         lastSeen: new Date(),
-        currentIp: remoteIp,
-        cpuLoad: cpu ? parseInt(cpu) : undefined,
-        memoryUsage: ram ? parseInt(ram) : undefined,
-        uptime: uptime || undefined,
-        version: version || undefined,
-        boardName: boardName || undefined, 
-        storage: storage ? parseInt(storage) : undefined,
-        temp: temp || undefined,
-        latency: latency || undefined,
-        status: device.status === 'DELETED' ? 'DELETED' : "ACTIVE",
-        ...resetAckData 
+        currentIp: remoteIp, 
+        cpuLoad: cpu ? parseInt(cpu) : device.cpuLoad, 
+        memoryUsage: ram ? parseInt(ram) : device.memoryUsage, 
+        storage: storage ? parseInt(storage) : device.storage, 
+        temp: temp || device.temp, 
+        uptime: uptime || device.uptime,
+        version: version || device.version, 
+        latency: latency || device.latency,
+        ...resetAckData
       }
     });
 
-    let commandToSend = "none";
-    if (device.pendingCmd) {
-      commandToSend = device.pendingCmd;
-      await prisma.managedDevice.update({ where: { id: device.id }, data: { pendingCmd: null } });
-      await prisma.activityLog.create({
-        data: { userId: device.userId, action: "UPDATE_DEVICE", details: `Executed remote command on ${device.name}` }
-      });
-    }
-
-    res.json({ status: "ok", command: commandToSend });
+    res.json({ message: "Heartbeat received" });
   } catch (error) {
-    console.error("Heartbeat process error:", error.message);
-    res.status(500).json({ error: "Heartbeat process failed" });
+    console.error("Heartbeat Error:", error);
+    res.status(500).json({ error: "Internal server error" });
   }
 };
 
@@ -184,7 +206,7 @@ exports.getUserDevices = async (req, res) => {
           ...d, 
           isOnline, 
           model: modelObj,
-          apiToken: decrypt(d.apiToken) // 🔓 ถอดรหัสส่งคืนให้หน้าเว็บเอาไปโชว์
+          apiToken: decrypt(d.apiToken) 
         };
     });
 
@@ -220,11 +242,11 @@ exports.getDeviceById = async (req, res) => {
     const device = await prisma.managedDevice.findUnique({ where: { id: parseInt(id) } });
     if (!device) return res.status(404).json({ error: "Device not found" });
 
-    device.apiToken = decrypt(device.apiToken); // 🔓 ถอดรหัสส่งให้หน้าเว็บ
+    device.apiToken = decrypt(device.apiToken); 
     
     if (device.configData) {
       if (device.configData.selectedModel) device.model = device.configData.selectedModel;
-      device.configData.token = device.apiToken; // แปะ Token ไปใน configData ไว้สร้าง Script
+      device.configData.token = device.apiToken; 
     }
 
     res.json(device);
@@ -237,15 +259,15 @@ exports.getDeviceById = async (req, res) => {
 exports.logDownload = async (req, res) => {
   try {
     const { id } = req.params; 
-    const { configId } = req.body; // เอา userId ออก
-    const actionUserId = req.user.id; // ใช้ ID จาก Token
+    const { configId } = req.body; 
+    const actionUserId = req.user.id; 
 
     const device = await prisma.managedDevice.findUnique({ where: { id: parseInt(id) } });
     if (!device) return res.status(404).json({ error: "Device not found" });
 
     await prisma.activityLog.create({
       data: {
-        userId: actionUserId, // บันทึก Log ด้วย ID ของคนล็อกอิน
+        userId: actionUserId, 
         action: "GENERATE_CONFIG", 
         details: `Downloaded config for: ${device.name} ${configId ? `(History Version #${configId})` : '(Latest Version)'}`
       }
@@ -260,7 +282,7 @@ exports.logDownload = async (req, res) => {
 exports.deleteDevice = async (req, res) => {
   try {
     const { id } = req.params;
-    const actionUserId = req.user.id; // ใช้ ID จาก Token
+    const actionUserId = req.user.id; 
 
     const device = await prisma.managedDevice.findUnique({ where: { id: parseInt(id) } });
     if (!device) return res.status(404).json({ error: "Device not found" });
@@ -272,7 +294,7 @@ exports.deleteDevice = async (req, res) => {
 
     await prisma.activityLog.create({
       data: {
-        userId: actionUserId, // บันทึก Log ด้วย ID ของคนล็อกอิน
+        userId: actionUserId, 
         action: "UPDATE_DEVICE", 
         details: `Soft deleted device: ${device.name}`
       }
@@ -288,7 +310,7 @@ exports.deleteDevice = async (req, res) => {
 exports.restoreDevice = async (req, res) => {
   try {
     const { id } = req.params;
-    const actionUserId = req.user.id; // ใช้ ID จาก Token
+    const actionUserId = req.user.id; 
 
     const device = await prisma.managedDevice.findUnique({ where: { id: parseInt(id) } });
     if (!device) return res.status(404).json({ error: "Device not found" });
@@ -300,7 +322,7 @@ exports.restoreDevice = async (req, res) => {
 
     await prisma.activityLog.create({
       data: {
-        userId: actionUserId, // บันทึก Log ด้วย ID ของคนล็อกอิน
+        userId: actionUserId, 
         action: "UPDATE_DEVICE", 
         details: `Restored device: ${device.name}`
       }
@@ -353,7 +375,7 @@ exports.acknowledgeWarning = async (req, res) => {
 
     await prisma.activityLog.create({
       data: {
-        userId: actionUserId, // บันทึก Log ด้วย ID ของคนล็อกอิน
+        userId: actionUserId, 
         action: "UPDATE_DEVICE", 
         details: `Acknowledged update on: ${device.name}. Reason: ${reason}`
       }
@@ -366,6 +388,9 @@ exports.acknowledgeWarning = async (req, res) => {
   }
 };
 
+// ==========================================
+// ลบประวัติ Acknowledge เก่า
+// ==========================================
 exports.clearAckHistory = async (req, res) => {
   try {
     const { days } = req.body; 
@@ -374,7 +399,6 @@ exports.clearAckHistory = async (req, res) => {
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - parseInt(days));
 
-    // ดึงเฉพาะอุปกรณ์ที่เคยมีประวัติ
     const devices = await prisma.managedDevice.findMany({
       where: { ackReason: { not: null } }
     });
@@ -390,7 +414,6 @@ exports.clearAckHistory = async (req, res) => {
       }
 
       if (history.length > 0) {
-         // กรองเก็บไว้เฉพาะที่ใหม่กว่า cutoffDate
          const filteredHistory = history.filter(h => new Date(h.timestamp) >= cutoffDate);
          
          if (filteredHistory.length !== history.length) {
@@ -403,7 +426,6 @@ exports.clearAckHistory = async (req, res) => {
       }
     }
 
-    // บันทึก Log การกระทำของ Super Admin
     await prisma.activityLog.create({
        data: {
          userId: req.user.id,
@@ -416,5 +438,93 @@ exports.clearAckHistory = async (req, res) => {
   } catch (error) {
     console.error("Clear Ack History Error:", error);
     res.status(500).json({ error: "Failed to clear history" });
+  }
+};
+
+// ==========================================
+// ดึงข้อมูล Event (Online/Offline/Warning)
+// ==========================================
+exports.getDeviceEvents = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const events = await prisma.deviceEventLog.findMany({
+      where: { deviceId: parseInt(id) },
+      orderBy: { createdAt: 'desc' },
+      take: 100 
+    });
+    res.json(events);
+  } catch (error) {
+    console.error("Fetch Events Error:", error);
+    res.status(500).json({ error: "Failed to fetch event logs" });
+  }
+};
+
+// ==========================================
+// ✅ เพิ่มแล้ว: ลบประวัติ Event (Online/Offline/Warning)
+// ==========================================
+exports.clearEventHistory = async (req, res) => {
+  try {
+    const { days } = req.body; 
+    if (!days || isNaN(days)) return res.status(400).json({ error: "Invalid days parameter" });
+
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - parseInt(days));
+
+    const result = await prisma.deviceEventLog.deleteMany({
+      where: {
+        createdAt: {
+          lt: cutoffDate
+        }
+      }
+    });
+
+    await prisma.activityLog.create({
+       data: {
+         userId: req.user.id,
+         action: "UPDATE_DEVICE",
+         details: `Cleared device event history older than ${days} days (Deleted ${result.count} records)`
+       }
+    });
+
+    res.json({ message: `Cleared event history older than ${days} days`, deletedCount: result.count });
+  } catch (error) {
+    console.error("Clear Event History Error:", error);
+    res.status(500).json({ error: "Failed to clear event history" });
+  }
+};
+
+// ==========================================
+// ลบประวัติ Activity Log (Audit Log)
+// ==========================================
+exports.clearActivityLog = async (req, res) => {
+  try {
+    const { days } = req.body; 
+    if (!days || isNaN(days)) return res.status(400).json({ error: "Invalid days parameter" });
+
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - parseInt(days));
+
+    // ลบ Log ที่เก่ากว่าวันที่กำหนด
+    const result = await prisma.activityLog.deleteMany({
+      where: {
+        createdAt: {
+          lt: cutoffDate
+        }
+      }
+    });
+
+    // บันทึก Log ว่ามีการลบข้อมูล (Log ตัวนี้จะเพิ่งถูกสร้าง จึงไม่ถูกลบไปด้วย)
+    await prisma.activityLog.create({
+       data: {
+         userId: req.user.id,
+         action: "UPDATE_DEVICE", 
+         details: `Cleared system activity (audit) logs older than ${days} days (Deleted ${result.count} records)`
+       }
+    });
+
+    res.json({ message: `Cleared activity logs older than ${days} days`, deletedCount: result.count });
+  } catch (error) {
+    console.error("Clear Activity Log Error:", error);
+    res.status(500).json({ error: "Failed to clear activity logs" });
   }
 };

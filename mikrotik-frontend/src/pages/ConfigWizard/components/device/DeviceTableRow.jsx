@@ -36,8 +36,8 @@ const getLatencyColor = (latency) => {
   return 'text-blue-500';
 };
 
-// รับ canEdit เข้ามาเพื่อเช็คสิทธิ์ซ่อน/แสดง ปุ่ม Action
-const DeviceTableRow = ({ device, status, onDownload, onViewHistory, onRestore, onEdit, onDelete, onAcknowledge, canEdit }) => {
+// ✅ เพิ่ม onViewEvents เข้ามารับค่า Props
+const DeviceTableRow = ({ device, status, onDownload, onViewHistory, onViewEvents, onRestore, onEdit, onDelete, onAcknowledge, canEdit }) => {
   const isDeleted = status.state === 'deleted'; 
   const cpuVal = device.cpu || device.cpuLoad || 0;
   const ramVal = device.ram || device.memoryUsage || 0;
@@ -211,7 +211,7 @@ const DeviceTableRow = ({ device, status, onDownload, onViewHistory, onRestore, 
       <td className="p-4 align-middle text-right pr-6">
         <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
           
-          {/* ✅ 1. ซ่อนปุ่ม Acknowledge ถ้าไม่มีสิทธิ์ */}
+          {/* 1. ซ่อนปุ่ม Acknowledge ถ้าไม่มีสิทธิ์ */}
           {canEdit && (status.state === 'warning' || status.state === 'acknowledged') && (
             <button 
               onClick={() => onAcknowledge(device)} 
@@ -226,7 +226,7 @@ const DeviceTableRow = ({ device, status, onDownload, onViewHistory, onRestore, 
             </button>
           )}
 
-          {/* ✅ 2. ซ่อนปุ่ม Download ถ้าไม่มีสิทธิ์ */}
+          {/* 2. ซ่อนปุ่ม Download ถ้าไม่มีสิทธิ์ */}
           {canEdit && !isDeleted && (
               <button onClick={() => onDownload(device)} className="p-2 text-slate-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition" title="Download Latest Config">
                 <Download size={16} />
@@ -238,7 +238,12 @@ const DeviceTableRow = ({ device, status, onDownload, onViewHistory, onRestore, 
             <History size={16} />
           </button>
 
-          {/* ✅ 3. ซ่อนปุ่ม Restore / Edit / Delete ถ้าไม่มีสิทธิ์ */}
+          {/* ✅ ปุ่มใหม่สำหรับดู Event Log (UP/DOWN/WARNING) */}
+          <button onClick={() => onViewEvents(device)} className="p-2 text-slate-400 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition" title="View Event Logs">
+            <Activity size={16} />
+          </button>
+
+          {/* 3. ซ่อนปุ่ม Restore / Edit / Delete ถ้าไม่มีสิทธิ์ */}
           {canEdit && (
             isDeleted ? (
               <button onClick={() => onRestore(device)} className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition" title="Restore Device">
