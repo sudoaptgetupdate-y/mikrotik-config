@@ -44,9 +44,12 @@ exports.createDevice = async (req, res) => {
       }
     });
 
+    // 🌟 สร้าง Token รูปแบบใหม่: "ID-UUID" สำหรับส่งให้ Frontend ไปใส่ใน Script
+    const combinedToken = `${newDevice.id}-${plainToken}`;
+
     let finalConfigData = configData;
     if (configData) {
-      finalConfigData = { ...configData, token: plainToken };
+      finalConfigData = { ...configData, token: combinedToken };
       
       await prisma.managedDevice.update({
         where: { id: newDevice.id },
@@ -63,7 +66,7 @@ exports.createDevice = async (req, res) => {
       }
     });
 
-    res.status(201).json({ ...newDevice, apiToken: plainToken, configData: finalConfigData });
+    res.status(201).json({ ...newDevice, apiToken: combinedToken, configData: finalConfigData });
   } catch (error) {
     console.error("Create device error:", error.message); 
     res.status(500).json({ error: "Failed to create device" });
@@ -80,10 +83,11 @@ exports.updateDevice = async (req, res) => {
     if (!oldDevice) return res.status(404).json({ error: "Device not found" });
 
     const plainToken = decrypt(oldDevice.apiToken); 
+    const combinedToken = `${parseInt(id)}-${plainToken}`; // 🌟 ประกอบ ID เข้าไป
 
     let finalConfigData = configData;
     if (configData) {
-        finalConfigData = { ...configData, token: plainToken }; 
+        finalConfigData = { ...configData, token: combinedToken }; 
     }
 
     const updatedDevice = await prisma.managedDevice.update({
@@ -108,7 +112,7 @@ exports.updateDevice = async (req, res) => {
       }
     });
 
-    res.json({ ...updatedDevice, apiToken: plainToken, configData: finalConfigData });
+    res.json({ ...updatedDevice, apiToken: combinedToken, configData: finalConfigData });
   } catch (error) {
     console.error("Update device error:", error.message);
     res.status(500).json({ error: "Failed to update device configuration" });
@@ -123,39 +127,66 @@ exports.handleHeartbeat = async (req, res) => {
     const { cpu, ram, storage, temp, latency, uptime, version } = req.body;
     const remoteIp = req.ip;
 
-    // ==========================================
-    // 🚨 ระบบค้นหา Device แบบถอดรหัส (รองรับทั้งเก่าและใหม่)
-    // ==========================================
-    // ดึงเฉพาะ id และ apiToken ของทุกอุปกรณ์มาเช็ก
-    const allDevices = await prisma.managedDevice.findMany({
-      select: { id: true, apiToken: true }
-    });
-
     let matchedDeviceId = null;
+    let device = null;
 
-    for (const d of allDevices) {
-      // 1. ลองเทียบแบบ Plain Text เผื่อเป็นอุปกรณ์เก่าที่ยังไม่เข้ารหัส
-      if (d.apiToken === token) {
-        matchedDeviceId = d.id;
-        break;
-      }
+    // ==========================================
+    // 🚀 ระบบค้นหาแบบใหม่ (ประสิทธิภาพสูง O(1))
+    // ตรวจสอบว่า Token มีรูปแบบ "ID-UUID" หรือไม่
+    // ==========================================
+    const tokenParts = token.split('-');
+    
+    // ถ้าแยกด้วย '-' แล้วได้มากกว่า 1 ส่วน และส่วนแรกเป็นตัวเลข
+    if (tokenParts.length > 1 && !isNaN(parseInt(tokenParts[0]))) {
+      const potentialId = parseInt(tokenParts[0]);
+      const actualToken = tokenParts.slice(1).join('-'); // ตัด ID ออก เหลือแค่ค่า UUID เพียวๆ
+
+      device = await prisma.managedDevice.findUnique({ where: { id: potentialId } });
       
-      // 2. ลองถอดรหัสของตัวเครื่องใหม่ แล้วเทียบกับค่าที่ MikroTik ส่งมา
-      try {
-        if (decrypt(d.apiToken) === token) {
-          matchedDeviceId = d.id;
-          break;
+      if (device) {
+        // ตรวจสอบความถูกต้องของ Token
+        let isMatch = false;
+        if (device.apiToken === actualToken) {
+           isMatch = true; // กรณีเป็น Plain text เก่า
+        } else {
+           try { 
+             if (decrypt(device.apiToken) === actualToken) isMatch = true; 
+           } catch(err) {}
         }
-      } catch (err) {
-        // ถ้าถอดรหัสไม่ได้ (อาจเป็น Plain Text เก่า) ให้ข้ามไป
+        if (isMatch) matchedDeviceId = device.id;
       }
     }
 
-    // ถ้าหาไม่เจอจริงๆ ค่อยเด้ง 404
-    if (!matchedDeviceId) return res.status(404).json({ error: "Device not found" });
+    // ==========================================
+    // 🚨 ระบบค้นหาแบบเก่า (Backward Compatibility)
+    // สำหรับอุปกรณ์ที่ยังใช้ Script ตัวเก่า (ไม่มี ID นำหน้า)
+    // ==========================================
+    if (!matchedDeviceId) {
+      const allDevices = await prisma.managedDevice.findMany({
+        select: { id: true, apiToken: true }
+      });
 
-    // เมื่อเจอ ID ที่ถูกต้องแล้ว ค่อยดึงข้อมูลเต็มๆ ออกมาทำงานต่อ
-    const device = await prisma.managedDevice.findUnique({ where: { id: matchedDeviceId } });
+      for (const d of allDevices) {
+        // 1. ลองเทียบแบบ Plain Text
+        if (d.apiToken === token) {
+          matchedDeviceId = d.id;
+          break;
+        }
+        
+        // 2. ลองถอดรหัส
+        try {
+          if (decrypt(d.apiToken) === token) {
+            matchedDeviceId = d.id;
+            break;
+          }
+        } catch (err) {
+          // ข้ามไป
+        }
+      }
+
+      if (!matchedDeviceId) return res.status(404).json({ error: "Device not found" });
+      device = await prisma.managedDevice.findUnique({ where: { id: matchedDeviceId } });
+    }
 
     // ==========================================
     // 🟢 🔴 🟠 ระบบตรวจจับการเปลี่ยนสถานะ (Event Detection)
@@ -237,7 +268,7 @@ exports.getUserDevices = async (req, res) => {
           ...d, 
           isOnline, 
           model: modelObj,
-          apiToken: decrypt(d.apiToken) 
+          apiToken: `${d.id}-${decrypt(d.apiToken)}` // 🌟 ส่งรูปแบบมี ID กลับไป
         };
     });
 
@@ -273,7 +304,8 @@ exports.getDeviceById = async (req, res) => {
     const device = await prisma.managedDevice.findUnique({ where: { id: parseInt(id) } });
     if (!device) return res.status(404).json({ error: "Device not found" });
 
-    device.apiToken = decrypt(device.apiToken); 
+    const plainToken = decrypt(device.apiToken);
+    device.apiToken = `${device.id}-${plainToken}`; // 🌟 ส่งรูปแบบมี ID กลับไป
     
     if (device.configData) {
       if (device.configData.selectedModel) device.model = device.configData.selectedModel;
@@ -491,7 +523,7 @@ exports.getDeviceEvents = async (req, res) => {
 };
 
 // ==========================================
-// ✅ เพิ่มแล้ว: ลบประวัติ Event (Online/Offline/Warning)
+// ลบประวัติ Event (Online/Offline/Warning)
 // ==========================================
 exports.clearEventHistory = async (req, res) => {
   try {
@@ -544,7 +576,7 @@ exports.clearActivityLog = async (req, res) => {
       }
     });
 
-    // บันทึก Log ว่ามีการลบข้อมูล (Log ตัวนี้จะเพิ่งถูกสร้าง จึงไม่ถูกลบไปด้วย)
+    // บันทึก Log ว่ามีการลบข้อมูล
     await prisma.activityLog.create({
        data: {
          userId: req.user.id,
