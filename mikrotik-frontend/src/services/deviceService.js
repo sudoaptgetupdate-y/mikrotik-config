@@ -55,5 +55,5 @@ export const deviceService = {
   logDownload: async (id, configId = null) => {
     const response = await apiClient.post(`/api/devices/${id}/log-download`, { configId });
     return response.data;
-  }
+  },
 };

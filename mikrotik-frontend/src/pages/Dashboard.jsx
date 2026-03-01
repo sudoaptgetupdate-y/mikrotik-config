@@ -6,11 +6,10 @@ import {
   CheckCircle, AlertTriangle, Clock, FileText, Database,
   Wifi, ServerOff, Bell, Calendar
 } from 'lucide-react';
-
-// ✅ นำเข้า Services แทน apiClient
 import { deviceService } from '../services/deviceService';
 import { modelService } from '../services/modelService';
 import { logService } from '../services/logService';
+import toast from 'react-hot-toast'; // ✅ Import toast
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -44,7 +43,6 @@ const Dashboard = () => {
   const fetchDashboardData = async () => {
     setLoading(true);
     try {
-      // ✅ เรียกผ่าน Services และทำงานแบบขนาน (Promise.all)
       const [allDevices, models, logsData] = await Promise.all([
         deviceService.getUserDevices(user?.id || 1),
         modelService.getModels(),
@@ -90,6 +88,7 @@ const Dashboard = () => {
 
     } catch (error) {
       console.error("Error fetching dashboard data:", error);
+      toast.error("ไม่สามารถดึงข้อมูลสรุป Dashboard ได้"); // ✅ เพิ่ม Toast
     } finally {
       setLoading(false);
     }

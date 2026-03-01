@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Save, Plus, Trash2, Loader2, Eye, EyeOff } from 'lucide-react';
 import apiClient from '../../utils/apiClient';
+import toast from 'react-hot-toast'; // ✅ Import toast
 
 export default function TabAdmins({ initialData }) {
   const [routerAdmins, setRouterAdmins] = useState(initialData || []);
@@ -10,7 +11,7 @@ export default function TabAdmins({ initialData }) {
   const [isSaving, setIsSaving] = useState(false);
 
   const addAdmin = () => {
-    if (!newAdmin.username || !newAdmin.password) return;
+    if (!newAdmin.username || !newAdmin.password) return toast.error("กรุณากรอก Username และ Password"); // ✅
     setRouterAdmins([...routerAdmins, newAdmin]);
     setNewAdmin({ username: '', password: '', group: 'full' });
     setShowNewPassword(false);
@@ -26,11 +27,20 @@ export default function TabAdmins({ initialData }) {
 
   const handleSave = async () => {
     setIsSaving(true);
+    
+    // ✅ ใช้ toast.promise จัดการ Loading/Success/Error อัตโนมัติ
+    const savePromise = apiClient.put(`/api/settings/ROUTER_ADMINS`, { value: routerAdmins });
+    
+    toast.promise(savePromise, {
+      loading: 'กำลังบันทึกข้อมูล...',
+      success: 'บันทึกข้อมูล ROUTER_ADMINS สำเร็จ!',
+      error: (err) => `เกิดข้อผิดพลาด: ${err.message}`
+    });
+
     try {
-      await apiClient.put(`/api/settings/ROUTER_ADMINS`, { value: routerAdmins });
-      alert(`บันทึกข้อมูล ROUTER_ADMINS สำเร็จ!`);
+      await savePromise;
     } catch (error) {
-      alert(`เกิดข้อผิดพลาดในการบันทึก: ${error.message}`);
+      console.error(error);
     } finally {
       setIsSaving(false);
     }

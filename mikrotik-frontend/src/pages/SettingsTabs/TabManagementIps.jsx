@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Save, Plus, Trash2, Loader2 } from 'lucide-react';
 import apiClient from '../../utils/apiClient';
+import toast from 'react-hot-toast'; // ✅ Import toast
 
 export default function TabManagementIps({ initialData }) {
   const [managementIps, setManagementIps] = useState(initialData || []);
@@ -8,7 +9,7 @@ export default function TabManagementIps({ initialData }) {
   const [isSaving, setIsSaving] = useState(false);
 
   const addManagementIp = () => {
-    if (!newManagementIp) return;
+    if (!newManagementIp) return toast.error("กรุณากรอก IP Address"); // ✅
     setManagementIps([...managementIps, newManagementIp]);
     setNewManagementIp('');
   };
@@ -21,11 +22,20 @@ export default function TabManagementIps({ initialData }) {
 
   const handleSave = async () => {
     setIsSaving(true);
+    
+    // ✅ ใช้ toast.promise
+    const savePromise = apiClient.put(`/api/settings/MANAGEMENT_IPS`, { value: managementIps });
+    
+    toast.promise(savePromise, {
+      loading: 'กำลังบันทึกข้อมูล...',
+      success: 'บันทึกข้อมูล MANAGEMENT_IPS สำเร็จ!',
+      error: (err) => `เกิดข้อผิดพลาด: ${err.message}`
+    });
+
     try {
-      await apiClient.put(`/api/settings/MANAGEMENT_IPS`, { value: managementIps });
-      alert(`บันทึกข้อมูล MANAGEMENT_IPS สำเร็จ!`);
+      await savePromise;
     } catch (error) {
-      alert(`เกิดข้อผิดพลาดในการบันทึก: ${error.message}`);
+      console.error(error);
     } finally {
       setIsSaving(false);
     }

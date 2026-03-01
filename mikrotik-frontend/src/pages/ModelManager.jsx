@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { Server, Plus, Trash2, X, PlusCircle, Save, Archive, RotateCcw, Search, ChevronLeft, ChevronRight, Edit } from 'lucide-react';
 
-// ✅ นำเข้า modelService แทน apiClient
 import { modelService } from '../services/modelService';
+import toast from 'react-hot-toast'; // ✅ 1. Import toast
 
 const ModelManager = () => {
   const { user } = useAuth();
@@ -26,11 +26,11 @@ const ModelManager = () => {
   const fetchModels = async () => {
     setLoading(true);
     try {
-      // ✅ เรียกผ่าน Service
       const data = await modelService.getModels(showDeleted);
       setModels(data);
     } catch (error) {
       console.error("Fetch error:", error);
+      toast.error("ดึงข้อมูล Model ไม่สำเร็จ"); // ✅ ใช้แจ้งเตือน Error
     } finally {
       setLoading(false);
     }
@@ -96,32 +96,40 @@ const ModelManager = () => {
   };
 
   const handleSaveModel = async () => {
-    if (!newModel.name) return alert("Please enter model name");
-    if (newModel.ports.length === 0) return alert("Please add at least 1 port");
+    // ✅ 2. เปลี่ยน alert เป็น toast.error
+    if (!newModel.name) return toast.error("Please enter model name");
+    if (newModel.ports.length === 0) return toast.error("Please add at least 1 port");
+
+    // ✅ 3. โชว์ Loading สวยๆ ระหว่างรอเซฟ (ฟีเจอร์เด็ดของ react-hot-toast)
+    const savePromise = isEditMode 
+      ? modelService.updateModel(editingId, newModel)
+      : modelService.createModel(newModel);
+
+    toast.promise(savePromise, {
+      loading: 'Saving model...',
+      success: isEditMode ? 'Model updated successfully!' : 'Model created successfully!',
+      error: (err) => err.response?.data?.error || "Failed to save model"
+    });
 
     try {
-      // ✅ เรียกผ่าน Service
-      if (isEditMode) {
-        await modelService.updateModel(editingId, newModel);
-      } else {
-        await modelService.createModel(newModel);
-        setShowDeleted(false);
-      }
+      await savePromise;
+      if (!isEditMode) setShowDeleted(false);
       setIsModalOpen(false);
       fetchModels();
     } catch (error) {
       console.error("Save error:", error);
-      alert(error.response?.data?.error || "Failed to save model");
     }
   };
 
   const handleDeleteModel = async (id, name) => {
+    // สำหรับ Confirm ลบ ยังคงใช้ confirm() ของเบราว์เซอร์ได้ครับ (ปลอดภัยต่อการลบพลาด)
     if (confirm(`Are you sure you want to delete ${name}?`)) {
       try {
-        await modelService.deleteModel(id); // ✅ เรียกผ่าน Service
+        await modelService.deleteModel(id);
+        toast.success(`Deleted ${name} successfully!`); // ✅ แจ้งเตือนลบสำเร็จ
         fetchModels();
       } catch (error) {
-        alert(error.response?.data?.error || "Failed to delete model");
+        toast.error(error.response?.data?.error || "Failed to delete model");
       }
     }
   };
@@ -129,15 +137,17 @@ const ModelManager = () => {
   const handleRestoreModel = async (id, name) => {
     if (confirm(`Are you sure you want to restore ${name}?`)) {
       try {
-        await modelService.restoreModel(id); // ✅ เรียกผ่าน Service
+        await modelService.restoreModel(id);
+        toast.success(`Restored ${name} successfully!`); // ✅ แจ้งเตือนกู้คืนสำเร็จ
         fetchModels();
       } catch (error) {
-        alert("Failed to restore model");
+        toast.error("Failed to restore model");
       }
     }
   };
 
   return (
+    // ... HTML UI ของคุณเหมือนเดิมเป๊ะ 100% ผมไม่ได้แก้ไขส่วนการแสดงผลเลยครับ ...
     <div className="space-y-6 animate-fade-in pb-10">
       
       {/* Header & Actions */}

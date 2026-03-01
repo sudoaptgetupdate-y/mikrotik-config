@@ -1,41 +1,42 @@
 import { Activity, ShieldAlert, ClipboardList } from 'lucide-react';
 import apiClient from '../../utils/apiClient';
+import toast from 'react-hot-toast'; // ✅ Import toast
 
 export default function TabMaintenance() {
   
-  // 1. ฟังก์ชันลบประวัติ Acknowledge 
   const handleClearAckHistory = async (days) => {
     if (confirm(`⚠️ คำเตือน: คุณแน่ใจหรือไม่ที่จะลบประวัติ "การกดรับทราบ (Acknowledge)" ที่เก่ากว่า ${days} วัน ออกจากระบบทั้งหมด?\nการกระทำนี้ไม่สามารถย้อนกลับได้`)) {
-      try {
-        const res = await apiClient.post('/api/devices/maintenance/clear-ack', { days });
-        alert(`ล้างข้อมูลสำเร็จ! มีผลกับอุปกรณ์จำนวน ${res.data.affectedDevices} เครื่อง`);
-      } catch (error) {
-        alert(`เกิดข้อผิดพลาดในการล้างข้อมูล: ${error.response?.data?.error || error.message}`);
-      }
+      const clearPromise = apiClient.post('/api/devices/maintenance/clear-ack', { days });
+      toast.promise(clearPromise, {
+        loading: 'กำลังล้างข้อมูล...',
+        success: (res) => `ล้างข้อมูลสำเร็จ! มีผลกับอุปกรณ์จำนวน ${res.data.affectedDevices} เครื่อง`,
+        error: (err) => `เกิดข้อผิดพลาด: ${err.response?.data?.error || err.message}`
+      });
+      try { await clearPromise; } catch (e) {}
     }
   };
 
-  // 2. ฟังก์ชันลบประวัติ Event (Online/Offline/Warning)
   const handleClearEventHistory = async (days) => {
     if (confirm(`⚠️ คำเตือน: คุณแน่ใจหรือไม่ที่จะลบประวัติ "สถานะอุปกรณ์ (Online/Offline/Warning)" ที่เก่ากว่า ${days} วัน?\nการกระทำนี้ไม่สามารถย้อนกลับได้`)) {
-      try {
-        const res = await apiClient.post('/api/devices/maintenance/clear-events', { days });
-        alert(`ล้างข้อมูลสำเร็จ! ลบประวัติไปทั้งหมด ${res.data.deletedCount} รายการ`);
-      } catch (error) {
-        alert(`เกิดข้อผิดพลาดในการล้างข้อมูล: ${error.response?.data?.error || error.message}`);
-      }
+      const clearPromise = apiClient.post('/api/devices/maintenance/clear-events', { days });
+      toast.promise(clearPromise, {
+        loading: 'กำลังล้างข้อมูล...',
+        success: (res) => `ล้างข้อมูลสำเร็จ! ลบประวัติไปทั้งหมด ${res.data.deletedCount} รายการ`,
+        error: (err) => `เกิดข้อผิดพลาด: ${err.response?.data?.error || err.message}`
+      });
+      try { await clearPromise; } catch (e) {}
     }
   };
 
-  // ✅ 3. ฟังก์ชันใหม่: ลบประวัติ Activity (Audit Logs)
   const handleClearActivityLog = async (days) => {
     if (confirm(`⚠️ คำเตือน: คุณแน่ใจหรือไม่ที่จะลบ "ประวัติการใช้งานระบบ (Audit Logs)" ที่เก่ากว่า ${days} วัน?\nการกระทำนี้ไม่สามารถย้อนกลับได้`)) {
-      try {
-        const res = await apiClient.post('/api/devices/maintenance/clear-activity-logs', { days });
-        alert(`ล้างข้อมูลสำเร็จ! ลบประวัติไปทั้งหมด ${res.data.deletedCount} รายการ`);
-      } catch (error) {
-        alert(`เกิดข้อผิดพลาดในการล้างข้อมูล: ${error.response?.data?.error || error.message}`);
-      }
+      const clearPromise = apiClient.post('/api/devices/maintenance/clear-activity-logs', { days });
+      toast.promise(clearPromise, {
+        loading: 'กำลังล้างข้อมูล...',
+        success: (res) => `ล้างข้อมูลสำเร็จ! ลบประวัติไปทั้งหมด ${res.data.deletedCount} รายการ`,
+        error: (err) => `เกิดข้อผิดพลาด: ${err.response?.data?.error || err.message}`
+      });
+      try { await clearPromise; } catch (e) {}
     }
   };
 
@@ -48,7 +49,6 @@ export default function TabMaintenance() {
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
         
-        {/* กล่องที่ 1: Acknowledge */}
         <div className="bg-rose-50 border border-rose-200 rounded-xl p-5 md:p-6 flex flex-col">
           <h4 className="font-bold text-rose-800 flex items-center gap-2 mb-2">
             <ShieldAlert size={20} /> Clear Acknowledge
@@ -63,7 +63,6 @@ export default function TabMaintenance() {
           </div>
         </div>
 
-        {/* กล่องที่ 2: Event Log */}
         <div className="bg-orange-50 border border-orange-200 rounded-xl p-5 md:p-6 flex flex-col">
           <h4 className="font-bold text-orange-800 flex items-center gap-2 mb-2">
             <Activity size={20} /> Clear Event Logs
@@ -78,7 +77,6 @@ export default function TabMaintenance() {
           </div>
         </div>
 
-        {/* ✅ กล่องที่ 3: Activity / Audit Log */}
         <div className="bg-blue-50 border border-blue-200 rounded-xl p-5 md:p-6 flex flex-col">
           <h4 className="font-bold text-blue-800 flex items-center gap-2 mb-2">
             <ClipboardList size={20} /> Clear Audit Logs

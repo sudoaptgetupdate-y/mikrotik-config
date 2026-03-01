@@ -2,8 +2,8 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Activity, Plus } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import toast from 'react-hot-toast'; // ✅ นำเข้า toast
 
-// ✅ นำเข้า deviceService แทน apiClient
 import { deviceService } from '../services/deviceService';
 import { generateMikrotikScript } from '../utils/mikrotikGenerator';
 
@@ -60,12 +60,12 @@ const DeviceList = () => {
 
   const fetchDevices = async () => {
     try {
-      // ✅ เรียกผ่าน Service และใช้ ID ของ User ที่ล็อกอินอยู่จริงๆ (ถ้าไม่มีให้ fallback ไปที่ 1)
       const data = await deviceService.getUserDevices(user?.id || 1);
       setDevices(data);
       setLastUpdated(new Date());
     } catch (error) {
       console.error("Error fetching devices:", error);
+      toast.error("ดึงข้อมูลอุปกรณ์ไม่สำเร็จ"); // ✅ ใช้งาน toast
     } finally {
       setLoading(false);
     }
@@ -97,36 +97,67 @@ const DeviceList = () => {
 
   const handleDeleteClick = async (device) => {
     if (confirm(`Are you sure you want to delete "${device.name}"? (It will be marked as inactive)`)) {
-        try { 
-          await deviceService.deleteDevice(device.id); // ✅ เรียกผ่าน Service
-          fetchDevices(); 
-        } 
-        catch (e) { alert("Failed to delete device"); }
+      const deletePromise = deviceService.deleteDevice(device.id);
+      
+      toast.promise(deletePromise, {
+        loading: 'กำลังลบอุปกรณ์...',
+        success: 'ลบอุปกรณ์สำเร็จ!',
+        error: 'ลบอุปกรณ์ไม่สำเร็จ'
+      });
+
+      try { 
+        await deletePromise;
+        fetchDevices(); 
+      } catch (e) {
+        console.error(e);
+      }
     }
   };
 
   const handleRestoreClick = async (device) => {
     if (confirm(`Are you sure you want to restore "${device.name}" to active status?`)) {
-        try { 
-          await deviceService.restoreDevice(device.id); // ✅ เรียกผ่าน Service
-          fetchDevices(); 
-        } 
-        catch (e) { alert("Failed to restore device"); }
+      const restorePromise = deviceService.restoreDevice(device.id);
+      
+      toast.promise(restorePromise, {
+        loading: 'กำลังกู้คืนอุปกรณ์...',
+        success: 'กู้คืนอุปกรณ์สำเร็จ!',
+        error: 'กู้คืนอุปกรณ์ไม่สำเร็จ'
+      });
+
+      try { 
+        await restorePromise;
+        fetchDevices(); 
+      } catch (e) {
+        console.error(e);
+      }
     }
   };
 
   const handleDownloadLatest = async (device) => { 
-    if (!device.configData) return alert("No configuration data found for this device.");
-    try {
-      await deviceService.logDownload(device.id, null); // ✅ เรียกผ่าน Service
+    if (!device.configData) return toast.error("ไม่พบข้อมูล Config ของอุปกรณ์นี้");
+
+    const processDownload = async () => {
+      // 1. ส่ง API ไปเก็บบันทึกว่ามีการดาวน์โหลด
+      await deviceService.logDownload(device.id, null); 
+      // 2. สร้างสคริปต์
       const script = generateMikrotikScript(device.configData);
+      // 3. สั่งเบราว์เซอร์ดาวน์โหลดไฟล์
       const element = document.createElement("a");
       element.href = URL.createObjectURL(new Blob([script], {type: 'text/plain'}));
       element.download = `${device.name.replace(/\s+/g, '_')}_latest.rsc`;
       document.body.appendChild(element); 
       element.click();
       document.body.removeChild(element);
-    } catch (err) { alert("Failed to generate script"); }
+    };
+
+    toast.promise(processDownload(), {
+      loading: 'กำลังสร้างสคริปต์...',
+      success: 'ดาวน์โหลดสคริปต์สำเร็จ!',
+      error: (err) => {
+        console.error("Download Error Details:", err); // ✅ จะแสดงสาเหตุของ Error ใน Console
+        return 'เกิดข้อผิดพลาดในการสร้างสคริปต์';
+      }
+    });
   };
 
   const handleViewHistory = async (device) => {
@@ -134,10 +165,13 @@ const DeviceList = () => {
     setIsHistoryOpen(true);
     setHistoryLoading(true);
     try {
-      const data = await deviceService.getDeviceHistory(device.id); // ✅ เรียกผ่าน Service
+      const data = await deviceService.getDeviceHistory(device.id);
       setHistoryData(data);
-    } catch (error) { alert("Failed to load history"); } 
-    finally { setHistoryLoading(false); }
+    } catch (error) { 
+      toast.error("โหลดประวัติไม่สำเร็จ"); 
+    } finally { 
+      setHistoryLoading(false); 
+    }
   };
 
   const handleViewEvents = async (device) => {
@@ -145,11 +179,11 @@ const DeviceList = () => {
     setIsEventOpen(true);
     setEventLoading(true);
     try {
-      const data = await deviceService.getDeviceEvents(device.id); // ✅ เรียกผ่าน Service
+      const data = await deviceService.getDeviceEvents(device.id);
       setEventData(data);
     } catch (error) {
       console.error("Fetch events failed:", error);
-      alert("Failed to load event history");
+      toast.error("โหลดประวัติเหตุการณ์ไม่สำเร็จ");
     } finally {
       setEventLoading(false);
     }
@@ -162,24 +196,35 @@ const DeviceList = () => {
   };
 
   const submitAcknowledge = async () => {
-    if (!ackReason.trim()) return alert("กรุณากรอกข้อมูลการอัปเดต หรือเหตุผล");
+    if (!ackReason.trim()) return toast.error("กรุณากรอกข้อมูลการอัปเดต หรือเหตุผล");
     setIsAckSubmitting(true);
-    try {
-      const cpu = parseFloat(deviceToAck?.cpu || deviceToAck?.cpuLoad) || 0;
-      const ram = parseFloat(deviceToAck?.ram || deviceToAck?.memoryUsage) || 0;
-      let currentWarning = [];
-      if (cpu > 85) currentWarning.push(`CPU ${cpu}%`);
-      if (ram > 85) currentWarning.push(`RAM ${ram}%`);
+    
+    const cpu = parseFloat(deviceToAck?.cpu || deviceToAck?.cpuLoad) || 0;
+    const ram = parseFloat(deviceToAck?.ram || deviceToAck?.memoryUsage) || 0;
+    let currentWarning = [];
+    if (cpu > 85) currentWarning.push(`CPU ${cpu}%`);
+    if (ram > 85) currentWarning.push(`RAM ${ram}%`);
 
-      // ✅ เรียกผ่าน Service
-      await deviceService.acknowledgeWarning(deviceToAck.id, {
-        reason: ackReason,
-        warningData: currentWarning.length > 0 ? currentWarning.join(', ') : 'Unknown Load'
-      });
+    const ackPromise = deviceService.acknowledgeWarning(deviceToAck.id, {
+      reason: ackReason,
+      warningData: currentWarning.length > 0 ? currentWarning.join(', ') : 'Unknown Load'
+    });
+
+    toast.promise(ackPromise, {
+      loading: 'กำลังบันทึกข้อมูล...',
+      success: 'รับทราบการแจ้งเตือนเรียบร้อย!',
+      error: 'ไม่สามารถบันทึกได้ กรุณาลองใหม่'
+    });
+
+    try {
+      await ackPromise;
       setIsAckModalOpen(false);
       fetchDevices();
-    } catch (error) { alert("Failed to acknowledge warning"); } 
-    finally { setIsAckSubmitting(false); }
+    } catch (error) { 
+      console.error(error);
+    } finally { 
+      setIsAckSubmitting(false); 
+    }
   };
 
   // --- Filtering Logic ---

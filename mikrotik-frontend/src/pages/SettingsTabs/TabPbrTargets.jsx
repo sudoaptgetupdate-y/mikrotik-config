@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Save, AlertTriangle, Loader2 } from 'lucide-react';
 import apiClient from '../../utils/apiClient';
+import toast from 'react-hot-toast'; // ✅ Import toast
 
 export default function TabPbrTargets({ initialData }) {
   const [monitorIps, setMonitorIps] = useState([...(initialData || []), '', '', '', '', ''].slice(0, 5));
@@ -15,11 +16,20 @@ export default function TabPbrTargets({ initialData }) {
 
   const handleSave = async () => {
     setIsSaving(true);
+    
+    // ✅ ใช้ toast.promise
+    const savePromise = apiClient.put(`/api/settings/MONITOR_IPS`, { value: monitorIps });
+    
+    toast.promise(savePromise, {
+      loading: 'กำลังบันทึกข้อมูล...',
+      success: 'บันทึกข้อมูล MONITOR_IPS สำเร็จ!',
+      error: (err) => `เกิดข้อผิดพลาด: ${err.response?.data?.message || err.message}`
+    });
+
     try {
-      await apiClient.put(`/api/settings/MONITOR_IPS`, { value: monitorIps });
-      alert(`บันทึกข้อมูล MONITOR_IPS สำเร็จ!`);
+      await savePromise;
     } catch (error) {
-      alert(`เกิดข้อผิดพลาดในการบันทึก: ${error.response?.data?.message || error.message}`);
+      console.error(error);
     } finally {
       setIsSaving(false);
     }

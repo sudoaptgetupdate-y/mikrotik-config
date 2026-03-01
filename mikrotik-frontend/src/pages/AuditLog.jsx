@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Activity, Search, RefreshCw, FileText, Plus, Edit, Download, Trash2, Calendar, ChevronLeft, ChevronRight } from 'lucide-react';
-
-// ✅ นำเข้า logService แทน apiClient
 import { logService } from '../services/logService';
+import toast from 'react-hot-toast'; // ✅ Import toast
 
 const PAGE_SIZES = [5, 10, 50, 100];
 
@@ -10,7 +9,6 @@ const AuditLog = () => {
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
   
-  // === State สำหรับการกรองและ Pagination ===
   const [searchTerm, setSearchTerm] = useState('');
   const [activePreset, setActivePreset] = useState('all'); 
   const [dateRange, setDateRange] = useState({ start: '', end: '' });
@@ -22,7 +20,6 @@ const AuditLog = () => {
   const fetchLogs = useCallback(async () => {
     setLoading(true);
     try {
-      // ✅ เรียกผ่าน Service
       const response = await logService.getActivityLogs({
         page: currentPage,
         limit: pageSize,
@@ -31,13 +28,13 @@ const AuditLog = () => {
         endDate: dateRange.end,
       });
 
-      // ดึงข้อมูลจาก Data Structure ที่ Service ส่งกลับมา
       setLogs(response?.data || []);
       setTotalLogs(response?.meta?.total || 0);
       setTotalPages(response?.meta?.totalPages || 0);
 
     } catch (error) {
       console.error("Error fetching logs:", error);
+      toast.error('ไม่สามารถดึงข้อมูลประวัติการทำงานได้'); // ✅ เพิ่ม Toast
       setLogs([]);
       setTotalLogs(0);
       setTotalPages(0);

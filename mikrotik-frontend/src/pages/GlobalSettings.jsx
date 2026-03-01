@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Shield, Network, Globe, Settings2, Database, Loader2 } from 'lucide-react';
-
-// ✅ นำเข้า settingService แทน apiClient
 import { settingService } from '../services/settingService';
+import toast from 'react-hot-toast'; // ✅ Import toast
 
 // นำเข้าแท็บย่อย
 import TabAdmins from './SettingsTabs/TabAdmins';
@@ -13,7 +12,6 @@ import TabMaintenance from './SettingsTabs/TabMaintenance';
 
 const GlobalSettings = () => {
   const [isLoading, setIsLoading] = useState(true);
-  
   const [activeTab, setActiveTab] = useState(() => {
     return localStorage.getItem('activeGlobalSettingsTab') || 'ADMINS';
   });
@@ -28,7 +26,6 @@ const GlobalSettings = () => {
     const fetchSettings = async () => {
       try {
         setIsLoading(true);
-        // ✅ เรียกผ่าน Service
         const data = await settingService.getSettings();
         
         const parsed = {
@@ -38,7 +35,6 @@ const GlobalSettings = () => {
           DEFAULT_NETWORKS: []
         };
 
-        // เนื่องจาก Service ส่ง response.data กลับมาให้เลย เราสามารถวนลูปได้ทันที
         data.forEach(item => {
           if (item.key === 'DEFAULT_NETWORKS') {
             try { parsed[item.key] = typeof item.value === 'string' ? JSON.parse(item.value) : item.value; } catch (e) {}
@@ -50,7 +46,7 @@ const GlobalSettings = () => {
         setSettingsData(parsed);
       } catch (error) {
         console.error('Failed to fetch settings:', error);
-        alert('ไม่สามารถดึงข้อมูลการตั้งค่าได้');
+        toast.error('ไม่สามารถดึงข้อมูลการตั้งค่าได้'); // ✅ เปลี่ยนจาก alert เป็น toast
       } finally {
         setIsLoading(false);
       }

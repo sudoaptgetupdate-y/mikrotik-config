@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Save, Plus, Trash2, Loader2, Server, ShieldCheck } from 'lucide-react';
 import apiClient from '../../utils/apiClient';
+import toast from 'react-hot-toast'; // ✅ Import toast
 
 export default function TabDefaults({ initialData }) {
   const [defaultNetworks, setDefaultNetworks] = useState(initialData || []);
@@ -39,11 +40,20 @@ export default function TabDefaults({ initialData }) {
 
   const handleSave = async () => {
     setIsSaving(true);
+    
+    // ✅ ใช้ toast.promise
+    const savePromise = apiClient.put(`/api/settings/DEFAULT_NETWORKS`, { value: JSON.stringify(defaultNetworks) });
+    
+    toast.promise(savePromise, {
+      loading: 'กำลังบันทึกข้อมูล...',
+      success: 'บันทึกข้อมูล DEFAULT_NETWORKS สำเร็จ!',
+      error: (err) => `เกิดข้อผิดพลาด: ${err.message}`
+    });
+
     try {
-      await apiClient.put(`/api/settings/DEFAULT_NETWORKS`, { value: JSON.stringify(defaultNetworks) });
-      alert(`บันทึกข้อมูล DEFAULT_NETWORKS สำเร็จ!`);
+      await savePromise;
     } catch (error) {
-      alert(`เกิดข้อผิดพลาดในการบันทึก: ${error.message}`);
+      console.error(error);
     } finally {
       setIsSaving(false);
     }
