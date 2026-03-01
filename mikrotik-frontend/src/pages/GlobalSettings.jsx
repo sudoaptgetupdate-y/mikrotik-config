@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
 import { Shield, Network, Globe, Settings2, Database, Loader2 } from 'lucide-react';
-import apiClient from '../utils/apiClient';
 
-// นำเข้าแท็บย่อย (Component ที่เราจะสร้างด้านล่าง)
+// ✅ นำเข้า settingService แทน apiClient
+import { settingService } from '../services/settingService';
+
+// นำเข้าแท็บย่อย
 import TabAdmins from './SettingsTabs/TabAdmins';
 import TabManagementIps from './SettingsTabs/TabManagementIps';
 import TabPbrTargets from './SettingsTabs/TabPbrTargets';
@@ -12,14 +14,12 @@ import TabMaintenance from './SettingsTabs/TabMaintenance';
 const GlobalSettings = () => {
   const [isLoading, setIsLoading] = useState(true);
   
-  // ✅ 1. ดึงค่า Tab ล่าสุดจาก localStorage ถ้าไม่มีให้เริ่มที่ 'ADMINS'
   const [activeTab, setActiveTab] = useState(() => {
     return localStorage.getItem('activeGlobalSettingsTab') || 'ADMINS';
   });
 
   const [settingsData, setSettingsData] = useState({});
 
-  // ✅ 2. เมื่อ activeTab เปลี่ยนแปลง ให้บันทึกค่าลง localStorage
   useEffect(() => {
     localStorage.setItem('activeGlobalSettingsTab', activeTab);
   }, [activeTab]);
@@ -28,9 +28,9 @@ const GlobalSettings = () => {
     const fetchSettings = async () => {
       try {
         setIsLoading(true);
-        const res = await apiClient.get('/api/settings');
+        // ✅ เรียกผ่าน Service
+        const data = await settingService.getSettings();
         
-        // จัดกลุ่มข้อมูลให้อ่านง่ายขึ้น
         const parsed = {
           ROUTER_ADMINS: [],
           MANAGEMENT_IPS: [],
@@ -38,7 +38,8 @@ const GlobalSettings = () => {
           DEFAULT_NETWORKS: []
         };
 
-        res.data.forEach(item => {
+        // เนื่องจาก Service ส่ง response.data กลับมาให้เลย เราสามารถวนลูปได้ทันที
+        data.forEach(item => {
           if (item.key === 'DEFAULT_NETWORKS') {
             try { parsed[item.key] = typeof item.value === 'string' ? JSON.parse(item.value) : item.value; } catch (e) {}
           } else {
@@ -76,7 +77,6 @@ const GlobalSettings = () => {
         </div>
       ) : (
         <>
-          {/* Navigation Tabs */}
           <div className="flex border-b border-slate-200 overflow-x-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
             <button onClick={() => setActiveTab('ADMINS')} className={`flex items-center gap-2 px-4 sm:px-6 py-3 font-bold border-b-2 transition-colors whitespace-nowrap ${activeTab === 'ADMINS' ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>
               <Shield size={18} /> Router Admins

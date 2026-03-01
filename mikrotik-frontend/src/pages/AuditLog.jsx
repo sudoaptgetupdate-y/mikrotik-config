@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import apiClient from '../utils/apiClient';
 import { Activity, Search, RefreshCw, FileText, Plus, Edit, Download, Trash2, Calendar, ChevronLeft, ChevronRight } from 'lucide-react';
+
+// ✅ นำเข้า logService แทน apiClient
+import { logService } from '../services/logService';
 
 const PAGE_SIZES = [5, 10, 50, 100];
 
@@ -10,7 +12,7 @@ const AuditLog = () => {
   
   // === State สำหรับการกรองและ Pagination ===
   const [searchTerm, setSearchTerm] = useState('');
-  const [activePreset, setActivePreset] = useState('all'); // all, today, 7days, 30days, custom
+  const [activePreset, setActivePreset] = useState('all'); 
   const [dateRange, setDateRange] = useState({ start: '', end: '' });
   const [pageSize, setPageSize] = useState(PAGE_SIZES[0]);
   const [currentPage, setCurrentPage] = useState(1);
@@ -20,19 +22,19 @@ const AuditLog = () => {
   const fetchLogs = useCallback(async () => {
     setLoading(true);
     try {
-      const params = new URLSearchParams({
+      // ✅ เรียกผ่าน Service
+      const response = await logService.getActivityLogs({
         page: currentPage,
         limit: pageSize,
         search: searchTerm,
         startDate: dateRange.start,
         endDate: dateRange.end,
       });
-      
-      const res = await apiClient.get(`/api/logs?${params.toString()}`);
 
-      setLogs(res.data?.data || []);
-      setTotalLogs(res.data?.meta?.total || 0);
-      setTotalPages(res.data?.meta?.totalPages || 0);
+      // ดึงข้อมูลจาก Data Structure ที่ Service ส่งกลับมา
+      setLogs(response?.data || []);
+      setTotalLogs(response?.meta?.total || 0);
+      setTotalPages(response?.meta?.totalPages || 0);
 
     } catch (error) {
       console.error("Error fetching logs:", error);
@@ -48,11 +50,9 @@ const AuditLog = () => {
     fetchLogs();
   }, [fetchLogs]);
 
-  // Reset page to 1 when filters change
   useEffect(() => {
     setCurrentPage(1);
   }, [searchTerm, pageSize, dateRange]);
-
 
   const getActionBadge = (action) => {
     switch (action) {
@@ -77,7 +77,6 @@ const AuditLog = () => {
     const end = new Date();
     const start = new Date();
     if (preset === 'today') {
-      // no change needed
     } else if (preset === '7days') {
       start.setDate(start.getDate() - 7);
     } else if (preset === '30days') {
@@ -212,7 +211,6 @@ const AuditLog = () => {
           </div>
         )}
         
-        {/* Pagination Controls */}
         {totalLogs > 0 && (
           <div className="flex flex-col md:flex-row items-center justify-between p-4 bg-white border-t border-slate-200 gap-4">
             <div className="flex flex-wrap items-center justify-center gap-2">

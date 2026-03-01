@@ -1,5 +1,7 @@
 import React, { createContext, useState, useEffect, useContext } from 'react';
-import apiClient from '../utils/apiClient';
+
+// ✅ นำเข้า authService แทน apiClient
+import { authService } from '../services/authService';
 
 const AuthContext = createContext();
 
@@ -9,7 +11,6 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // เช็คตอนโหลดเว็บครั้งแรกว่ามี Token ค้างอยู่ไหม
   useEffect(() => {
     const token = localStorage.getItem('token');
     const storedUser = localStorage.getItem('user');
@@ -21,26 +22,24 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const login = async (identifier, password) => {
-    const res = await apiClient.post('/api/auth/login', { identifier, password });
-    const { token, user } = res.data;
+    // ✅ เรียกใช้ผ่าน Service 
+    const data = await authService.login(identifier, password);
+    const { token, user: loggedInUser } = data;
     
-    // เก็บลง LocalStorage
     localStorage.setItem('token', token);
-    localStorage.setItem('user', JSON.stringify(user));
+    localStorage.setItem('user', JSON.stringify(loggedInUser));
     
-    setUser(user);
-    return user;
+    setUser(loggedInUser);
+    return loggedInUser;
   };
 
   const logout = async () => {
     try {
-      // 1. ยิง API ไปบอก Backend ให้นำ Token ปัจจุบันไปใส่ใน Blacklist (RevokedToken)
-      await apiClient.post('/api/auth/logout');
+      // ✅ เรียกใช้ผ่าน Service
+      await authService.logout();
     } catch (error) {
       console.error("Logout API failed:", error);
     } finally {
-      // 2. ไม่ว่าฝั่ง Backend จะตอบกลับสำเร็จหรือมี Error (เช่น Token หมดอายุไปแล้ว)
-      // เราก็ต้องเคลียร์ข้อมูลในเครื่องทิ้งเสมอ เพื่อให้ User หลุดออกจากระบบ
       localStorage.removeItem('token');
       localStorage.removeItem('user');
       setUser(null);

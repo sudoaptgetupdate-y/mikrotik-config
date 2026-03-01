@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import apiClient from '../utils/apiClient';
 import { useAuth } from '../context/AuthContext';
 import { Server, Plus, Trash2, X, PlusCircle, Save, Archive, RotateCcw, Search, ChevronLeft, ChevronRight, Edit } from 'lucide-react';
+
+// ✅ นำเข้า modelService แทน apiClient
+import { modelService } from '../services/modelService';
 
 const ModelManager = () => {
   const { user } = useAuth();
@@ -24,8 +26,9 @@ const ModelManager = () => {
   const fetchModels = async () => {
     setLoading(true);
     try {
-      const res = await apiClient.get(`/api/master/models?showDeleted=${showDeleted}`);
-      setModels(res.data);
+      // ✅ เรียกผ่าน Service
+      const data = await modelService.getModels(showDeleted);
+      setModels(data);
     } catch (error) {
       console.error("Fetch error:", error);
     } finally {
@@ -97,10 +100,11 @@ const ModelManager = () => {
     if (newModel.ports.length === 0) return alert("Please add at least 1 port");
 
     try {
+      // ✅ เรียกผ่าน Service
       if (isEditMode) {
-        await apiClient.put(`/api/master/models/${editingId}`, newModel);
+        await modelService.updateModel(editingId, newModel);
       } else {
-        await apiClient.post('/api/master/models', newModel);
+        await modelService.createModel(newModel);
         setShowDeleted(false);
       }
       setIsModalOpen(false);
@@ -114,7 +118,7 @@ const ModelManager = () => {
   const handleDeleteModel = async (id, name) => {
     if (confirm(`Are you sure you want to delete ${name}?`)) {
       try {
-        await apiClient.delete(`/api/master/models/${id}`);
+        await modelService.deleteModel(id); // ✅ เรียกผ่าน Service
         fetchModels();
       } catch (error) {
         alert(error.response?.data?.error || "Failed to delete model");
@@ -125,7 +129,7 @@ const ModelManager = () => {
   const handleRestoreModel = async (id, name) => {
     if (confirm(`Are you sure you want to restore ${name}?`)) {
       try {
-        await apiClient.put(`/api/master/models/${id}/restore`);
+        await modelService.restoreModel(id); // ✅ เรียกผ่าน Service
         fetchModels();
       } catch (error) {
         alert("Failed to restore model");
@@ -308,7 +312,6 @@ const ModelManager = () => {
             </div>
             
             <div className="p-4 sm:p-6 overflow-y-auto flex-1 space-y-6">
-              {/* ✅ แก้ไขเป็น 1 คอลัมน์บนมือถือ 2 คอลัมน์บนจอคอม */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-bold text-slate-700 mb-1">Model Name *</label>
@@ -334,8 +337,6 @@ const ModelManager = () => {
                   <div className="text-center p-6 text-sm text-slate-400 border border-dashed rounded-lg bg-slate-50">No ports added yet.</div>
                 ) : (
                   <div className="space-y-3 sm:space-y-2">
-                    
-                    {/* ✅ ซ่อน Header นี้ในจอมือถือ */}
                     <div className="hidden sm:flex gap-2 px-2 text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
                       <div className="flex-1">Port Name (in RouterOS)</div>
                       <div className="w-28">Hardware Type</div>
@@ -344,10 +345,8 @@ const ModelManager = () => {
                     </div>
                     
                     {newModel.ports.map((port, index) => (
-                      /* ✅ ปรับให้เป็นแนวตั้งบนมือถือ แนวนอนบน Desktop */
                       <div key={index} className="flex flex-col sm:flex-row gap-3 sm:gap-2 sm:items-center bg-slate-50 p-4 sm:p-2 rounded-lg border border-slate-200 hover:border-blue-300 transition-colors">
                         
-                        {/* Header ของมือถือ แสดงคำว่า Port 1, Port 2 + ปุ่มลบ */}
                         <div className="flex justify-between items-center sm:hidden pb-2 border-b border-slate-200">
                            <span className="text-sm font-bold text-slate-700">Port {index + 1}</span>
                            <button onClick={() => handleRemovePort(index)} className="p-1.5 text-red-500 hover:bg-red-100 bg-red-50 rounded-md transition">
@@ -382,7 +381,6 @@ const ModelManager = () => {
                           </div>
                         </div>
 
-                        {/* ปุ่มลบสำหรับจอ Desktop */}
                         <button onClick={() => handleRemovePort(index)} className="hidden sm:block p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded transition">
                           <Trash2 size={18}/>
                         </button>

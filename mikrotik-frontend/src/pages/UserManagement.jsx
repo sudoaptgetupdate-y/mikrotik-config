@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import apiClient from '../utils/apiClient';
 import { 
   Users, Plus, Search, Edit, Trash2, Shield, User, Mail, 
   Lock, CheckCircle2, XCircle, X, ShieldAlert, ShieldCheck 
 } from 'lucide-react';
+
+// ✅ นำเข้า userService แทน apiClient
+import { userService } from '../services/userService';
 
 const UserManagement = () => {
   const [users, setUsers] = useState([]);
@@ -23,7 +25,6 @@ const UserManagement = () => {
     confirmPassword: ''
   });
 
-  // สำหรับดึง Username มาโชว์เป็นตัวอย่างตอนพิมพ์ Email
   const generatedUsername = formData.email ? formData.email.split('@')[0] : '';
 
   useEffect(() => {
@@ -33,8 +34,8 @@ const UserManagement = () => {
   const fetchUsers = async () => {
     setLoading(true);
     try {
-      const res = await apiClient.get('/api/users');
-      setUsers(res.data);
+      const data = await userService.getUsers(); // ✅ เรียกผ่าน Service
+      setUsers(data);
     } catch (error) {
       console.error("Failed to fetch users", error);
     } finally {
@@ -42,7 +43,6 @@ const UserManagement = () => {
     }
   };
 
-  // กฎการตั้งรหัสผ่าน
   const passwordRules = [
     { id: 'length', label: 'อย่างน้อย 8 ตัวอักษร', regex: /.{8,}/ },
     { id: 'upper', label: 'ตัวพิมพ์ใหญ่ (A-Z)', regex: /[A-Z]/ },
@@ -69,7 +69,7 @@ const UserManagement = () => {
       lastName: user.lastName, 
       email: user.email, 
       role: user.role, 
-      password: '', // เว้นว่างไว้ ถ้าไม่กรอกแปลว่าไม่เปลี่ยนรหัสผ่าน
+      password: '', 
       confirmPassword: ''
     });
     setIsEditing(true);
@@ -79,7 +79,7 @@ const UserManagement = () => {
   const handleDelete = async (user) => {
     if (confirm(`คุณแน่ใจหรือไม่ว่าต้องการลบผู้ใช้ ${user.firstName} ${user.lastName}?`)) {
       try {
-        await apiClient.delete(`/api/users/${user.id}`);
+        await userService.deleteUser(user.id); // ✅ เรียกผ่าน Service
         fetchUsers();
       } catch (error) {
         alert(error.response?.data?.error || "ลบผู้ใช้ไม่สำเร็จ");
@@ -90,7 +90,6 @@ const UserManagement = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    // ตรวจสอบรหัสผ่าน
     if (!isEditing || formData.password) {
       if (formData.password !== formData.confirmPassword) {
         return alert("รหัสผ่านและการยืนยันรหัสผ่านไม่ตรงกัน");
@@ -109,9 +108,9 @@ const UserManagement = () => {
           role: formData.role 
         };
         if (formData.password) payload.password = formData.password;
-        await apiClient.put(`/api/users/${formData.id}`, payload);
+        await userService.updateUser(formData.id, payload); // ✅ เรียกผ่าน Service
       } else {
-        await apiClient.post('/api/users', formData);
+        await userService.createUser(formData); // ✅ เรียกผ่าน Service
       }
       setIsModalOpen(false);
       fetchUsers();
@@ -213,7 +212,6 @@ const UserManagement = () => {
       {/* User Form Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm px-4 py-4 sm:p-0">
-          {/* ✅ เปลี่ยนให้ Modal จัดการความสูงได้ดีขึ้นบนมือถือ */}
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
             
             <div className="flex justify-between items-center p-4 sm:p-5 border-b border-slate-100 bg-slate-50 shrink-0">
@@ -227,10 +225,8 @@ const UserManagement = () => {
             </div>
             
             <form onSubmit={handleSubmit} className="flex flex-col overflow-hidden">
-              {/* ✅ ให้พื้นที่เนื้อหา Form เลื่อนได้ (Scrollable) */}
               <div className="p-4 sm:p-6 space-y-4 sm:space-y-5 overflow-y-auto">
                 
-                {/* ✅ เปลี่ยนจาก grid-cols-2 บังคับเป็น grid-cols-1 บนมือถือ และสมาร์ทโฟนแนวนอนเป็น 2 */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-xs font-bold text-slate-700 mb-1">ชื่อจริง (First Name) *</label>
@@ -322,11 +318,9 @@ const UserManagement = () => {
                     />
                   </div>
                   
-                  {/* Password Validator UI */}
                   {(!isEditing || formData.password.length > 0) && (
                     <div className="mt-3 bg-slate-50 p-3 rounded-lg border border-slate-100">
                       <p className="text-[11px] font-bold text-slate-600 mb-2">เงื่อนไขรหัสผ่าน:</p>
-                      {/* ✅ ปรับ Grid ให้รองรับหน้าจอมือถือเล็กๆ */}
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                         {passwordRules.map(rule => {
                           const isPass = rule.regex.test(formData.password);

@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import apiClient from '../utils/apiClient';
 import { useAuth } from '../context/AuthContext';
 import { User, Lock, Mail, Save, AlertCircle, Shield, CheckCircle, XCircle } from 'lucide-react';
+
+// ✅ นำเข้า userService แทน apiClient
+import { userService } from '../services/userService';
 
 const UserProfile = () => {
   const { user } = useAuth();
@@ -23,8 +25,9 @@ const UserProfile = () => {
   useEffect(() => {
     const fetchUserData = async () => {
       try {
-        const response = await apiClient.get(`/api/users/${user.id}`);
-        const { firstName, lastName, email } = response.data;
+        // ✅ เรียกผ่าน Service
+        const data = await userService.getUserById(user.id);
+        const { firstName, lastName, email } = data;
         setFormData(prev => ({ ...prev, firstName, lastName, email }));
       } catch (err) {
         setError('Failed to load user data.');
@@ -35,7 +38,6 @@ const UserProfile = () => {
     if (user?.id) fetchUserData();
   }, [user?.id]);
 
-  // ✅ ระบบตรวจสอบเงื่อนไขรหัสผ่าน
   const isChangingPassword = formData.newPassword.length > 0 || formData.confirmNewPassword.length > 0;
   
   const passwordCriteria = [
@@ -64,7 +66,7 @@ const UserProfile = () => {
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
-    setFieldErrors({ ...fieldErrors, [e.target.name]: null }); // เคลียร์ Error เมื่อพิมพ์แก้ไข
+    setFieldErrors({ ...fieldErrors, [e.target.name]: null });
     setSuccess(null);
     setError(null);
   };
@@ -88,10 +90,10 @@ const UserProfile = () => {
         payload.newPassword = formData.newPassword;
       }
 
-      await apiClient.put(`/api/users/${user.id}`, payload);
+      // ✅ เรียกผ่าน Service
+      await userService.updateUser(user.id, payload);
       setSuccess('Profile updated successfully!');
       
-      // Reset password fields
       setFormData(prev => ({
         ...prev,
         currentPassword: '',
@@ -99,7 +101,6 @@ const UserProfile = () => {
         confirmNewPassword: ''
       }));
 
-      // ลบแจ้งเตือนอัตโนมัติหลังผ่านไป 3 วินาที
       setTimeout(() => setSuccess(null), 3000);
       
     } catch (err) {
@@ -118,7 +119,7 @@ const UserProfile = () => {
   return (
     <div className="max-w-6xl mx-auto pb-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
       
-      {/* Cover Photo & Profile Header (แนวนอนเต็มจอ) */}
+      {/* Cover Photo & Profile Header */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden mb-8">
         <div className="h-32 bg-gradient-to-r from-blue-600 to-indigo-600 relative">
           <div className="absolute inset-0 bg-black/10"></div>
@@ -151,13 +152,10 @@ const UserProfile = () => {
       )}
 
       <form onSubmit={handleSubmit} className="space-y-6">
-        
-        {/* เลย์เอาต์ Grid แบ่งซ้าย-ขวา */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
           
           {/* ฝั่งซ้าย: Personal Information */}
           <div className="bg-white p-6 md:p-8 rounded-2xl border border-slate-200 shadow-sm relative overflow-hidden h-full">
-            {/* Background Decoration */}
             <div className="absolute top-0 right-0 p-8 opacity-5 pointer-events-none">
               <User size={120} />
             </div>
@@ -205,7 +203,6 @@ const UserProfile = () => {
             </h3>
             
             <div className="space-y-6 flex-1">
-              
               <div className="space-y-5">
                 <div>
                   <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Current Password</label>
@@ -243,7 +240,6 @@ const UserProfile = () => {
                 </div>
               </div>
 
-              {/* Password Validation Checklist (ย้ายลงมาเรียงต่อกัน) */}
               {isChangingPassword && (
                 <div className="bg-slate-50 p-5 rounded-xl border border-slate-100 mt-4 animate-in fade-in slide-in-from-top-2">
                   <h4 className="text-xs font-bold text-slate-500 uppercase mb-3 tracking-wider">Password Requirements</h4>
@@ -257,12 +253,10 @@ const UserProfile = () => {
                   </div>
                 </div>
               )}
-              
             </div>
           </div>
         </div>
 
-        {/* Submit Button Section */}
         <div className="flex justify-end pt-4 border-t border-slate-200">
           <button 
             type="submit" 
@@ -276,7 +270,6 @@ const UserProfile = () => {
             )}
           </button>
         </div>
-
       </form>
     </div>
   );

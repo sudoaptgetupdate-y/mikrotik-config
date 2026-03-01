@@ -1,12 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import apiClient from '../utils/apiClient';
 import { useAuth } from '../context/AuthContext';
 import { 
   Activity, Router, Server, Plus, ArrowRight, 
   CheckCircle, AlertTriangle, Clock, FileText, Database,
   Wifi, ServerOff, Bell, Calendar
 } from 'lucide-react';
+
+// ✅ นำเข้า Services แทน apiClient
+import { deviceService } from '../services/deviceService';
+import { modelService } from '../services/modelService';
+import { logService } from '../services/logService';
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -22,7 +26,6 @@ const Dashboard = () => {
   });
   const [recentLogs, setRecentLogs] = useState([]);
 
-  // สร้างคำทักทายตามช่วงเวลา
   const getGreeting = () => {
     const hour = new Date().getHours();
     if (hour < 12) return 'Good morning';
@@ -41,17 +44,15 @@ const Dashboard = () => {
   const fetchDashboardData = async () => {
     setLoading(true);
     try {
-      const [devicesRes, modelsRes, logsRes] = await Promise.all([
-        apiClient.get('/api/devices/user/1'), // ควรดึง User ID จาก Context ในอนาคต
-        apiClient.get('/api/master/models'),
-        apiClient.get('/api/logs?limit=5')
+      // ✅ เรียกผ่าน Services และทำงานแบบขนาน (Promise.all)
+      const [allDevices, models, logsData] = await Promise.all([
+        deviceService.getUserDevices(user?.id || 1),
+        modelService.getModels(),
+        logService.getActivityLogs({ limit: 5 })
       ]);
 
-      const allDevices = devicesRes.data || [];
-      const models = modelsRes.data || [];
-      const logsArray = Array.isArray(logsRes.data) ? logsRes.data : (logsRes.data?.data || []);
-
-      const activeDevices = allDevices.filter(device => device.status !== 'DELETED');
+      const activeDevices = (allDevices || []).filter(device => device.status !== 'DELETED');
+      const logsArray = Array.isArray(logsData) ? logsData : (logsData?.data || []);
       
       let onlineCount = 0;
       let offlineCount = 0;
@@ -69,7 +70,6 @@ const Dashboard = () => {
 
         if (isOnline) {
           onlineCount++;
-          // ✅ อัปเดตเงื่อนไข: จะนับเป็น Alert ก็ต่อเมื่อโหลดยังสูง "และ" ยังไม่ได้ถูก Acknowledge เท่านั้น
           if ((cpuVal > 85 || ramVal > 85) && !device.isAcknowledged) {
             alertCount++;
           }
@@ -80,7 +80,7 @@ const Dashboard = () => {
 
       setStats({
         totalDevices: activeDevices.length,
-        totalModels: models.length,
+        totalModels: (models || []).length,
         onlineDevices: onlineCount,
         offlineDevices: offlineCount,
         activeAlerts: alertCount
@@ -119,7 +119,6 @@ const Dashboard = () => {
     );
   }
 
-  // คำนวณเปอร์เซ็นต์สำหรับ Health Bar
   const onlinePercentage = stats.totalDevices > 0 ? (stats.onlineDevices / stats.totalDevices) * 100 : 0;
 
   return (
@@ -127,7 +126,6 @@ const Dashboard = () => {
       
       {/* --- Header --- */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 bg-white p-5 md:p-6 rounded-2xl border border-slate-200 shadow-sm relative overflow-hidden">
-        {/* ลวดลายตกแต่งพื้นหลัง */}
         <div className="absolute top-0 right-0 -mt-10 -mr-10 w-40 h-40 bg-blue-50 rounded-full blur-3xl opacity-50 pointer-events-none"></div>
         <div className="absolute bottom-0 left-20 w-32 h-32 bg-indigo-50 rounded-full blur-3xl opacity-50 pointer-events-none"></div>
         
@@ -159,7 +157,6 @@ const Dashboard = () => {
       {/* --- Section 1: Key Metrics --- */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         
-        {/* Card 1: Total Devices */}
         <div 
           onClick={() => handleCardClick('ACTIVE_ONLY')}
           className="relative bg-white p-5 rounded-2xl border border-slate-200 shadow-sm hover:border-blue-300 hover:shadow-lg hover:shadow-blue-500/10 hover:-translate-y-1 transition-all duration-300 cursor-pointer group overflow-hidden"
@@ -175,7 +172,6 @@ const Dashboard = () => {
           </div>
         </div>
 
-        {/* Card 2: Online Devices */}
         <div 
           onClick={() => handleCardClick('ONLINE')}
           className="relative bg-white p-5 rounded-2xl border border-slate-200 shadow-sm hover:border-emerald-300 hover:shadow-lg hover:shadow-emerald-500/10 hover:-translate-y-1 transition-all duration-300 cursor-pointer group overflow-hidden"
@@ -198,7 +194,6 @@ const Dashboard = () => {
           </div>
         </div>
 
-        {/* Card 3: Offline Devices */}
         <div 
           onClick={() => handleCardClick('OFFLINE')}
           className="relative bg-white p-5 rounded-2xl border border-slate-200 shadow-sm hover:border-rose-300 hover:shadow-lg hover:shadow-rose-500/10 hover:-translate-y-1 transition-all duration-300 cursor-pointer group overflow-hidden"
@@ -214,7 +209,6 @@ const Dashboard = () => {
           </div>
         </div>
 
-        {/* Card 4: Active Alerts */}
         <div 
           onClick={() => handleCardClick('WARNING')}
           className="relative bg-white p-5 rounded-2xl border border-slate-200 shadow-sm hover:border-orange-300 hover:shadow-lg hover:shadow-orange-500/10 hover:-translate-y-1 transition-all duration-300 cursor-pointer group overflow-hidden"

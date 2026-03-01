@@ -1,8 +1,14 @@
+// ==========================================
+// 🚀 0. Async Error Handler (ต้องอยู่บนสุดเสมอ!)
+// ==========================================
+require('express-async-errors');
+
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet'); 
 const rateLimit = require('express-rate-limit');
 
+// นำเข้า Routes
 const deviceRoutes = require('./routes/deviceRoutes'); 
 const modelRoutes = require('./routes/modelRoutes');
 const logRoutes = require('./routes/logRoutes');
@@ -10,6 +16,9 @@ const userRoutes = require('./routes/userRoutes');
 const authRoutes = require('./routes/authRoutes');
 const settingRoutes = require('./routes/settingRoutes');
 require('./services/cronJobs');
+
+// 👈 นำเข้า Error Middleware
+const errorHandler = require('./middlewares/errorMiddleware'); 
 
 const app = express();
 if (process.env.NODE_ENV === 'production') {
@@ -22,7 +31,7 @@ if (process.env.NODE_ENV === 'production') {
 app.use(helmet());
 
 // ==========================================
-// 🛡️ 2. CORS (Cross-Origin Resource Sharing)  <-- ย้ายขึ้นมาตรงนี้!
+// 🛡️ 2. CORS (Cross-Origin Resource Sharing)
 // ==========================================
 const allowedOrigins = [
   process.env.FRONTEND_URL,
@@ -80,5 +89,10 @@ app.use('/api/settings', settingRoutes);
 app.get('/', (req, res) => {
   res.status(200).send('OK');
 });
+
+// ==========================================
+// 🚨 Global Error Handler (ต้องอยู่ล่างสุดเสมอ! ก่อน module.exports)
+// ==========================================
+app.use(errorHandler);
 
 module.exports = app;

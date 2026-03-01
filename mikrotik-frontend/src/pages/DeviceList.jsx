@@ -1,11 +1,13 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Activity, Plus } from 'lucide-react';
-import apiClient from '../utils/apiClient';
-import { generateMikrotikScript } from '../utils/mikrotikGenerator';
 import { useAuth } from '../context/AuthContext';
 
-// นำเข้า Components ย่อยที่เราเพิ่งแยก
+// ✅ นำเข้า deviceService แทน apiClient
+import { deviceService } from '../services/deviceService';
+import { generateMikrotikScript } from '../utils/mikrotikGenerator';
+
+// นำเข้า Components ย่อย
 import { getDeviceStatus } from './ConfigWizard/components/device/deviceHelpers';
 import DeviceListToolbar from './ConfigWizard/components/device/DeviceListToolbar';
 import DeviceTable from './ConfigWizard/components/device/DeviceTable';
@@ -41,6 +43,7 @@ const DeviceList = () => {
   const [deviceToAck, setDeviceToAck] = useState(null);
   const [ackReason, setAckReason] = useState('');
   const [isAckSubmitting, setIsAckSubmitting] = useState(false);
+  
   const [isEventOpen, setIsEventOpen] = useState(false);
   const [selectedDeviceEvent, setSelectedDeviceEvent] = useState(null);
   const [eventData, setEventData] = useState([]);
@@ -57,8 +60,9 @@ const DeviceList = () => {
 
   const fetchDevices = async () => {
     try {
-      const res = await apiClient.get('/api/devices/user/1');
-      setDevices(res.data);
+      // ✅ เรียกผ่าน Service และใช้ ID ของ User ที่ล็อกอินอยู่จริงๆ (ถ้าไม่มีให้ fallback ไปที่ 1)
+      const data = await deviceService.getUserDevices(user?.id || 1);
+      setDevices(data);
       setLastUpdated(new Date());
     } catch (error) {
       console.error("Error fetching devices:", error);
@@ -93,14 +97,20 @@ const DeviceList = () => {
 
   const handleDeleteClick = async (device) => {
     if (confirm(`Are you sure you want to delete "${device.name}"? (It will be marked as inactive)`)) {
-        try { await apiClient.delete(`/api/devices/${device.id}`); fetchDevices(); } 
+        try { 
+          await deviceService.deleteDevice(device.id); // ✅ เรียกผ่าน Service
+          fetchDevices(); 
+        } 
         catch (e) { alert("Failed to delete device"); }
     }
   };
 
   const handleRestoreClick = async (device) => {
     if (confirm(`Are you sure you want to restore "${device.name}" to active status?`)) {
-        try { await apiClient.put(`/api/devices/${device.id}/restore`); fetchDevices(); } 
+        try { 
+          await deviceService.restoreDevice(device.id); // ✅ เรียกผ่าน Service
+          fetchDevices(); 
+        } 
         catch (e) { alert("Failed to restore device"); }
     }
   };
@@ -108,7 +118,7 @@ const DeviceList = () => {
   const handleDownloadLatest = async (device) => { 
     if (!device.configData) return alert("No configuration data found for this device.");
     try {
-      await apiClient.post(`/api/devices/${device.id}/log-download`, {});
+      await deviceService.logDownload(device.id, null); // ✅ เรียกผ่าน Service
       const script = generateMikrotikScript(device.configData);
       const element = document.createElement("a");
       element.href = URL.createObjectURL(new Blob([script], {type: 'text/plain'}));
@@ -124,8 +134,8 @@ const DeviceList = () => {
     setIsHistoryOpen(true);
     setHistoryLoading(true);
     try {
-      const res = await apiClient.get(`/api/devices/${device.id}/history`);
-      setHistoryData(res.data);
+      const data = await deviceService.getDeviceHistory(device.id); // ✅ เรียกผ่าน Service
+      setHistoryData(data);
     } catch (error) { alert("Failed to load history"); } 
     finally { setHistoryLoading(false); }
   };
@@ -135,8 +145,8 @@ const DeviceList = () => {
     setIsEventOpen(true);
     setEventLoading(true);
     try {
-      const res = await apiClient.get(`/api/devices/${device.id}/events`);
-      setEventData(res.data);
+      const data = await deviceService.getDeviceEvents(device.id); // ✅ เรียกผ่าน Service
+      setEventData(data);
     } catch (error) {
       console.error("Fetch events failed:", error);
       alert("Failed to load event history");
@@ -161,7 +171,8 @@ const DeviceList = () => {
       if (cpu > 85) currentWarning.push(`CPU ${cpu}%`);
       if (ram > 85) currentWarning.push(`RAM ${ram}%`);
 
-      await apiClient.post(`/api/devices/${deviceToAck.id}/acknowledge`, {
+      // ✅ เรียกผ่าน Service
+      await deviceService.acknowledgeWarning(deviceToAck.id, {
         reason: ackReason,
         warningData: currentWarning.length > 0 ? currentWarning.join(', ') : 'Unknown Load'
       });
