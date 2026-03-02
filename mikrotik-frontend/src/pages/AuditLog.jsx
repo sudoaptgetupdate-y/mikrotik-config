@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Activity, Search, RefreshCw, FileText, Plus, Edit, Download, Trash2, Calendar, ChevronLeft, ChevronRight } from 'lucide-react';
-import { useQuery, keepPreviousData } from '@tanstack/react-query'; // ✅ Import React Query
+import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { logService } from '../services/logService';
 import toast from 'react-hot-toast';
 
@@ -23,7 +23,9 @@ const AuditLog = () => {
       startDate: dateRange.start,
       endDate: dateRange.end,
     }),
-    placeholderData: keepPreviousData, // ทำให้ตารางไม่กะพริบเวลาเปลี่ยนหน้า
+    placeholderData: keepPreviousData,
+    refetchOnMount: 'always',
+    refetchInterval: 15000,
   });
 
   const logs = data?.data || [];

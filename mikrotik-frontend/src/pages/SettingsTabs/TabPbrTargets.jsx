@@ -1,12 +1,21 @@
 import { useState } from 'react';
 import { Save, AlertTriangle, Loader2 } from 'lucide-react';
 import apiClient from '../../utils/apiClient';
-import toast from 'react-hot-toast'; // ✅ Import toast
+import toast from 'react-hot-toast';
+import { useQueryClient } from '@tanstack/react-query';
 
 export default function TabPbrTargets({ initialData }) {
+  const queryClient = useQueryClient();
+
+  // ==========================================
+  // States
+  // ==========================================
   const [monitorIps, setMonitorIps] = useState([...(initialData || []), '', '', '', '', ''].slice(0, 5));
   const [isSaving, setIsSaving] = useState(false);
 
+  // ==========================================
+  // Handlers (Actions)
+  // ==========================================
   const handleMonitorIpChange = (index, val) => {
     const sanitizedVal = val.replace(/[^0-9.]/g, ''); 
     const newIps = [...monitorIps];
@@ -16,8 +25,6 @@ export default function TabPbrTargets({ initialData }) {
 
   const handleSave = async () => {
     setIsSaving(true);
-    
-    // ✅ ใช้ toast.promise
     const savePromise = apiClient.put(`/api/settings/MONITOR_IPS`, { value: monitorIps });
     
     toast.promise(savePromise, {
@@ -28,13 +35,14 @@ export default function TabPbrTargets({ initialData }) {
 
     try {
       await savePromise;
-    } catch (error) {
-      console.error(error);
-    } finally {
-      setIsSaving(false);
-    }
+      queryClient.invalidateQueries({ queryKey: ['settings'] }); // ✅ ล้าง Cache
+    } catch (error) { console.error(error); } 
+    finally { setIsSaving(false); }
   };
 
+  // ==========================================
+  // Render
+  // ==========================================
   return (
     <div className="flex-1">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 pb-4 border-b border-slate-100 gap-4">

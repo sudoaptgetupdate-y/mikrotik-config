@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Shield, Network, Globe, Settings2, Database, Loader2 } from 'lucide-react';
-import { useQuery } from '@tanstack/react-query'; // ✅ Import React Query
+import { useQuery } from '@tanstack/react-query';
 
 import { settingService } from '../services/settingService';
 import toast from 'react-hot-toast';
@@ -8,7 +8,7 @@ import toast from 'react-hot-toast';
 import TabAdmins from './SettingsTabs/TabAdmins';
 import TabManagementIps from './SettingsTabs/TabManagementIps';
 import TabPbrTargets from './SettingsTabs/TabPbrTargets';
-import TabDefaults from './SettingsTabs/TabDefaults';
+import TabVlanNetwork from './SettingsTabs/TabVlanNetwork';
 import TabMaintenance from './SettingsTabs/TabMaintenance';
 
 const GlobalSettings = () => {
@@ -68,7 +68,7 @@ const GlobalSettings = () => {
             {activeTab === 'ADMINS' && <TabAdmins initialData={settingsData.ROUTER_ADMINS} />}
             {activeTab === 'NETWORKS' && <TabManagementIps initialData={settingsData.MANAGEMENT_IPS} />}
             {activeTab === 'PBR' && <TabPbrTargets initialData={settingsData.MONITOR_IPS} />}
-            {activeTab === 'DEFAULTS' && <TabDefaults initialData={settingsData.DEFAULT_NETWORKS} />}
+            {activeTab === 'DEFAULTS' && <TabVlanNetwork initialData={settingsData.DEFAULT_NETWORKS} />}
             {activeTab === 'MAINTENANCE' && <TabMaintenance />}
           </div>
         </>

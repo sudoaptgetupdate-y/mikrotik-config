@@ -2,14 +2,23 @@ import { useState } from 'react';
 import { Plus, Trash2, Loader2, Eye, EyeOff, ShieldCheck } from 'lucide-react';
 import apiClient from '../../utils/apiClient';
 import toast from 'react-hot-toast';
+import { useQueryClient } from '@tanstack/react-query';
+import Swal from 'sweetalert2';
 
 export default function TabAdmins({ initialData }) {
+  const queryClient = useQueryClient();
+
+  // ==========================================
+  // States
+  // ==========================================
   const [routerAdmins, setRouterAdmins] = useState(initialData || []);
   const [newAdmin, setNewAdmin] = useState({ username: '', password: '', group: 'full' });
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
-  // ฟังก์ชันกลางสำหรับบันทึกลง Backend ทันที
+  // ==========================================
+  // Handlers (Actions)
+  // ==========================================
   const handleSaveToBackend = async (updatedList, onSuccess) => {
     setIsSaving(true);
     const savePromise = apiClient.put(`/api/settings/ROUTER_ADMINS`, { value: updatedList });
@@ -22,7 +31,8 @@ export default function TabAdmins({ initialData }) {
 
     try {
       await savePromise;
-      setRouterAdmins(updatedList); // อัปเดตหน้าจอเมื่อบันทึกผ่าน
+      setRouterAdmins(updatedList);
+      queryClient.invalidateQueries({ queryKey: ['settings'] }); // ✅ ล้าง Cache
       if (onSuccess) onSuccess();
     } catch (error) {
       console.error(error);
@@ -35,32 +45,44 @@ export default function TabAdmins({ initialData }) {
     if (!newAdmin.username || !newAdmin.password) {
       return toast.error("กรุณากรอก Username และ Password ให้ครบถ้วน");
     }
-    
-    // ✅ ตรวจสอบ Username ซ้ำ (ไม่สนตัวพิมพ์เล็ก/ใหญ่)
-    const isDuplicate = routerAdmins.some(
-      admin => admin.username.toLowerCase() === newAdmin.username.toLowerCase()
-    );
-    if (isDuplicate) {
-      return toast.error(`มี Username "${newAdmin.username}" อยู่ในระบบแล้ว กรุณาใช้ชื่ออื่น`);
-    }
+    const isDuplicate = routerAdmins.some(admin => admin.username.toLowerCase() === newAdmin.username.toLowerCase());
+    if (isDuplicate) return toast.error(`มี Username "${newAdmin.username}" อยู่ในระบบแล้ว`);
 
     const updatedList = [...routerAdmins, newAdmin];
-    
-    // บันทึกทันทีเมื่อกด Add
     handleSaveToBackend(updatedList, () => {
       setNewAdmin({ username: '', password: '', group: 'full' });
       setShowNewPassword(false);
     });
   };
 
-  const removeAdmin = (index, username) => {
-    if (confirm(`ยืนยันการลบ Admin: "${username}" ออกจาก Default Config ใช่หรือไม่?`)) {
+  const removeAdmin = async (index, username) => {
+    const result = await Swal.fire({
+      title: 'ยืนยันการลบ Admin?',
+      text: `คุณต้องการลบ "${username}" ออกจาก Default Config ใช่หรือไม่?`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'ใช่, ลบออก!',
+      cancelButtonText: 'ยกเลิก',
+      buttonsStyling: false,
+      customClass: {
+        popup: 'rounded-3xl p-6 border border-slate-100 shadow-xl',
+        title: 'text-xl font-bold text-slate-800',
+        htmlContainer: 'text-sm text-slate-500 font-medium mt-2',
+        actions: 'flex gap-3 mt-6 w-full justify-center',
+        confirmButton: 'bg-red-600 hover:bg-red-700 text-white px-6 py-2.5 rounded-xl text-sm font-bold shadow-sm transition-all',
+        cancelButton: 'bg-slate-100 hover:bg-slate-200 text-slate-600 px-6 py-2.5 rounded-xl text-sm font-bold transition-all'
+      }
+    });
+
+    if (result.isConfirmed) {
       const updatedList = routerAdmins.filter((_, i) => i !== index);
-      // บันทึกทันทีเมื่อกดลบ
       handleSaveToBackend(updatedList);
     }
   };
 
+  // ==========================================
+  // Render
+  // ==========================================
   return (
     <div className="flex-1">
       <div className="mb-6 pb-4 border-b border-slate-100">
@@ -69,71 +91,41 @@ export default function TabAdmins({ initialData }) {
       </div>
       
       <div className="space-y-4">
-        {/* รายชื่อ Admin ปัจจุบัน (Read-only + ปุ่มลบ) */}
         {routerAdmins.map((admin, idx) => (
           <div key={idx} className="flex flex-wrap items-center gap-3 bg-slate-50 p-4 rounded-xl border border-slate-200 shadow-sm transition-all hover:border-blue-300">
             <div className="flex-1 min-w-[120px] flex items-center gap-2">
               <ShieldCheck size={18} className="text-blue-500" />
               <span className="font-bold text-slate-700">{admin.username}</span>
             </div>
-            <div className="flex-1 min-w-[120px] text-slate-400 font-mono text-sm tracking-widest">
-              ••••••••
-            </div>
+            <div className="flex-1 min-w-[120px] text-slate-400 font-mono text-sm tracking-widest">••••••••</div>
             <div className="w-24 text-center">
               <span className={`px-2 py-1 rounded text-[11px] font-bold uppercase ${admin.group === 'full' ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-200 text-slate-600'}`}>
                 Group: {admin.group}
               </span>
             </div>
-            <button 
-              onClick={() => removeAdmin(idx, admin.username)} 
-              disabled={isSaving}
-              className="flex justify-center text-slate-400 hover:text-red-600 bg-white hover:bg-red-50 border border-slate-200 p-2 rounded-lg transition-colors disabled:opacity-50"
-            >
+            <button onClick={() => removeAdmin(idx, admin.username)} disabled={isSaving} className="flex justify-center text-slate-400 hover:text-red-600 bg-white hover:bg-red-50 border border-slate-200 p-2 rounded-lg transition-colors disabled:opacity-50">
               <Trash2 size={18} />
             </button>
           </div>
         ))}
 
         {routerAdmins.length === 0 && (
-          <div className="text-center py-6 text-slate-400 text-sm border border-dashed border-slate-300 rounded-xl bg-slate-50">
-            ยังไม่มีรายชื่อ Admin เริ่มต้น
-          </div>
+          <div className="text-center py-6 text-slate-400 text-sm border border-dashed border-slate-300 rounded-xl bg-slate-50">ยังไม่มีรายชื่อ Admin เริ่มต้น</div>
         )}
 
-        {/* ฟอร์มเพิ่ม Admin ใหม่ */}
         <div className="grid grid-cols-2 md:flex items-center gap-3 pt-6 mt-6 border-t border-slate-100">
-          <input 
-            type="text" 
-            placeholder="New Username" 
-            value={newAdmin.username} 
-            onChange={e => setNewAdmin({...newAdmin, username: e.target.value.replace(/\s/g, '')})} 
-            className="col-span-2 md:flex-1 border border-slate-300 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-50 transition-all" 
-          />
+          <input type="text" placeholder="New Username" value={newAdmin.username} onChange={e => setNewAdmin({...newAdmin, username: e.target.value.replace(/\s/g, '')})} className="col-span-2 md:flex-1 border border-slate-300 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-50 transition-all" />
           <div className="col-span-2 md:flex-1 relative">
-            <input 
-              type={showNewPassword ? "text" : "password"} 
-              placeholder="New Password" 
-              value={newAdmin.password} 
-              onChange={e => setNewAdmin({...newAdmin, password: e.target.value})} 
-              className="w-full border border-slate-300 rounded-xl pl-4 pr-10 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-50 transition-all font-mono" 
-            />
+            <input type={showNewPassword ? "text" : "password"} placeholder="New Password" value={newAdmin.password} onChange={e => setNewAdmin({...newAdmin, password: e.target.value})} className="w-full border border-slate-300 rounded-xl pl-4 pr-10 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-50 transition-all font-mono" />
             <button type="button" onClick={() => setShowNewPassword(!showNewPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 focus:outline-none">
               {showNewPassword ? <EyeOff size={18} /> : <Eye size={18} />}
             </button>
           </div>
-          <select 
-            value={newAdmin.group} 
-            onChange={e => setNewAdmin({...newAdmin, group: e.target.value})} 
-            className="col-span-1 md:w-32 border border-slate-300 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-50 bg-white"
-          >
+          <select value={newAdmin.group} onChange={e => setNewAdmin({...newAdmin, group: e.target.value})} className="col-span-1 md:w-32 border border-slate-300 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-50 bg-white">
             <option value="full">Full</option>
             <option value="read">Read</option>
           </select>
-          <button 
-            onClick={addAdmin} 
-            disabled={isSaving}
-            className="col-span-1 justify-center bg-blue-600 hover:bg-blue-700 disabled:bg-slate-400 text-white px-5 py-2.5 rounded-xl flex items-center gap-2 font-bold transition-all shadow-sm"
-          >
+          <button onClick={addAdmin} disabled={isSaving} className="col-span-1 justify-center bg-blue-600 hover:bg-blue-700 disabled:bg-slate-400 text-white px-5 py-2.5 rounded-xl flex items-center gap-2 font-bold transition-all shadow-sm">
             {isSaving ? <Loader2 size={18} className="animate-spin" /> : <Plus size={18} />} Add User
           </button>
         </div>

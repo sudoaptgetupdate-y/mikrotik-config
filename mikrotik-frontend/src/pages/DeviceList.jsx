@@ -3,7 +3,8 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { Activity, Plus } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
-import { useQuery, useQueryClient } from '@tanstack/react-query'; // ✅ Import
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import Swal from 'sweetalert2';
 
 import { deviceService } from '../services/deviceService';
 import { generateMikrotikScript } from '../utils/mikrotikGenerator';
@@ -21,17 +22,16 @@ const DeviceList = () => {
   const { user } = useAuth(); 
   const canEdit = user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN';
   
-  const queryClient = useQueryClient(); // ✅ ใช้สำหรับสั่งเคลียร์ Cache เมื่อมีการแก้ไขข้อมูล
+  const queryClient = useQueryClient();
 
-  // Filter & Search States
+  // ==========================================
+  // States
+  // ==========================================
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState(location.state?.filter || 'ACTIVE_ONLY');
-
-  // Infinite Scroll States
   const [displayLimit, setDisplayLimit] = useState(15);
   const observerTarget = useRef(null);
 
-  // Modal States
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [selectedDeviceHistory, setSelectedDeviceHistory] = useState(null);
   const [historyData, setHistoryData] = useState([]);
@@ -47,23 +47,26 @@ const DeviceList = () => {
   const [eventData, setEventData] = useState([]);
   const [eventLoading, setEventLoading] = useState(false);
 
-  // --- React Query ---
-  // ✅ ใช้ useQuery จัดการ State แทน useState และ useEffect แบบเก่า
+  // ==========================================
+  // React Query Fetching
+  // ==========================================
   const { 
     data: devices = [], 
     isLoading: loading, 
-    dataUpdatedAt, // ค่าเวลาอัปเดตล่าสุดที่ React Query จัดการให้
+    dataUpdatedAt,
     refetch 
   } = useQuery({
     queryKey: ['devices', user?.id],
     queryFn: () => deviceService.getUserDevices(user?.id || 1),
-    refetchInterval: 30000, // ดึงใหม่ทุก 30 วินาที
+    refetchInterval: 30000,
     onError: () => toast.error("ดึงข้อมูลอุปกรณ์ไม่สำเร็จ")
   });
 
   const lastUpdatedText = dataUpdatedAt ? new Date(dataUpdatedAt).toLocaleTimeString() : '...';
 
-  // --- Effects ---
+  // ==========================================
+  // Effects
+  // ==========================================
   useEffect(() => {
     if (location.state?.filter) setStatusFilter(location.state.filter);
   }, [location.state?.filter]);
@@ -81,53 +84,81 @@ const DeviceList = () => {
     return () => observer.disconnect();
   }, [loading]);
 
-  // --- Handlers ---
-  const handleRefresh = () => refetch(); // สั่ง refetch ข้อมูลทันที
-
+  // ==========================================
+  // Handlers (Actions)
+  // ==========================================
+  const handleRefresh = () => refetch();
   const handleAddClick = () => navigate('/add-device');
   const handleEditClick = (device) => navigate(`/edit-device/${device.id}`, { state: { deviceData: device } });
 
   const handleDeleteClick = async (device) => {
-    if (confirm(`Are you sure you want to delete "${device.name}"? (It will be marked as inactive)`)) {
+    const result = await Swal.fire({
+      title: 'ยืนยันการลบอุปกรณ์?',
+      text: `คุณต้องการลบ "${device.name}" ใช่หรือไม่? (อุปกรณ์จะถูกเปลี่ยนสถานะเป็น Inactive)`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'ใช่, ลบเลย!',
+      cancelButtonText: 'ยกเลิก',
+      buttonsStyling: false,
+      customClass: {
+        popup: 'rounded-3xl p-6 border border-slate-100 shadow-2xl',
+        title: 'text-xl font-bold text-slate-800',
+        htmlContainer: 'text-sm text-slate-500 font-medium mt-2',
+        actions: 'flex gap-3 mt-6 w-full justify-center',
+        confirmButton: 'bg-red-600 hover:bg-red-700 text-white px-6 py-2.5 rounded-xl text-sm font-bold shadow-sm transition-all',
+        cancelButton: 'bg-slate-100 hover:bg-slate-200 text-slate-600 px-6 py-2.5 rounded-xl text-sm font-bold transition-all'
+      }
+    });
+
+    if (result.isConfirmed) {
       const deletePromise = deviceService.deleteDevice(device.id);
-      
       toast.promise(deletePromise, {
         loading: 'กำลังลบอุปกรณ์...',
         success: 'ลบอุปกรณ์สำเร็จ!',
         error: 'ลบอุปกรณ์ไม่สำเร็จ'
       });
-
       try { 
         await deletePromise;
-        queryClient.invalidateQueries({ queryKey: ['devices'] }); // ✅ สั่งเคลียร์ Cache เพื่อให้ดึงข้อมูลใหม่ทันที
-      } catch (e) {
-        console.error(e);
-      }
+        queryClient.invalidateQueries({ queryKey: ['devices'] });
+      } catch (e) { console.error(e); }
     }
   };
 
   const handleRestoreClick = async (device) => {
-    if (confirm(`Are you sure you want to restore "${device.name}" to active status?`)) {
+    const result = await Swal.fire({
+      title: 'ยืนยันการกู้คืน?',
+      text: `คุณต้องการกู้คืนสถานะของ "${device.name}" กลับมาเป็น Active ใช่หรือไม่?`,
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonText: 'ใช่, กู้คืนเลย!',
+      cancelButtonText: 'ยกเลิก',
+      buttonsStyling: false,
+      customClass: {
+        popup: 'rounded-3xl p-6 border border-slate-100 shadow-2xl',
+        title: 'text-xl font-bold text-slate-800',
+        htmlContainer: 'text-sm text-slate-500 font-medium mt-2',
+        actions: 'flex gap-3 mt-6 w-full justify-center',
+        confirmButton: 'bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-xl text-sm font-bold shadow-sm transition-all',
+        cancelButton: 'bg-slate-100 hover:bg-slate-200 text-slate-600 px-6 py-2.5 rounded-xl text-sm font-bold transition-all'
+      }
+    });
+
+    if (result.isConfirmed) {
       const restorePromise = deviceService.restoreDevice(device.id);
-      
       toast.promise(restorePromise, {
         loading: 'กำลังกู้คืนอุปกรณ์...',
         success: 'กู้คืนอุปกรณ์สำเร็จ!',
         error: 'กู้คืนอุปกรณ์ไม่สำเร็จ'
       });
-
       try { 
         await restorePromise;
-        queryClient.invalidateQueries({ queryKey: ['devices'] }); // ✅
-      } catch (e) {
-        console.error(e);
-      }
+        queryClient.invalidateQueries({ queryKey: ['devices'] });
+      } catch (e) { console.error(e); }
     }
   };
 
   const handleDownloadLatest = async (device) => { 
     if (!device.configData) return toast.error("ไม่พบข้อมูล Config ของอุปกรณ์นี้");
-
     const processDownload = async () => {
       await deviceService.logDownload(device.id, null); 
       const script = generateMikrotikScript(device.configData);
@@ -138,14 +169,10 @@ const DeviceList = () => {
       element.click();
       document.body.removeChild(element);
     };
-
     toast.promise(processDownload(), {
       loading: 'กำลังสร้างสคริปต์...',
       success: 'ดาวน์โหลดสคริปต์สำเร็จ!',
-      error: (err) => {
-        console.error("Download Error Details:", err);
-        return 'เกิดข้อผิดพลาดในการสร้างสคริปต์';
-      }
+      error: 'เกิดข้อผิดพลาดในการสร้างสคริปต์'
     });
   };
 
@@ -156,11 +183,8 @@ const DeviceList = () => {
     try {
       const data = await deviceService.getDeviceHistory(device.id);
       setHistoryData(data);
-    } catch (error) { 
-      toast.error("โหลดประวัติไม่สำเร็จ"); 
-    } finally { 
-      setHistoryLoading(false); 
-    }
+    } catch (error) { toast.error("โหลดประวัติไม่สำเร็จ"); } 
+    finally { setHistoryLoading(false); }
   };
 
   const handleViewEvents = async (device) => {
@@ -170,12 +194,8 @@ const DeviceList = () => {
     try {
       const data = await deviceService.getDeviceEvents(device.id);
       setEventData(data);
-    } catch (error) {
-      console.error("Fetch events failed:", error);
-      toast.error("โหลดประวัติเหตุการณ์ไม่สำเร็จ");
-    } finally {
-      setEventLoading(false);
-    }
+    } catch (error) { toast.error("โหลดประวัติเหตุการณ์ไม่สำเร็จ"); } 
+    finally { setEventLoading(false); }
   };
 
   const handleAcknowledgeClick = (device) => {
@@ -208,16 +228,15 @@ const DeviceList = () => {
     try {
       await ackPromise;
       setIsAckModalOpen(false);
-      queryClient.invalidateQueries({ queryKey: ['devices'] }); // ✅ สั่งเคลียร์ Cache
-      queryClient.invalidateQueries({ queryKey: ['dashboard'] }); // ✅ สั่งเคลียร์ Cache Dashboard ด้วยเผื่อไว้
-    } catch (error) { 
-      console.error(error);
-    } finally { 
-      setIsAckSubmitting(false); 
-    }
+      queryClient.invalidateQueries({ queryKey: ['devices'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+    } catch (error) { console.error(error); } 
+    finally { setIsAckSubmitting(false); }
   };
 
-  // --- Filtering Logic ---
+  // ==========================================
+  // Filtering Logic
+  // ==========================================
   const filteredDevices = devices.filter(d => {
     const searchLower = searchTerm.toLowerCase();
     const modelName = typeof d.model === 'string' ? d.model : (d.model?.name || '');
@@ -240,6 +259,9 @@ const DeviceList = () => {
 
   const displayedDevices = filteredDevices.slice(0, displayLimit);
 
+  // ==========================================
+  // Render
+  // ==========================================
   return (
     <div className="space-y-6 animate-fade-in pb-4">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">

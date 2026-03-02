@@ -1,27 +1,36 @@
 import React, { useState } from 'react';
 import { Users, Plus, Search, Edit, Trash2, Shield, User, Mail, Lock, CheckCircle2, XCircle, X, ShieldAlert, ShieldCheck } from 'lucide-react';
-import { useQuery, useQueryClient } from '@tanstack/react-query'; // ✅ Import React Query
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
+import Swal from 'sweetalert2';
 
 import { userService } from '../services/userService';
 
 const UserManagement = () => {
   const queryClient = useQueryClient();
+
+  // ==========================================
+  // States
+  // ==========================================
   const [searchTerm, setSearchTerm] = useState('');
-  
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({ id: null, firstName: '', lastName: '', email: '', role: 'EMPLOYEE', password: '', confirmPassword: '' });
 
   const generatedUsername = formData.email ? formData.email.split('@')[0] : '';
 
-  // ✅ ดึงข้อมูลผู้ใช้ด้วย React Query
+  // ==========================================
+  // React Query Fetching
+  // ==========================================
   const { data: users = [], isLoading: loading } = useQuery({
     queryKey: ['users'],
     queryFn: () => userService.getUsers(),
     onError: () => toast.error("ดึงข้อมูลผู้ใช้ไม่สำเร็จ")
   });
 
+  // ==========================================
+  // Validation Rules
+  // ==========================================
   const passwordRules = [
     { id: 'length', label: 'อย่างน้อย 8 ตัวอักษร', regex: /.{8,}/ },
     { id: 'upper', label: 'ตัวพิมพ์ใหญ่ (A-Z)', regex: /[A-Z]/ },
@@ -30,6 +39,9 @@ const UserManagement = () => {
     { id: 'special', label: 'อักขระพิเศษ (@$!%*?&)', regex: /[@$!%*?&#^]/ }
   ];
 
+  // ==========================================
+  // Handlers (Actions)
+  // ==========================================
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
@@ -48,7 +60,25 @@ const UserManagement = () => {
   };
 
   const handleDelete = async (user) => {
-    if (confirm(`คุณแน่ใจหรือไม่ว่าต้องการลบผู้ใช้ ${user.firstName} ${user.lastName}?`)) {
+    const result = await Swal.fire({
+      title: 'ยืนยันการลบผู้ใช้งาน?',
+      text: `คุณแน่ใจหรือไม่ว่าต้องการลบผู้ใช้ "${user.firstName} ${user.lastName}"?`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'ใช่, ลบเลย!',
+      cancelButtonText: 'ยกเลิก',
+      buttonsStyling: false,
+      customClass: {
+        popup: 'rounded-3xl p-6 border border-slate-100 shadow-2xl',
+        title: 'text-xl font-bold text-slate-800',
+        htmlContainer: 'text-sm text-slate-500 font-medium mt-2',
+        actions: 'flex gap-3 mt-6 w-full justify-center',
+        confirmButton: 'bg-red-600 hover:bg-red-700 text-white px-6 py-2.5 rounded-xl text-sm font-bold shadow-sm transition-all',
+        cancelButton: 'bg-slate-100 hover:bg-slate-200 text-slate-600 px-6 py-2.5 rounded-xl text-sm font-bold transition-all'
+      }
+    });
+
+    if (result.isConfirmed) {
       const deletePromise = userService.deleteUser(user.id);
       toast.promise(deletePromise, {
         loading: 'Deleting user...',
@@ -57,7 +87,7 @@ const UserManagement = () => {
       });
       try {
         await deletePromise;
-        queryClient.invalidateQueries({ queryKey: ['users'] }); // ✅ รีเฟรชตาราง
+        queryClient.invalidateQueries({ queryKey: ['users'] });
       } catch (error) {}
     }
   };
@@ -82,10 +112,13 @@ const UserManagement = () => {
     try {
       await savePromise;
       setIsModalOpen(false);
-      queryClient.invalidateQueries({ queryKey: ['users'] }); // ✅ รีเฟรชตาราง
+      queryClient.invalidateQueries({ queryKey: ['users'] });
     } catch (error) {}
   };
 
+  // ==========================================
+  // Filtering Logic
+  // ==========================================
   const filteredUsers = users.filter(u => `${u.firstName} ${u.lastName}`.toLowerCase().includes(searchTerm.toLowerCase()) || u.email.toLowerCase().includes(searchTerm.toLowerCase()) || u.username.toLowerCase().includes(searchTerm.toLowerCase()));
 
   const getRoleBadge = (role) => {
@@ -94,6 +127,9 @@ const UserManagement = () => {
     return <span className="px-2 py-1 bg-slate-100 text-slate-700 rounded-md text-xs font-bold flex items-center gap-1 w-max"><User size={12}/> Employee</span>;
   };
 
+  // ==========================================
+  // Render
+  // ==========================================
   return (
     <div className="space-y-6 pb-10">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
@@ -151,7 +187,6 @@ const UserManagement = () => {
         )}
       </div>
 
-      {/* Modal เพิ่ม/แก้ไข (เหมือนเดิมทุกประการ) */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm px-4 py-4 sm:p-0">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { User, Lock, Mail, Save, AlertCircle, Shield, CheckCircle, XCircle } from 'lucide-react';
-import { useQuery, useQueryClient } from '@tanstack/react-query'; // ✅ Import React Query
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { userService } from '../services/userService';
 import toast from 'react-hot-toast';
 
@@ -9,6 +9,9 @@ const UserProfile = () => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
 
+  // ==========================================
+  // States
+  // ==========================================
   const [formData, setFormData] = useState({
     firstName: '', lastName: '', email: '',
     currentPassword: '', newPassword: '', confirmNewPassword: ''
@@ -17,21 +20,28 @@ const UserProfile = () => {
   const [fieldErrors, setFieldErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // ✅ ใช้ React Query ดึงข้อมูล Profile
+  // ==========================================
+  // React Query Fetching
+  // ==========================================
   const { data: userData, isLoading: loading } = useQuery({
     queryKey: ['userProfile', user?.id],
     queryFn: () => userService.getUserById(user.id),
-    enabled: !!user?.id, // ป้องกันการยิง API ถ้า user.id ยังไม่มีค่า
+    enabled: !!user?.id, 
     onError: () => toast.error('Failed to load user data.')
   });
 
-  // พอโหลดข้อมูลเสร็จ เอามายัดใส่ช่อง Form อัตโนมัติ
+  // ==========================================
+  // Effects
+  // ==========================================
   useEffect(() => {
     if (userData) {
       setFormData(prev => ({ ...prev, firstName: userData.firstName, lastName: userData.lastName, email: userData.email }));
     }
   }, [userData]);
 
+  // ==========================================
+  // Validation Logic
+  // ==========================================
   const isChangingPassword = formData.newPassword.length > 0 || formData.confirmNewPassword.length > 0;
   
   const passwordCriteria = [
@@ -57,6 +67,9 @@ const UserProfile = () => {
     return Object.keys(errors).length === 0;
   };
 
+  // ==========================================
+  // Handlers (Actions)
+  // ==========================================
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
     setFieldErrors({ ...fieldErrors, [e.target.name]: null });
@@ -84,13 +97,16 @@ const UserProfile = () => {
     try {
       await updatePromise;
       setFormData(prev => ({ ...prev, currentPassword: '', newPassword: '', confirmNewPassword: '' }));
-      queryClient.invalidateQueries({ queryKey: ['userProfile', user.id] }); // ✅ อัปเดต Cache Profile
+      queryClient.invalidateQueries({ queryKey: ['userProfile', user.id] });
     } catch (err) {
     } finally {
       setIsSubmitting(false);
     }
   };
 
+  // ==========================================
+  // Render
+  // ==========================================
   if (loading) return <div className="flex justify-center items-center h-64"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600"></div></div>;
 
   return (

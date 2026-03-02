@@ -1,12 +1,21 @@
 import { useState } from 'react';
 import { Save, Plus, Trash2, Loader2, Server, ShieldCheck } from 'lucide-react';
 import apiClient from '../../utils/apiClient';
-import toast from 'react-hot-toast'; // ✅ Import toast
+import toast from 'react-hot-toast';
+import { useQueryClient } from '@tanstack/react-query';
 
-export default function TabDefaults({ initialData }) {
+export default function TabVlanNetwork({ initialData }) {
+  const queryClient = useQueryClient();
+
+  // ==========================================
+  // States
+  // ==========================================
   const [defaultNetworks, setDefaultNetworks] = useState(initialData || []);
   const [isSaving, setIsSaving] = useState(false);
 
+  // ==========================================
+  // Handlers (Actions)
+  // ==========================================
   const addDefaultNetwork = () => {
     const customVlans = defaultNetworks.filter(n => n.vlanId !== 56).map(n => n.vlanId);
     const nextVlan = customVlans.length > 0 ? Math.max(...customVlans) + 10 : 10;
@@ -16,10 +25,12 @@ export default function TabDefaults({ initialData }) {
       vlanId: nextVlan,
       ip: `192.168.${nextVlan}.1/24`,
       type: 'network', 
-      dhcp: true,
+      dhcp: true, 
       hotspot: false
     };
-    setDefaultNetworks([...defaultNetworks, newNet]);
+    
+    // ✅ นำ newNet ไปแทรกไว้ด้านหน้าสุดของ Array 
+    setDefaultNetworks([newNet, ...defaultNetworks]);
   };
 
   const removeDefaultNetwork = (id) => setDefaultNetworks(defaultNetworks.filter(n => n.id !== id));
@@ -40,8 +51,6 @@ export default function TabDefaults({ initialData }) {
 
   const handleSave = async () => {
     setIsSaving(true);
-    
-    // ✅ ใช้ toast.promise
     const savePromise = apiClient.put(`/api/settings/DEFAULT_NETWORKS`, { value: JSON.stringify(defaultNetworks) });
     
     toast.promise(savePromise, {
@@ -52,13 +61,14 @@ export default function TabDefaults({ initialData }) {
 
     try {
       await savePromise;
-    } catch (error) {
-      console.error(error);
-    } finally {
-      setIsSaving(false);
-    }
+      queryClient.invalidateQueries({ queryKey: ['settings'] });
+    } catch (error) { console.error(error); } 
+    finally { setIsSaving(false); }
   };
 
+  // ==========================================
+  // Render
+  // ==========================================
   return (
     <div className="flex-1 flex flex-col">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 pb-4 border-b border-slate-100 gap-4">

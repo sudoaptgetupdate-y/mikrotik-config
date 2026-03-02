@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { CheckCircle, ArrowRight, ArrowLeft } from 'lucide-react';
 import apiClient from '../../utils/apiClient';
+import toast from 'react-hot-toast';
+import { useQueryClient } from '@tanstack/react-query';
 
 // Import Modular Components
 import Step1_ModelSelect from './components/Step1_ModelSelect';
@@ -16,6 +18,7 @@ const ConfigWizard = ({ mode = 'create', initialData, onFinish }) => {
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [models, setModels] = useState([]);
   const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
 
   const getApiHost = () => {
     try {
@@ -134,22 +137,39 @@ const ConfigWizard = ({ mode = 'create', initialData, onFinish }) => {
 
   // --- ACTION: Save Config ---
   const saveConfigToBackend = async (finalConfigData) => {
-    try {
-      let response;
+    // 1. สร้าง Promise สำหรับการยิง API
+    const savePromise = (async () => {
       if (mode === 'create') {
         const payload = { name: deviceMeta.name, circuitId: deviceMeta.circuitId, configData: finalConfigData };
-        response = await apiClient.post('/api/devices', payload);
+        return await apiClient.post('/api/devices', payload);
       } else {
         if (!initialData?.id) throw new Error("Missing Device ID for update");
-        response = await apiClient.put(`/api/devices/${initialData.id}`, {
+        return await apiClient.put(`/api/devices/${initialData.id}`, {
           configData: finalConfigData, name: deviceMeta.name, circuitId: deviceMeta.circuitId
         });
       }
+    })();
+
+    // 2. ใช้ toast.promise จัดการแจ้งเตือนทั้งตอน กำลังโหลด, สำเร็จ, และ ล้มเหลว
+    toast.promise(savePromise, {
+      loading: mode === 'create' ? 'กำลังสร้างอุปกรณ์...' : 'กำลังอัปเดตอุปกรณ์...',
+      success: mode === 'create' ? 'สร้างอุปกรณ์สำเร็จ!' : 'อัปเดตข้อมูลสำเร็จ!',
+      error: (err) => `เกิดข้อผิดพลาด: ${err.response?.data?.error || err.message}`
+    });
+
+    try {
+      const response = await savePromise;
+      
+      // ⭐ 3. หัวใจสำคัญ: สั่งล้าง Cache ของ React Query เพื่อให้หน้า DeviceList โหลดข้อมูลใหม่ทันที
+      queryClient.invalidateQueries({ queryKey: ['devices'] });
+      // เผื่อไว้กรณีมี Dashboard ดึงข้อมูลอุปกรณ์ไปแสดงผล
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] }); 
+
       if (onFinish) onFinish();
       return response.data; 
     } catch (error) {
       console.error("Failed to save config:", error);
-      alert(`Error saving configuration: ${error.response?.data?.error || error.message}`);
+      // เอา alert(...) เดิมออกได้เลย เพราะ toast.promise จัดการ error ให้แล้ว
       throw error;
     }
   };
