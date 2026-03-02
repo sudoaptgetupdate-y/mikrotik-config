@@ -1,8 +1,5 @@
 import axios from 'axios';
 
-// ให้ระบบเช็คเองว่ากำลังรันอยู่บน Local (Development) หรือ Server (Production)
-// ถ้าเป็น Production (build แล้ว) จะเป็นค่าว่าง (เพื่อให้มันต่อท้าย Domain ปัจจุบัน)
-// ถ้าเป็น Local (กำลัง dev) จะเป็น http://localhost:3000
 const baseURL = import.meta.env.PROD ? '' : 'http://localhost:3000';
 
 const apiClient = axios.create({
@@ -10,11 +7,21 @@ const apiClient = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
+  withCredentials: true // ✅ สั่งให้ Axios แนบ Cookie ไปด้วยทุกครั้ง
 });
 
-// ==========================================
-// 1. Request Interceptor: แปะ Token ให้ทุกครั้งที่ยิง API
-// ==========================================
+// ตัวแปรสำหรับคิวคำขอในกรณีที่ Token กำลังถูกรีเฟรชอยู่
+let isRefreshing = false;
+let failedQueue = [];
+
+const processQueue = (error, token = null) => {
+  failedQueue.forEach(prom => {
+    if (error) { prom.reject(error); }
+    else { prom.resolve(token); }
+  });
+  failedQueue = [];
+};
+
 apiClient.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('token');
@@ -23,30 +30,56 @@ apiClient.interceptors.request.use(
     }
     return config;
   },
-  (error) => {
-    return Promise.reject(error);
-  }
+  (error) => Promise.reject(error)
 );
 
-// ==========================================
-// 2. Response Interceptor: ดักจับ 401 เคลียร์ Token และเด้งไปหน้า Login
-// ==========================================
 apiClient.interceptors.response.use(
-  (response) => {
-    return response;
-  },
-  (error) => {
-    if (error.response && error.response.status === 401) {
-      console.warn('Session expired or unauthorized. Redirecting to login...');
+  (response) => response,
+  async (error) => {
+    const originalRequest = error.config;
+
+    // ถ้า Error 401 (หมดอายุ) และยังไม่เคยลองขอ Token ใหม่
+    if (error.response?.status === 401 && !originalRequest._retry) {
       
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      
-      // ป้องกันไม่ให้มัน Redirect ซ้ำซ้อนถ้าผู้ใช้อยู่หน้า /login อยู่แล้ว
-      if (window.location.pathname !== '/login') {
-        window.location.href = '/login';
+      // ถ้ากำลังมี API อื่นขอ Token ใหม่อยู่ ให้ตัวนี้ไปต่อคิวรอ
+      if (isRefreshing) {
+        return new Promise(function(resolve, reject) {
+          failedQueue.push({ resolve, reject });
+        }).then(token => {
+          originalRequest.headers.Authorization = 'Bearer ' + token;
+          return apiClient(originalRequest);
+        }).catch(err => Promise.reject(err));
+      }
+
+      originalRequest._retry = true;
+      isRefreshing = true;
+
+      try {
+        // แอบยิงไปขอ Token ใหม่
+        const res = await axios.post(`${baseURL}/api/auth/refresh-token`, {}, { withCredentials: true });
+        
+        const newToken = res.data.token;
+        localStorage.setItem('token', newToken);
+        
+        processQueue(null, newToken);
+        
+        originalRequest.headers.Authorization = `Bearer ${newToken}`;
+        return apiClient(originalRequest);
+
+      } catch (refreshError) {
+        processQueue(refreshError, null);
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        
+        if (window.location.pathname !== '/login') {
+          window.location.href = '/login';
+        }
+        return Promise.reject(refreshError);
+      } finally {
+        isRefreshing = false;
       }
     }
+
     return Promise.reject(error);
   }
 );

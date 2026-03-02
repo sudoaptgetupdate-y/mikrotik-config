@@ -1,11 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Users, Plus, Search, Edit, Trash2, Shield, User, Mail, Lock, CheckCircle2, XCircle, X, ShieldAlert, ShieldCheck } from 'lucide-react';
+import { useQuery, useQueryClient } from '@tanstack/react-query'; // ✅ Import React Query
+import toast from 'react-hot-toast';
+
 import { userService } from '../services/userService';
-import toast from 'react-hot-toast'; // ✅ Import toast
 
 const UserManagement = () => {
-  const [users, setUsers] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState('');
   
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -14,19 +15,12 @@ const UserManagement = () => {
 
   const generatedUsername = formData.email ? formData.email.split('@')[0] : '';
 
-  useEffect(() => { fetchUsers(); }, []);
-
-  const fetchUsers = async () => {
-    setLoading(true);
-    try {
-      const data = await userService.getUsers();
-      setUsers(data);
-    } catch (error) {
-      toast.error("ดึงข้อมูลผู้ใช้ไม่สำเร็จ"); // ✅ 
-    } finally {
-      setLoading(false);
-    }
-  };
+  // ✅ ดึงข้อมูลผู้ใช้ด้วย React Query
+  const { data: users = [], isLoading: loading } = useQuery({
+    queryKey: ['users'],
+    queryFn: () => userService.getUsers(),
+    onError: () => toast.error("ดึงข้อมูลผู้ใช้ไม่สำเร็จ")
+  });
 
   const passwordRules = [
     { id: 'length', label: 'อย่างน้อย 8 ตัวอักษร', regex: /.{8,}/ },
@@ -56,38 +50,29 @@ const UserManagement = () => {
   const handleDelete = async (user) => {
     if (confirm(`คุณแน่ใจหรือไม่ว่าต้องการลบผู้ใช้ ${user.firstName} ${user.lastName}?`)) {
       const deletePromise = userService.deleteUser(user.id);
-      
-      // ✅ แจ้งเตือนสถานะการลบ
       toast.promise(deletePromise, {
         loading: 'Deleting user...',
         success: 'ลบผู้ใช้สำเร็จ!',
         error: (err) => err.response?.data?.error || "ลบผู้ใช้ไม่สำเร็จ"
       });
-
       try {
         await deletePromise;
-        fetchUsers();
+        queryClient.invalidateQueries({ queryKey: ['users'] }); // ✅ รีเฟรชตาราง
       } catch (error) {}
     }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
     if (!isEditing || formData.password) {
-      if (formData.password !== formData.confirmPassword) {
-        return toast.error("รหัสผ่านและการยืนยันรหัสผ่านไม่ตรงกัน"); // ✅
-      }
+      if (formData.password !== formData.confirmPassword) return toast.error("รหัสผ่านและการยืนยันรหัสผ่านไม่ตรงกัน");
       const isValidPassword = passwordRules.every(rule => rule.regex.test(formData.password));
-      if (!isValidPassword) {
-        return toast.error("รหัสผ่านไม่ตรงตามเงื่อนไขความปลอดภัย"); // ✅
-      }
+      if (!isValidPassword) return toast.error("รหัสผ่านไม่ตรงตามเงื่อนไขความปลอดภัย");
     }
 
     const payload = isEditing ? { firstName: formData.firstName, lastName: formData.lastName, role: formData.role, ...(formData.password && {password: formData.password}) } : formData;
     const savePromise = isEditing ? userService.updateUser(formData.id, payload) : userService.createUser(payload);
 
-    // ✅ แจ้งเตือนตอนบันทึก
     toast.promise(savePromise, {
       loading: 'Saving user...',
       success: isEditing ? 'อัปเดตผู้ใช้สำเร็จ!' : 'สร้างผู้ใช้ใหม่สำเร็จ!',
@@ -97,7 +82,7 @@ const UserManagement = () => {
     try {
       await savePromise;
       setIsModalOpen(false);
-      fetchUsers();
+      queryClient.invalidateQueries({ queryKey: ['users'] }); // ✅ รีเฟรชตาราง
     } catch (error) {}
   };
 
@@ -109,7 +94,6 @@ const UserManagement = () => {
     return <span className="px-2 py-1 bg-slate-100 text-slate-700 rounded-md text-xs font-bold flex items-center gap-1 w-max"><User size={12}/> Employee</span>;
   };
 
-  // ... ส่วน Return UI คงเดิมเป๊ะ 100% ครับ แค่ก๊อปวางทับได้เลย
   return (
     <div className="space-y-6 pb-10">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
@@ -167,6 +151,7 @@ const UserManagement = () => {
         )}
       </div>
 
+      {/* Modal เพิ่ม/แก้ไข (เหมือนเดิมทุกประการ) */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm px-4 py-4 sm:p-0">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">

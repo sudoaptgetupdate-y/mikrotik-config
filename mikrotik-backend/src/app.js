@@ -7,6 +7,7 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet'); 
 const rateLimit = require('express-rate-limit');
+const cookieParser = require('cookie-parser');
 
 // นำเข้า Routes
 const deviceRoutes = require('./routes/deviceRoutes'); 
@@ -72,6 +73,7 @@ app.use('/api', globalLimiter);
 // ==========================================
 app.use(express.json({ limit: '500kb' }));
 app.use(express.urlencoded({ extended: true, limit: '500kb' }));
+app.use(cookieParser());
 
 // ==========================================
 // 🚦 Register Routes

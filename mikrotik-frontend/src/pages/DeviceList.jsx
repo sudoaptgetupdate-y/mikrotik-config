@@ -2,12 +2,12 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Activity, Plus } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import toast from 'react-hot-toast'; // ✅ นำเข้า toast
+import toast from 'react-hot-toast';
+import { useQuery, useQueryClient } from '@tanstack/react-query'; // ✅ Import
 
 import { deviceService } from '../services/deviceService';
 import { generateMikrotikScript } from '../utils/mikrotikGenerator';
 
-// นำเข้า Components ย่อย
 import { getDeviceStatus } from './ConfigWizard/components/device/deviceHelpers';
 import DeviceListToolbar from './ConfigWizard/components/device/DeviceListToolbar';
 import DeviceTable from './ConfigWizard/components/device/DeviceTable';
@@ -21,9 +21,7 @@ const DeviceList = () => {
   const { user } = useAuth(); 
   const canEdit = user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN';
   
-  const [devices, setDevices] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [lastUpdated, setLastUpdated] = useState(new Date());
+  const queryClient = useQueryClient(); // ✅ ใช้สำหรับสั่งเคลียร์ Cache เมื่อมีการแก้ไขข้อมูล
 
   // Filter & Search States
   const [searchTerm, setSearchTerm] = useState('');
@@ -49,6 +47,22 @@ const DeviceList = () => {
   const [eventData, setEventData] = useState([]);
   const [eventLoading, setEventLoading] = useState(false);
 
+  // --- React Query ---
+  // ✅ ใช้ useQuery จัดการ State แทน useState และ useEffect แบบเก่า
+  const { 
+    data: devices = [], 
+    isLoading: loading, 
+    dataUpdatedAt, // ค่าเวลาอัปเดตล่าสุดที่ React Query จัดการให้
+    refetch 
+  } = useQuery({
+    queryKey: ['devices', user?.id],
+    queryFn: () => deviceService.getUserDevices(user?.id || 1),
+    refetchInterval: 30000, // ดึงใหม่ทุก 30 วินาที
+    onError: () => toast.error("ดึงข้อมูลอุปกรณ์ไม่สำเร็จ")
+  });
+
+  const lastUpdatedText = dataUpdatedAt ? new Date(dataUpdatedAt).toLocaleTimeString() : '...';
+
   // --- Effects ---
   useEffect(() => {
     if (location.state?.filter) setStatusFilter(location.state.filter);
@@ -57,25 +71,6 @@ const DeviceList = () => {
   useEffect(() => {
     setDisplayLimit(15);
   }, [searchTerm, statusFilter]);
-
-  const fetchDevices = async () => {
-    try {
-      const data = await deviceService.getUserDevices(user?.id || 1);
-      setDevices(data);
-      setLastUpdated(new Date());
-    } catch (error) {
-      console.error("Error fetching devices:", error);
-      toast.error("ดึงข้อมูลอุปกรณ์ไม่สำเร็จ"); // ✅ ใช้งาน toast
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchDevices();
-    const interval = setInterval(fetchDevices, 30000); 
-    return () => clearInterval(interval);
-  }, []);
 
   useEffect(() => {
     const observer = new IntersectionObserver((entries) => {
@@ -87,10 +82,7 @@ const DeviceList = () => {
   }, [loading]);
 
   // --- Handlers ---
-  const handleRefresh = () => {
-    setLoading(true);
-    fetchDevices();
-  };
+  const handleRefresh = () => refetch(); // สั่ง refetch ข้อมูลทันที
 
   const handleAddClick = () => navigate('/add-device');
   const handleEditClick = (device) => navigate(`/edit-device/${device.id}`, { state: { deviceData: device } });
@@ -107,7 +99,7 @@ const DeviceList = () => {
 
       try { 
         await deletePromise;
-        fetchDevices(); 
+        queryClient.invalidateQueries({ queryKey: ['devices'] }); // ✅ สั่งเคลียร์ Cache เพื่อให้ดึงข้อมูลใหม่ทันที
       } catch (e) {
         console.error(e);
       }
@@ -126,7 +118,7 @@ const DeviceList = () => {
 
       try { 
         await restorePromise;
-        fetchDevices(); 
+        queryClient.invalidateQueries({ queryKey: ['devices'] }); // ✅
       } catch (e) {
         console.error(e);
       }
@@ -137,11 +129,8 @@ const DeviceList = () => {
     if (!device.configData) return toast.error("ไม่พบข้อมูล Config ของอุปกรณ์นี้");
 
     const processDownload = async () => {
-      // 1. ส่ง API ไปเก็บบันทึกว่ามีการดาวน์โหลด
       await deviceService.logDownload(device.id, null); 
-      // 2. สร้างสคริปต์
       const script = generateMikrotikScript(device.configData);
-      // 3. สั่งเบราว์เซอร์ดาวน์โหลดไฟล์
       const element = document.createElement("a");
       element.href = URL.createObjectURL(new Blob([script], {type: 'text/plain'}));
       element.download = `${device.name.replace(/\s+/g, '_')}_latest.rsc`;
@@ -154,7 +143,7 @@ const DeviceList = () => {
       loading: 'กำลังสร้างสคริปต์...',
       success: 'ดาวน์โหลดสคริปต์สำเร็จ!',
       error: (err) => {
-        console.error("Download Error Details:", err); // ✅ จะแสดงสาเหตุของ Error ใน Console
+        console.error("Download Error Details:", err);
         return 'เกิดข้อผิดพลาดในการสร้างสคริปต์';
       }
     });
@@ -219,7 +208,8 @@ const DeviceList = () => {
     try {
       await ackPromise;
       setIsAckModalOpen(false);
-      fetchDevices();
+      queryClient.invalidateQueries({ queryKey: ['devices'] }); // ✅ สั่งเคลียร์ Cache
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] }); // ✅ สั่งเคลียร์ Cache Dashboard ด้วยเผื่อไว้
     } catch (error) { 
       console.error(error);
     } finally { 
@@ -252,8 +242,6 @@ const DeviceList = () => {
 
   return (
     <div className="space-y-6 animate-fade-in pb-4">
-      
-      {/* Header */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
           <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
@@ -261,71 +249,23 @@ const DeviceList = () => {
           </h2>
           <p className="text-slate-500 mt-1">
             Monitor and manage your MikroTik devices 
-            (Last updated: {lastUpdated.toLocaleTimeString()})
+            (Last updated: {lastUpdatedText})
           </p>
         </div>
-        <button 
-          onClick={handleAddClick}
-          className="bg-blue-600 text-white w-full md:w-auto px-4 py-2.5 rounded-xl flex items-center justify-center gap-2 hover:bg-blue-700 shadow-sm transition-all font-medium shrink-0"
-        >
+        <button onClick={handleAddClick} className="bg-blue-600 text-white w-full md:w-auto px-4 py-2.5 rounded-xl flex items-center justify-center gap-2 hover:bg-blue-700 shadow-sm transition-all font-medium shrink-0">
           <Plus size={20} /> Add New Device
         </button>
       </div>
 
-      <DeviceListToolbar 
-        searchTerm={searchTerm}
-        setSearchTerm={setSearchTerm}
-        statusFilter={statusFilter}
-        setStatusFilter={setStatusFilter}
-        onRefresh={handleRefresh}
-        loading={loading}
-      />
+      <DeviceListToolbar searchTerm={searchTerm} setSearchTerm={setSearchTerm} statusFilter={statusFilter} setStatusFilter={setStatusFilter} onRefresh={handleRefresh} loading={loading} />
 
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
-        <DeviceTable 
-          loading={loading}
-          devices={displayedDevices}
-          filteredCount={filteredDevices.length}
-          displayLimit={displayLimit}
-          observerTarget={observerTarget}
-          canEdit={canEdit}
-          handlers={{
-            onDownload: handleDownloadLatest,
-            onViewHistory: handleViewHistory,
-            onViewEvents: handleViewEvents,
-            onRestore: handleRestoreClick,
-            onEdit: handleEditClick,
-            onDelete: handleDeleteClick,
-            onAcknowledge: handleAcknowledgeClick
-          }}
-        />
+        <DeviceTable loading={loading} devices={displayedDevices} filteredCount={filteredDevices.length} displayLimit={displayLimit} observerTarget={observerTarget} canEdit={canEdit} handlers={{ onDownload: handleDownloadLatest, onViewHistory: handleViewHistory, onViewEvents: handleViewEvents, onRestore: handleRestoreClick, onEdit: handleEditClick, onDelete: handleDeleteClick, onAcknowledge: handleAcknowledgeClick }} />
       </div>
 
-      <AcknowledgeModal 
-        isOpen={isAckModalOpen}
-        onClose={() => setIsAckModalOpen(false)}
-        device={deviceToAck}
-        ackReason={ackReason}
-        setAckReason={setAckReason}
-        onSubmit={submitAcknowledge}
-        isSubmitting={isAckSubmitting}
-      />
-      
-      <HistoryModal 
-        isOpen={isHistoryOpen}
-        onClose={() => setIsHistoryOpen(false)}
-        device={selectedDeviceHistory}
-        history={historyData}
-        loading={historyLoading}
-      />
-      <EventLogModal 
-        isOpen={isEventOpen}
-        onClose={() => setIsEventOpen(false)}
-        device={selectedDeviceEvent}
-        events={eventData}
-        loading={eventLoading}
-      />
-
+      <AcknowledgeModal isOpen={isAckModalOpen} onClose={() => setIsAckModalOpen(false)} device={deviceToAck} ackReason={ackReason} setAckReason={setAckReason} onSubmit={submitAcknowledge} isSubmitting={isAckSubmitting} />
+      <HistoryModal isOpen={isHistoryOpen} onClose={() => setIsHistoryOpen(false)} device={selectedDeviceHistory} history={historyData} loading={historyLoading} />
+      <EventLogModal isOpen={isEventOpen} onClose={() => setIsEventOpen(false)} device={selectedDeviceEvent} events={eventData} loading={eventLoading} />
     </div>
   );
 };

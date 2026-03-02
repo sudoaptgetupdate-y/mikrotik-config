@@ -115,7 +115,6 @@ export const generateMikrotikScript = (config = {}) => {
     script += `/system clock set time-zone-name=Asia/Bangkok\n`;
     script += `/system ntp client set enabled=yes servers=time.google.com,time1.google.com\n`;
 
-    // ✅ ป้องกัน Error: User ชนกัน
     script += `\n# --- Admin Users ---\n`;
     adminUsers.forEach(admin => {
       script += `:do { /user add name="${admin.username}" group="${admin.group}" password="${admin.password}" comment="Provisioned by Central API" } on-error={ /user set [find name="${admin.username}"] group="${admin.group}" password="${admin.password}" }\n`;
@@ -144,7 +143,6 @@ export const generateMikrotikScript = (config = {}) => {
     script += `/ip firewall address-list remove [find list="Local_Networks"]\n`;
     script += `/ip firewall address-list remove [find list="management"]\n`;
     
-    // ✅ ป้องกัน Error: IP ซ้ำใน Address List
     const uniqueMgmtIps = [...new Set(managementIps.map(ip => ip.trim()).filter(ip => ip !== ''))];
     uniqueMgmtIps.forEach(ip => {
         script += `/ip firewall address-list add list=management address=${ip} comment="Central Management"\n`;
@@ -343,6 +341,9 @@ export const generateMikrotikScript = (config = {}) => {
     script += `# Apply VLAN Filtering & Start Heartbeat\n`;
     script += `################################################\n`;
     
+    // ✅ ซ่อน Log ขยะจากการใช้คำสั่ง fetch (กันไม่ให้ Log เต็มเครื่อง)
+    script += `/system logging set [find topics="info"] topics="info,!fetch"\n`;
+
     script += `/interface bridge set bridge-trunk vlan-filtering=yes\n`;
 
     script += `/system script remove [find name="heartbeat-script"]\n`;
