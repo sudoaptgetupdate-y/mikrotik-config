@@ -208,55 +208,41 @@ const DeviceList = () => {
     if (!ackReason.trim()) return toast.error("กรุณากรอกข้อมูลการอัปเดต หรือเหตุผล");
     setIsAckSubmitting(true);
     
-    // ✅ ฟังก์ชันช่วยแปลงค่า Latency เฉพาะกิจ
-    const parseLatencyToMs = (latencyStr) => {
-      if (!latencyStr || latencyStr === "timeout") return 999;
-      const str = String(latencyStr).toLowerCase();
-      if (str.includes(':')) {
-        const parts = str.split(':');
-        const secAndMs = parts[parts.length - 1];
-        if (secAndMs.includes('.')) {
-          const [sec, frac] = secAndMs.split('.');
-          return (parseInt(sec, 10) * 1000) + parseInt(frac.padEnd(3, '0').substring(0,3), 10);
-        }
-        return parseInt(secAndMs, 10) * 1000;
-      }
-      const num = parseFloat(str.replace(/[^0-9.]/g, ''));
-      if (str.includes('us')) return Math.round(num / 1000);
-      if (str.includes('s') && !str.includes('ms')) return Math.round(num * 1000);
-      return Math.round(num);
-    };
+    // ✅ เพิ่มการเช็ค Storage และ Offline เข้าไปด้วย
+    const diffMinutes = deviceToAck?.lastSeen ? (new Date() - new Date(deviceToAck.lastSeen)) / 1000 / 60 : 999;
+    const isOffline = diffMinutes > 3;
 
-    const cpu = parseFloat(deviceToAck?.cpuLoad || 0);
-    const ram = parseFloat(deviceToAck?.memoryUsage || 0);
-    const storage = parseFloat(deviceToAck?.storage || 0);
-    const temp = parseFloat(deviceToAck?.temp || 0);
-    const latencyMs = parseLatencyToMs(deviceToAck?.latency);
-
+    const cpu = parseFloat(deviceToAck?.cpu || deviceToAck?.cpuLoad) || 0;
+    const ram = parseFloat(deviceToAck?.ram || deviceToAck?.memoryUsage) || 0;
+    const storage = parseFloat(deviceToAck?.storage) || 0;
+    
     let currentWarning = [];
-    if (cpu > 85) currentWarning.push(`CPU ${cpu}%`);
-    if (ram > 85) currentWarning.push(`RAM ${ram}%`);
-    if (storage > 85) currentWarning.push(`Storage ${storage}%`);
-    if (temp > 60) currentWarning.push(`Temp ${temp}°C`);
-    if (latencyMs > 80) currentWarning.push(`Ping ${latencyMs}ms`);
+    if (isOffline) {
+      currentWarning.push("Offline");
+    } else {
+      if (cpu > 85) currentWarning.push(`CPU ${cpu}%`);
+      if (ram > 85) currentWarning.push(`RAM ${ram}%`);
+      if (storage > 85) currentWarning.push(`Storage ${storage}%`);
+    }
 
     const ackPromise = deviceService.acknowledgeWarning(deviceToAck.id, {
       reason: ackReason,
-      warningData: currentWarning.length > 0 ? currentWarning.join(', ') : 'High Load'
+      warningData: currentWarning.length > 0 ? currentWarning.join(', ') : 'Unknown Load'
     });
 
     toast.promise(ackPromise, {
       loading: 'กำลังบันทึกข้อมูล...',
       success: 'รับทราบสถานะเรียบร้อย!',
-      error: 'ไม่สามารถบันทึกได้'
+      error: 'ไม่สามารถบันทึกได้ กรุณาลองใหม่'
     });
 
     try {
       await ackPromise;
       setIsAckModalOpen(false);
-      setAckReason('');
       queryClient.invalidateQueries({ queryKey: ['devices'] });
-    } catch (error) {} finally { setIsAckSubmitting(false); }
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+    } catch (error) { console.error(error); } 
+    finally { setIsAckSubmitting(false); }
   };
 
   // ==========================================
