@@ -24,7 +24,7 @@ require('./services/cronJobs');
 const errorHandler = require('./middlewares/errorMiddleware'); 
 
 const app = express();
-app.set('trust proxy', '192.168.80.80');
+app.set('trust proxy', true);
 
 // ==========================================
 // 🛡️ 1. Security Headers (Helmet)
