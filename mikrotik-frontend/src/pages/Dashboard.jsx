@@ -14,16 +14,10 @@ import { logService } from '../services/logService';
 import toast from 'react-hot-toast';
 
 const Dashboard = () => {
-  // ==========================================
-  // States & Hooks
-  // ==========================================
   const navigate = useNavigate();
   const { user } = useAuth();
   const canEdit = user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN';
 
-  // ==========================================
-  // Helpers & Variables
-  // ==========================================
   const getGreeting = () => {
     const hour = new Date().getHours();
     if (hour < 12) return 'Good morning';
@@ -35,9 +29,6 @@ const Dashboard = () => {
     weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' 
   });
 
-  // ==========================================
-  // React Query Fetching
-  // ==========================================
   const { data, isLoading } = useQuery({
     queryKey: ['dashboard', user?.id], 
     queryFn: async () => {
@@ -61,20 +52,35 @@ const Dashboard = () => {
 
         const cpuVal = parseFloat(device.cpu || device.cpuLoad) || 0;
         const ramVal = parseFloat(device.ram || device.memoryUsage) || 0;
-        const storageVal = parseFloat(device.storage) || 0; // ✅ นำ Storage มาคิด
-        const tempVal = parseFloat(device.temp) || 0;       // ✅ นำ Temp มาคิด
+        const storageVal = parseFloat(device.storage) || 0;
+        const tempVal = parseFloat(device.temp) || 0;
         
-        // แยกตัวเลขจาก Latency "15ms" => 15
+        // ✅ ปรับปรุงการแปลง Latency สำหรับ Dashboard Alert Count
         let latencyMs = 0;
-        if (device.latency && typeof device.latency === 'string') {
-            latencyMs = parseInt(device.latency.replace(/[^0-9]/g, ''), 10) || 0;
+        if (device.latency === "timeout") {
+            latencyMs = 999;
+        } else if (device.latency) {
+            const str = String(device.latency).toLowerCase();
+            if (str.includes(':')) {
+                const parts = str.split(':');
+                const secAndMs = parts[parts.length - 1];
+                if (secAndMs.includes('.')) {
+                    const [sec, frac] = secAndMs.split('.');
+                    latencyMs = (parseInt(sec, 10) * 1000) + parseInt(frac.padEnd(3, '0').substring(0,3), 10);
+                } else {
+                    latencyMs = parseInt(secAndMs, 10) * 1000;
+                }
+            } else {
+                const num = parseFloat(str.replace(/[^0-9.]/g, ''));
+                if (str.includes('us')) latencyMs = Math.round(num / 1000);
+                else if (str.includes('s') && !str.includes('ms')) latencyMs = Math.round(num * 1000);
+                else latencyMs = Math.round(num);
+            }
         }
 
         if (isOnline) {
           onlineCount++;
-          // ✅ ถ้าตัวใดตัวหนึ่งเกิน Threshold ให้ถือเป็น High Load
           const isHighLoad = cpuVal > 85 || ramVal > 85 || storageVal > 85 || tempVal > 60 || latencyMs > 80;
-          
           if (isHighLoad && !device.isAcknowledged) alertCount++;
         } else {
           offlineCount++;
@@ -96,9 +102,6 @@ const Dashboard = () => {
     onError: () => toast.error("ไม่สามารถดึงข้อมูลสรุป Dashboard ได้")
   });
 
-  // ==========================================
-  // Derived Data & Logic
-  // ==========================================
   const { stats, recentLogs } = data || { stats: { totalDevices: 0, onlineDevices: 0, offlineDevices: 0, activeAlerts: 0 }, recentLogs: [] };
   const onlinePercentage = stats.totalDevices > 0 ? (stats.onlineDevices / stats.totalDevices) * 100 : 0;
 
@@ -115,9 +118,6 @@ const Dashboard = () => {
 
   const handleCardClick = (filterState) => navigate('/devices', { state: { filter: filterState } });
 
-  // ==========================================
-  // Render
-  // ==========================================
   if (isLoading) {
     return (
       <div className="flex flex-col items-center justify-center h-[70vh] text-slate-400">
