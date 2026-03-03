@@ -17,6 +17,7 @@ const logRoutes = require('./routes/logRoutes');
 const userRoutes = require('./routes/userRoutes');
 const authRoutes = require('./routes/authRoutes');
 const settingRoutes = require('./routes/settingRoutes');
+const telegramRoutes = require('./routes/telegramRoutes');
 require('./services/cronJobs');
 
 // 👈 นำเข้า Error Middleware
@@ -86,6 +87,7 @@ app.use('/api/logs', logRoutes);
 app.use('/api/users', userRoutes); 
 app.use('/api/auth', authRoutes);
 app.use('/api/settings', settingRoutes);
+app.use('/api/telegram', telegramRoutes);
 
 // ==========================================
 // 🛑 Base Route
