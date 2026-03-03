@@ -23,8 +23,12 @@ require('./services/cronJobs');
 // นำเข้า Error Middleware
 const errorHandler = require('./middlewares/errorMiddleware'); 
 
+// ==========================================
+// 🛡️ 1. CORS ตั้งค่า trust ให้กับทุก hop เพื่อให้ 
+// ==========================================
 const app = express();
-app.set('trust proxy', true);
+// ระบุ IP ของ Proxy ที่ไว้ใจให้ทะลุไปหา Public IP 
+app.set('trust proxy', ['loopback', '192.168.80.80', '192.168.80.88']);
 
 // ==========================================
 // 🛡️ 1. Security Headers (Helmet)
