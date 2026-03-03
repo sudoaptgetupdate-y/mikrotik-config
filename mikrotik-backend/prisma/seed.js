@@ -4,7 +4,7 @@ import bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
 
-// 🛠️ Helper Function: สร้าง Port อัตโนมัติ (คงเดิม)
+// 🛠️ Helper Function: สร้าง Port อัตโนมัติ
 const genPorts = (etherCount, sfpCount, wlanCount, sfpPrefix = "sfp") => {
   const ports = [];
   for (let i = 1; i <= etherCount; i++) ports.push({ name: `ether${i}`, type: "ETHER" });
@@ -13,7 +13,7 @@ const genPorts = (etherCount, sfpCount, wlanCount, sfpPrefix = "sfp") => {
   return ports;
 };
 
-// 📦 รายการ Hardware Models (คงเดิม)
+// 📦 รายการ Hardware Models
 const mikrotikModels = [
   { name: "hAP ac2 (RBD52G-5HacD2HnD-TC)", imageUrl: "https://cdn.mikrotik.com/web-assets/rb_images/1468_xl.webp", ports: genPorts(5, 0, 2) },
   { name: "hAP ax2 (C52iG-5HaxD2HaxD-TC)", imageUrl: "https://cdn.mikrotik.com/web-assets/rb_images/2203_lg.webp", ports: genPorts(5, 0, 2) },
@@ -36,7 +36,7 @@ const mikrotikModels = [
   { name: "RB1100AHx4 Dude Edition", imageUrl: "https://cdn.mikrotik.com/web-assets/rb_images/1285_lg.webp", ports: genPorts(13, 0, 0) }
 ];
 
-// เพิ่ม default setting ให้กับ db (คงเดิม)
+// เพิ่ม default setting ให้กับ db
 const defaultSettings = [
   {
     key: 'MANAGEMENT_IPS',
@@ -65,8 +65,26 @@ async function main() {
     });
   }
 
-  console.log('🌱 Start seeding MikroTik Routers Models...');
-  
+  // 🌟 เพิ่มส่วนนี้: สร้างกลุ่ม All Devices พื้นฐาน
+  console.log('🌱 Start seeding Default Group...');
+  const defaultGroup = await prisma.deviceGroup.findFirst({
+    where: { name: 'All Devices' }
+  });
+
+  if (!defaultGroup) {
+    await prisma.deviceGroup.create({
+      data: {
+        name: 'All Devices',
+        description: 'กลุ่มพื้นฐานสำหรับอุปกรณ์ทั้งหมดที่ไม่ได้ระบุกลุ่ม',
+        isNotifyEnabled: false // ปิดแจ้งเตือนไว้ก่อน รอใส่ Token
+      }
+    });
+    console.log('✅ Created default group: All Devices');
+  } else {
+    console.log('⏭️ Default group "All Devices" already exists.');
+  }
+
+  console.log('🌱 Start seeding Admin User...');
   const adminExists = await prisma.user.findFirst({ where: { username: "ntadmin" } });
   
   if (!adminExists) {
@@ -75,7 +93,7 @@ async function main() {
 
     await prisma.user.create({
       data: {
-        username: "ntadmin", // เปลี่ยนเป็น ntadmin ตามที่คุณต้องการในคอมเมนต์
+        username: "ntadmin",
         password: hashedPassword,
         role: "SUPER_ADMIN",
         firstName: "Super",
@@ -86,6 +104,7 @@ async function main() {
     console.log('✅ Created default admin user (Username: ntadmin)');
   }
 
+  console.log('🌱 Start seeding MikroTik Routers Models...');
   for (const model of mikrotikModels) {
     const result = await prisma.deviceModel.upsert({
       where: { name: model.name },
