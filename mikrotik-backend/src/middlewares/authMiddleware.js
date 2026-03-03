@@ -1,11 +1,11 @@
 const jwt = require('jsonwebtoken');
 const prisma = require('../config/prisma'); 
-const { encrypt } = require('../utils/cryptoUtil'); // ✅ นำเข้าฟังก์ชัน encrypt ที่ถูกต้องตรงนี้
+const { encrypt } = require('../utils/cryptoUtil');
 
 const JWT_SECRET = process.env.JWT_SECRET;
 
 // 1. ฟังก์ชันตรวจ Token (หน้าเว็บ)
-exports.verifyToken = async (req, res, next) => { // ✅ เติม async
+exports.verifyToken = async (req, res, next) => { 
   const authHeader = req.headers.authorization;
 
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -33,9 +33,9 @@ exports.verifyToken = async (req, res, next) => { // ✅ เติม async
 };
 
 // 2. ฟังก์ชันตรวจสิทธิ์ (Role-Based Access Control)
-exports.requireRole = (allowedRoles) => {
+exports.requireRole = (roles) => {
   return (req, res, next) => {
-    if (!req.user || !allowedRoles.includes(req.user.role)) {
+    if (!req.user || !roles.includes(req.user.role)) {
       return res.status(403).json({ error: 'Access denied. Insufficient permissions.' });
     }
     next(); 
@@ -52,9 +52,9 @@ exports.verifyDeviceToken = async (req, res, next) => {
 
   let deviceToken = authHeader.split(' ')[1]; // Token ที่ MikroTik ส่งมา
   
-  // 🌟 เพิ่มโค้ดส่วนนี้: ตัด Prefix ID (เช่น '4-') ออกก่อนนำไปค้นหา
+  // 🌟 แก้ไข: ใช้ Regex เช็คว่าเป็นตัวเลขล้วนๆ เท่านั้น เพื่อป้องกันบั๊กตัด Token ผิด
   const tokenParts = deviceToken.split('-');
-  if (tokenParts.length > 1 && !isNaN(parseInt(tokenParts[0]))) {
+  if (tokenParts.length > 1 && /^\d+$/.test(tokenParts[0])) {
     deviceToken = tokenParts.slice(1).join('-'); 
   }
 

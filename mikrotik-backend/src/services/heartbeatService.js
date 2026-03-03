@@ -11,7 +11,9 @@ exports.processHeartbeat = async (token, payload, remoteIp) => {
   // 1. ค้นหา Device ด้วย Token
   // ==========================================
   const tokenParts = token.split('-');
-  if (tokenParts.length > 1 && !isNaN(parseInt(tokenParts[0]))) {
+  
+  // 🌟 แก้ไข: ใช้ Regex เช็คว่าเป็นตัวเลขล้วนๆ เท่านั้น
+  if (tokenParts.length > 1 && /^\d+$/.test(tokenParts[0])) {
     const potentialId = parseInt(tokenParts[0]);
     const actualToken = tokenParts.slice(1).join('-'); 
     device = await prisma.managedDevice.findUnique({ 
@@ -40,21 +42,20 @@ exports.processHeartbeat = async (token, payload, remoteIp) => {
   }
 
   // ==========================================
-  // 2. ดึงค่า Threshold และตรวจสอบสถานะ (✅ เพิ่ม Storage)
+  // 2. ดึงค่า Threshold และตรวจสอบสถานะ
   // ==========================================
   const cpuVal = cpu ? parseInt(cpu) : 0;
   const ramVal = ram ? parseInt(ram) : 0;
-  const storageVal = storage ? parseInt(storage) : 0; // ✅ แปลงค่า Storage
-  const latencyVal = latency ? parseFloat(latency) : 0; 
+  const storageVal = storage ? parseInt(storage) : 0; 
+  const latencyVal = latency && latency !== "timeout" ? parseInt(latency.replace(/[^0-9]/g, ''), 10) : (latency === "timeout" ? 999 : 0); 
   const tempVal = temp ? parseFloat(temp) : 0; 
 
   const oldCpuVal = device.cpuLoad ? parseInt(device.cpuLoad) : 0;
   const oldRamVal = device.memoryUsage ? parseInt(device.memoryUsage) : 0;
-  const oldStorageVal = device.storage ? parseInt(device.storage) : 0; // ✅ เก็บค่าเก่า
-  const oldLatencyVal = device.latency ? parseFloat(device.latency) : 0;
+  const oldStorageVal = device.storage ? parseInt(device.storage) : 0; 
+  const oldLatencyVal = device.latency && device.latency !== "timeout" ? parseInt(device.latency.replace(/[^0-9]/g, ''), 10) : (device.latency === "timeout" ? 999 : 0);
   const oldTempVal = device.temp ? parseFloat(device.temp) : 0; 
 
-  // ✅ เพิ่ม Storage เข้าไปใน Default Threshold
   let thresholds = { cpu: 85, ram: 85, latency: 80, temp: 60, storage: 85 }; 
   try {
     const setting = await prisma.systemSetting.findUnique({ where: { key: 'ALERT_THRESHOLDS' } });
@@ -66,7 +67,7 @@ exports.processHeartbeat = async (token, payload, remoteIp) => {
 
   const isCpuHigh = cpuVal > thresholds.cpu;
   const isRamHigh = ramVal > thresholds.ram;
-  const isStorageHigh = storageVal > thresholds.storage; // ✅ เช็คว่า Storage เต็มไหม
+  const isStorageHigh = storageVal > thresholds.storage; 
   const isLatencyHigh = latencyVal > thresholds.latency;
   const isTempHigh = tempVal > thresholds.temp; 
 
@@ -76,20 +77,19 @@ exports.processHeartbeat = async (token, payload, remoteIp) => {
   const wasLatencyHigh = oldLatencyVal > thresholds.latency;
   const wasTempHigh = oldTempVal > thresholds.temp;
 
-  // ✅ เพิ่ม isStorageHigh ในเงื่อนไข
   const isHighLoad = isCpuHigh || isRamHigh || isStorageHigh || isLatencyHigh || isTempHigh;
   const wasHighLoad = wasCpuHigh || wasRamHigh || wasStorageHigh || wasLatencyHigh || wasTempHigh;
 
   const isNewCpuWarning = isCpuHigh && !wasCpuHigh;
   const isNewRamWarning = isRamHigh && !wasRamHigh;
-  const isNewStorageWarning = isStorageHigh && !wasStorageHigh; // ✅ เกิดแจ้งเตือน Storage ใหม่
+  const isNewStorageWarning = isStorageHigh && !wasStorageHigh; 
   const isNewLatencyWarning = isLatencyHigh && !wasLatencyHigh;
   const isNewTempWarning = isTempHigh && !wasTempHigh; 
 
   const hasNewWarning = isNewCpuWarning || isNewRamWarning || isNewStorageWarning || isNewLatencyWarning || isNewTempWarning;
 
   // ==========================================
-  // 3. ตรวจสอบสถานะ Online / Offline (✅ เพิ่ม Telegram แจ้งเตือนตอนกลับมา Online)
+  // 3. ตรวจสอบสถานะ Online / Offline
   // ==========================================
   let justCameOnline = false;
   if (device.lastSeen) {
@@ -97,12 +97,10 @@ exports.processHeartbeat = async (token, payload, remoteIp) => {
     if (diffMinutes > 3) {
       justCameOnline = true;
       
-      // 1. บันทึกลง Log
       await prisma.deviceEventLog.create({ 
         data: { deviceId: device.id, eventType: 'ONLINE', details: 'Device is back online (กลับมาเชื่อมต่อได้อีกครั้ง)' } 
       });
 
-      // 2. 🌟 ยิง Telegram แจ้งว่าอุปกรณ์กลับมา Online
       const msgOnline = `🟢 <b>[DEVICE ONLINE] - กลับมาออนไลน์แล้ว</b>\n\n🖥 <b>อุปกรณ์:</b> <code>${device.name}</code>\n✨ <b>วงจร:</b> <code>${device.circuitId || '-'}</code>\n✅ <b>สถานะ:</b> กลับมาเชื่อมต่อระบบสำเร็จ`;
       if (device.groups && device.groups.length > 0) {
         for (const group of device.groups) {
@@ -115,7 +113,7 @@ exports.processHeartbeat = async (token, payload, remoteIp) => {
   }
 
   // ==========================================
-  // 4. บันทึก Event Logs และจัดการสถานะ Ack พร้อมยิง Telegram
+  // 4. บันทึก Event Logs และจัดการสถานะ Ack
   // ==========================================
   let resetAckData = {};
 
@@ -123,7 +121,7 @@ exports.processHeartbeat = async (token, payload, remoteIp) => {
     const details = [];
     if (isNewCpuWarning) details.push(`CPU: ${cpuVal}%`);
     if (isNewRamWarning) details.push(`RAM: ${ramVal}%`);
-    if (isNewStorageWarning) details.push(`Storage: ${storageVal}%`); // ✅ เพิ่มลงในข้อความแจ้งเตือน
+    if (isNewStorageWarning) details.push(`Storage: ${storageVal}%`); 
     if (isNewLatencyWarning) details.push(`Ping: ${latencyVal}ms`);
     if (isNewTempWarning) details.push(`Temp: ${tempVal}°C`);
     
@@ -152,7 +150,7 @@ exports.processHeartbeat = async (token, payload, remoteIp) => {
       const recoveredDetails = [];
       if (wasCpuHigh) recoveredDetails.push(`CPU: ${cpuVal}% (ลดจาก ${oldCpuVal}%)`);
       if (wasRamHigh) recoveredDetails.push(`RAM: ${ramVal}% (ลดจาก ${oldRamVal}%)`);
-      if (wasStorageHigh) recoveredDetails.push(`Storage: ${storageVal}% (ลดจาก ${oldStorageVal}%)`); // ✅
+      if (wasStorageHigh) recoveredDetails.push(`Storage: ${storageVal}% (ลดจาก ${oldStorageVal}%)`); 
       if (wasLatencyHigh) recoveredDetails.push(`Ping: ${latencyVal}ms (ลดจาก ${oldLatencyVal}ms)`);
       if (wasTempHigh) recoveredDetails.push(`Temp: ${tempVal}°C (ลดจาก ${oldTempVal}°C)`);
       
@@ -187,7 +185,7 @@ exports.processHeartbeat = async (token, payload, remoteIp) => {
       currentIp: remoteIp, 
       cpuLoad: cpuVal, 
       memoryUsage: ramVal, 
-      storage: storageVal, // ✅ เซฟค่า Storage ที่เป็นตัวเลขแล้ว
+      storage: storageVal, 
       temp: temp || device.temp, 
       uptime: uptime || device.uptime, 
       version: version || device.version, 
