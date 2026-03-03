@@ -6,6 +6,9 @@ exports.processHeartbeat = async (token, payload, remoteIp) => {
   let matchedDeviceId = null;
   let device = null;
 
+  // ==========================================
+  // 1. ค้นหา Device ด้วย Token
+  // ==========================================
   const tokenParts = token.split('-');
   if (tokenParts.length > 1 && !isNaN(parseInt(tokenParts[0]))) {
     const potentialId = parseInt(tokenParts[0]);
@@ -29,31 +32,128 @@ exports.processHeartbeat = async (token, payload, remoteIp) => {
     device = await prisma.managedDevice.findUnique({ where: { id: matchedDeviceId } });
   }
 
-  const isHighLoad = (cpu && parseInt(cpu) > 85) || (ram && parseInt(ram) > 85);
-  const wasHighLoad = (device.cpuLoad && parseInt(device.cpuLoad) > 85) || (device.memoryUsage && parseInt(device.memoryUsage) > 85);
-  
+  // ==========================================
+  // 2. ดึงค่า Threshold จาก Database และตรวจสอบสถานะ
+  // ==========================================
+  const cpuVal = cpu ? parseInt(cpu) : 0;
+  const ramVal = ram ? parseInt(ram) : 0;
+  const latencyVal = latency ? parseFloat(latency) : 0; 
+  const tempVal = temp ? parseFloat(temp) : 0; 
+
+  const oldCpuVal = device.cpuLoad ? parseInt(device.cpuLoad) : 0;
+  const oldRamVal = device.memoryUsage ? parseInt(device.memoryUsage) : 0;
+  const oldLatencyVal = device.latency ? parseFloat(device.latency) : 0;
+  const oldTempVal = device.temp ? parseFloat(device.temp) : 0; 
+
+  // ดึงเกณฑ์แจ้งเตือน (Threshold) จาก Database (ถ้าไม่มีให้ใช้ค่า Default)
+  let thresholds = { cpu: 85, ram: 85, latency: 80, temp: 60 }; 
+  try {
+    const setting = await prisma.systemSetting.findUnique({ where: { key: 'ALERT_THRESHOLDS' } });
+    if (setting && setting.value) {
+      const parsed = typeof setting.value === 'string' ? JSON.parse(setting.value) : setting.value;
+      thresholds = { ...thresholds, ...parsed }; // ผสานค่าจาก DB ทับค่า Default
+    }
+  } catch (e) {
+    console.error("Error loading thresholds:", e.message);
+  }
+
+  // ใช้ค่า Threshold แบบ Dynamic
+  const isCpuHigh = cpuVal > thresholds.cpu;
+  const isRamHigh = ramVal > thresholds.ram;
+  const isLatencyHigh = latencyVal > thresholds.latency;
+  const isTempHigh = tempVal > thresholds.temp; 
+
+  const wasCpuHigh = oldCpuVal > thresholds.cpu;
+  const wasRamHigh = oldRamVal > thresholds.ram;
+  const wasLatencyHigh = oldLatencyVal > thresholds.latency;
+  const wasTempHigh = oldTempVal > thresholds.temp;
+
+  const isHighLoad = isCpuHigh || isRamHigh || isLatencyHigh || isTempHigh;
+  const wasHighLoad = wasCpuHigh || wasRamHigh || wasLatencyHigh || wasTempHigh;
+
+  const isNewCpuWarning = isCpuHigh && !wasCpuHigh;
+  const isNewRamWarning = isRamHigh && !wasRamHigh;
+  const isNewLatencyWarning = isLatencyHigh && !wasLatencyHigh;
+  const isNewTempWarning = isTempHigh && !wasTempHigh; 
+
+  const hasNewWarning = isNewCpuWarning || isNewRamWarning || isNewLatencyWarning || isNewTempWarning;
+
+  // ==========================================
+  // 3. ตรวจสอบสถานะ Online / Offline 
+  // ==========================================
   let justCameOnline = false;
   if (device.lastSeen) {
     const diffMinutes = (new Date() - new Date(device.lastSeen)) / 1000 / 60;
     if (diffMinutes > 3) {
       justCameOnline = true;
-      await prisma.deviceEventLog.create({ data: { deviceId: device.id, eventType: 'ONLINE', details: 'Device is back online' } });
+      await prisma.deviceEventLog.create({ data: { deviceId: device.id, eventType: 'ONLINE', details: 'Device is back online (กลับมาเชื่อมต่อได้อีกครั้ง)' } });
     }
   }
 
-  if (isHighLoad && !wasHighLoad) await prisma.deviceEventLog.create({ data: { deviceId: device.id, eventType: 'WARNING', details: `High Load Detected - CPU: ${cpu}%, RAM: ${ram}%` } });
-  if (!isHighLoad && wasHighLoad && !justCameOnline) await prisma.deviceEventLog.create({ data: { deviceId: device.id, eventType: 'ONLINE', details: 'System load is back to normal' } });
-
+  // ==========================================
+  // 4. บันทึก Event Logs และจัดการสถานะ Ack
+  // ==========================================
   let resetAckData = {};
-  if (!isHighLoad) resetAckData = { isAcknowledged: false, ackByUserId: null, ackAt: null };
 
+  if (hasNewWarning) {
+    const details = [];
+    if (isNewCpuWarning) details.push(`CPU: ${cpuVal}%`);
+    if (isNewRamWarning) details.push(`RAM: ${ramVal}%`);
+    if (isNewLatencyWarning) details.push(`Ping: ${latencyVal}ms`);
+    if (isNewTempWarning) details.push(`Temp: ${tempVal}°C`);
+    
+    await prisma.deviceEventLog.create({ 
+      data: { 
+        deviceId: device.id, 
+        eventType: 'WARNING', 
+        details: `High Load/Latency/Temp Detected - ${details.join(', ')}` 
+      } 
+    });
+
+    // ปลดสถานะ Ack ทิ้งเพื่อให้แอดมินรับทราบปัญหาใหม่
+    resetAckData = { isAcknowledged: false, ackByUserId: null, ackAt: null };
+  } 
+  else if (!isHighLoad) {
+    if (wasHighLoad && !justCameOnline) {
+      const recoveredDetails = [];
+      if (wasCpuHigh) recoveredDetails.push(`CPU: ${cpuVal}% (ลดจาก ${oldCpuVal}%)`);
+      if (wasRamHigh) recoveredDetails.push(`RAM: ${ramVal}% (ลดจาก ${oldRamVal}%)`);
+      if (wasLatencyHigh) recoveredDetails.push(`Ping: ${latencyVal}ms (ลดจาก ${oldLatencyVal}ms)`);
+      if (wasTempHigh) recoveredDetails.push(`Temp: ${tempVal}°C (ลดจาก ${oldTempVal}°C)`);
+      
+      const recoveryText = recoveredDetails.length > 0 
+        ? `System [${recoveredDetails.join(', ')}] is back to normal (สถานะกลับสู่สภาวะปกติ)`
+        : 'System is back to normal (สถานะกลับสู่สภาวะปกติ)';
+
+      await prisma.deviceEventLog.create({ 
+        data: { deviceId: device.id, eventType: 'ONLINE', details: recoveryText } 
+      });
+    }
+    resetAckData = { isAcknowledged: false, ackByUserId: null, ackAt: null };
+  }
+
+  // ==========================================
+  // 5. อัปเดตข้อมูลลงฐานข้อมูล
+  // ==========================================
   await prisma.managedDevice.update({
     where: { id: device.id },
     data: {
-      lastSeen: new Date(), currentIp: remoteIp, cpuLoad: cpu ? parseInt(cpu) : device.cpuLoad, 
-      memoryUsage: ram ? parseInt(ram) : device.memoryUsage, storage: storage ? parseInt(storage) : device.storage, 
-      temp: temp || device.temp, uptime: uptime || device.uptime, version: version || device.version, 
-      latency: latency || device.latency, ...resetAckData
+      lastSeen: new Date(), 
+      currentIp: remoteIp, 
+      cpuLoad: cpuVal, 
+      memoryUsage: ramVal, 
+      storage: storage ? parseInt(storage) : device.storage, 
+      
+      // ✅ เปลี่ยนจาก tempVal กลับมาเป็น temp (เพื่อให้เซฟเป็น String)
+      temp: temp || device.temp, 
+      
+      uptime: uptime || device.uptime, 
+      version: version || device.version, 
+      
+      // ✅ เปลี่ยนจาก latencyVal กลับมาเป็น latency (เพื่อให้เซฟเป็น String)
+      latency: latency || device.latency, 
+      
+      ...resetAckData
     }
   });
 };

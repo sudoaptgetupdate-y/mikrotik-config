@@ -10,17 +10,8 @@ const apiClient = axios.create({
   withCredentials: true // ✅ สั่งให้ Axios แนบ Cookie ไปด้วยทุกครั้ง
 });
 
-// ตัวแปรสำหรับคิวคำขอในกรณีที่ Token กำลังถูกรีเฟรชอยู่
-let isRefreshing = false;
-let failedQueue = [];
-
-const processQueue = (error, token = null) => {
-  failedQueue.forEach(prom => {
-    if (error) { prom.reject(error); }
-    else { prom.resolve(token); }
-  });
-  failedQueue = [];
-};
+// ✅ ตัวแปรสำหรับเก็บ Promise ของการขอ Token ใหม่ (ทำหน้าที่เป็นแม่กุญแจล็อคคิว)
+let refreshTokenPromise = null;
 
 apiClient.interceptors.request.use(
   (config) => {
@@ -38,45 +29,47 @@ apiClient.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
 
-    // ถ้า Error 401 (หมดอายุ) และยังไม่เคยลองขอ Token ใหม่
+    // 1. ป้องกันการวนลูป (Infinite Loop): ถ้าตัวที่พังคือ API ขอ Refresh Token เอง ให้หยุดทำงานทันที
+    if (originalRequest.url.includes('/api/auth/refresh-token')) {
+      return Promise.reject(error);
+    }
+
+    // 2. ถ้าเจอ Error 401 (Unauthorized) และยังไม่เคย Retry ใน Request นี้
     if (error.response?.status === 401 && !originalRequest._retry) {
-      
-      // ถ้ากำลังมี API อื่นขอ Token ใหม่อยู่ ให้ตัวนี้ไปต่อคิวรอ
-      if (isRefreshing) {
-        return new Promise(function(resolve, reject) {
-          failedQueue.push({ resolve, reject });
-        }).then(token => {
-          originalRequest.headers.Authorization = 'Bearer ' + token;
-          return apiClient(originalRequest);
-        }).catch(err => Promise.reject(err));
+      originalRequest._retry = true; // ทำเครื่องหมายว่ากำลังจะลองใหม่
+
+      // 3. ถ้ายังไม่มีใครเริ่มสร้าง Promise (ยังไม่มีคนไปขอ Token ใหม่)
+      if (!refreshTokenPromise) {
+        // ให้ Request แรกสุดที่เข้ามา ทำการยิง API และเก็บสถานะไว้ใน refreshTokenPromise
+        refreshTokenPromise = axios.post(`${baseURL}/api/auth/refresh-token`, {}, { withCredentials: true })
+          .then(res => {
+            const newToken = res.data.token;
+            localStorage.setItem('token', newToken); // ได้ของใหม่มา อัปเดตลงระบบ
+            return newToken; // ส่ง Token กลับไปให้คนที่รออยู่
+          })
+          .catch(err => {
+            // ถ้าขอไม่ผ่าน (เช่น Refresh Token หมดอายุด้วย หรือ Cookie หายไปแล้ว)
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            if (window.location.pathname !== '/login') {
+              window.location.href = '/login'; // บังคับเด้งไปหน้า Login
+            }
+            return Promise.reject(err);
+          })
+          .finally(() => {
+            // 4. เมื่อจัดการเสร็จ (ทั้งสำเร็จและล้มเหลว) ให้เคลียร์ค่าทิ้ง เพื่อให้รอบหน้าขอใหม่ได้
+            refreshTokenPromise = null;
+          });
       }
 
-      originalRequest._retry = true;
-      isRefreshing = true;
-
+      // 5. 🌟 หัวใจสำคัญ: ทุกๆ Request ที่พังพร้อมกัน จะลงมารอ (await) ที่ Promise ตัวเดียวกันตรงนี้!
+      // จะไม่มีการยิง API ซ้ำซ้อนอีกต่อไป ทุกตัวจะได้ Token คืนมาพร้อมๆ กันเมื่อ Request แรกทำสำเร็จ
       try {
-        // แอบยิงไปขอ Token ใหม่
-        const res = await axios.post(`${baseURL}/api/auth/refresh-token`, {}, { withCredentials: true });
-        
-        const newToken = res.data.token;
-        localStorage.setItem('token', newToken);
-        
-        processQueue(null, newToken);
-        
-        originalRequest.headers.Authorization = `Bearer ${newToken}`;
-        return apiClient(originalRequest);
-
+        const token = await refreshTokenPromise;
+        originalRequest.headers.Authorization = `Bearer ${token}`;
+        return apiClient(originalRequest); // เอา Token ใหม่แนบไป แล้วยิง Request เดิมที่ค้างไว้ออกไปใหม่
       } catch (refreshError) {
-        processQueue(refreshError, null);
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
-        
-        if (window.location.pathname !== '/login') {
-          window.location.href = '/login';
-        }
         return Promise.reject(refreshError);
-      } finally {
-        isRefreshing = false;
       }
     }
 

@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Shield, Network, Globe, Settings2, Database, Loader2 } from 'lucide-react';
+import { Shield, Network, Globe, Settings2, Database, Loader2, Bell } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 
 import { settingService } from '../services/settingService';
@@ -10,6 +10,7 @@ import TabManagementIps from './SettingsTabs/TabManagementIps';
 import TabPbrTargets from './SettingsTabs/TabPbrTargets';
 import TabVlanNetwork from './SettingsTabs/TabVlanNetwork';
 import TabMaintenance from './SettingsTabs/TabMaintenance';
+import TabAlertThresholds from './SettingsTabs/TabAlertThresholds';
 
 const GlobalSettings = () => {
   const [activeTab, setActiveTab] = useState(() => localStorage.getItem('activeGlobalSettingsTab') || 'ADMINS');
@@ -27,7 +28,7 @@ const GlobalSettings = () => {
 
   // แปลงข้อมูลที่ได้จาก API ให้อยู่ในรูปแบบ Object พร้อมใช้งาน
   const settingsData = useMemo(() => {
-    const parsed = { ROUTER_ADMINS: [], MANAGEMENT_IPS: [], MONITOR_IPS: [], DEFAULT_NETWORKS: [] };
+    const parsed = { ROUTER_ADMINS: [], MANAGEMENT_IPS: [], MONITOR_IPS: [], DEFAULT_NETWORKS: [], ALERT_THRESHOLDS: null };
     if (!rawSettings) return parsed;
 
     rawSettings.forEach(item => {
@@ -62,6 +63,7 @@ const GlobalSettings = () => {
             <button onClick={() => setActiveTab('PBR')} className={`flex items-center gap-2 px-4 sm:px-6 py-3 font-bold border-b-2 transition-colors whitespace-nowrap ${activeTab === 'PBR' ? 'border-orange-500 text-orange-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}><Globe size={18} /> PBR Targets</button>
             <button onClick={() => setActiveTab('DEFAULTS')} className={`flex items-center gap-2 px-4 sm:px-6 py-3 font-bold border-b-2 transition-colors whitespace-nowrap ${activeTab === 'DEFAULTS' ? 'border-purple-600 text-purple-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}><Settings2 size={18} /> Default LAN/VLAN</button>
             <button onClick={() => setActiveTab('MAINTENANCE')} className={`flex items-center gap-2 px-4 sm:px-6 py-3 font-bold border-b-2 transition-colors whitespace-nowrap ${activeTab === 'MAINTENANCE' ? 'border-rose-600 text-rose-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}><Database size={18} /> Maintenance</button>
+            <button onClick={() => setActiveTab('ALERTS')} className={`flex items-center gap-2 px-4 sm:px-6 py-3 font-bold border-b-2 transition-colors whitespace-nowrap ${activeTab === 'ALERTS' ? 'border-rose-500 text-rose-500' : 'border-transparent text-slate-500 hover:text-slate-700'}`}><Bell size={18} /> Alert Thresholds</button>
           </div>
 
           <div className="bg-white p-4 sm:p-6 md:p-8 rounded-2xl border border-slate-200 shadow-sm min-h-[400px] flex flex-col">
@@ -70,6 +72,7 @@ const GlobalSettings = () => {
             {activeTab === 'PBR' && <TabPbrTargets initialData={settingsData.MONITOR_IPS} />}
             {activeTab === 'DEFAULTS' && <TabVlanNetwork initialData={settingsData.DEFAULT_NETWORKS} />}
             {activeTab === 'MAINTENANCE' && <TabMaintenance />}
+            {activeTab === 'ALERTS' && <TabAlertThresholds initialData={settingsData.ALERT_THRESHOLDS} />}
           </div>
         </>
       )}

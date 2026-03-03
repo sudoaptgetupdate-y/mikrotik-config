@@ -14,10 +14,16 @@ import { logService } from '../services/logService';
 import toast from 'react-hot-toast';
 
 const Dashboard = () => {
+  // ==========================================
+  // States & Hooks
+  // ==========================================
   const navigate = useNavigate();
   const { user } = useAuth();
   const canEdit = user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN';
 
+  // ==========================================
+  // Helpers & Variables
+  // ==========================================
   const getGreeting = () => {
     const hour = new Date().getHours();
     if (hour < 12) return 'Good morning';
@@ -29,6 +35,9 @@ const Dashboard = () => {
     weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' 
   });
 
+  // ==========================================
+  // React Query Fetching
+  // ==========================================
   // ✅ ใช้ React Query แทน useEffect และ useState
   const { data, isLoading } = useQuery({
     queryKey: ['dashboard', user?.id], // Key สำหรับอ้างอิง Cache
@@ -77,15 +86,9 @@ const Dashboard = () => {
     onError: () => toast.error("ไม่สามารถดึงข้อมูลสรุป Dashboard ได้")
   });
 
-  if (isLoading) {
-    return (
-      <div className="flex flex-col items-center justify-center h-[70vh] text-slate-400">
-        <Activity size={48} className="animate-spin text-blue-600 mb-6" />
-        <p className="font-medium animate-pulse">Syncing system data...</p>
-      </div>
-    );
-  }
-
+  // ==========================================
+  // Derived Data & Logic
+  // ==========================================
   const { stats, recentLogs } = data || { stats: { totalDevices: 0, onlineDevices: 0, offlineDevices: 0, activeAlerts: 0 }, recentLogs: [] };
   const onlinePercentage = stats.totalDevices > 0 ? (stats.onlineDevices / stats.totalDevices) * 100 : 0;
 
@@ -102,7 +105,18 @@ const Dashboard = () => {
 
   const handleCardClick = (filterState) => navigate('/devices', { state: { filter: filterState } });
 
-  // ... ส่วน HTML Return คงเดิม 100% ไม่ต้องแก้ครับ ...
+  // ==========================================
+  // Render
+  // ==========================================
+  if (isLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center h-[70vh] text-slate-400">
+        <Activity size={48} className="animate-spin text-blue-600 mb-6" />
+        <p className="font-medium animate-pulse">Syncing system data...</p>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 bg-white p-5 md:p-6 rounded-2xl border border-slate-200 shadow-sm relative overflow-hidden">

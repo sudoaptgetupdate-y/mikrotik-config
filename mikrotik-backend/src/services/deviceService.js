@@ -162,7 +162,26 @@ exports.acknowledgeWarning = async (id, reason, warningData, actionUserId, actio
     data: { isAcknowledged: true, ackReason: ackHistory, ackByUserId: actionUserId, ackAt: new Date() }
   });
 
-  await prisma.activityLog.create({ data: { userId: actionUserId, action: "UPDATE_DEVICE", details: `Acknowledged update on: ${device.name}. Reason: ${reason}` } });
+  // ==========================================
+  // ✅ เพิ่มการบันทึกลง Device Event Log (ประวัติสถานะอุปกรณ์)
+  // ==========================================
+  await prisma.deviceEventLog.create({
+    data: {
+      deviceId: parseInt(id),
+      eventType: 'ONLINE', // ให้ขึ้นป้ายสีเขียว Online
+      details: `[Ack] รับทราบแล้ว: ${reason} (โดย ${actionUserName || 'Admin'})`
+    }
+  });
+
+  // บันทึก Activity Log สำหรับ Admin
+  await prisma.activityLog.create({ 
+    data: { 
+      userId: actionUserId, 
+      action: "UPDATE_DEVICE", 
+      details: `Acknowledged update on: ${device.name}. Reason: ${reason}` 
+    } 
+  });
+  
   return updatedDevice;
 };
 

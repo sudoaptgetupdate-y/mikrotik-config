@@ -7,13 +7,19 @@ import toast from 'react-hot-toast';
 const PAGE_SIZES = [5, 10, 50, 100];
 
 const AuditLog = () => {
+  // ==========================================
+  // States & Hooks
+  // ==========================================
   const [searchTerm, setSearchTerm] = useState('');
   const [activePreset, setActivePreset] = useState('all'); 
   const [dateRange, setDateRange] = useState({ start: '', end: '' });
   const [pageSize, setPageSize] = useState(PAGE_SIZES[0]);
   const [currentPage, setCurrentPage] = useState(1);
 
-  // ✅ ใช้ React Query ดึงข้อมูล และจำข้อมูลหน้าเก่าไว้ตอนเปลี่ยนหน้า (keepPreviousData)
+  // ==========================================
+  // React Query Fetching
+  // ==========================================
+  // ใช้ React Query ดึงข้อมูล และจำข้อมูลหน้าเก่าไว้ตอนเปลี่ยนหน้า (keepPreviousData)
   const { data, isLoading, isFetching, refetch } = useQuery({
     queryKey: ['auditLogs', currentPage, pageSize, searchTerm, dateRange],
     queryFn: () => logService.getActivityLogs({
@@ -32,20 +38,12 @@ const AuditLog = () => {
   const totalLogs = data?.meta?.total || 0;
   const totalPages = data?.meta?.totalPages || 0;
 
+  // ==========================================
+  // Effects & Handlers
+  // ==========================================
   useEffect(() => {
     setCurrentPage(1);
   }, [searchTerm, pageSize, dateRange]);
-
-  const getActionBadge = (action) => {
-    switch (action) {
-      case 'CREATE_DEVICE': return { color: 'bg-green-100 text-green-700', icon: <Plus size={14} /> };
-      case 'UPDATE_DEVICE': return { color: 'bg-blue-100 text-blue-700', icon: <Edit size={14} /> };
-      case 'DELETE_DEVICE': return { color: 'bg-red-100 text-red-700', icon: <Trash2 size={14} /> };
-      case 'GENERATE_CONFIG': return { color: 'bg-purple-100 text-purple-700', icon: <Download size={14} /> };
-      case 'LOGIN': return { color: 'bg-slate-100 text-slate-700', icon: <Activity size={14} /> };
-      default: return { color: 'bg-gray-100 text-gray-700', icon: <FileText size={14} /> };
-    }
-  };
 
   const handlePresetClick = (preset) => {
     setActivePreset(preset);
@@ -59,9 +57,26 @@ const AuditLog = () => {
     setDateRange({ start: start.toISOString().split('T')[0], end: end.toISOString().split('T')[0] });
   };
 
+  // ==========================================
+  // Helpers
+  // ==========================================
+  const getActionBadge = (action) => {
+    switch (action) {
+      case 'CREATE_DEVICE': return { color: 'bg-green-100 text-green-700', icon: <Plus size={14} /> };
+      case 'UPDATE_DEVICE': return { color: 'bg-blue-100 text-blue-700', icon: <Edit size={14} /> };
+      case 'DELETE_DEVICE': return { color: 'bg-red-100 text-red-700', icon: <Trash2 size={14} /> };
+      case 'GENERATE_CONFIG': return { color: 'bg-purple-100 text-purple-700', icon: <Download size={14} /> };
+      case 'LOGIN': return { color: 'bg-slate-100 text-slate-700', icon: <Activity size={14} /> };
+      default: return { color: 'bg-gray-100 text-gray-700', icon: <FileText size={14} /> };
+    }
+  };
+
   const from = totalLogs > 0 ? (currentPage - 1) * pageSize + 1 : 0;
   const to = Math.min(currentPage * pageSize, totalLogs);
 
+  // ==========================================
+  // Render
+  // ==========================================
   return (
     <div className="space-y-6 animate-in fade-in pb-10">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
