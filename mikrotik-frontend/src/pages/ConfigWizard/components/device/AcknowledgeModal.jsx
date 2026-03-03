@@ -34,11 +34,27 @@ const AcknowledgeModal = ({
   const storage = parseFloat(device?.storage) || 0;
   const temp = parseFloat(device?.temp) || 0;
   
+  // ✅ แปลงค่า Latency ที่ถูกต้อง
   let latencyMs = 0;
   if (device?.latency === "timeout") {
     latencyMs = 999;
-  } else if (device?.latency && typeof device?.latency === 'string') {
-    latencyMs = parseInt(device.latency.replace(/[^0-9]/g, ''), 10) || 0;
+  } else if (device?.latency) {
+    const str = String(device.latency).toLowerCase();
+    if (str.includes(':')) {
+      const parts = str.split(':');
+      const secAndMs = parts[parts.length - 1];
+      if (secAndMs.includes('.')) {
+        const [sec, frac] = secAndMs.split('.');
+        latencyMs = (parseInt(sec, 10) * 1000) + parseInt(frac.padEnd(3, '0').substring(0,3), 10);
+      } else {
+        latencyMs = parseInt(secAndMs, 10) * 1000;
+      }
+    } else {
+      const num = parseFloat(str.replace(/[^0-9.]/g, ''));
+      if (str.includes('us')) latencyMs = Math.round(num / 1000);
+      else if (str.includes('s') && !str.includes('ms')) latencyMs = Math.round(num * 1000);
+      else latencyMs = Math.round(num);
+    }
   }
   
   let warningText = [];
@@ -48,8 +64,8 @@ const AcknowledgeModal = ({
     if (cpu > 85) warningText.push(`CPU ${cpu}%`);
     if (ram > 85) warningText.push(`RAM ${ram}%`);
     if (storage > 85) warningText.push(`Storage ${storage}%`);
-    if (temp > 60) warningText.push(`Temp ${temp}°C`); // ✅ เพิ่ม Temp
-    if (latencyMs > 80) warningText.push(`Ping ${latencyMs}ms`); // ✅ เพิ่ม Ping
+    if (temp > 60) warningText.push(`Temp ${temp}°C`);
+    if (latencyMs > 80) warningText.push(`Ping ${latencyMs}ms`);
   }
   
   const currentWarning = warningText.length > 0 ? warningText.join(', ') : 'Unknown Status';

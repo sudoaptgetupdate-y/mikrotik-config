@@ -65,26 +65,6 @@ const DeviceList = () => {
   const lastUpdatedText = dataUpdatedAt ? new Date(dataUpdatedAt).toLocaleTimeString() : '...';
 
   // ==========================================
-  // Effects
-  // ==========================================
-  useEffect(() => {
-    if (location.state?.filter) setStatusFilter(location.state.filter);
-  }, [location.state?.filter]);
-
-  useEffect(() => {
-    setDisplayLimit(15);
-  }, [searchTerm, statusFilter]);
-
-  useEffect(() => {
-    const observer = new IntersectionObserver((entries) => {
-      if (entries[0].isIntersecting) setDisplayLimit((prev) => prev + 15);
-    }, { threshold: 0.1 });
-
-    if (observerTarget.current) observer.observe(observerTarget.current);
-    return () => observer.disconnect();
-  }, [loading]);
-
-  // ==========================================
   // Handlers (Actions)
   // ==========================================
   const handleRefresh = () => refetch();
@@ -208,13 +188,36 @@ const DeviceList = () => {
     if (!ackReason.trim()) return toast.error("กรุณากรอกข้อมูลการอัปเดต หรือเหตุผล");
     setIsAckSubmitting(true);
     
-    // ✅ เพิ่มการเช็ค Storage และ Offline เข้าไปด้วย
     const diffMinutes = deviceToAck?.lastSeen ? (new Date() - new Date(deviceToAck.lastSeen)) / 1000 / 60 : 999;
     const isOffline = diffMinutes > 3;
 
     const cpu = parseFloat(deviceToAck?.cpu || deviceToAck?.cpuLoad) || 0;
     const ram = parseFloat(deviceToAck?.ram || deviceToAck?.memoryUsage) || 0;
     const storage = parseFloat(deviceToAck?.storage) || 0;
+    const temp = parseFloat(deviceToAck?.temp || 0);
+
+    // ✅ แปลงค่า Latency ที่ถูกต้องสำหรับบันทึก Ack
+    let latencyMs = 0;
+    if (deviceToAck?.latency === "timeout") {
+      latencyMs = 999;
+    } else if (deviceToAck?.latency) {
+      const str = String(deviceToAck.latency).toLowerCase();
+      if (str.includes(':')) {
+        const parts = str.split(':');
+        const secAndMs = parts[parts.length - 1];
+        if (secAndMs.includes('.')) {
+          const [sec, frac] = secAndMs.split('.');
+          latencyMs = (parseInt(sec, 10) * 1000) + parseInt(frac.padEnd(3, '0').substring(0,3), 10);
+        } else {
+          latencyMs = parseInt(secAndMs, 10) * 1000;
+        }
+      } else {
+        const num = parseFloat(str.replace(/[^0-9.]/g, ''));
+        if (str.includes('us')) latencyMs = Math.round(num / 1000);
+        else if (str.includes('s') && !str.includes('ms')) latencyMs = Math.round(num * 1000);
+        else latencyMs = Math.round(num);
+      }
+    }
     
     let currentWarning = [];
     if (isOffline) {
@@ -223,6 +226,8 @@ const DeviceList = () => {
       if (cpu > 85) currentWarning.push(`CPU ${cpu}%`);
       if (ram > 85) currentWarning.push(`RAM ${ram}%`);
       if (storage > 85) currentWarning.push(`Storage ${storage}%`);
+      if (temp > 60) currentWarning.push(`Temp ${temp}°C`);
+      if (latencyMs > 80) currentWarning.push(`Ping ${latencyMs}ms`);
     }
 
     const ackPromise = deviceService.acknowledgeWarning(deviceToAck.id, {
@@ -270,9 +275,6 @@ const DeviceList = () => {
 
   const displayedDevices = filteredDevices.slice(0, displayLimit);
 
-  // ==========================================
-  // Render
-  // ==========================================
   return (
     <div className="space-y-6 animate-fade-in pb-4">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">

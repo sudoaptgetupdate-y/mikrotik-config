@@ -2,6 +2,28 @@ const prisma = require('../config/prisma');
 const { decrypt } = require('../utils/cryptoUtil');
 const { sendTelegramAlert } = require('../utils/telegramUtil');
 
+// ✅ ฟังก์ชันช่วยแปลงค่า Latency จากรูปแบบต่างๆ เป็นหน่วย ms ที่ถูกต้อง
+const parseLatencyToMs = (latencyStr) => {
+  if (!latencyStr || latencyStr === "timeout") return 999;
+  const str = String(latencyStr).toLowerCase();
+  
+  if (str.includes(':')) {
+    const parts = str.split(':');
+    const secAndMs = parts[parts.length - 1];
+    if (secAndMs.includes('.')) {
+      const [sec, frac] = secAndMs.split('.');
+      return (parseInt(sec, 10) * 1000) + parseInt(frac.padEnd(3, '0').substring(0,3), 10);
+    }
+    return parseInt(secAndMs, 10) * 1000;
+  }
+  
+  const num = parseFloat(str.replace(/[^0-9.]/g, ''));
+  if (isNaN(num)) return 0;
+  if (str.includes('us')) return Math.round(num / 1000); // แปลง us เป็น ms
+  if (str.includes('s') && !str.includes('ms')) return Math.round(num * 1000); // แปลง s เป็น ms
+  return Math.round(num);
+};
+
 exports.processHeartbeat = async (token, payload, remoteIp) => {
   const { cpu, ram, storage, temp, latency, uptime, version } = payload;
   let matchedDeviceId = null;
@@ -47,13 +69,13 @@ exports.processHeartbeat = async (token, payload, remoteIp) => {
   const cpuVal = cpu ? parseInt(cpu) : 0;
   const ramVal = ram ? parseInt(ram) : 0;
   const storageVal = storage ? parseInt(storage) : 0; 
-  const latencyVal = latency && latency !== "timeout" ? parseInt(latency.replace(/[^0-9]/g, ''), 10) : (latency === "timeout" ? 999 : 0); 
+  const latencyVal = parseLatencyToMs(latency); // ✅ แก้ไขตรงนี้
   const tempVal = temp ? parseFloat(temp) : 0; 
 
   const oldCpuVal = device.cpuLoad ? parseInt(device.cpuLoad) : 0;
   const oldRamVal = device.memoryUsage ? parseInt(device.memoryUsage) : 0;
   const oldStorageVal = device.storage ? parseInt(device.storage) : 0; 
-  const oldLatencyVal = device.latency && device.latency !== "timeout" ? parseInt(device.latency.replace(/[^0-9]/g, ''), 10) : (device.latency === "timeout" ? 999 : 0);
+  const oldLatencyVal = parseLatencyToMs(device.latency); // ✅ แก้ไขตรงนี้
   const oldTempVal = device.temp ? parseFloat(device.temp) : 0; 
 
   let thresholds = { cpu: 85, ram: 85, latency: 80, temp: 60, storage: 85 }; 
@@ -162,7 +184,7 @@ exports.processHeartbeat = async (token, payload, remoteIp) => {
         data: { deviceId: device.id, eventType: 'ONLINE', details: recoveryText } 
       });
 
-      const msg = `✅ <b>[SYSTEM RECOVERY]</b>\n🖥 <b>อุปกรณ์:</b> <code>${device.name}</code>\n✨ <b>วงจร:</b> <code>${device.circuitId || '-'}</code>\n\n🟢 <b>สถานะกลับสู่ปกติ:</b>\n${recoveredDetails.map(d => `• ${d}`).join('\n')}`;
+      const msg = `✅ <b>[SYSTEM RECOVERY]</b>\n🖥 <b>อุปกรณ์:</b> <code>${device.name}</code>\n✨ <b>วงจร:</b> <code>${device.circuitId || '-'}</code>\n\n🟢 <b>สถานะกลับสู่ปกติ:</b>\n${recoveredDetails.map(d => `• ${d}`).join('\\n')}`;
       
       if (device.groups && device.groups.length > 0) {
         for (const group of device.groups) {

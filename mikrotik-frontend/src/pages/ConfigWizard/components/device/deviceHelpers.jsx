@@ -14,15 +14,30 @@ export const getDeviceStatus = (device) => {
   const storage = parseFloat(device.storage) || 0; // ✅ เพิ่ม Storage
   const temp = parseFloat(device.temp) || 0;       // ✅ เพิ่ม Temp
   
-  // ✅ แปลงค่า Latency (Ping) จาก String ให้เป็นตัวเลขเพื่อนำมาเปรียบเทียบ
+  // ✅ แปลงค่า Latency (Ping) ที่รองรับหน่วย us, ms, s
   let latencyMs = 0;
   if (device.latency === "timeout") {
     latencyMs = 999;
-  } else if (device.latency && typeof device.latency === 'string') {
-    latencyMs = parseInt(device.latency.replace(/[^0-9]/g, ''), 10) || 0;
+  } else if (device.latency) {
+    const str = String(device.latency).toLowerCase();
+    if (str.includes(':')) {
+      const parts = str.split(':');
+      const secAndMs = parts[parts.length - 1];
+      if (secAndMs.includes('.')) {
+        const [sec, frac] = secAndMs.split('.');
+        latencyMs = (parseInt(sec, 10) * 1000) + parseInt(frac.padEnd(3, '0').substring(0,3), 10);
+      } else {
+        latencyMs = parseInt(secAndMs, 10) * 1000;
+      }
+    } else {
+      const num = parseFloat(str.replace(/[^0-9.]/g, ''));
+      if (str.includes('us')) latencyMs = Math.round(num / 1000);
+      else if (str.includes('s') && !str.includes('ms')) latencyMs = Math.round(num * 1000);
+      else latencyMs = Math.round(num);
+    }
   }
   
-  // 🌟 เพิ่มเงื่อนไขให้ครอบคลุม (ใช้ค่า Default: CPU 85, RAM 85, Storage 85, Temp 60, Ping 80)
+  // 🌟 เงื่อนไข Warning: CPU 85, RAM 85, Storage 85, Temp 60, Ping 80
   if (cpu > 85 || ram > 85 || storage > 85 || temp > 60 || latencyMs > 80) {
     if (device.isAcknowledged) {
       return { state: 'acknowledged', color: 'bg-blue-50 text-blue-600 border-blue-200', icon: <CheckCircle size={14}/>, label: 'Acknowledged' };
