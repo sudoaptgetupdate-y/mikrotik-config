@@ -24,11 +24,11 @@ require('./services/cronJobs');
 const errorHandler = require('./middlewares/errorMiddleware'); 
 
 // ==========================================
-// 🛡️ 1. CORS ตั้งค่า trust ให้กับทุก hop เพื่อให้ 
+// 🛡️ 1. CORS ตั้งค่า trust ให้กับทุก hop เพื่อให้ rate-limit เชื่อใน public ip ของ device ที่ยิง api มา
 // ==========================================
 const app = express();
-// ระบุ IP ของ Proxy ที่ไว้ใจให้ทะลุไปหา Public IP 
-app.set('trust proxy', ['loopback', '192.168.80.80', '192.168.80.88']);
+// ใช้คีย์เวิร์ดมาตรฐานเพื่อครอบคลุม IP วงในทั้งหมดโดยอัตโนมัติ
+app.set('trust proxy', ['loopback', 'uniquelocal']);
 
 // ==========================================
 // 🛡️ 1. Security Headers (Helmet)
