@@ -5,18 +5,21 @@ const maintenanceService = require('../services/maintenanceService');
 // ==========================================
 // CRUD Devices
 // ==========================================
-exports.createDevice = async (req, res) => {
-  const { name, circuitId, configData } = req.body; 
-  if (!name || !req.user.id) throw new Error("BAD_REQUEST: Name and UserID are required");
-
-  const result = await deviceService.createDevice(name, circuitId, configData, req.user.id);
-  res.status(201).json({ ...result.newDevice, apiToken: result.combinedToken, configData: result.finalConfigData });
+exports.createDevice = async (req, res, next) => {
+  try {
+    const { name, circuitId, configData, groupIds } = req.body; // ✅ เพิ่ม groupIds
+    const result = await deviceService.createDevice(name, circuitId, groupIds, configData, req.user.id);
+    res.status(201).json({ success: true, ...result });
+  } catch (error) { next(error); }
 };
 
-exports.updateDevice = async (req, res) => {
-  const { configData, name, circuitId, status } = req.body; 
-  const result = await deviceService.updateDevice(req.params.id, name, circuitId, status, configData, req.user.id);
-  res.json({ ...result.updatedDevice, apiToken: result.combinedToken, configData: result.finalConfigData });
+// ในฟังก์ชัน updateDevice
+exports.updateDevice = async (req, res, next) => {
+  try {
+    const { name, circuitId, status, configData, groupIds } = req.body; // ✅ เพิ่ม groupIds
+    const result = await deviceService.updateDevice(req.params.id, name, circuitId, groupIds, status, configData, req.user.id);
+    res.status(200).json({ success: true, ...result });
+  } catch (error) { next(error); }
 };
 
 exports.getUserDevices = async (req, res) => {

@@ -12,6 +12,7 @@ const cookieParser = require('cookie-parser');
 // นำเข้า Routes
 const deviceRoutes = require('./routes/deviceRoutes'); 
 const modelRoutes = require('./routes/modelRoutes');
+const groupRoutes = require('./routes/groupRoutes');
 const logRoutes = require('./routes/logRoutes');
 const userRoutes = require('./routes/userRoutes');
 const authRoutes = require('./routes/authRoutes');
@@ -79,6 +80,7 @@ app.use(cookieParser());
 // 🚦 Register Routes
 // ==========================================
 app.use('/api/devices', deviceRoutes);
+app.use('/api/groups', groupRoutes);
 app.use('/api/master', modelRoutes);
 app.use('/api/logs', logRoutes);
 app.use('/api/users', userRoutes); 

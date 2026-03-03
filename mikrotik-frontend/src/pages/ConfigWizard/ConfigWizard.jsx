@@ -32,7 +32,8 @@ const ConfigWizard = ({ mode = 'create', initialData, onFinish }) => {
   // --- GLOBAL STATE ---
   const [deviceMeta, setDeviceMeta] = useState({
     name: initialData?.name || "",
-    circuitId: initialData?.circuitId || "", 
+    circuitId: initialData?.circuitId || "",
+    groupIds: initialData?.groups?.map(g => g.id) || [],
     token: initialData?.token || initialData?.apiToken || "",
     apiHost: getApiHost()
   });
@@ -145,7 +146,10 @@ const ConfigWizard = ({ mode = 'create', initialData, onFinish }) => {
       } else {
         if (!initialData?.id) throw new Error("Missing Device ID for update");
         return await apiClient.put(`/api/devices/${initialData.id}`, {
-          configData: finalConfigData, name: deviceMeta.name, circuitId: deviceMeta.circuitId
+          name: deviceMeta.name, 
+          circuitId: deviceMeta.circuitId, 
+          groupIds: deviceMeta.groupIds, 
+          configData: finalConfigData
         });
       }
     })();

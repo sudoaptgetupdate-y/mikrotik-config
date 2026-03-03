@@ -8,14 +8,14 @@ import ProtectedRoute from './components/ProtectedRoute';
 import MainLayout from './layouts/MainLayout';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard'; 
+import DeviceList from './pages/DeviceList';
+import GroupManagement from './pages/GroupManagement';
 import AuditLog from './pages/AuditLog'; 
 import ModelManager from './pages/ModelManager';
 import UserManagement from './pages/UserManagement';
 import UserProfile from './pages/UserProfile';
 import GlobalSettings from './pages/GlobalSettings';
 
-// --- Components ย่อย ---
-import DeviceList from './pages/DeviceList';
 
 // --- Features (ระบบ Wizard แยกเฉพาะ) ---
 import ConfigWizard from './pages/ConfigWizard/ConfigWizard';
@@ -60,6 +60,7 @@ function App() {
             {/*หน้าที่ทุกคน (รวมถึง EMPLOYEE) เข้าดูได้ (Read-only) */}
             <Route path="dashboard" element={<Dashboard />} />
             <Route path="devices" element={<DeviceList />} />
+            <Route path="groups" element={<GroupManagement />} />
             <Route path="profile" element={<UserProfile />} />
 
 

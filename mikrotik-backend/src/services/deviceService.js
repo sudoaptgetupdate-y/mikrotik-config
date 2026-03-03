@@ -1,6 +1,7 @@
 const prisma = require('../config/prisma');
 const crypto = require('crypto');
 const { encrypt, decrypt } = require('../utils/cryptoUtil');
+const { sendTelegramAlert } = require('../utils/telegramUtil'); // ✅ Import ตัวยิง Telegram
 
 // Helper: บันทึก History (Private Function)
 const saveConfigHistory = async (userId, name, configData, managedDeviceId) => {
@@ -22,12 +23,25 @@ const saveConfigHistory = async (userId, name, configData, managedDeviceId) => {
   }
 };
 
-exports.createDevice = async (name, circuitId, configData, actionUserId) => {
+exports.createDevice = async (name, circuitId, groupIds, configData, actionUserId) => {
   const plainToken = crypto.randomUUID();
   const encryptedToken = encrypt(plainToken);
 
+  // เตรียมข้อมูลเชื่อมกลุ่ม (Many-to-Many)
+  const groupConnection = groupIds && Array.isArray(groupIds) && groupIds.length > 0 
+    ? { connect: groupIds.map(id => ({ id: parseInt(id) })) } 
+    : undefined;
+
   const newDevice = await prisma.managedDevice.create({
-    data: { name, circuitId, userId: actionUserId, configData: configData || {}, status: "ACTIVE", apiToken: encryptedToken }
+    data: { 
+      name, 
+      circuitId, 
+      userId: actionUserId, 
+      configData: configData || {}, 
+      status: "ACTIVE", 
+      apiToken: encryptedToken,
+      ...(groupConnection && { groups: groupConnection }) 
+    }
   });
 
   const combinedToken = `${newDevice.id}-${plainToken}`;
@@ -49,7 +63,7 @@ exports.createDevice = async (name, circuitId, configData, actionUserId) => {
   return { newDevice, combinedToken, finalConfigData };
 };
 
-exports.updateDevice = async (id, name, circuitId, status, configData, actionUserId) => {
+exports.updateDevice = async (id, name, circuitId, groupIds, status, configData, actionUserId) => {
   const oldDevice = await prisma.managedDevice.findUnique({ where: { id: parseInt(id) } });
   if (!oldDevice) throw new Error("NOT_FOUND");
 
@@ -61,13 +75,19 @@ exports.updateDevice = async (id, name, circuitId, status, configData, actionUse
       finalConfigData = { ...configData, token: combinedToken }; 
   }
 
+  // อัปเดตกลุ่มอุปกรณ์ (ลบของเก่าทิ้งแล้วใส่ใหม่)
+  const groupUpdate = groupIds !== undefined 
+    ? { set: Array.isArray(groupIds) ? groupIds.map(gid => ({ id: parseInt(gid) })) : [] } 
+    : undefined;
+
   const updatedDevice = await prisma.managedDevice.update({
     where: { id: parseInt(id) },
     data: {
       configData: finalConfigData || oldDevice.configData, 
-      ...(name && { name }),           
-      ...(circuitId && { circuitId }),
-      ...(status && { status }) 
+      ...(name !== undefined && { name }),           
+      ...(circuitId !== undefined && { circuitId }),
+      ...(status !== undefined && { status }),
+      ...(groupUpdate && { groups: groupUpdate }) 
     }
   });
 
@@ -83,7 +103,11 @@ exports.updateDevice = async (id, name, circuitId, status, configData, actionUse
 };
 
 exports.getUserDevices = async () => {
-  const devices = await prisma.managedDevice.findMany({ orderBy: { createdAt: 'desc' } });
+  const devices = await prisma.managedDevice.findMany({ 
+    orderBy: { createdAt: 'desc' },
+    include: { groups: true } 
+  });
+  
   return devices.map(d => {
       const isOnline = d.lastSeen && (new Date() - new Date(d.lastSeen) < 5 * 60 * 1000);
       return { 
@@ -96,7 +120,10 @@ exports.getUserDevices = async () => {
 };
 
 exports.getDeviceById = async (id) => {
-  const device = await prisma.managedDevice.findUnique({ where: { id: parseInt(id) } });
+  const device = await prisma.managedDevice.findUnique({ 
+    where: { id: parseInt(id) },
+    include: { groups: true }
+  });
   if (!device) throw new Error("NOT_FOUND");
 
   const plainToken = decrypt(device.apiToken);
@@ -143,7 +170,11 @@ exports.restoreDevice = async (id, actionUserId) => {
 };
 
 exports.acknowledgeWarning = async (id, reason, warningData, actionUserId, actionUserName) => {
-  const device = await prisma.managedDevice.findUnique({ where: { id: parseInt(id) } });
+  const device = await prisma.managedDevice.findUnique({ 
+    where: { id: parseInt(id) },
+    include: { groups: true } // ✅ เพื่อดึงข้อมูลกลุ่มสำหรับแจ้งเตือน Telegram
+  });
+  
   if (!device) throw new Error("NOT_FOUND");
 
   let ackHistory = [];
@@ -162,18 +193,14 @@ exports.acknowledgeWarning = async (id, reason, warningData, actionUserId, actio
     data: { isAcknowledged: true, ackReason: ackHistory, ackByUserId: actionUserId, ackAt: new Date() }
   });
 
-  // ==========================================
-  // ✅ เพิ่มการบันทึกลง Device Event Log (ประวัติสถานะอุปกรณ์)
-  // ==========================================
   await prisma.deviceEventLog.create({
     data: {
       deviceId: parseInt(id),
-      eventType: 'ONLINE', // ให้ขึ้นป้ายสีเขียว Online
+      eventType: 'ONLINE', 
       details: `[Ack] รับทราบแล้ว: ${reason} (โดย ${actionUserName || 'Admin'})`
     }
   });
 
-  // บันทึก Activity Log สำหรับ Admin
   await prisma.activityLog.create({ 
     data: { 
       userId: actionUserId, 
@@ -181,6 +208,18 @@ exports.acknowledgeWarning = async (id, reason, warningData, actionUserId, actio
       details: `Acknowledged update on: ${device.name}. Reason: ${reason}` 
     } 
   });
+
+  // 🌟 ✅ ยิงข้อความ Telegram แจ้งเตือนเวลา Admin กดรับทราบ (Ack)
+  if (device.groups && device.groups.length > 0) {
+    for (const group of device.groups) {
+      const adminInfo = (group.adminName || group.adminContact) ? `\n\n👨‍🔧 <b>ผู้รับผิดชอบดูแล:</b> ${group.adminName || '-'}\n📞 <b>ติดต่อ:</b> ${group.adminContact || '-'}` : '';
+      const msg = `👁️‍🗨️ <b>[ISSUE ACKNOWLEDGED]</b>\nมีผู้รับทราบปัญหาแล้ว!\n\n🖥 <b>อุปกรณ์:</b> <code>${device.name}</code>\n👤 <b>รับทราบโดย:</b> ${actionUserName || 'Admin'}\n📝 <b>หมายเหตุ/เหตุผล:</b> <i>${reason}</i>${adminInfo}`;
+      
+      if (group.isNotifyEnabled && group.telegramBotToken && group.telegramChatId) {
+        await sendTelegramAlert(group.telegramBotToken, group.telegramChatId, msg);
+      }
+    }
+  }
   
   return updatedDevice;
 };

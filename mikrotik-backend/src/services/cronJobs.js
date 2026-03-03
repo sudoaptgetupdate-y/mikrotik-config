@@ -1,5 +1,6 @@
 const cron = require('node-cron');
 const prisma = require('../config/prisma');
+const { sendTelegramAlert } = require('../utils/telegramUtil');
 
 // ==========================================
 // 1. Audit Log Cleanup (รันทุกๆ เที่ยงคืน)
@@ -46,36 +47,50 @@ cron.schedule('0 0 * * *', async () => {
 // ==========================================
 cron.schedule('* * * * *', async () => {
   try {
-    // 1. คำนวณเวลาถอยหลังไป 3 นาที (ถ้าเกิน 3 นาทีถือว่า Offline)
     const threeMinutesAgo = new Date(Date.now() - 3 * 60 * 1000);
 
-    // 2. ค้นหาอุปกรณ์ทั้งหมดที่ Active อยู่ และไม่ได้ส่งข้อมูลมาเกิน 3 นาทีแล้ว
+    // ค้นหาอุปกรณ์ (✅ สั่ง include groups มาด้วย เพื่อเอาข้อมูลกลุ่มและผู้ดูแล)
     const offlineDevices = await prisma.managedDevice.findMany({
       where: {
         lastSeen: { lt: threeMinutesAgo },
-        status: { not: 'DELETED' } // ละเว้นอุปกรณ์ที่ถูกลบทิ้งไปแล้ว
+        status: { not: 'DELETED' }
       },
-      select: { id: true, name: true }
+      include: { groups: true } 
     });
 
-    // 3. วนลูปตรวจสอบและบันทึก Log
     for (const device of offlineDevices) {
-      // ค้นหา Event ล่าสุดของอุปกรณ์ตัวนี้
       const lastEvent = await prisma.deviceEventLog.findFirst({
         where: { deviceId: device.id },
         orderBy: { createdAt: 'desc' }
       });
 
-      // 🌟 บันทึก OFFLINE ก็ต่อเมื่อ "ไม่เคยมี Log มาก่อน" หรือ "Log ล่าสุดไม่ใช่ OFFLINE" 
-      // (เพื่อป้องกันการบันทึก OFFLINE ซ้ำๆ ทุกนาทีจนล้น Database)
+      // ถ้าบันทึกสถานะล่าสุดยังไม่ใช่ OFFLINE (แปลว่าเพิ่ง Offline ครั้งแรก)
       if (!lastEvent || lastEvent.eventType !== 'OFFLINE') {
+        
+        // 1. บันทึกลง Log ในฐานข้อมูล
         await prisma.deviceEventLog.create({
-          data: {
-            deviceId: device.id,
-            eventType: 'OFFLINE',
-            details: 'Device lost connection (ขาดการติดต่อเกิน 3 นาที)'
-          }
+          data: { deviceId: device.id, eventType: 'OFFLINE', details: 'Device lost connection (ขาดการติดต่อเกิน 3 นาที)' }
         });
+
+        // 2. 🌟 แจ้งเตือนผ่าน Telegram (พร้อมแนบข้อมูลผู้ดูแลกลุ่ม)
+        if (device.groups && device.groups.length > 0) {
+          for (const group of device.groups) {
+            
+            // ตรวจสอบว่ามีข้อมูลผู้ดูแลหรือไม่ ถ้ามีให้สร้างข้อความต่อท้าย
+            const adminInfo = (group.adminName || group.adminContact) 
+              ? `\n\n👨‍🔧 <b>ผู้รับผิดชอบดูแล:</b> ${group.adminName || '-'}\n📞 <b>ติดต่อ:</b> ${group.adminContact || '-'}` 
+              : '';
+            
+            // ประกอบร่างข้อความ (Template)
+            const msg = `🚨 <b>[DEVICE OFFLINE] - ขาดการติดต่อ</b>\n\n🖥 <b>อุปกรณ์:</b> <code>${device.name}</code>\n⚠️ <b>สถานะ:</b> ไม่สามารถเชื่อมต่อได้เกิน 3 นาที (อาจเกิดจากไฟดับหรืออินเทอร์เน็ตหลุด)${adminInfo}`;
+            
+            // เช็คว่ากลุ่มนี้เปิดแจ้งเตือนไว้ และใส่ Token/ChatID ครบถ้วน ถึงจะส่งข้อความ
+            if (group.isNotifyEnabled && group.telegramBotToken && group.telegramChatId) {
+              await sendTelegramAlert(group.telegramBotToken, group.telegramChatId, msg);
+            }
+          }
+        }
+        
         console.log(`[Alert] Device ${device.name} is now OFFLINE`);
       }
     }

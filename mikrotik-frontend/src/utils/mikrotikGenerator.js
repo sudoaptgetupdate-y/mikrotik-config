@@ -369,9 +369,9 @@ export const generateMikrotikScript = (config = {}) => {
     script += `  } on-error={};\n`;
     script += `  :local latency "timeout";\n`;
     script += `  :do { :set latency ([:tostr ([/ping 8.8.8.8 count=1 as-value]->"time")]) } on-error={};\n`;
-    script += `  :local payload "{\\"cpu\\":\\"$cpuLoad\\", \\"ram\\":\\"$memPercent\\", \\"storage\\":\\"$hddPercent\\", \\"temp\\":\\"$temp\\", \\"latency\\":\\"$latency\\", \\"uptime\\":\\"$uptime\\", \\"version\\":\\"$version\\", \\"boardName\\":\\"$boardName\\"}";\n`;    
+    script += `  :local payload "{\\"token\\":\\"$apiToken\\", \\"cpu\\":\\"$cpuLoad\\", \\"ram\\":\\"$memPercent\\", \\"storage\\":\\"$hddPercent\\", \\"temp\\":\\"$temp\\", \\"latency\\":\\"$latency\\", \\"uptime\\":\\"$uptime\\", \\"version\\":\\"$version\\", \\"boardName\\":\\"$boardName\\"}";\n`;    
     script += `  :do {\n`;
-    script += `    /tool fetch url=$serverUrl http-method=post http-header-field="Authorization: Bearer $apiToken,Content-Type: application/json" http-data=$payload keep-result=no ${fetchExtras};\n`;
+    script += `    /tool fetch url=$serverUrl http-method=post http-header-field="content-type: application/json" http-data=$payload keep-result=no ${fetchExtras};\n`;
     script += `  } on-error={ :log error "Failed to send Heartbeat" }\n`;
     script += `}\n`;
 

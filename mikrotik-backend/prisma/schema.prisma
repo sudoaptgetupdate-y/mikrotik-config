@@ -47,7 +47,7 @@ model SystemSetting {
   id          Int      @id @default(autoincrement())
   key         String   @unique
   value       String   @db.Text // เก็บข้อมูลเป็น JSON String
-  description String?  // สำหรับแสดงคำอธิบายในหน้า UI ให้ Admin เข้าใจง่ายขึ้น
+  description String? // สำหรับแสดงคำอธิบายในหน้า UI ให้ Admin เข้าใจง่ายขึ้น
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }
@@ -91,16 +91,38 @@ model ActivityLog {
 
 // ✅ 1. เพิ่มตาราง DeviceEventLog สำหรับเก็บประวัติการเปลี่ยนสถานะ
 model DeviceEventLog {
-  id        Int      @id @default(autoincrement())
-  deviceId  Int      // ใช้ Int ให้ตรงกับ id ของ ManagedDevice
-  device    ManagedDevice @relation(fields: [deviceId], references: [id], onDelete: Cascade)
-  
-  eventType String   // เก็บค่า: 'UP', 'DOWN', 'WARNING', 'ACK'
-  details   String?  // เก็บรายละเอียด เช่น "CPU: 99%, RAM: 80%" หรือ "Device is back online"
+  id       Int           @id @default(autoincrement())
+  deviceId Int // ใช้ Int ให้ตรงกับ id ของ ManagedDevice
+  device   ManagedDevice @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+
+  eventType String // เก็บค่า: 'UP', 'DOWN', 'WARNING', 'ACK'
+  details   String? // เก็บรายละเอียด เช่น "CPU: 99%, RAM: 80%" หรือ "Device is back online"
   createdAt DateTime @default(now())
 
   @@index([deviceId]) // ทำ Index เพื่อให้ค้นหาประวัติของอุปกรณ์แต่ละตัวได้เร็วขึ้น
   @@index([createdAt])
+}
+
+// ==========================================
+// Device Group & Notification Settings (เพิ่มใหม่)
+// ==========================================
+model DeviceGroup {
+  id          Int     @id @default(autoincrement())
+  name        String  @unique
+  adminName        String?
+  adminContact     String? 
+  description String?
+
+  // Telegram Bot Settings สำหรับกลุ่มนี้โดยเฉพาะ
+  telegramBotToken String?
+  telegramChatId   String?
+  isNotifyEnabled  Boolean @default(true) // เปิด/ปิด การแจ้งเตือนของกลุ่มนี้
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // ความสัมพันธ์ (Many-to-Many) กับอุปกรณ์
+  devices ManagedDevice[]
 }
 
 model ManagedDevice {
@@ -124,7 +146,7 @@ model ManagedDevice {
   storage Int?    @default(0)
   temp    String?
   latency String?
-  
+
   userId    Int
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -135,12 +157,15 @@ model ManagedDevice {
   ackReason      Json?
   ackByUserId    Int?
   ackAt          DateTime?
-  
+
   // Relation ไปยัง Config History
   configHistory Config[]
-  
+
   // ✅ 2. เชื่อมความสัมพันธ์ไปยังตาราง DeviceEventLog
-  eventLogs     DeviceEventLog[]
+  eventLogs DeviceEventLog[]
+
+  // ✅ 3. เชื่อมความสัมพันธ์ Many-to-Many ไปยัง DeviceGroup
+  groups DeviceGroup[]
 
   @@index([userId], map: "ManagedDevice_userId_fkey")
 }

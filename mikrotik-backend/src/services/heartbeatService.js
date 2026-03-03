@@ -1,5 +1,6 @@
 const prisma = require('../config/prisma');
 const { decrypt } = require('../utils/cryptoUtil');
+const { sendTelegramAlert } = require('../utils/telegramUtil');
 
 exports.processHeartbeat = async (token, payload, remoteIp) => {
   const { cpu, ram, storage, temp, latency, uptime, version } = payload;
@@ -13,7 +14,11 @@ exports.processHeartbeat = async (token, payload, remoteIp) => {
   if (tokenParts.length > 1 && !isNaN(parseInt(tokenParts[0]))) {
     const potentialId = parseInt(tokenParts[0]);
     const actualToken = tokenParts.slice(1).join('-'); 
-    device = await prisma.managedDevice.findUnique({ where: { id: potentialId } });
+    // ✅ เพิ่มการดึงข้อมูล groups เข้ามาด้วย
+    device = await prisma.managedDevice.findUnique({ 
+      where: { id: potentialId },
+      include: { groups: true } 
+    });
     if (device) {
       let isMatch = false;
       if (device.apiToken === actualToken) { isMatch = true; } 
@@ -29,7 +34,11 @@ exports.processHeartbeat = async (token, payload, remoteIp) => {
       try { if (decrypt(d.apiToken) === token) { matchedDeviceId = d.id; break; } } catch (err) {}
     }
     if (!matchedDeviceId) throw new Error("NOT_FOUND");
-    device = await prisma.managedDevice.findUnique({ where: { id: matchedDeviceId } });
+    // ✅ เพิ่มการดึงข้อมูล groups เข้ามาด้วย
+    device = await prisma.managedDevice.findUnique({ 
+      where: { id: matchedDeviceId },
+      include: { groups: true }
+    });
   }
 
   // ==========================================
@@ -91,7 +100,7 @@ exports.processHeartbeat = async (token, payload, remoteIp) => {
   }
 
   // ==========================================
-  // 4. บันทึก Event Logs และจัดการสถานะ Ack
+  // 4. บันทึก Event Logs และจัดการสถานะ Ack พร้อมยิง Telegram
   // ==========================================
   let resetAckData = {};
 
@@ -109,6 +118,17 @@ exports.processHeartbeat = async (token, payload, remoteIp) => {
         details: `High Load/Latency/Temp Detected - ${details.join(', ')}` 
       } 
     });
+
+    // 🌟 ยิง Telegram แจ้งเตือนปัญหา
+    const msg = `⚠️ <b>[HIGH LOAD ALERT]</b>\n🖥 <b>อุปกรณ์:</b> <code>${device.name}</code>\n🌐 <b>IP:</b> ${remoteIp}\n\n🚨 <b>ตรวจพบปัญหา:</b>\n${details.map(d => `• ${d}`).join('\n')}`;
+    
+    if (device.groups && device.groups.length > 0) {
+      for (const group of device.groups) {
+        if (group.isNotifyEnabled && group.telegramBotToken && group.telegramChatId) {
+          await sendTelegramAlert(group.telegramBotToken, group.telegramChatId, msg);
+        }
+      }
+    }
 
     // ปลดสถานะ Ack ทิ้งเพื่อให้แอดมินรับทราบปัญหาใหม่
     resetAckData = { isAcknowledged: false, ackByUserId: null, ackAt: null };
@@ -128,6 +148,17 @@ exports.processHeartbeat = async (token, payload, remoteIp) => {
       await prisma.deviceEventLog.create({ 
         data: { deviceId: device.id, eventType: 'ONLINE', details: recoveryText } 
       });
+
+      // 🌟 ยิง Telegram แจ้งเตือนการฟื้นฟู (Recovery)
+      const msg = `✅ <b>[SYSTEM RECOVERY]</b>\n🖥 <b>อุปกรณ์:</b> <code>${device.name}</code>\n\n🟢 <b>สถานะกลับสู่ปกติ:</b>\n${recoveredDetails.map(d => `• ${d}`).join('\n')}`;
+      
+      if (device.groups && device.groups.length > 0) {
+        for (const group of device.groups) {
+          if (group.isNotifyEnabled && group.telegramBotToken && group.telegramChatId) {
+            await sendTelegramAlert(group.telegramBotToken, group.telegramChatId, msg);
+          }
+        }
+      }
     }
     resetAckData = { isAcknowledged: false, ackByUserId: null, ackAt: null };
   }
@@ -143,16 +174,10 @@ exports.processHeartbeat = async (token, payload, remoteIp) => {
       cpuLoad: cpuVal, 
       memoryUsage: ramVal, 
       storage: storage ? parseInt(storage) : device.storage, 
-      
-      // ✅ เปลี่ยนจาก tempVal กลับมาเป็น temp (เพื่อให้เซฟเป็น String)
       temp: temp || device.temp, 
-      
       uptime: uptime || device.uptime, 
       version: version || device.version, 
-      
-      // ✅ เปลี่ยนจาก latencyVal กลับมาเป็น latency (เพื่อให้เซฟเป็น String)
       latency: latency || device.latency, 
-      
       ...resetAckData
     }
   });
