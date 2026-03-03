@@ -71,9 +71,11 @@ export const generateMikrotikScript = (config = {}) => {
 
   const bridgeName = "bridge-trunk";
   
+  // ตรวจสอบ Environment เพื่อปิด Certificate check ตอนยิง https บนเว็บจริง (ถ้าไม่มีใบเซอร์)
   const isProd = import.meta.env?.PROD || false;
   const fetchExtras = isProd ? "check-certificate=no" : "";
 
+  // 🌐 ระบบ Auto-Detect URL ของหน้าเว็บ
   const currentHost = window.location.hostname;
   const currentProtocol = window.location.protocol;
   const isLocal = currentHost === 'localhost' || 
@@ -86,6 +88,7 @@ export const generateMikrotikScript = (config = {}) => {
     ? `http://${currentHost}:3000/api/devices/heartbeat`
     : `${currentProtocol}//${currentHost}/api/devices/heartbeat`;
 
+  // ถ้ามีการตั้ง VITE_HEARTBEAT_URL ใน .env ให้ใช้ค่านั้นก่อน ถ้าไม่มีให้ใช้ระบบ Auto-Detect
   const finalApiUrl = import.meta.env?.VITE_HEARTBEAT_URL || dynamicApiUrl;
 
   const wanInterfaces = wanList.map(w => w.interface);
@@ -369,9 +372,12 @@ export const generateMikrotikScript = (config = {}) => {
     script += `  } on-error={};\n`;
     script += `  :local latency "timeout";\n`;
     script += `  :do { :set latency ([:tostr ([/ping 8.8.8.8 count=1 as-value]->"time")]) } on-error={};\n`;
-    script += `  :local payload "{\\"token\\":\\"$apiToken\\", \\"cpu\\":\\"$cpuLoad\\", \\"ram\\":\\"$memPercent\\", \\"storage\\":\\"$hddPercent\\", \\"temp\\":\\"$temp\\", \\"latency\\":\\"$latency\\", \\"uptime\\":\\"$uptime\\", \\"version\\":\\"$version\\", \\"boardName\\":\\"$boardName\\"}";\n`;    
+    script += `  :local payload "{\\"cpu\\":\\"$cpuLoad\\", \\"ram\\":\\"$memPercent\\", \\"storage\\":\\"$hddPercent\\", \\"temp\\":\\"$temp\\", \\"latency\\":\\"$latency\\", \\"uptime\\":\\"$uptime\\", \\"version\\":\\"$version\\", \\"boardName\\":\\"$boardName\\"}";\n`;    
+    
+    // 🌟 ใช้งาน :toarray เพื่อบังคับ MikroTik สร้าง Array Header แยกออกเป็น 2 ค่าที่ชัดเจน (หลีกเลี่ยง Syntax Error)
+    script += `  :local headerArray [:toarray "Authorization: Bearer $apiToken,Content-Type: application/json"];\n`;
     script += `  :do {\n`;
-    script += `    /tool fetch url=$serverUrl http-method=post http-header-field="content-type: application/json" http-data=$payload keep-result=no ${fetchExtras};\n`;
+    script += `    /tool fetch url=$serverUrl http-method=post http-header-field=$headerArray http-data=$payload keep-result=no ${fetchExtras};\n`;
     script += `  } on-error={ :log error "Failed to send Heartbeat" }\n`;
     script += `}\n`;
 

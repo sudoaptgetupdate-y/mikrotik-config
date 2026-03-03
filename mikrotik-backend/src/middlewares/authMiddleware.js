@@ -50,7 +50,14 @@ exports.verifyDeviceToken = async (req, res, next) => {
     return res.status(401).json({ error: 'Missing device token' });
   }
 
-  const deviceToken = authHeader.split(' ')[1]; // Token ที่ MikroTik ส่งมา (Plaintext)
+  let deviceToken = authHeader.split(' ')[1]; // Token ที่ MikroTik ส่งมา
+  
+  // 🌟 เพิ่มโค้ดส่วนนี้: ตัด Prefix ID (เช่น '4-') ออกก่อนนำไปค้นหา
+  const tokenParts = deviceToken.split('-');
+  if (tokenParts.length > 1 && !isNaN(parseInt(tokenParts[0]))) {
+    deviceToken = tokenParts.slice(1).join('-'); 
+  }
+
   const encryptedSearchToken = encrypt(deviceToken); // 🔒 เข้ารหัสก่อนเอาไปค้นหา
 
   try {
@@ -64,6 +71,7 @@ exports.verifyDeviceToken = async (req, res, next) => {
     });
 
     if (!device) {
+      console.log("❌ [Debug] Unauthorized: Token not found in DB ->", deviceToken);
       return res.status(403).json({ error: 'Unauthorized device' });
     }
 
