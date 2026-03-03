@@ -1,7 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { useQuery } from '@tanstack/react-query'; // ✅ Import React Query
+import { useQuery } from '@tanstack/react-query'; 
 import { 
   Activity, Router, Server, Plus, ArrowRight, 
   CheckCircle, AlertTriangle, Clock, FileText, Database,
@@ -38,9 +38,8 @@ const Dashboard = () => {
   // ==========================================
   // React Query Fetching
   // ==========================================
-  // ✅ ใช้ React Query แทน useEffect และ useState
   const { data, isLoading } = useQuery({
-    queryKey: ['dashboard', user?.id], // Key สำหรับอ้างอิง Cache
+    queryKey: ['dashboard', user?.id], 
     queryFn: async () => {
       const [allDevices, models, logsData] = await Promise.all([
         deviceService.getUserDevices(user?.id || 1),
@@ -62,10 +61,21 @@ const Dashboard = () => {
 
         const cpuVal = parseFloat(device.cpu || device.cpuLoad) || 0;
         const ramVal = parseFloat(device.ram || device.memoryUsage) || 0;
+        const storageVal = parseFloat(device.storage) || 0; // ✅ นำ Storage มาคิด
+        const tempVal = parseFloat(device.temp) || 0;       // ✅ นำ Temp มาคิด
+        
+        // แยกตัวเลขจาก Latency "15ms" => 15
+        let latencyMs = 0;
+        if (device.latency && typeof device.latency === 'string') {
+            latencyMs = parseInt(device.latency.replace(/[^0-9]/g, ''), 10) || 0;
+        }
 
         if (isOnline) {
           onlineCount++;
-          if ((cpuVal > 85 || ramVal > 85) && !device.isAcknowledged) alertCount++;
+          // ✅ ถ้าตัวใดตัวหนึ่งเกิน Threshold ให้ถือเป็น High Load
+          const isHighLoad = cpuVal > 85 || ramVal > 85 || storageVal > 85 || tempVal > 60 || latencyMs > 80;
+          
+          if (isHighLoad && !device.isAcknowledged) alertCount++;
         } else {
           offlineCount++;
         }
@@ -82,7 +92,7 @@ const Dashboard = () => {
         recentLogs: logsArray.slice(0, 5)
       };
     },
-    refetchInterval: 30000, // ✅ ดึงข้อมูลใหม่ทุก 30 วินาทีอัตโนมัติ (แทน setInterval แบบเก่า)
+    refetchInterval: 30000, 
     onError: () => toast.error("ไม่สามารถดึงข้อมูลสรุป Dashboard ได้")
   });
 

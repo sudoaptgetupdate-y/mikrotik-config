@@ -14,7 +14,6 @@ exports.processHeartbeat = async (token, payload, remoteIp) => {
   if (tokenParts.length > 1 && !isNaN(parseInt(tokenParts[0]))) {
     const potentialId = parseInt(tokenParts[0]);
     const actualToken = tokenParts.slice(1).join('-'); 
-    // ✅ เพิ่มการดึงข้อมูล groups เข้ามาด้วย
     device = await prisma.managedDevice.findUnique({ 
       where: { id: potentialId },
       include: { groups: true } 
@@ -34,7 +33,6 @@ exports.processHeartbeat = async (token, payload, remoteIp) => {
       try { if (decrypt(d.apiToken) === token) { matchedDeviceId = d.id; break; } } catch (err) {}
     }
     if (!matchedDeviceId) throw new Error("NOT_FOUND");
-    // ✅ เพิ่มการดึงข้อมูล groups เข้ามาด้วย
     device = await prisma.managedDevice.findUnique({ 
       where: { id: matchedDeviceId },
       include: { groups: true }
@@ -42,60 +40,77 @@ exports.processHeartbeat = async (token, payload, remoteIp) => {
   }
 
   // ==========================================
-  // 2. ดึงค่า Threshold จาก Database และตรวจสอบสถานะ
+  // 2. ดึงค่า Threshold และตรวจสอบสถานะ (✅ เพิ่ม Storage)
   // ==========================================
   const cpuVal = cpu ? parseInt(cpu) : 0;
   const ramVal = ram ? parseInt(ram) : 0;
+  const storageVal = storage ? parseInt(storage) : 0; // ✅ แปลงค่า Storage
   const latencyVal = latency ? parseFloat(latency) : 0; 
   const tempVal = temp ? parseFloat(temp) : 0; 
 
   const oldCpuVal = device.cpuLoad ? parseInt(device.cpuLoad) : 0;
   const oldRamVal = device.memoryUsage ? parseInt(device.memoryUsage) : 0;
+  const oldStorageVal = device.storage ? parseInt(device.storage) : 0; // ✅ เก็บค่าเก่า
   const oldLatencyVal = device.latency ? parseFloat(device.latency) : 0;
   const oldTempVal = device.temp ? parseFloat(device.temp) : 0; 
 
-  // ดึงเกณฑ์แจ้งเตือน (Threshold) จาก Database (ถ้าไม่มีให้ใช้ค่า Default)
-  let thresholds = { cpu: 85, ram: 85, latency: 80, temp: 60 }; 
+  // ✅ เพิ่ม Storage เข้าไปใน Default Threshold
+  let thresholds = { cpu: 85, ram: 85, latency: 80, temp: 60, storage: 85 }; 
   try {
     const setting = await prisma.systemSetting.findUnique({ where: { key: 'ALERT_THRESHOLDS' } });
     if (setting && setting.value) {
       const parsed = typeof setting.value === 'string' ? JSON.parse(setting.value) : setting.value;
-      thresholds = { ...thresholds, ...parsed }; // ผสานค่าจาก DB ทับค่า Default
+      thresholds = { ...thresholds, ...parsed }; 
     }
-  } catch (e) {
-    console.error("Error loading thresholds:", e.message);
-  }
+  } catch (e) { console.error("Error loading thresholds:", e.message); }
 
-  // ใช้ค่า Threshold แบบ Dynamic
   const isCpuHigh = cpuVal > thresholds.cpu;
   const isRamHigh = ramVal > thresholds.ram;
+  const isStorageHigh = storageVal > thresholds.storage; // ✅ เช็คว่า Storage เต็มไหม
   const isLatencyHigh = latencyVal > thresholds.latency;
   const isTempHigh = tempVal > thresholds.temp; 
 
   const wasCpuHigh = oldCpuVal > thresholds.cpu;
   const wasRamHigh = oldRamVal > thresholds.ram;
+  const wasStorageHigh = oldStorageVal > thresholds.storage;
   const wasLatencyHigh = oldLatencyVal > thresholds.latency;
   const wasTempHigh = oldTempVal > thresholds.temp;
 
-  const isHighLoad = isCpuHigh || isRamHigh || isLatencyHigh || isTempHigh;
-  const wasHighLoad = wasCpuHigh || wasRamHigh || wasLatencyHigh || wasTempHigh;
+  // ✅ เพิ่ม isStorageHigh ในเงื่อนไข
+  const isHighLoad = isCpuHigh || isRamHigh || isStorageHigh || isLatencyHigh || isTempHigh;
+  const wasHighLoad = wasCpuHigh || wasRamHigh || wasStorageHigh || wasLatencyHigh || wasTempHigh;
 
   const isNewCpuWarning = isCpuHigh && !wasCpuHigh;
   const isNewRamWarning = isRamHigh && !wasRamHigh;
+  const isNewStorageWarning = isStorageHigh && !wasStorageHigh; // ✅ เกิดแจ้งเตือน Storage ใหม่
   const isNewLatencyWarning = isLatencyHigh && !wasLatencyHigh;
   const isNewTempWarning = isTempHigh && !wasTempHigh; 
 
-  const hasNewWarning = isNewCpuWarning || isNewRamWarning || isNewLatencyWarning || isNewTempWarning;
+  const hasNewWarning = isNewCpuWarning || isNewRamWarning || isNewStorageWarning || isNewLatencyWarning || isNewTempWarning;
 
   // ==========================================
-  // 3. ตรวจสอบสถานะ Online / Offline 
+  // 3. ตรวจสอบสถานะ Online / Offline (✅ เพิ่ม Telegram แจ้งเตือนตอนกลับมา Online)
   // ==========================================
   let justCameOnline = false;
   if (device.lastSeen) {
     const diffMinutes = (new Date() - new Date(device.lastSeen)) / 1000 / 60;
     if (diffMinutes > 3) {
       justCameOnline = true;
-      await prisma.deviceEventLog.create({ data: { deviceId: device.id, eventType: 'ONLINE', details: 'Device is back online (กลับมาเชื่อมต่อได้อีกครั้ง)' } });
+      
+      // 1. บันทึกลง Log
+      await prisma.deviceEventLog.create({ 
+        data: { deviceId: device.id, eventType: 'ONLINE', details: 'Device is back online (กลับมาเชื่อมต่อได้อีกครั้ง)' } 
+      });
+
+      // 2. 🌟 ยิง Telegram แจ้งว่าอุปกรณ์กลับมา Online
+      const msgOnline = `🟢 <b>[DEVICE ONLINE] - กลับมาออนไลน์แล้ว</b>\n\n🖥 <b>อุปกรณ์:</b> <code>${device.name}</code>\n✨ <b>วงจร:</b> <code>${device.circuitId || '-'}</code>\n✅ <b>สถานะ:</b> กลับมาเชื่อมต่อระบบสำเร็จ`;
+      if (device.groups && device.groups.length > 0) {
+        for (const group of device.groups) {
+          if (group.isNotifyEnabled && group.telegramBotToken && group.telegramChatId) {
+            await sendTelegramAlert(group.telegramBotToken, group.telegramChatId, msgOnline);
+          }
+        }
+      }
     }
   }
 
@@ -108,6 +123,7 @@ exports.processHeartbeat = async (token, payload, remoteIp) => {
     const details = [];
     if (isNewCpuWarning) details.push(`CPU: ${cpuVal}%`);
     if (isNewRamWarning) details.push(`RAM: ${ramVal}%`);
+    if (isNewStorageWarning) details.push(`Storage: ${storageVal}%`); // ✅ เพิ่มลงในข้อความแจ้งเตือน
     if (isNewLatencyWarning) details.push(`Ping: ${latencyVal}ms`);
     if (isNewTempWarning) details.push(`Temp: ${tempVal}°C`);
     
@@ -115,12 +131,11 @@ exports.processHeartbeat = async (token, payload, remoteIp) => {
       data: { 
         deviceId: device.id, 
         eventType: 'WARNING', 
-        details: `High Load/Latency/Temp Detected - ${details.join(', ')}` 
+        details: `High Load Detected - ${details.join(', ')}` 
       } 
     });
 
-    // 🌟 ยิง Telegram แจ้งเตือนปัญหา
-    const msg = `⚠️ <b>[HIGH LOAD ALERT]</b>\n🖥 <b>อุปกรณ์:</b> <code>${device.name}</code>\n🌐 <b>IP:</b> ${remoteIp}\n\n🚨 <b>ตรวจพบปัญหา:</b>\n${details.map(d => `• ${d}`).join('\n')}`;
+    const msg = `⚠️ <b>[HIGH LOAD ALERT]</b>\n🖥 <b>อุปกรณ์:</b> <code>${device.name}</code>\n✨ <b>วงจร:</b> <code>${device.circuitId || '-'}</code>\n🌐 <b>IP:</b> ${remoteIp}\n\n🚨 <b>ตรวจพบปัญหา:</b>\n${details.map(d => `• ${d}`).join('\n')}`;
     
     if (device.groups && device.groups.length > 0) {
       for (const group of device.groups) {
@@ -130,7 +145,6 @@ exports.processHeartbeat = async (token, payload, remoteIp) => {
       }
     }
 
-    // ปลดสถานะ Ack ทิ้งเพื่อให้แอดมินรับทราบปัญหาใหม่
     resetAckData = { isAcknowledged: false, ackByUserId: null, ackAt: null };
   } 
   else if (!isHighLoad) {
@@ -138,19 +152,19 @@ exports.processHeartbeat = async (token, payload, remoteIp) => {
       const recoveredDetails = [];
       if (wasCpuHigh) recoveredDetails.push(`CPU: ${cpuVal}% (ลดจาก ${oldCpuVal}%)`);
       if (wasRamHigh) recoveredDetails.push(`RAM: ${ramVal}% (ลดจาก ${oldRamVal}%)`);
+      if (wasStorageHigh) recoveredDetails.push(`Storage: ${storageVal}% (ลดจาก ${oldStorageVal}%)`); // ✅
       if (wasLatencyHigh) recoveredDetails.push(`Ping: ${latencyVal}ms (ลดจาก ${oldLatencyVal}ms)`);
       if (wasTempHigh) recoveredDetails.push(`Temp: ${tempVal}°C (ลดจาก ${oldTempVal}°C)`);
       
       const recoveryText = recoveredDetails.length > 0 
-        ? `System [${recoveredDetails.join(', ')}] is back to normal (สถานะกลับสู่สภาวะปกติ)`
-        : 'System is back to normal (สถานะกลับสู่สภาวะปกติ)';
+        ? `System [${recoveredDetails.join(', ')}] is back to normal`
+        : 'System is back to normal';
 
       await prisma.deviceEventLog.create({ 
         data: { deviceId: device.id, eventType: 'ONLINE', details: recoveryText } 
       });
 
-      // 🌟 ยิง Telegram แจ้งเตือนการฟื้นฟู (Recovery)
-      const msg = `✅ <b>[SYSTEM RECOVERY]</b>\n🖥 <b>อุปกรณ์:</b> <code>${device.name}</code>\n\n🟢 <b>สถานะกลับสู่ปกติ:</b>\n${recoveredDetails.map(d => `• ${d}`).join('\n')}`;
+      const msg = `✅ <b>[SYSTEM RECOVERY]</b>\n🖥 <b>อุปกรณ์:</b> <code>${device.name}</code>\n✨ <b>วงจร:</b> <code>${device.circuitId || '-'}</code>\n\n🟢 <b>สถานะกลับสู่ปกติ:</b>\n${recoveredDetails.map(d => `• ${d}`).join('\n')}`;
       
       if (device.groups && device.groups.length > 0) {
         for (const group of device.groups) {
@@ -173,7 +187,7 @@ exports.processHeartbeat = async (token, payload, remoteIp) => {
       currentIp: remoteIp, 
       cpuLoad: cpuVal, 
       memoryUsage: ramVal, 
-      storage: storage ? parseInt(storage) : device.storage, 
+      storage: storageVal, // ✅ เซฟค่า Storage ที่เป็นตัวเลขแล้ว
       temp: temp || device.temp, 
       uptime: uptime || device.uptime, 
       version: version || device.version, 

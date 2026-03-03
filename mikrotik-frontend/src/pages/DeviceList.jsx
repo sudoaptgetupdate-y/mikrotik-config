@@ -208,11 +208,22 @@ const DeviceList = () => {
     if (!ackReason.trim()) return toast.error("กรุณากรอกข้อมูลการอัปเดต หรือเหตุผล");
     setIsAckSubmitting(true);
     
+    // ✅ เพิ่มการเช็ค Storage และ Offline เข้าไปด้วย
+    const diffMinutes = deviceToAck?.lastSeen ? (new Date() - new Date(deviceToAck.lastSeen)) / 1000 / 60 : 999;
+    const isOffline = diffMinutes > 3;
+
     const cpu = parseFloat(deviceToAck?.cpu || deviceToAck?.cpuLoad) || 0;
     const ram = parseFloat(deviceToAck?.ram || deviceToAck?.memoryUsage) || 0;
+    const storage = parseFloat(deviceToAck?.storage) || 0;
+    
     let currentWarning = [];
-    if (cpu > 85) currentWarning.push(`CPU ${cpu}%`);
-    if (ram > 85) currentWarning.push(`RAM ${ram}%`);
+    if (isOffline) {
+      currentWarning.push("Offline");
+    } else {
+      if (cpu > 85) currentWarning.push(`CPU ${cpu}%`);
+      if (ram > 85) currentWarning.push(`RAM ${ram}%`);
+      if (storage > 85) currentWarning.push(`Storage ${storage}%`);
+    }
 
     const ackPromise = deviceService.acknowledgeWarning(deviceToAck.id, {
       reason: ackReason,
@@ -221,7 +232,7 @@ const DeviceList = () => {
 
     toast.promise(ackPromise, {
       loading: 'กำลังบันทึกข้อมูล...',
-      success: 'รับทราบการแจ้งเตือนเรียบร้อย!',
+      success: 'รับทราบสถานะเรียบร้อย!',
       error: 'ไม่สามารถบันทึกได้ กรุณาลองใหม่'
     });
 

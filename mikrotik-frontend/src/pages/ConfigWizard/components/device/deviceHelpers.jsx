@@ -11,8 +11,19 @@ export const getDeviceStatus = (device) => {
   
   const cpu = parseFloat(device.cpu || device.cpuLoad) || 0;
   const ram = parseFloat(device.ram || device.memoryUsage) || 0;
+  const storage = parseFloat(device.storage) || 0; // ✅ เพิ่ม Storage
+  const temp = parseFloat(device.temp) || 0;       // ✅ เพิ่ม Temp
   
-  if (cpu > 85 || ram > 85) {
+  // ✅ แปลงค่า Latency (Ping) จาก String ให้เป็นตัวเลขเพื่อนำมาเปรียบเทียบ
+  let latencyMs = 0;
+  if (device.latency === "timeout") {
+    latencyMs = 999;
+  } else if (device.latency && typeof device.latency === 'string') {
+    latencyMs = parseInt(device.latency.replace(/[^0-9]/g, ''), 10) || 0;
+  }
+  
+  // 🌟 เพิ่มเงื่อนไขให้ครอบคลุม (ใช้ค่า Default: CPU 85, RAM 85, Storage 85, Temp 60, Ping 80)
+  if (cpu > 85 || ram > 85 || storage > 85 || temp > 60 || latencyMs > 80) {
     if (device.isAcknowledged) {
       return { state: 'acknowledged', color: 'bg-blue-50 text-blue-600 border-blue-200', icon: <CheckCircle size={14}/>, label: 'Acknowledged' };
     }

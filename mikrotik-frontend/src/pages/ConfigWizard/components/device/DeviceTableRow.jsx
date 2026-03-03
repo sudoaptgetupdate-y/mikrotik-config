@@ -1,6 +1,6 @@
 import React from 'react';
 import { 
-  Cpu, Zap, HardDrive, Thermometer, Wifi, 
+  Cpu, Zap, HardDrive, Thermometer, Wifi, ServerOff, 
   Clock, Download, History, RotateCcw, Settings, Trash2, BellRing, CheckCircle, Activity
 } from 'lucide-react';
 import { formatUptime, formatLatency } from '../../../../utils/formatters';
@@ -36,9 +36,13 @@ const getLatencyColor = (latency) => {
   return 'text-blue-500';
 };
 
-// ✅ เพิ่ม onViewEvents เข้ามารับค่า Props
 const DeviceTableRow = ({ device, status, onDownload, onViewHistory, onViewEvents, onRestore, onEdit, onDelete, onAcknowledge, canEdit }) => {
   const isDeleted = status.state === 'deleted'; 
+  
+  // ✅ ตรวจสอบสถานะ Offline จาก lastSeen ด้วย
+  const diffMinutes = device.lastSeen ? (new Date() - new Date(device.lastSeen)) / 1000 / 60 : 999;
+  const isDeviceOffline = diffMinutes > 3;
+
   const cpuVal = device.cpu || device.cpuLoad || 0;
   const ramVal = device.ram || device.memoryUsage || 0;
   const storageVal = device.storage || 0;
@@ -66,27 +70,39 @@ const DeviceTableRow = ({ device, status, onDownload, onViewHistory, onViewEvent
     }
   }
 
+  // ✅ กำหนด Status หลัก (หน้าเว็บจะแสดง Online หรือ Offline ก่อนเสมอถ้าโดน Ack ไปแล้ว)
+  let mainStateLabel = status.label;
+  let mainStateColor = status.color;
+  let mainStateIcon = status.icon;
+
+  if (status.state === 'acknowledged' || device.isAcknowledged) {
+    if (isDeviceOffline) {
+      mainStateLabel = 'Offline';
+      mainStateColor = 'bg-rose-50 text-rose-700 border-rose-200';
+      mainStateIcon = <ServerOff size={14} />;
+    } else {
+      mainStateLabel = 'Online';
+      mainStateColor = 'bg-green-50 text-green-700 border-green-200';
+      mainStateIcon = <CheckCircle size={14} />;
+    }
+  }
+
   return (
     <tr className={`transition group ${isDeleted ? 'bg-slate-50 opacity-75' : 'hover:bg-slate-50'}`}>
       
       {/* 1. Status */}
       <td className="p-4 pl-6 align-top">
         <div className="flex flex-col items-start gap-1.5">
-          {status.state === 'acknowledged' ? (
-            <>
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold border bg-green-50 text-green-700 border-green-200">
-                <CheckCircle size={14}/> Online
-              </span>
-              <span 
-                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold border bg-blue-50 text-blue-600 border-blue-200 cursor-help"
-                title={`Latest Update:\n${latestAckReason}`}
-              >
-                <CheckCircle size={12}/> {ackCount > 1 ? `Ack (${ackCount})` : 'Acknowledged'}
-              </span>
-            </>
-          ) : (
-            <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold border ${status.color}`}>
-              {status.icon} {status.label}
+          <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold border ${mainStateColor}`}>
+            {mainStateIcon} {mainStateLabel}
+          </span>
+          {/* ✅ ถ้ารับทราบแล้ว จะมีป้ายห้อยโชว์ขึ้นมาด้านล่าง */}
+          {device.isAcknowledged && (
+            <span 
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold border bg-blue-50 text-blue-600 border-blue-200 cursor-help mt-1"
+              title={`Latest Update:\n${latestAckReason}`}
+            >
+              <CheckCircle size={12}/> {ackCount > 1 ? `Ack (${ackCount})` : 'Acknowledged'}
             </span>
           )}
         </div>
@@ -118,7 +134,7 @@ const DeviceTableRow = ({ device, status, onDownload, onViewHistory, onViewEvent
 
       {/* 3. Resources */}
       <td className="p-4 align-top">
-        {status.state !== 'offline' && !isDeleted ? (
+        {!isDeviceOffline && !isDeleted ? (
           <div className="space-y-3 min-w-[140px]">
             <div>
               <div className="flex justify-between text-[10px] text-slate-500 mb-1">
@@ -155,17 +171,14 @@ const DeviceTableRow = ({ device, status, onDownload, onViewHistory, onViewEvent
         )}
       </td>
 
-      {/* 4. Health, Net & Uptime (ยุบรวมกันแล้ว) */}
+      {/* 4. Health, Net & Uptime */}
       <td className="p-4 align-top">
         <div className="flex flex-col gap-1.5 text-xs">
-          
-          {/* IP Address */}
           <div className="font-mono font-medium text-slate-700 bg-slate-100 px-2 py-0.5 rounded w-max mb-0.5" title="Current IP Address">
             {device.currentIp || 'No IP Address'}
           </div>
 
-          {/* Temp & Latency */}
-          {status.state !== 'offline' && !isDeleted && (
+          {!isDeviceOffline && !isDeleted && (
             <div className="flex items-center gap-3 text-slate-500 mb-1">
               <div className="flex items-center gap-1">
                 <Thermometer size={14} className="text-orange-500" />
@@ -178,7 +191,6 @@ const DeviceTableRow = ({ device, status, onDownload, onViewHistory, onViewEvent
             </div>
           )}
 
-          {/* Uptime (เปลี่ยนเป็น Icon) */}
           <div className="flex items-start gap-2 mt-1">
             <div className="mt-0.5" title="Uptime">
               <Activity size={14} className="text-blue-500" />
@@ -188,7 +200,6 @@ const DeviceTableRow = ({ device, status, onDownload, onViewHistory, onViewEvent
             </span>
           </div>
 
-          {/* Last Seen (เปลี่ยนเป็น Icon) */}
           <div className="flex items-start gap-2 mt-0.5">
             <div className="mt-0.5" title="Last Seen">
               <Clock size={14} className="text-slate-400" />
@@ -203,7 +214,6 @@ const DeviceTableRow = ({ device, status, onDownload, onViewHistory, onViewEvent
               )}
             </div>
           </div>
-
         </div>
       </td>
 
@@ -211,39 +221,35 @@ const DeviceTableRow = ({ device, status, onDownload, onViewHistory, onViewEvent
       <td className="p-4 align-middle text-right pr-6">
         <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
           
-          {/* 1. ซ่อนปุ่ม Acknowledge ถ้าไม่มีสิทธิ์ */}
-          {canEdit && (status.state === 'warning' || status.state === 'acknowledged') && (
+          {/* ✅ อนุญาตให้กด Ack ได้ทั้งตอน Warning หรือตอนอุปกรณ์ Offline */}
+          {canEdit && (status.state === 'warning' || isDeviceOffline || device.isAcknowledged) && !isDeleted && (
             <button 
               onClick={() => onAcknowledge(device)} 
               className={`p-2 rounded-lg transition mr-2 ${
-                status.state === 'warning' 
+                (!device.isAcknowledged && (status.state === 'warning' || isDeviceOffline))
                   ? 'text-orange-500 hover:text-white hover:bg-orange-500 animate-pulse' 
                   : 'text-blue-500 hover:text-white hover:bg-blue-500'
               }`}
-              title={status.state === 'warning' ? "Acknowledge Warning" : "Update Acknowledge Note"}
+              title={!device.isAcknowledged ? "Acknowledge Warning / Offline" : "Update Acknowledge Note"}
             >
               <BellRing size={16} />
             </button>
           )}
 
-          {/* 2. ซ่อนปุ่ม Download ถ้าไม่มีสิทธิ์ */}
           {canEdit && !isDeleted && (
               <button onClick={() => onDownload(device)} className="p-2 text-slate-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition" title="Download Latest Config">
                 <Download size={16} />
               </button>
           )}
 
-          {/* ปุ่ม History อนุญาตให้ทุกคนเห็น (รวมถึง Employee ด้วย) */}
           <button onClick={() => onViewHistory(device)} className="p-2 text-slate-400 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition" title="View Config History">
             <History size={16} />
           </button>
 
-          {/* ✅ ปุ่มใหม่สำหรับดู Event Log (UP/DOWN/WARNING) */}
           <button onClick={() => onViewEvents(device)} className="p-2 text-slate-400 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition" title="View Event Logs">
             <Activity size={16} />
           </button>
 
-          {/* 3. ซ่อนปุ่ม Restore / Edit / Delete ถ้าไม่มีสิทธิ์ */}
           {canEdit && (
             isDeleted ? (
               <button onClick={() => onRestore(device)} className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition" title="Restore Device">

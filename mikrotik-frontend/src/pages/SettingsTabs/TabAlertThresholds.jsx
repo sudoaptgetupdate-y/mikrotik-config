@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Save, Bell, Loader2, Cpu, MemoryStick, Activity, Thermometer } from 'lucide-react';
+import { Save, Bell, Loader2, Cpu, MemoryStick, Activity, Thermometer, HardDrive } from 'lucide-react';
 import apiClient from '../../utils/apiClient';
 import toast from 'react-hot-toast';
 import { useQueryClient } from '@tanstack/react-query';
@@ -7,8 +7,8 @@ import { useQueryClient } from '@tanstack/react-query';
 export default function TabAlertThresholds({ initialData }) {
   const queryClient = useQueryClient();
 
-  // กำหนดค่าเริ่มต้น (Default) ในกรณีที่ยังไม่เคยตั้งค่ามาก่อน
-  const defaultThresholds = { cpu: 85, ram: 85, latency: 80, temp: 60 };
+  // ✅ เพิ่ม Storage ในค่าเริ่มต้น
+  const defaultThresholds = { cpu: 85, ram: 85, latency: 80, temp: 60, storage: 85 };
   
   let parsedData = defaultThresholds;
   if (initialData) {
@@ -36,7 +36,7 @@ export default function TabAlertThresholds({ initialData }) {
 
     try {
       await savePromise;
-      queryClient.invalidateQueries({ queryKey: ['settings'] }); // ล้าง Cache หน้าแม่
+      queryClient.invalidateQueries({ queryKey: ['settings'] }); 
     } catch (error) { console.error(error); } 
     finally { setIsSaving(false); }
   };
@@ -55,7 +55,7 @@ export default function TabAlertThresholds({ initialData }) {
         </button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
         
         {/* CPU Setting */}
         <div className="bg-slate-50 border border-slate-200 rounded-2xl p-5 hover:border-blue-300 hover:shadow-md transition-all">
@@ -71,14 +71,27 @@ export default function TabAlertThresholds({ initialData }) {
         </div>
 
         {/* RAM Setting */}
-        <div className="bg-slate-50 border border-slate-200 rounded-2xl p-5 hover:border-purple-300 hover:shadow-md transition-all">
+        <div className="bg-slate-50 border border-slate-200 rounded-2xl p-5 hover:border-indigo-300 hover:shadow-md transition-all">
           <div className="flex justify-between items-center mb-4">
-            <div className="w-10 h-10 bg-purple-100 text-purple-600 rounded-xl flex items-center justify-center"><MemoryStick size={20}/></div>
+            <div className="w-10 h-10 bg-indigo-100 text-indigo-600 rounded-xl flex items-center justify-center"><MemoryStick size={20}/></div>
             <span className="text-xs font-bold text-slate-500 uppercase">Percent (%)</span>
           </div>
           <label className="block text-sm font-bold text-slate-800 mb-2">RAM Usage Limit</label>
           <div className="relative">
-            <input type="number" min="1" max="100" value={thresholds.ram} onChange={(e) => handleChange('ram', e.target.value)} className="w-full text-xl font-black text-slate-700 bg-white border border-slate-200 rounded-xl pl-4 pr-10 py-3 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all" />
+            <input type="number" min="1" max="100" value={thresholds.ram} onChange={(e) => handleChange('ram', e.target.value)} className="w-full text-xl font-black text-slate-700 bg-white border border-slate-200 rounded-xl pl-4 pr-10 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all" />
+            <span className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">%</span>
+          </div>
+        </div>
+
+        {/* ✅ Storage Setting */}
+        <div className="bg-slate-50 border border-slate-200 rounded-2xl p-5 hover:border-purple-300 hover:shadow-md transition-all">
+          <div className="flex justify-between items-center mb-4">
+            <div className="w-10 h-10 bg-purple-100 text-purple-600 rounded-xl flex items-center justify-center"><HardDrive size={20}/></div>
+            <span className="text-xs font-bold text-slate-500 uppercase">Percent (%)</span>
+          </div>
+          <label className="block text-sm font-bold text-slate-800 mb-2">Storage Limit</label>
+          <div className="relative">
+            <input type="number" min="1" max="100" value={thresholds.storage} onChange={(e) => handleChange('storage', e.target.value)} className="w-full text-xl font-black text-slate-700 bg-white border border-slate-200 rounded-xl pl-4 pr-10 py-3 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all" />
             <span className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">%</span>
           </div>
         </div>

@@ -82,7 +82,7 @@ cron.schedule('* * * * *', async () => {
               : '';
             
             // ประกอบร่างข้อความ (Template)
-            const msg = `🚨 <b>[DEVICE OFFLINE] - ขาดการติดต่อ</b>\n\n🖥 <b>อุปกรณ์:</b> <code>${device.name}</code>\n⚠️ <b>สถานะ:</b> ไม่สามารถเชื่อมต่อได้เกิน 3 นาที (อาจเกิดจากไฟดับหรืออินเทอร์เน็ตหลุด)${adminInfo}`;
+            const msg = `🚨 <b>[DEVICE OFFLINE] - ขาดการติดต่อ</b>\n\n🖥 <b>อุปกรณ์:</b> <code>${device.name}</code>\n✨ <b>วงจร:</b> <code>${device.circuitId || '-'}</code>\n⚠️ <b>สถานะ:</b> ไม่สามารถเชื่อมต่อได้เกิน 3 นาที (อาจเกิดจากไฟดับหรืออินเทอร์เน็ตหลุด)${adminInfo}`;
             
             // เช็คว่ากลุ่มนี้เปิดแจ้งเตือนไว้ และใส่ Token/ChatID ครบถ้วน ถึงจะส่งข้อความ
             if (group.isNotifyEnabled && group.telegramBotToken && group.telegramChatId) {
