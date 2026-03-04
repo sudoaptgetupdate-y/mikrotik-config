@@ -251,7 +251,7 @@ const DeviceList = () => {
   };
 
   // ==========================================
-  // Filtering Logic
+  // Filtering & Sorting Logic
   // ==========================================
   const filteredDevices = devices.filter(d => {
     const searchLower = searchTerm.toLowerCase();
@@ -273,7 +273,33 @@ const DeviceList = () => {
     return matchesSearch; 
   });
 
-  const displayedDevices = filteredDevices.slice(0, displayLimit);
+  // 🌟 เพิ่มส่วนนี้: เรียงลำดับอุปกรณ์ที่มีปัญหาขึ้นบนสุด
+  const sortedDevices = filteredDevices.sort((a, b) => {
+    // ให้ทำงานเฉพาะเมื่อดูหน้า Active Devices (หรือหน้า All)
+    if (statusFilter === 'ACTIVE_ONLY' || statusFilter === 'ALL') {
+      const stateA = getDeviceStatus(a).state;
+      const stateB = getDeviceStatus(b).state;
+      
+      // กำหนดลำดับความสำคัญ (เลขน้อย = อยู่บนสุด)
+      const priority = {
+        'offline': 1,
+        'warning': 2,
+        'acknowledged': 3,
+        'online': 4,
+        'deleted': 5
+      };
+      
+      const rankA = priority[stateA] || 99;
+      const rankB = priority[stateB] || 99;
+      
+      // ถ้าสถานะต่างกัน ให้เรียงตามลำดับ Priority ที่ตั้งไว้
+      if (rankA !== rankB) {
+        return rankA - rankB;
+      }
+    }
+    return 0; // ถ้าสถานะเหมือนกัน ปล่อยไว้ลำดับเดิม
+  });
+  const displayedDevices = sortedDevices.slice(0, displayLimit);
 
   return (
     <div className="space-y-6 animate-fade-in pb-4">
