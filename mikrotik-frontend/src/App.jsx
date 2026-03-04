@@ -9,7 +9,7 @@ import MainLayout from './layouts/MainLayout';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard'; 
 import DeviceList from './pages/DeviceList';
-import GroupManagement from './pages/GroupManagement';
+import GroupManagement from "./pages/GroupManagement/GroupManagement";
 import AuditLog from './pages/AuditLog'; 
 import ModelManager from './pages/ModelManager';
 import UserManagement from './pages/UserManagement';
