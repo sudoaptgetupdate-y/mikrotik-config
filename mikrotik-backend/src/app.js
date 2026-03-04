@@ -27,7 +27,17 @@ const errorHandler = require('./middlewares/errorMiddleware');
 // 🛡️ 1. CORS ตั้งค่า trust ให้กับทุก hop เพื่อให้ rate-limit เชื่อใน public ip ของ device ที่ยิง api มา
 // ==========================================
 const app = express();
-// ใช้คีย์เวิร์ดมาตรฐานเพื่อครอบคลุม IP วงในทั้งหมดโดยอัตโนมัติ
+
+// 🌟 1. เพิ่ม Middleware ดักจับ IP จริงจาก Cloudflare 
+app.use((req, res, next) => {
+  if (req.headers['cf-connecting-ip']) {
+    // นำ IP จริงมาสวมทับ เพื่อให้ Express นำไปใช้งานต่อ
+    req.headers['x-forwarded-for'] = req.headers['cf-connecting-ip'];
+  }
+  next();
+});
+
+// 🌟 2. เชื่อใจ Reverse Proxy ภายในวงแลนตามปกติ
 app.set('trust proxy', ['loopback', 'uniquelocal']);
 
 // ==========================================
