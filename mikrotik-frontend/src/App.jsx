@@ -14,7 +14,7 @@ import AuditLog from './pages/AuditLog';
 import ModelManager from './pages/ModelManager';
 import UserManagement from './pages/UserManagement';
 import UserProfile from './pages/UserProfile';
-import GlobalSettings from './pages/GlobalSettings';
+import GlobalSettings from './pages/GlobalSettings/GlobalSettings';
 
 
 // --- Features (ระบบ Wizard แยกเฉพาะ) ---

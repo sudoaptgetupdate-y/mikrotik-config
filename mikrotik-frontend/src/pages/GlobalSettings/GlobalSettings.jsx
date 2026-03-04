@@ -2,15 +2,15 @@ import { useState, useEffect, useMemo } from 'react';
 import { Shield, Network, Globe, Settings2, Database, Loader2, Bell } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 
-import { settingService } from '../services/settingService';
+import { settingService } from '../../services/settingService';
 import toast from 'react-hot-toast';
 
-import TabAdmins from './SettingsTabs/TabAdmins';
-import TabManagementIps from './SettingsTabs/TabManagementIps';
-import TabPbrTargets from './SettingsTabs/TabPbrTargets';
-import TabVlanNetwork from './SettingsTabs/TabVlanNetwork';
-import TabMaintenance from './SettingsTabs/TabMaintenance';
-import TabAlertThresholds from './SettingsTabs/TabAlertThresholds';
+import TabAdmins from './components/TabAdmins';
+import TabManagementIps from './components/TabManagementIps';
+import TabPbrTargets from './components/TabPbrTargets';
+import TabVlanNetwork from './components/TabVlanNetwork';
+import TabMaintenance from './components/TabMaintenance';
+import TabAlertThresholds from './components/TabAlertThresholds';
 
 const GlobalSettings = () => {
   const [activeTab, setActiveTab] = useState(() => localStorage.getItem('activeGlobalSettingsTab') || 'ADMINS');

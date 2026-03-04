@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Save, Plus, Trash2, Loader2, Server, ShieldCheck } from 'lucide-react';
-import apiClient from '../../utils/apiClient';
+import apiClient from '../../../utils/apiClient';
 import toast from 'react-hot-toast';
 import { useQueryClient } from '@tanstack/react-query';
 
