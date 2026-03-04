@@ -1,24 +1,24 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Activity, Plus } from 'lucide-react';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../../context/AuthContext';
 import toast from 'react-hot-toast';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import Swal from 'sweetalert2';
 
-import { deviceService } from '../services/deviceService';
-import { generateMikrotikScript } from '../utils/mikrotikGenerator';
+import { deviceService } from '../../services/deviceService';
+import { generateMikrotikScript } from '../../utils/mikrotikGenerator';
 
-import { getDeviceStatus } from './ConfigWizard/components/device/deviceHelpers';
-import DeviceListToolbar from './ConfigWizard/components/device/DeviceListToolbar';
-import DeviceTable from './ConfigWizard/components/device/DeviceTable';
-import AcknowledgeModal from './ConfigWizard/components/device/AcknowledgeModal'; 
-import HistoryModal from './ConfigWizard/components/device/HistoryModal';
-import EventLogModal from './ConfigWizard/components/device/EventLogModal';
+import { getDeviceStatus } from './components/deviceHelpers';
+import DeviceListToolbar from './components/DeviceListToolbar';
+import DeviceTable from './components/DeviceTable';
+import AcknowledgeModal from './components/AcknowledgeModal'; 
+import HistoryModal from './components/HistoryModal';
+import EventLogModal from './components/EventLogModal';
 
 const DeviceList = () => {
   const navigate = useNavigate();
-  const location = useLocation(); 
+  const location = useLocation();
   const { user } = useAuth(); 
   const canEdit = user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN';
   
