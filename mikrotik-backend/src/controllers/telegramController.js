@@ -92,35 +92,51 @@ exports.handleWebhook = async (req, res) => {
         }
       });
 
-      // ✅ จัดรูปแบบข้อความใหม่ให้สวยงามตามที่คุณต้องการ
+      // ประกอบร่างข้อความ
       let msg = `📊 <b>รายงานสถานะระบบ (กลุ่ม: ${group.name})</b>\n\n`;
       msg += `📦 <b>อุปกรณ์ทั้งหมด:</b> ${devices.length} รายการ\n`;
       msg += `🟢 <b>Online:</b> ${onlineList.length} รายการ\n`;
       msg += `🔴 <b>Offline:</b> ${offlineList.length} รายการ\n`;
       msg += `⚠️ <b>Problem:</b> ${problemList.length} รายการ\n`;
-      msg += `⌛ <b>Problem Ack :</b> ${ackList.length} รายการ\n`;
+      msg += `⌛ <b>Problem Ack:</b> ${ackList.length} รายการ\n`;
 
+      // ==========================================
+      // 🚨 ส่วนแสดงอุปกรณ์ที่มีปัญหา (เพิ่มเงื่อนไข "ไม่พบอุปกรณ์")
+      // ==========================================
+      msg += `\n🚨 <b>อุปกรณ์ที่มีปัญหา:</b>\n`;
       if (problemList.length > 0) {
-        msg += `\n🚨 <b>อุปกรณ์ที่มีปัญหา:</b>\n`;
         problemList.forEach(p => {
-          msg += `- ${p.name} (${p.circuit || '-'}): ${p.issues}\n`;
+          // ใช้ 🔻 แทนขีด และเน้นชื่ออุปกรณ์เป็นตัวหนา
+          msg += `🔻 <b>${p.name}</b> (${p.circuit || '-'}): <i>${p.issues}</i>\n`;
         });
+      } else {
+        // กรณีไม่มีปัญหาเลย
+        msg += `✅ <i>ไม่พบอุปกรณ์ที่มีปัญหา</i>\n`;
       }
 
+      // ==========================================
+      // ⌛ ส่วนแสดงอุปกรณ์ที่รับทราบปัญหาแล้ว
+      // ==========================================
       if (ackList.length > 0) {
         msg += `\n⌛ <b>อุปกรณ์ที่ผู้ดูแลรับทราบปัญหาแล้ว:</b>\n`;
         ackList.forEach(a => {
-          msg += `- ${a.name} (${a.circuit || '-'}): ${a.issues}\n`;
+          // ใช้ 🔸 เพื่อสื่อถึงการเตือนที่กำลังได้รับการแก้ไข
+          msg += `🔸 <b>${a.name}</b> (${a.circuit || '-'}): <i>${a.issues}</i>\n`;
         });
       }
 
+      // ==========================================
+      // 🔌 ส่วนแสดงอุปกรณ์ที่ Offline
+      // ==========================================
       if (offlineList.length > 0) {
         msg += `\n🔌 <b>อุปกรณ์ที่ Offline:</b>\n`;
         offlineList.forEach(o => {
-          msg += `- ${o.name} (${o.circuitId || '-'})\n`;
+          // ใช้ ▪️ เพื่อสื่อถึงสถานะที่ดับไป
+          msg += `▪️ <b>${o.name}</b> (${o.circuitId || '-'})\n`;
         });
       }
 
+      // ส่งกลับเข้า Telegram
       await sendTelegramAlert(group.telegramBotToken, chatId, msg);
     }
   } catch (error) {
