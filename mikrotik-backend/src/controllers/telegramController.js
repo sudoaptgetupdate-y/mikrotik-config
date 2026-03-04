@@ -1,25 +1,44 @@
 const prisma = require('../config/prisma');
 const { sendTelegramAlert } = require('../utils/telegramUtil');
 
+// ✅ นำฟังก์ชันแปลงหน่วย Ping เข้ามาใช้ เพื่อให้รายงานผลตรงกับหน้าเว็บ
+const parseLatencyToMs = (latencyStr) => {
+  if (!latencyStr || latencyStr === "timeout") return 999;
+  const str = String(latencyStr).toLowerCase();
+  
+  if (str.includes(':')) {
+    const parts = str.split(':');
+    const secAndMs = parts[parts.length - 1];
+    if (secAndMs.includes('.')) {
+      const [sec, frac] = secAndMs.split('.');
+      return (parseInt(sec, 10) * 1000) + parseInt(frac.padEnd(3, '0').substring(0,3), 10);
+    }
+    return parseInt(secAndMs, 10) * 1000;
+  }
+  
+  const num = parseFloat(str.replace(/[^0-9.]/g, ''));
+  if (isNaN(num)) return 0;
+  if (str.includes('us')) return Math.round(num / 1000);
+  if (str.includes('s') && !str.includes('ms')) return Math.round(num * 1000);
+  return Math.round(num);
+};
+
 exports.handleWebhook = async (req, res) => {
-  // Telegram API ต้องการให้ตอบกลับ 200 OK ทันที เพื่อให้รู้ว่ารับข้อความแล้ว
   res.sendStatus(200);
 
   const message = req.body.message;
-  // ถ้าไม่ใช่ข้อความตัวอักษร ให้ข้ามไป
   if (!message || !message.text) return;
 
   const chatId = message.chat.id.toString();
   const text = message.text.trim();
 
   try {
-    // 1. ค้นหากลุ่มอุปกรณ์จาก Chat ID ที่พิมพ์เข้ามา
-    const group = await prisma.group.findFirst({
+    // 🌟 แก้ไข: ใช้ prisma.deviceGroup ให้ตรงกับชื่อ Schema ของคุณ
+    const group = await prisma.deviceGroup.findFirst({
       where: { telegramChatId: chatId },
-      include: { devices: { where: { status: { not: 'DELETED' } } } } // ดึงอุปกรณ์ที่ไม่ถูกลบมาด้วย
+      include: { devices: { where: { status: { not: 'DELETED' } } } } 
     });
 
-    // ถ้าแชทนี้ไม่ได้ผูกกับกลุ่มไหนเลย หรือไม่มี Token ให้ข้ามไป
     if (!group || !group.telegramBotToken) return;
 
     // ==========================================
@@ -41,26 +60,20 @@ exports.handleWebhook = async (req, res) => {
       let offlineList = [];
       let problemList = [];
 
-      // วนลูปเช็คสถานะแต่ละอุปกรณ์ (Logic เดียวกับ Frontend)
       devices.forEach(d => {
-        // เช็ค Offline (ขาดการติดต่อเกิน 3 นาที)
         const diffMinutes = d.lastSeen ? (new Date() - new Date(d.lastSeen)) / 1000 / 60 : 999;
         if (diffMinutes > 3) {
           offlineList.push(d);
           return;
         }
 
-        // อ่านค่าต่างๆ
         const cpu = parseFloat(d.cpuLoad) || 0;
         const ram = parseFloat(d.memoryUsage) || 0;
         const storage = parseFloat(d.storage) || 0;
         const temp = parseFloat(d.temp) || 0;
         
-        let latencyMs = 0;
-        if (d.latency === "timeout") latencyMs = 999;
-        else if (d.latency && typeof d.latency === 'string') {
-          latencyMs = parseInt(d.latency.replace(/[^0-9]/g, ''), 10) || 0;
-        }
+        // 🌟 แก้ไข: ใช้ฟังก์ชัน parseLatencyToMs เพื่อให้แสดงผลถูกต้อง
+        const latencyMs = parseLatencyToMs(d.latency);
 
         let issues = [];
         if (cpu > 85) issues.push(`CPU ${cpu}%`);
@@ -76,7 +89,6 @@ exports.handleWebhook = async (req, res) => {
         }
       });
 
-      // ประกอบร่างข้อความ
       let msg = `📊 <b>รายงานสถานะระบบ (กลุ่ม: ${group.name})</b>\n\n`;
       msg += `📦 <b>อุปกรณ์ทั้งหมด:</b> ${devices.length} รายการ\n`;
       msg += `🟢 <b>Online:</b> ${onlineList.length} รายการ\n`;
@@ -97,7 +109,6 @@ exports.handleWebhook = async (req, res) => {
         });
       }
 
-      // ส่งกลับเข้า Telegram
       await sendTelegramAlert(group.telegramBotToken, chatId, msg);
     }
   } catch (error) {
