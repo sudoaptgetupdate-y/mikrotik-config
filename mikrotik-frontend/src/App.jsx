@@ -7,12 +7,12 @@ import ProtectedRoute from './components/ProtectedRoute';
 // --- Layout & Pages (ดึงจากโฟลเดอร์ pages/) ---
 import MainLayout from './layouts/MainLayout';
 import Login from './pages/Login';
-import Dashboard from './pages/Dashboard'; 
+import Dashboard from './pages/Dashboard/Dashboard'; 
 import DeviceList from './pages/DeviceList/DeviceList';
 import GroupManagement from "./pages/GroupManagement/GroupManagement";
 import AuditLog from './pages/AuditLog'; 
-import ModelManager from './pages/ModelManager';
-import UserManagement from './pages/UserManagement';
+import ModelManager from './pages/ModelManager/ModelManager';
+import UserManagement from './pages/UserManagement/UserManagement';
 import UserProfile from './pages/UserProfile';
 import GlobalSettings from './pages/GlobalSettings/GlobalSettings';
 

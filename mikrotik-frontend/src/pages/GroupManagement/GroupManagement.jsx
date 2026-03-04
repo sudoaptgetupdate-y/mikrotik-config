@@ -44,13 +44,15 @@ const GroupManagement = () => {
 
   // กรองข้อมูลตามการค้นหา
   const filteredGroups = useMemo(() => {
-    return groups.filter(g => g.name.toLowerCase().includes(searchQuery.toLowerCase()));
+    const filtered = groups.filter(g => g.name.toLowerCase().includes(searchQuery.toLowerCase()));
+    
+    // จัดเรียงให้ All Devices ขึ้นเป็นอันดับ 1 เสมอ
+    return filtered.sort((a, b) => {
+      if (a.name === 'All Devices') return -1;
+      if (b.name === 'All Devices') return 1;
+      return 0; // กลุ่มอื่นๆ ให้เรียงตามปกติ
+    });
   }, [groups, searchQuery]);
-
-  // รีเซ็ตกลับไปหน้า 1 เสมอเมื่อมีการพิมพ์ค้นหาใหม่
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchQuery]);
 
   // คำนวณข้อมูลสำหรับ Pagination
   const totalPages = Math.ceil(filteredGroups.length / itemsPerPage) || 1;
@@ -107,6 +109,11 @@ const GroupManagement = () => {
   };
 
   const handleDeleteGroup = async (group) => {
+    // ดักไว้ก่อนเลยว่าห้ามลบ
+    if (group.name === 'All Devices') {
+      return toast.error('ไม่อนุญาตให้ลบกลุ่มพื้นฐานของระบบ (Default Group) ได้');
+    }
+
     const result = await Swal.fire({
       title: 'ยืนยันการลบกลุ่ม?', text: `คุณแน่ใจหรือไม่ว่าต้องการลบกลุ่ม "${group.name}"?`, icon: 'warning',
       showCancelButton: true, confirmButtonColor: '#ef4444', confirmButtonText: 'ใช่, ลบเลย!', cancelButtonText: 'ยกเลิก',

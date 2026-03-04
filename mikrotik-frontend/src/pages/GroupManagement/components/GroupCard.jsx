@@ -6,12 +6,24 @@ const GroupCard = ({ group, onEdit, onDelete, onManageDevices }) => {
     <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden hover:border-blue-300 transition-all hover:shadow-md flex flex-col group/card">
       <div className="p-5 border-b border-slate-100 flex justify-between items-start bg-slate-50/50">
         <div className="flex-1 pr-4">
-          <h3 className="font-bold text-slate-800 text-lg truncate">{group.name}</h3>
+          <h3 className="font-bold text-slate-800 text-lg flex items-center gap-2 flex-wrap">
+            <span className="truncate">{group.name}</span>
+            {/* 🟢 เพิ่มป้าย Default ถ้าเป็นกลุ่ม All Devices */}
+            {group.name === 'All Devices' && (
+              <span className="text-[10px] bg-blue-100 text-blue-700 px-2 py-0.5 rounded-md font-black uppercase tracking-wider">
+                Default
+              </span>
+            )}
+          </h3>
           <p className="text-xs text-slate-500 mt-1 line-clamp-2">{group.description || 'ไม่มีคำอธิบาย'}</p>
         </div>
         <div className="flex gap-1 opacity-100 sm:opacity-0 group-hover/card:opacity-100 transition-opacity">
-          <button onClick={() => onEdit(group)} className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition"><Edit size={16} /></button>
-          <button onClick={() => onDelete(group)} className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition"><Trash2 size={16} /></button>
+          <button onClick={() => onEdit(group)} className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition" title="แก้ไขข้อมูลกลุ่ม"><Edit size={16} /></button>
+          
+          {/* 🟢 ซ่อนปุ่มลบ ถ้าเป็นกลุ่ม All Devices */}
+          {group.name !== 'All Devices' && (
+            <button onClick={() => onDelete(group)} className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition" title="ลบกลุ่ม"><Trash2 size={16} /></button>
+          )}
         </div>
       </div>
 

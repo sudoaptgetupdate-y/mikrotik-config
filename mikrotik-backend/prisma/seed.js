@@ -1,10 +1,8 @@
-// 1. เปลี่ยนจาก require เป็น import
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
 
-// 🛠️ Helper Function: สร้าง Port อัตโนมัติ
 const genPorts = (etherCount, sfpCount, wlanCount, sfpPrefix = "sfp") => {
   const ports = [];
   for (let i = 1; i <= etherCount; i++) ports.push({ name: `ether${i}`, type: "ETHER" });
@@ -13,7 +11,6 @@ const genPorts = (etherCount, sfpCount, wlanCount, sfpPrefix = "sfp") => {
   return ports;
 };
 
-// 📦 รายการ Hardware Models
 const mikrotikModels = [
   { name: "hAP ac2 (RBD52G-5HacD2HnD-TC)", imageUrl: "https://cdn.mikrotik.com/web-assets/rb_images/1468_xl.webp", ports: genPorts(5, 0, 2) },
   { name: "hAP ax2 (C52iG-5HaxD2HaxD-TC)", imageUrl: "https://cdn.mikrotik.com/web-assets/rb_images/2203_lg.webp", ports: genPorts(5, 0, 2) },
@@ -36,23 +33,10 @@ const mikrotikModels = [
   { name: "RB1100AHx4 Dude Edition", imageUrl: "https://cdn.mikrotik.com/web-assets/rb_images/1285_lg.webp", ports: genPorts(13, 0, 0) }
 ];
 
-// เพิ่ม default setting ให้กับ db
 const defaultSettings = [
-  {
-    key: 'MANAGEMENT_IPS',
-    value: JSON.stringify(['10.234.56.0/24']),
-    description: 'Networks allowed to access Router Management (Winbox/SSH)'
-  },
-  {
-    key: 'MONITOR_IPS',
-    value: JSON.stringify(['1.1.1.1', '8.8.8.8', '208.67.222.222', '9.9.9.9', '8.26.56.26']),
-    description: 'Target IPs for PBR & Failover check-gateway (DO NOT remove any slots)'
-  },
-  {
-    key: 'ROUTER_ADMINS',
-    value: JSON.stringify([{ username: 'ntadmin', password: 'ntadmin_secure_password', group: 'full' }]),
-    description: 'Default admin accounts created in MikroTik routers'
-  }
+  { key: 'MANAGEMENT_IPS', value: JSON.stringify(['10.234.56.0/24']), description: 'Networks allowed to access Router Management (Winbox/SSH)' },
+  { key: 'MONITOR_IPS', value: JSON.stringify(['1.1.1.1', '8.8.8.8', '208.67.222.222', '9.9.9.9', '8.26.56.26']), description: 'Target IPs for PBR & Failover check-gateway (DO NOT remove any slots)' },
+  { key: 'ROUTER_ADMINS', value: JSON.stringify([{ username: 'ntadmin', password: 'ntadmin_secure_password', group: 'full' }]), description: 'Default admin accounts created in MikroTik routers' }
 ];
 
 async function main() {
@@ -60,12 +44,11 @@ async function main() {
   for (const setting of defaultSettings) {
     await prisma.systemSetting.upsert({
       where: { key: setting.key },
-      update: {},
+      update: {}, // ไม่เปลี่ยนแปลงข้อมูลเดิมถ้ามี key นี้อยู่แล้ว
       create: setting,
     });
   }
 
-  // 🌟 เพิ่มส่วนนี้: สร้างกลุ่ม All Devices พื้นฐาน
   console.log('🌱 Start seeding Default Group...');
   const defaultGroup = await prisma.deviceGroup.findFirst({
     where: { name: 'All Devices' }
@@ -76,12 +59,12 @@ async function main() {
       data: {
         name: 'All Devices',
         description: 'กลุ่มพื้นฐานสำหรับอุปกรณ์ทั้งหมดที่ไม่ได้ระบุกลุ่ม',
-        isNotifyEnabled: false // ปิดแจ้งเตือนไว้ก่อน รอใส่ Token
+        isNotifyEnabled: false
       }
     });
     console.log('✅ Created default group: All Devices');
   } else {
-    console.log('⏭️ Default group "All Devices" already exists.');
+    console.log('⏭️ Default group "All Devices" already exists. Skipping...');
   }
 
   console.log('🌱 Start seeding Admin User...');
@@ -102,6 +85,8 @@ async function main() {
       }
     });
     console.log('✅ Created default admin user (Username: ntadmin)');
+  } else {
+    console.log('⏭️ Admin user "ntadmin" already exists. Skipping...');
   }
 
   console.log('🌱 Start seeding MikroTik Routers Models...');
@@ -110,21 +95,16 @@ async function main() {
       where: { name: model.name },
       update: {
         imageUrl: model.imageUrl,
-        ports: {
-          deleteMany: {}, 
-          create: model.ports
-        }
+        ports: { deleteMany: {}, create: model.ports }
       },
       create: {
         name: model.name,
         imageUrl: model.imageUrl,
-        ports: {
-          create: model.ports
-        }
+        ports: { create: model.ports }
       }
     });
-    console.log(`✅ Synced router model: ${result.name}`);
   }
+  console.log('✅ Synced router models completed.');
   
   console.log('🎉 Seeding finished successfully!');
 }
