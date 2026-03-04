@@ -1,7 +1,6 @@
 const prisma = require('../config/prisma');
 const { sendTelegramAlert } = require('../utils/telegramUtil');
 
-// ✅ นำฟังก์ชันแปลงหน่วย Ping เข้ามาใช้ เพื่อให้รายงานผลตรงกับหน้าเว็บ
 const parseLatencyToMs = (latencyStr) => {
   if (!latencyStr || latencyStr === "timeout") return 999;
   const str = String(latencyStr).toLowerCase();
@@ -33,7 +32,6 @@ exports.handleWebhook = async (req, res) => {
   const text = message.text.trim();
 
   try {
-    // 🌟 แก้ไข: ใช้ prisma.deviceGroup ให้ตรงกับชื่อ Schema ของคุณ
     const group = await prisma.deviceGroup.findFirst({
       where: { telegramChatId: chatId },
       include: { devices: { where: { status: { not: 'DELETED' } } } } 
@@ -59,6 +57,7 @@ exports.handleWebhook = async (req, res) => {
       let onlineList = [];
       let offlineList = [];
       let problemList = [];
+      let ackList = []; // ✅ เพิ่ม List สำหรับอุปกรณ์ที่ผู้ดูแลรับทราบปัญหาแล้ว
 
       devices.forEach(d => {
         const diffMinutes = d.lastSeen ? (new Date() - new Date(d.lastSeen)) / 1000 / 60 : 999;
@@ -71,8 +70,6 @@ exports.handleWebhook = async (req, res) => {
         const ram = parseFloat(d.memoryUsage) || 0;
         const storage = parseFloat(d.storage) || 0;
         const temp = parseFloat(d.temp) || 0;
-        
-        // 🌟 แก้ไข: ใช้ฟังก์ชัน parseLatencyToMs เพื่อให้แสดงผลถูกต้อง
         const latencyMs = parseLatencyToMs(d.latency);
 
         let issues = [];
@@ -83,29 +80,44 @@ exports.handleWebhook = async (req, res) => {
         if (latencyMs > 80) issues.push(`Ping ${latencyMs}ms`);
 
         if (issues.length > 0) {
-          problemList.push({ name: d.name, circuit: d.circuitId, issues: issues.join(', ') });
+          const problemData = { name: d.name, circuit: d.circuitId, issues: issues.join(', ') };
+          // ✅ แยกกลุ่มตามสถานะการ Ack
+          if (d.isAcknowledged) {
+            ackList.push(problemData);
+          } else {
+            problemList.push(problemData);
+          }
         } else {
           onlineList.push(d);
         }
       });
 
+      // ✅ จัดรูปแบบข้อความใหม่ให้สวยงามตามที่คุณต้องการ
       let msg = `📊 <b>รายงานสถานะระบบ (กลุ่ม: ${group.name})</b>\n\n`;
       msg += `📦 <b>อุปกรณ์ทั้งหมด:</b> ${devices.length} รายการ\n`;
       msg += `🟢 <b>Online:</b> ${onlineList.length} รายการ\n`;
       msg += `🔴 <b>Offline:</b> ${offlineList.length} รายการ\n`;
       msg += `⚠️ <b>Problem:</b> ${problemList.length} รายการ\n`;
+      msg += `⌛ <b>Problem Ack :</b> ${ackList.length} รายการ\n`;
 
       if (problemList.length > 0) {
         msg += `\n🚨 <b>อุปกรณ์ที่มีปัญหา:</b>\n`;
         problemList.forEach(p => {
-          msg += `- <code>${p.name}</code> (${p.circuit || '-'}): <i>${p.issues}</i>\n`;
+          msg += `- ${p.name} (${p.circuit || '-'}): ${p.issues}\n`;
+        });
+      }
+
+      if (ackList.length > 0) {
+        msg += `\n⌛ <b>อุปกรณ์ที่ผู้ดูแลรับทราบปัญหาแล้ว:</b>\n`;
+        ackList.forEach(a => {
+          msg += `- ${a.name} (${a.circuit || '-'}): ${a.issues}\n`;
         });
       }
 
       if (offlineList.length > 0) {
         msg += `\n🔌 <b>อุปกรณ์ที่ Offline:</b>\n`;
         offlineList.forEach(o => {
-          msg += `- <code>${o.name}</code> (${o.circuitId || '-'})\n`;
+          msg += `- ${o.name} (${o.circuitId || '-'})\n`;
         });
       }
 
