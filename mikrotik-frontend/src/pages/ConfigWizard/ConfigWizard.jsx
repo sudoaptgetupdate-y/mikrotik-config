@@ -152,21 +152,7 @@ const ConfigWizard = ({ mode = 'create', initialData, onFinish }) => {
       await queryClient.invalidateQueries({ queryKey: ['devices'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard'] }); 
 
-      // 🌟 ทริคพิเศษ: ยิงดึง Device ล่าสุดมาเลย เพื่อบังคับให้ได้ apiToken มา 100%
-      try {
-        const devicesRes = await apiClient.get('/api/devices');
-        const matchedDevice = devicesRes.data.find(d => 
-          mode === 'edit' ? d.id === initialData.id : (d.circuitId === deviceMeta.circuitId && d.name === deviceMeta.name)
-        );
-        
-        if (matchedDevice) {
-          return matchedDevice; // ส่งกลับไปให้ Step8 ซึ่งมี .apiToken แน่นอน
-        }
-      } catch (e) {
-        console.error("Failed to fetch fresh device token", e);
-      }
-
-      // (เอาบรรทัด onFinish() ของเก่าออกไป เพื่อป้องกันการเปลี่ยนหน้าตัดจบการดาวน์โหลดไฟล์)
+      // 🌟 ส่ง response.data กลับไปตรงๆ ให้ Step8 (มันมี property 'combinedToken' รออยู่แล้ว)
       return response.data; 
     } catch (error) {
       console.error("Failed to save config:", error);
@@ -235,7 +221,7 @@ const ConfigWizard = ({ mode = 'create', initialData, onFinish }) => {
                 wirelessConfig={wirelessConfig}
                 pbrConfig={pbrConfig}
                 onSaveAndFinish={saveConfigToBackend}
-                onFinish={onFinish} // ✅ ส่ง onFinish ต่อให้ Step8 จัดการการเปลี่ยนหน้าเอง
+                onFinish={onFinish} 
               />
             )}
           </>
