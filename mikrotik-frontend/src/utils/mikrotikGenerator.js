@@ -339,15 +339,19 @@ export const generateMikrotikScript = (config = {}) => {
       });
     }
 
-    // --- 11. ENABLE VLAN FILTERING & HEARTBEAT ---
+    // --- 11. ENABLE VLAN FILTERING ---
     script += `\n################################################\n`;
-    script += `# Apply VLAN Filtering & Start Heartbeat\n`;
+    script += `# Apply VLAN Filtering\n`;
+    script += `################################################\n`;
+    script += `/interface bridge set bridge-trunk vlan-filtering=yes\n`;
+
+    // --- 12. START HEARTBEAT SCRIPT ---
+    script += `\n################################################\n`;
+    script += `# Start Heartbeat Monitoring (API)\n`;
     script += `################################################\n`;
     
     // ✅ ซ่อน Log ขยะจากการใช้คำสั่ง fetch (กันไม่ให้ Log เต็มเครื่อง)
     script += `/system logging set [find topics="info"] topics="info,!fetch"\n`;
-
-    script += `/interface bridge set bridge-trunk vlan-filtering=yes\n`;
 
     script += `/system script remove [find name="heartbeat-script"]\n`;
     script += `/system script add name="heartbeat-script" source={\n`;
@@ -374,7 +378,7 @@ export const generateMikrotikScript = (config = {}) => {
     script += `  :do { :set latency ([:tostr ([/ping 8.8.8.8 count=1 as-value]->"time")]) } on-error={};\n`;
     script += `  :local payload "{\\"cpu\\":\\"$cpuLoad\\", \\"ram\\":\\"$memPercent\\", \\"storage\\":\\"$hddPercent\\", \\"temp\\":\\"$temp\\", \\"latency\\":\\"$latency\\", \\"uptime\\":\\"$uptime\\", \\"version\\":\\"$version\\", \\"boardName\\":\\"$boardName\\"}";\n`;    
     
-    // 🌟 ใช้งาน :toarray เพื่อบังคับ MikroTik สร้าง Array Header แยกออกเป็น 2 ค่าที่ชัดเจน (หลีกเลี่ยง Syntax Error)
+    // 🌟 ใช้งาน :toarray เพื่อบังคับ MikroTik สร้าง Array Header แยกออกเป็น 2 ค่าที่ชัดเจน
     script += `  :local headerArray [:toarray "Authorization: Bearer $apiToken,Content-Type: application/json"];\n`;
     script += `  :do {\n`;
     script += `    /tool fetch url=$serverUrl http-method=post http-header-field=$headerArray http-data=$payload keep-result=no ${fetchExtras};\n`;

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { FileDown, CheckCircle, Network, ShieldCheck, Globe, Loader2, Router, Server } from 'lucide-react';
 import { generateMikrotikScript } from "../../../utils/mikrotikGenerator";
-import apiClient from '../../../utils/apiClient'; // ✅ นำเข้า apiClient เพื่อใช้เรียก API
+import apiClient from '../../../utils/apiClient';
 
 const Step8_Summary = ({ 
   selectedModel, 
@@ -36,7 +36,6 @@ const Step8_Summary = ({
       let configData = {
         selectedModel, wanList, networks, portConfig, pbrConfig, wirelessConfig,
         dnsConfig, circuitId, token, apiHost,
-        // เพิ่มค่าที่ดึงมาจาก API ลงไปให้ Generator
         managementIps: globalSettings.MANAGEMENT_IPS,
         monitorIps: globalSettings.MONITOR_IPS,
         adminUsers: globalSettings.ROUTER_ADMINS
@@ -44,19 +43,23 @@ const Step8_Summary = ({
 
       // 💾 3. บันทึกลง Database
       if (onSaveAndFinish) {
-        console.log("Saving config to backend...");
         const savedDevice = await onSaveAndFinish(configData);
-
-        // ดึง Token ที่ได้จาก Backend มาใช้อัปเดต
-        if (savedDevice && savedDevice.apiToken) {
-          configData.token = savedDevice.apiToken;
-        } else if (savedDevice && savedDevice.configData && savedDevice.configData.token) {
-          configData.token = savedDevice.configData.token;
+        
+        // 🚨 ดักจับ Token จาก Response ทุกรูปแบบที่เป็นไปได้ (ครอบคลุมทั้ง Prisma และ Axios)
+        let finalToken = configData.token || "";
+        
+        if (savedDevice?.apiToken) {
+          finalToken = savedDevice.apiToken;
+        } else if (savedDevice?.device?.apiToken) {
+          finalToken = savedDevice.device.apiToken;
+        } else if (savedDevice?.data?.apiToken) {
+          finalToken = savedDevice.data.apiToken;
+        } else if (savedDevice?.data?.device?.apiToken) {
+          finalToken = savedDevice.data.device.apiToken;
         }
-      } else {
-        console.error("onSaveAndFinish prop is missing!");
-        setIsGenerating(false);
-        return;
+
+        // ยัด Token ตัวจริงใส่กลับเข้าไปใน configData ก่อนส่งให้ Generator
+        configData.token = finalToken;
       }
 
       // ⚙️ 4. สร้างสคริปต์ MikroTik โดยส่งข้อมูลที่สมบูรณ์แล้วเข้าไป
@@ -73,7 +76,6 @@ const Step8_Summary = ({
 
     } catch (error) {
       console.error("Generation failed:", error);
-      alert("Failed to save and generate config. See console for details.");
     } finally {
       setIsGenerating(false); 
     }
