@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Users, Plus, Search } from 'lucide-react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { Users, Plus, Search, ChevronRight, ChevronLeft } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import Swal from 'sweetalert2';
@@ -18,6 +18,10 @@ const UserManagement = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({ id: null, firstName: '', lastName: '', email: '', role: 'EMPLOYEE', password: '', confirmPassword: '' });
+
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 8; // จำนวนผู้ใช้ต่อหน้า (ปรับเพิ่มลดได้ตามต้องการ)
 
   const generatedUsername = formData.email ? formData.email.split('@')[0] : '';
 
@@ -40,6 +44,32 @@ const UserManagement = () => {
     { id: 'number', label: 'ตัวเลข (0-9)', regex: /[0-9]/ },
     { id: 'special', label: 'อักขระพิเศษ (@$!%*?&)', regex: /[@$!%*?&#^]/ }
   ];
+
+  // ==========================================
+  // Filtering & Pagination Logic
+  // ==========================================
+  const filteredUsers = useMemo(() => {
+    return users.filter(u => 
+      `${u.firstName} ${u.lastName}`.toLowerCase().includes(searchTerm.toLowerCase()) || 
+      u.email.toLowerCase().includes(searchTerm.toLowerCase()) || 
+      u.username.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }, [users, searchTerm]);
+
+  const totalPages = Math.ceil(filteredUsers.length / itemsPerPage) || 1;
+  const paginatedUsers = useMemo(() => {
+    return filteredUsers.slice(
+      (currentPage - 1) * itemsPerPage,
+      currentPage * itemsPerPage
+    );
+  }, [filteredUsers, currentPage, itemsPerPage]);
+
+  // ป้องกันกรณีผู้ใช้อยู่หน้าสุดท้าย แล้วลบข้อมูลจนหน้านั้นหายไป
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(Math.max(1, totalPages));
+    }
+  }, [totalPages, currentPage]);
 
   // ==========================================
   // Handlers (Actions)
@@ -119,45 +149,113 @@ const UserManagement = () => {
   };
 
   // ==========================================
-  // Filtering Logic
-  // ==========================================
-  const filteredUsers = users.filter(u => 
-    `${u.firstName} ${u.lastName}`.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    u.email.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    u.username.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
-  // ==========================================
   // Render
   // ==========================================
   return (
-    <div className="space-y-6 pb-10">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
-        <div>
-          <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2"><Users className="text-blue-600" /> User Management</h2>
-          <p className="text-slate-500 mt-1">จัดการผู้ใช้งานระบบและกำหนดสิทธิ์การเข้าถึง (RBAC)</p>
+    <div className="space-y-6 pb-28 animate-in fade-in duration-500">
+      
+      {/* 1. Page Header (แบบ Classic & Clean) */}
+      <div className="space-y-4">
+        {/* Breadcrumbs */}
+        <nav className="flex items-center text-sm font-medium text-slate-500 gap-2">
+          <a href="/dashboard" className="hover:text-blue-600 transition-colors">Home</a>
+          <ChevronRight size={14} className="text-slate-400" />
+          <span className="text-slate-400">System Administration</span>
+          <ChevronRight size={14} className="text-slate-400" />
+          <span className="text-slate-800">User Management</span>
+        </nav>
+
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold text-slate-800 tracking-tight flex items-center gap-2">
+              <Users className="text-blue-600" size={28} /> 
+              User Management
+            </h1>
+            <p className="text-sm text-slate-500 mt-1">
+              จัดการผู้ใช้งานระบบและกำหนดสิทธิ์การเข้าถึง (RBAC)
+            </p>
+          </div>
+          
+          {/* ปุ่ม Create สไตล์ Soft/Tonal */}
+          <button 
+            onClick={openAddModal} 
+            className="shrink-0 bg-blue-50 text-blue-700 px-5 py-2.5 rounded-lg flex items-center justify-center gap-2 hover:bg-blue-100 transition-all font-semibold text-sm border border-blue-100"
+          >
+            <Plus size={18} strokeWidth={2.5} /> 
+            <span>Add New User</span>
+          </button>
         </div>
-        <button onClick={openAddModal} className="bg-blue-600 text-white px-4 py-2.5 rounded-xl flex items-center justify-center gap-2 hover:bg-blue-700 transition font-medium w-full md:w-auto"><Plus size={20} /> Add New User</button>
+
+        {/* เส้นกั้น Solid Divider */}
+        <hr className="border-slate-200 mt-2" />
       </div>
 
-      {/* Search Box */}
-      <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center">
-        <div className="relative flex-1 w-full md:max-w-md">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
-          <input type="text" placeholder="ค้นหาชื่อ, อีเมล, หรือ Username..." className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-100 transition" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+      {/* 2. Control Toolbar (Search & Filters) */}
+      <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-sm flex flex-col sm:flex-row justify-between items-center gap-4">
+        <div className="relative w-full sm:max-w-md">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+          <input 
+            type="text" 
+            placeholder="ค้นหาชื่อ, อีเมล, หรือ Username..." 
+            className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-sm" 
+            value={searchTerm} 
+            onChange={(e) => setSearchTerm(e.target.value)} 
+          />
+        </div>
+        <div className="text-sm text-slate-500 font-medium px-2">
+          พบทั้งหมด <span className="text-slate-800 font-bold">{filteredUsers.length}</span> บัญชีผู้ใช้
         </div>
       </div>
 
-      {/* User Table Component */}
+      {/* 3. User Table Component */}
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
         <UserTable 
-          users={filteredUsers} 
+          users={paginatedUsers} 
           loading={loading} 
           onEdit={openEditModal} 
           onDelete={handleDelete} 
         />
       </div>
+
+      {/* 4. Pagination Controls (Tinted Glass) */}
+      {totalPages > 1 && (
+        <div className="sticky bottom-6 z-30 flex justify-center mt-8 pointer-events-none">
+          <div className="flex items-center gap-1 p-1.5 bg-blue-50/80 backdrop-blur-md border border-blue-200/60 rounded-full shadow-[0_8px_30px_rgb(59,130,246,0.15)] pointer-events-auto transition-all hover:bg-blue-50/95">
+            
+            <button 
+              onClick={() => setCurrentPage(p => Math.max(1, p - 1))} 
+              disabled={currentPage === 1} 
+              className="p-2 rounded-full text-blue-500 hover:bg-blue-100 hover:text-blue-700 disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-blue-500 transition-all"
+            >
+              <ChevronLeft size={20} strokeWidth={2.5} />
+            </button>
+            
+            <div className="flex items-center gap-1 px-2">
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                <button
+                  key={page}
+                  onClick={() => setCurrentPage(page)}
+                  className={`w-9 h-9 rounded-full text-sm font-bold transition-all ${
+                    currentPage === page 
+                      ? 'bg-blue-600 text-white shadow-md shadow-blue-500/30' 
+                      : 'text-blue-600/70 hover:bg-blue-100 hover:text-blue-700'
+                  }`}
+                >
+                  {page}
+                </button>
+              ))}
+            </div>
+
+            <button 
+              onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} 
+              disabled={currentPage === totalPages} 
+              className="p-2 rounded-full text-blue-500 hover:bg-blue-100 hover:text-blue-700 disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-blue-500 transition-all"
+            >
+              <ChevronRight size={20} strokeWidth={2.5} />
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* User Form Modal Component */}
       <UserFormModal 
