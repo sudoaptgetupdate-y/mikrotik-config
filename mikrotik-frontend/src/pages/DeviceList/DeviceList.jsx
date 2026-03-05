@@ -139,9 +139,19 @@ const DeviceList = () => {
 
   const handleDownloadLatest = async (device) => { 
     if (!device.configData) return toast.error("ไม่พบข้อมูล Config ของอุปกรณ์นี้");
+    
     const processDownload = async () => {
       await deviceService.logDownload(device.id, null); 
-      const script = generateMikrotikScript(device.configData);
+      
+      // ✅ นำ apiToken ที่อยู่นอก configData มารวมกัน ก่อนส่งให้ Generator
+      const payloadForGenerator = {
+        ...device.configData,
+        token: device.apiToken 
+      };
+
+      // ✅ ส่ง payload ที่รวม token แล้วเข้าไป
+      const script = generateMikrotikScript(payloadForGenerator);
+      
       const element = document.createElement("a");
       element.href = URL.createObjectURL(new Blob([script], {type: 'text/plain'}));
       element.download = `${device.name.replace(/\s+/g, '_')}_latest.rsc`;
@@ -149,6 +159,7 @@ const DeviceList = () => {
       element.click();
       document.body.removeChild(element);
     };
+
     toast.promise(processDownload(), {
       loading: 'กำลังสร้างสคริปต์...',
       success: 'ดาวน์โหลดสคริปต์สำเร็จ!',
@@ -273,7 +284,7 @@ const DeviceList = () => {
     return matchesSearch; 
   });
 
-  // 🌟 เรียงลำดับอุปกรณ์ที่มีปัญหาขึ้นบนสุด
+  // 🌟 ปรับปรุงการเรียงลำดับใหม่ ให้ Acknowledged ไปอยู่ด้านล่าง Online
   const sortedDevices = filteredDevices.sort((a, b) => {
     if (statusFilter === 'ACTIVE_ONLY' || statusFilter === 'ALL') {
       const stateA = getDeviceStatus(a).state;
@@ -282,8 +293,8 @@ const DeviceList = () => {
       const priority = {
         'offline': 1,
         'warning': 2,
-        'acknowledged': 3,
-        'online': 4,
+        'online': 3,       // ดัน online ขึ้นมาแสดงก่อน
+        'acknowledged': 4, // นำ acknowledged ไปไว้ด้านล่าง online
         'deleted': 5
       };
       
