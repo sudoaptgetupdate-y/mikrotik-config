@@ -23,7 +23,9 @@ const ModelManager = () => {
   const [showDeleted, setShowDeleted] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 12;
+  
+  // ✅ ปรับลดจำนวนการแสดงผลต่อหน้าให้พอดีกับหน้าจอ (2 แถว แถวละ 3)
+  const itemsPerPage = 6;
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
@@ -77,21 +79,16 @@ const ModelManager = () => {
     if (!newModel.name) return toast.error("Please enter model name");
     if (newModel.ports.length === 0) return toast.error("Please add at least 1 port");
 
-    // 🔴 1. สร้าง Payload ใหม่เพื่อจัดฟอร์แมตข้อมูลก่อนส่ง
     const payloadToSend = {
       name: newModel.name,
-      // ถ้าไม่ได้กรอกรูป ให้ส่งเป็น null หรือ undefined แทนค่าว่าง ("")
       imageUrl: newModel.imageUrl.trim() === '' ? null : newModel.imageUrl, 
-      
-      // แปลงข้อมูล Port ให้ตรงกับที่ Backend ต้องการ
       ports: newModel.ports.map(p => ({
         name: p.name,
-        type: p.type, // เช่น 'ETHER', 'SFP'
-        defaultRole: p.defaultRole.toUpperCase() // 🔴 ลองแปลงเป็นตัวใหญ่ 'LAN', 'WAN' เผื่อ Backend บังคับ
+        type: p.type, 
+        defaultRole: p.defaultRole.toUpperCase() 
       }))
     };
 
-    // 🔴 2. เปลี่ยนมาส่ง payloadToSend แทน newModel
     const savePromise = isEditMode 
       ? modelService.updateModel(editingId, payloadToSend)
       : modelService.createModel(payloadToSend);
@@ -108,7 +105,7 @@ const ModelManager = () => {
       setIsModalOpen(false);
       queryClient.invalidateQueries({ queryKey: ['models'] });
     } catch (error) {
-      console.error("Save Error:", error.response?.data); // พิมพ์ Error ลง Console เพื่อให้เราดูง่ายๆ
+      console.error("Save Error:", error.response?.data); 
     }
   };
 
@@ -182,42 +179,94 @@ const ModelManager = () => {
   // Render
   // ==========================================
   return (
-    <div className="space-y-6 animate-in fade-in duration-500 pb-10">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
-            <Server className="text-blue-600" /> Hardware Models
-          </h2>
-          <p className="text-slate-500">Manage MikroTik device models and port templates</p>
+    <div className="space-y-6 pb-28 animate-in fade-in duration-500">
+      
+      {/* 1. Page Header (แบบ Classic & Clean) */}
+      <div className="space-y-4">
+        {/* Breadcrumbs */}
+        <nav className="flex items-center text-sm font-medium text-slate-500 gap-2">
+          <a href="/dashboard" className="hover:text-blue-600 transition-colors">Home</a>
+          <ChevronRight size={14} className="text-slate-400" />
+          <span className="text-slate-400">Device Management</span>
+          <ChevronRight size={14} className="text-slate-400" />
+          <span className="text-slate-800">Hardware Models</span>
+        </nav>
+
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold text-slate-800 tracking-tight flex items-center gap-2">
+              <Server className="text-blue-600" size={28} /> 
+              Hardware Models
+            </h1>
+            <p className="text-sm text-slate-500 mt-1">
+              จัดการรุ่นอุปกรณ์ MikroTik และเทมเพลตพอร์ต (Port Templates)
+            </p>
+          </div>
+          
+          <div className="flex flex-wrap items-center gap-3">
+            <button 
+              onClick={() => {
+                setShowDeleted(!showDeleted);
+                setCurrentPage(1);
+              }}
+              className={`px-4 py-2.5 rounded-lg flex items-center gap-2 transition-all font-semibold text-sm border justify-center ${showDeleted ? 'bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-200' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50 shadow-sm'}`}
+            >
+              <Archive size={18} strokeWidth={2.5} /> {showDeleted ? 'View Active Models' : 'Deleted Models'}
+            </button>
+            <button 
+              onClick={handleOpenCreate} 
+              className="shrink-0 bg-blue-50 text-blue-700 px-5 py-2.5 rounded-lg flex items-center justify-center gap-2 hover:bg-blue-100 transition-all font-semibold text-sm border border-blue-100"
+            >
+              <Plus size={18} strokeWidth={2.5} /> 
+              <span>Add New Model</span>
+            </button>
+          </div>
         </div>
-        <div className="flex flex-wrap items-center gap-3">
-          <button 
-            onClick={() => {
-              setShowDeleted(!showDeleted);
-              setCurrentPage(1);
-            }}
-            className={`px-4 py-2.5 rounded-xl flex items-center gap-2 transition font-medium w-full md:w-auto justify-center ${showDeleted ? 'bg-slate-200 text-slate-700 hover:bg-slate-300' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
-          >
-            <Archive size={20} /> {showDeleted ? 'View Active Models' : 'Deleted Models'}
-          </button>
-          <button onClick={handleOpenCreate} className="bg-blue-600 text-white px-4 py-2.5 rounded-xl flex items-center gap-2 hover:bg-blue-700 transition font-medium shadow-sm w-full md:w-auto justify-center">
-            <Plus size={20} /> Add New Model
-          </button>
+
+        {/* เส้นกั้น Solid Divider */}
+        <hr className="border-slate-200 mt-2" />
+      </div>
+
+      {/* 2. Control Toolbar (Search & Filters) */}
+      <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-sm flex flex-col sm:flex-row justify-between items-center gap-4">
+        <div className="relative w-full sm:max-w-md">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+          <input 
+            type="text" 
+            placeholder="ค้นหารุ่นอุปกรณ์ (Model Name)..." 
+            className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-sm" 
+            value={searchTerm} 
+            onChange={handleSearchChange} 
+          />
+        </div>
+        <div className="text-sm text-slate-500 font-medium px-2">
+          พบทั้งหมด <span className="text-slate-800 font-bold">{filteredModels.length}</span> รุ่น
         </div>
       </div>
 
-      <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-        <div className="relative w-full md:max-w-md">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
-          <input type="text" placeholder="Search model name..." className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-100 transition" value={searchTerm} onChange={handleSearchChange} />
-        </div>
-      </div>
-
+      {/* 3. Content Area */}
       {loading ? (
-        <div className="p-10 text-center text-slate-400">Loading models...</div>
+        <div className="flex flex-col items-center justify-center py-20 text-slate-400">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-4"></div>
+          <p>กำลังโหลดข้อมูล Models...</p>
+        </div>
       ) : filteredModels.length === 0 ? (
-        <div className="p-10 text-center text-slate-400 border border-dashed border-slate-300 rounded-xl bg-slate-50">
-           {searchTerm ? "No models match your search." : (showDeleted ? "No deleted models found." : "No models found. Create a new one!")}
+        <div className="bg-white border border-dashed border-slate-300 rounded-2xl flex flex-col items-center justify-center min-h-[400px] text-center p-8 shadow-sm">
+          <div className="bg-slate-50 p-4 rounded-full mb-4">
+            <Server size={48} className="text-slate-300" />
+          </div>
+          <h3 className="text-lg font-bold text-slate-700 mb-1">ไม่พบข้อมูลรุ่นอุปกรณ์</h3>
+          <p className="text-slate-500 text-sm max-w-sm mb-6">
+            {searchTerm ? "ไม่พบผลลัพธ์ที่ตรงกับการค้นหา" : (showDeleted ? "ไม่มีข้อมูลรุ่นอุปกรณ์ที่ถูกลบ" : "ยังไม่มีข้อมูลรุ่นอุปกรณ์ในระบบ กรุณาเพิ่มรุ่นใหม่เพื่อเริ่มต้น")}
+          </p>
+          {!searchTerm && !showDeleted && (
+            <button 
+              onClick={handleOpenCreate} 
+              className="text-blue-600 font-medium text-sm hover:underline flex items-center gap-1"
+            >
+              <Plus size={16} /> สร้างรุ่นอุปกรณ์ใหม่
+            </button>
+          )}
         </div>
       ) : (
         <>
@@ -235,13 +284,42 @@ const ModelManager = () => {
             ))}
           </div>
 
+          {/* 4. Pagination Controls (Tinted Glass) */}
           {totalPages > 1 && (
-            <div className="flex flex-col sm:flex-row justify-between items-center bg-white p-4 rounded-xl border border-slate-200 shadow-sm gap-4">
-              <div className="text-sm text-slate-500">Showing <span className="font-medium text-slate-700">{(currentPage - 1) * itemsPerPage + 1}</span> to <span className="font-medium text-slate-700">{Math.min(currentPage * itemsPerPage, filteredModels.length)}</span> of <span className="font-medium text-slate-700">{filteredModels.length}</span> models</div>
-              <div className="flex items-center gap-2">
-                <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="p-1.5 rounded-md border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition"><ChevronLeft size={18} /></button>
-                <span className="text-sm font-medium text-slate-600 px-3 py-1 bg-slate-50 rounded-md border border-slate-100">Page {currentPage} of {totalPages}</span>
-                <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} className="p-1.5 rounded-md border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition"><ChevronRight size={18} /></button>
+            <div className="sticky bottom-6 z-30 flex justify-center mt-8 pointer-events-none">
+              <div className="flex items-center gap-1 p-1.5 bg-blue-50/80 backdrop-blur-md border border-blue-200/60 rounded-full shadow-[0_8px_30px_rgb(59,130,246,0.15)] pointer-events-auto transition-all hover:bg-blue-50/95">
+                
+                <button 
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))} 
+                  disabled={currentPage === 1} 
+                  className="p-2 rounded-full text-blue-500 hover:bg-blue-100 hover:text-blue-700 disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-blue-500 transition-all"
+                >
+                  <ChevronLeft size={20} strokeWidth={2.5} />
+                </button>
+                
+                <div className="flex items-center gap-1 px-2">
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                    <button
+                      key={page}
+                      onClick={() => setCurrentPage(page)}
+                      className={`w-9 h-9 rounded-full text-sm font-bold transition-all ${
+                        currentPage === page 
+                          ? 'bg-blue-600 text-white shadow-md shadow-blue-500/30' 
+                          : 'text-blue-600/70 hover:bg-blue-100 hover:text-blue-700'
+                      }`}
+                    >
+                      {page}
+                    </button>
+                  ))}
+                </div>
+
+                <button 
+                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} 
+                  disabled={currentPage === totalPages} 
+                  className="p-2 rounded-full text-blue-500 hover:bg-blue-100 hover:text-blue-700 disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-blue-500 transition-all"
+                >
+                  <ChevronRight size={20} strokeWidth={2.5} />
+                </button>
               </div>
             </div>
           )}
