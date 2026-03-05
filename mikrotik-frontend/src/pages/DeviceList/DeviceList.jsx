@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Activity, Plus } from 'lucide-react';
+import { Activity, Plus, ChevronRight } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import toast from 'react-hot-toast';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -273,14 +273,12 @@ const DeviceList = () => {
     return matchesSearch; 
   });
 
-  // 🌟 เพิ่มส่วนนี้: เรียงลำดับอุปกรณ์ที่มีปัญหาขึ้นบนสุด
+  // 🌟 เรียงลำดับอุปกรณ์ที่มีปัญหาขึ้นบนสุด
   const sortedDevices = filteredDevices.sort((a, b) => {
-    // ให้ทำงานเฉพาะเมื่อดูหน้า Active Devices (หรือหน้า All)
     if (statusFilter === 'ACTIVE_ONLY' || statusFilter === 'ALL') {
       const stateA = getDeviceStatus(a).state;
       const stateB = getDeviceStatus(b).state;
       
-      // กำหนดลำดับความสำคัญ (เลขน้อย = อยู่บนสุด)
       const priority = {
         'offline': 1,
         'warning': 2,
@@ -292,30 +290,52 @@ const DeviceList = () => {
       const rankA = priority[stateA] || 99;
       const rankB = priority[stateB] || 99;
       
-      // ถ้าสถานะต่างกัน ให้เรียงตามลำดับ Priority ที่ตั้งไว้
       if (rankA !== rankB) {
         return rankA - rankB;
       }
     }
-    return 0; // ถ้าสถานะเหมือนกัน ปล่อยไว้ลำดับเดิม
+    return 0; 
   });
+  
   const displayedDevices = sortedDevices.slice(0, displayLimit);
 
   return (
-    <div className="space-y-6 animate-fade-in pb-4">
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
-        <div>
-          <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
-            <Activity className="text-blue-600" /> Managed Routers
-          </h2>
-          <p className="text-slate-500 mt-1">
-            Monitor and manage your MikroTik devices 
-            (Last updated: {lastUpdatedText})
-          </p>
+    <div className="space-y-6 pb-28 animate-in fade-in duration-500">
+      
+      {/* 1. Page Header (แบบ Classic & Clean) */}
+      <div className="space-y-4">
+        {/* Breadcrumbs */}
+        <nav className="flex items-center text-sm font-medium text-slate-500 gap-2">
+          <a href="/dashboard" className="hover:text-blue-600 transition-colors">Home</a>
+          <ChevronRight size={14} className="text-slate-400" />
+          <span className="text-slate-400">Device Management</span>
+          <ChevronRight size={14} className="text-slate-400" />
+          <span className="text-slate-800">Managed Routers</span>
+        </nav>
+
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold text-slate-800 tracking-tight flex items-center gap-2">
+              <Activity className="text-blue-600" size={28} /> 
+              Managed Routers
+            </h1>
+            <p className="text-sm text-slate-500 mt-1">
+              ติดตามสถานะและจัดการอุปกรณ์ MikroTik ในระบบ (อัปเดตล่าสุด: <span className="font-semibold text-slate-700">{lastUpdatedText}</span>)
+            </p>
+          </div>
+          
+          {/* ปุ่ม Create สไตล์ Soft/Tonal */}
+          <button 
+            onClick={handleAddClick} 
+            className="shrink-0 bg-blue-50 text-blue-700 px-5 py-2.5 rounded-lg flex items-center justify-center gap-2 hover:bg-blue-100 transition-all font-semibold text-sm border border-blue-100"
+          >
+            <Plus size={18} strokeWidth={2.5} /> 
+            <span>Add New Device</span>
+          </button>
         </div>
-        <button onClick={handleAddClick} className="bg-blue-600 text-white w-full md:w-auto px-4 py-2.5 rounded-xl flex items-center justify-center gap-2 hover:bg-blue-700 shadow-sm transition-all font-medium shrink-0">
-          <Plus size={20} /> Add New Device
-        </button>
+
+        {/* เส้นกั้น Solid Divider */}
+        <hr className="border-slate-200 mt-2" />
       </div>
 
       <DeviceListToolbar searchTerm={searchTerm} setSearchTerm={setSearchTerm} statusFilter={statusFilter} setStatusFilter={setStatusFilter} onRefresh={handleRefresh} loading={loading} />
