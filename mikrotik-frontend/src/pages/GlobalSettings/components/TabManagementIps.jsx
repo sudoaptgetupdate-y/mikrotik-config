@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Plus, Trash2, Loader2, Network } from 'lucide-react';
+import { useState, useMemo, useEffect } from 'react';
+import { Plus, Trash2, Loader2, Network, ChevronLeft, ChevronRight } from 'lucide-react';
 import apiClient from '../../../utils/apiClient';
 import toast from 'react-hot-toast';
 import { useQueryClient } from '@tanstack/react-query';
@@ -14,6 +14,24 @@ export default function TabManagementIps({ initialData }) {
   const [managementIps, setManagementIps] = useState(initialData || []);
   const [newManagementIp, setNewManagementIp] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 9; // แสดง 9 รายการ (3 แถว แถวละ 3)
+
+  // ==========================================
+  // Pagination Logic
+  // ==========================================
+  const totalPages = Math.ceil(managementIps.length / itemsPerPage) || 1;
+  const paginatedIps = useMemo(() => {
+    return managementIps.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+  }, [managementIps, currentPage]);
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(Math.max(1, totalPages));
+    }
+  }, [totalPages, currentPage]);
 
   // ==========================================
   // Handlers (Actions)
@@ -31,7 +49,7 @@ export default function TabManagementIps({ initialData }) {
     try {
       await savePromise;
       setManagementIps(updatedList);
-      queryClient.invalidateQueries({ queryKey: ['settings'] }); // ✅ ล้าง Cache
+      queryClient.invalidateQueries({ queryKey: ['settings'] }); 
       if (onSuccess) onSuccess();
     } catch (error) { console.error(error); } 
     finally { setIsSaving(false); }
@@ -43,10 +61,15 @@ export default function TabManagementIps({ initialData }) {
     if (managementIps.includes(cleanIp)) return toast.error(`IP "${cleanIp}" มีอยู่ในระบบแล้ว`);
 
     const updatedList = [...managementIps, cleanIp];
-    handleSaveToBackend(updatedList, () => { setNewManagementIp(''); });
+    handleSaveToBackend(updatedList, () => { 
+      setNewManagementIp(''); 
+      setCurrentPage(Math.ceil(updatedList.length / itemsPerPage));
+    });
   };
 
   const removeManagementIp = async (index, ip) => {
+    const realIndex = (currentPage - 1) * itemsPerPage + index;
+
     const result = await Swal.fire({
       title: 'ยืนยันการลบ IP?',
       text: `คุณต้องการลบ IP "${ip}" ออกจาก Allow List ใช่หรือไม่?`,
@@ -66,7 +89,7 @@ export default function TabManagementIps({ initialData }) {
     });
 
     if (result.isConfirmed) {
-      const updatedList = managementIps.filter((_, i) => i !== index);
+      const updatedList = managementIps.filter((_, i) => i !== realIndex);
       handleSaveToBackend(updatedList);
     }
   };
@@ -76,35 +99,63 @@ export default function TabManagementIps({ initialData }) {
   // ==========================================
   return (
     <div className="flex-1 flex flex-col h-full">
-      <div className="mb-6 pb-4 border-b border-slate-100">
+      <div className="mb-6 pb-4 border-b border-slate-100 shrink-0">
         <h3 className="text-lg font-bold text-slate-800">Management IPs (Allow List)</h3>
         <p className="text-sm text-slate-500 mt-1">IP ที่ได้รับอนุญาตให้เข้าถึงระบบจัดการของอุปกรณ์ (บันทึกอัตโนมัติ)</p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
-        {managementIps.map((ip, idx) => (
-          <div key={idx} className="flex items-center gap-3 bg-slate-50 p-3 rounded-xl border border-slate-200 shadow-sm transition-all hover:border-emerald-300">
-            <Network size={16} className="text-emerald-500 shrink-0" />
-            <span className="flex-1 text-sm font-mono text-emerald-900 font-bold">{ip}</span>
-            <button onClick={() => removeManagementIp(idx, ip)} disabled={isSaving} className="text-slate-400 hover:text-red-600 bg-white border border-slate-200 hover:bg-red-50 p-2 rounded-lg transition-colors disabled:opacity-50">
-              <Trash2 size={16} />
-            </button>
-          </div>
-        ))}
-      </div>
-
-      {managementIps.length === 0 && (
-        <div className="text-center py-8 text-slate-400 text-sm border border-dashed border-slate-300 rounded-xl bg-slate-50 mb-6">
-          ไม่มี IP ใน Allow List (อุปกรณ์จะอนุญาตให้เข้าจากทุก IP ซึ่งไม่ปลอดภัย)
-        </div>
-      )}
-      
-      <div className="flex flex-col sm:flex-row items-center gap-3 pt-6 border-t border-slate-100 mt-auto">
-        <input type="text" placeholder="e.g. 10.234.56.0/24 หรือ 192.168.1.100" value={newManagementIp} onChange={e => setNewManagementIp(e.target.value)} onKeyDown={e => e.key === 'Enter' && addManagementIp()} className="w-full sm:flex-1 border border-slate-300 rounded-xl px-4 py-3 text-sm font-mono outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-50 transition-all" />
-        <button onClick={addManagementIp} disabled={isSaving} className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-400 text-white px-6 py-3 rounded-xl flex items-center justify-center gap-2 font-bold transition-all shadow-sm whitespace-nowrap">
-          {isSaving ? <Loader2 size={18} className="animate-spin" /> : <Plus size={18} />} Add IP Address
+      {/* 🟢 ย้ายฟอร์มเพิ่มข้อมูลมาไว้ด้านบน */}
+      <div className="flex flex-col sm:flex-row items-center gap-3 mb-6 bg-white p-4 border border-slate-200 rounded-xl shadow-sm shrink-0">
+        <input type="text" placeholder="e.g. 10.234.56.0/24 หรือ 192.168.1.100" value={newManagementIp} onChange={e => setNewManagementIp(e.target.value)} onKeyDown={e => e.key === 'Enter' && addManagementIp()} className="w-full sm:flex-1 border border-slate-300 rounded-xl px-4 py-2.5 text-sm font-mono outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-50 transition-all" />
+        <button onClick={addManagementIp} disabled={isSaving} className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-400 text-white px-6 py-2.5 rounded-xl flex items-center justify-center gap-2 font-bold transition-all shadow-sm whitespace-nowrap">
+          {isSaving ? <Loader2 size={18} className="animate-spin" /> : <Plus size={18} />} Add IP
         </button>
       </div>
+
+      {/* 🟢 รายการข้อมูล */}
+      <div className="flex-1 flex flex-col justify-between">
+        <div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+            {paginatedIps.map((ip, idx) => (
+              <div key={idx} className="flex items-center gap-3 bg-slate-50 p-3 rounded-xl border border-slate-200 shadow-sm transition-all hover:border-emerald-300">
+                <Network size={16} className="text-emerald-500 shrink-0" />
+                <span className="flex-1 text-sm font-mono text-emerald-900 font-bold">{ip}</span>
+                <button onClick={() => removeManagementIp(idx, ip)} disabled={isSaving} className="text-slate-400 hover:text-red-600 bg-white border border-slate-200 hover:bg-red-50 p-2 rounded-lg transition-colors disabled:opacity-50">
+                  <Trash2 size={16} />
+                </button>
+              </div>
+            ))}
+          </div>
+
+          {managementIps.length === 0 && (
+            <div className="text-center py-8 text-slate-400 text-sm border border-dashed border-slate-300 rounded-xl bg-slate-50 mb-6">
+              ไม่มี IP ใน Allow List (อุปกรณ์จะอนุญาตให้เข้าจากทุก IP ซึ่งไม่ปลอดภัย)
+            </div>
+          )}
+        </div>
+
+        {/* 🟢 Pagination Controls */}
+        {totalPages > 1 && (
+          <div className="flex justify-center mt-2 mb-4">
+            <div className="flex items-center gap-1 p-1.5 bg-blue-50/80 backdrop-blur-md border border-blue-200/60 rounded-full shadow-[0_4px_20px_rgb(59,130,246,0.1)] transition-all">
+              <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="p-2 rounded-full text-blue-500 hover:bg-blue-100 hover:text-blue-700 disabled:opacity-40 disabled:hover:bg-transparent transition-all">
+                <ChevronLeft size={20} strokeWidth={2.5} />
+              </button>
+              <div className="flex items-center gap-1 px-2">
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                  <button key={page} onClick={() => setCurrentPage(page)} className={`w-9 h-9 rounded-full text-sm font-bold transition-all ${currentPage === page ? 'bg-blue-600 text-white shadow-md' : 'text-blue-600/70 hover:bg-blue-100'}`}>
+                    {page}
+                  </button>
+                ))}
+              </div>
+              <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} className="p-2 rounded-full text-blue-500 hover:bg-blue-100 hover:text-blue-700 disabled:opacity-40 disabled:hover:bg-transparent transition-all">
+                <ChevronRight size={20} strokeWidth={2.5} />
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+      
     </div>
   );
 }

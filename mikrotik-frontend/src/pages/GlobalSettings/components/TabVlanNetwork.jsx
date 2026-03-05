@@ -80,13 +80,14 @@ export default function TabVlanNetwork({ initialData }) {
           <button onClick={addDefaultNetwork} className="justify-center bg-slate-800 hover:bg-slate-900 text-white px-5 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 transition-all">
             <Plus size={16} /> Add Network
           </button>
-          <button onClick={handleSave} disabled={isSaving} className="justify-center bg-purple-600 hover:bg-purple-700 text-white px-5 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 transition-all">
+          <button onClick={handleSave} disabled={isSaving} className="justify-center bg-purple-600 hover:bg-purple-700 text-white px-5 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 transition-all shadow-sm">
             {isSaving ? <Loader2 size={16} className="animate-spin"/> : <Save size={16} />} Save Defaults
           </button>
         </div>
       </div>
 
-      <div className="space-y-3">
+      {/* ✅ ปรับ Container นี้ให้สามารถ Scroll แนวตั้งได้ */}
+      <div className="space-y-3 overflow-y-auto max-h-[450px] pr-2 pb-2 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-200 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-slate-300 transition-all">
         {defaultNetworks.map((net) => (
           <div key={net.id} className="grid grid-cols-2 md:grid-cols-12 gap-3 items-center bg-slate-50 p-4 rounded-xl border border-slate-200 transition-all hover:border-purple-200 hover:shadow-sm">
             <div className="col-span-1 md:col-span-2">

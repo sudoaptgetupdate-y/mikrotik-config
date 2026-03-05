@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Shield, Network, Globe, Settings2, Database, Loader2, Bell } from 'lucide-react';
+import { Shield, Network, Globe, Settings2, Database, Loader2, Bell, ChevronRight } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 
 import { settingService } from '../../services/settingService';
@@ -42,12 +42,36 @@ const GlobalSettings = () => {
   }, [rawSettings]);
 
   return (
-    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2"><Shield className="text-blue-600" size={28} /> Global System Settings</h2>
-          <p className="text-slate-500 mt-1 font-medium">ตั้งค่าพารามิเตอร์ส่วนกลางและดูแลระบบ</p>
+    <div className="space-y-6 pb-12 animate-in fade-in duration-500">
+      
+      {/* 1. Page Header (แบบ Classic & Clean) */}
+      <div className="space-y-4">
+        {/* Breadcrumbs */}
+        <nav className="flex items-center text-sm font-medium text-slate-500 gap-2">
+          <a href="/dashboard" className="hover:text-blue-600 transition-colors">Home</a>
+          <ChevronRight size={14} className="text-slate-400" />
+          <span className="text-slate-400">System Administration</span>
+          <ChevronRight size={14} className="text-slate-400" />
+          <span className="text-slate-800">Global Settings</span>
+        </nav>
+
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold text-slate-800 tracking-tight flex items-center gap-2">
+              <Shield className="text-blue-600" size={28} /> 
+              Global System Settings
+            </h1>
+            <p className="text-sm text-slate-500 mt-1">
+              ตั้งค่าพารามิเตอร์ส่วนกลาง ระบบแจ้งเตือน และการดูแลรักษา
+            </p>
+          </div>
+          
+          {/* หมายเหตุ: หน้า Global Settings มักจะไม่มีปุ่ม Create ที่ Header 
+              เพราะ Action ต่างๆ จะไปอยู่แยกกันในแต่ละ Tab ครับ */}
         </div>
+
+        {/* เส้นกั้น Solid Divider */}
+        <hr className="border-slate-200 mt-2" />
       </div>
 
       {isLoading ? (
@@ -57,6 +81,7 @@ const GlobalSettings = () => {
         </div>
       ) : (
         <>
+          {/* Tabs Menu */}
           <div className="flex border-b border-slate-200 overflow-x-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
             <button onClick={() => setActiveTab('ADMINS')} className={`flex items-center gap-2 px-4 sm:px-6 py-3 font-bold border-b-2 transition-colors whitespace-nowrap ${activeTab === 'ADMINS' ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}><Shield size={18} /> Router Admins</button>
             <button onClick={() => setActiveTab('NETWORKS')} className={`flex items-center gap-2 px-4 sm:px-6 py-3 font-bold border-b-2 transition-colors whitespace-nowrap ${activeTab === 'NETWORKS' ? 'border-emerald-600 text-emerald-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}><Network size={18} /> Management IPs</button>
@@ -66,7 +91,8 @@ const GlobalSettings = () => {
             <button onClick={() => setActiveTab('ALERTS')} className={`flex items-center gap-2 px-4 sm:px-6 py-3 font-bold border-b-2 transition-colors whitespace-nowrap ${activeTab === 'ALERTS' ? 'border-rose-500 text-rose-500' : 'border-transparent text-slate-500 hover:text-slate-700'}`}><Bell size={18} /> Alert Thresholds</button>
           </div>
 
-          <div className="bg-white p-4 sm:p-6 md:p-8 rounded-2xl border border-slate-200 shadow-sm min-h-[400px] flex flex-col">
+          {/* Tab Content Area */}
+          <div className="bg-white p-4 sm:p-6 md:p-8 rounded-b-2xl rounded-tr-2xl border border-t-0 border-slate-200 shadow-sm min-h-[400px] flex flex-col transition-all">
             {activeTab === 'ADMINS' && <TabAdmins initialData={settingsData.ROUTER_ADMINS} />}
             {activeTab === 'NETWORKS' && <TabManagementIps initialData={settingsData.MANAGEMENT_IPS} />}
             {activeTab === 'PBR' && <TabPbrTargets initialData={settingsData.MONITOR_IPS} />}
