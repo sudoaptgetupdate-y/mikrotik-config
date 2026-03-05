@@ -142,7 +142,7 @@ exports.handleWebhook = async (req, res) => {
 // ==========================================
 exports.initDailyReportCron = () => {
   // เวลา '30 7 * * *' หมายถึง 07:30 น. ของทุกวัน
-  cron.schedule('* * * * *', async () => {
+  cron.schedule('30 7 * * *', async () => {
     console.log("⏰ [CRON] Starting Daily Telegram Report...");
 
     try {
