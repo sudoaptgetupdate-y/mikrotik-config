@@ -1,29 +1,35 @@
 import axios from 'axios';
 
-// ✅ เพิ่มระบบ Auto-Detect จาก URL ปัจจุบัน
 const currentHost = window.location.hostname;
 const currentProtocol = window.location.protocol;
 
-// ถ้าเป็นโหมด Production ใช้ '' (ยิงเข้า Domain หลัก)
-// ถ้าเป็นโหมด Dev ให้ดึง IP หรือ Hostname ปัจจุบันมาใส่ Port 3000
 const baseURL = import.meta.env.PROD 
   ? '' 
   : `${currentProtocol}//${currentHost}:3000`;
+
+// ✅ 1. สร้างตัวแปรเก็บ Token ไว้ใน Memory ของ JavaScript แทน LocalStorage
+let inMemoryToken = null;
+
+// สร้างฟังก์ชันสำหรับจัดการ Token เพื่อให้ไฟล์อื่นเรียกใช้ได้
+export const getToken = () => inMemoryToken;
+export const setToken = (token) => {
+  inMemoryToken = token;
+};
 
 const apiClient = axios.create({
   baseURL: baseURL, 
   headers: {
     'Content-Type': 'application/json',
   },
-  withCredentials: true // ✅ สั่งให้ Axios แนบ Cookie ไปด้วยทุกครั้ง
+  withCredentials: true // สำคัญมาก: ส่ง HTTP-Only Cookie เสมอ
 });
 
-// ✅ ตัวแปรสำหรับเก็บ Promise ของการขอ Token ใหม่
 let refreshTokenPromise = null;
 
 apiClient.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('token');
+    // ✅ 2. ดึง Token จาก Memory
+    const token = getToken();
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -48,12 +54,12 @@ apiClient.interceptors.response.use(
         refreshTokenPromise = axios.post(`${baseURL}/api/auth/refresh-token`, {}, { withCredentials: true })
           .then(res => {
             const newToken = res.data.token;
-            localStorage.setItem('token', newToken); 
+            setToken(newToken); // ✅ 3. อัปเดต Token ลงใน Memory
             return newToken; 
           })
           .catch(err => {
-            localStorage.removeItem('token');
-            localStorage.removeItem('user');
+            setToken(null); // ✅ ล้าง Token ทิ้ง
+            localStorage.removeItem('user'); // ล้างโปรไฟล์ผู้ใช้
             if (window.location.pathname !== '/login') {
               window.location.href = '/login'; 
             }

@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Users, Plus, Search, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Users, Plus, Search, ChevronLeft, ChevronRight, Layers } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import Swal from 'sweetalert2';
@@ -63,7 +63,7 @@ const GroupManagement = () => {
     );
   }, [filteredGroups, currentPage]);
 
-  // ตรวจสอบไม่ให้ currentPage เกิน totalPages กรณีลบข้อมูลหน้าสุดท้ายทิ้งจนหมด
+  // ตรวจสอบไม่ให้ currentPage เกิน totalPages
   useEffect(() => {
     if (currentPage > totalPages) {
       setCurrentPage(Math.max(1, totalPages));
@@ -109,7 +109,6 @@ const GroupManagement = () => {
   };
 
   const handleDeleteGroup = async (group) => {
-    // ดักไว้ก่อนเลยว่าห้ามลบ
     if (group.name === 'All Devices') {
       return toast.error('ไม่อนุญาตให้ลบกลุ่มพื้นฐานของระบบ (Default Group) ได้');
     }
@@ -117,6 +116,10 @@ const GroupManagement = () => {
     const result = await Swal.fire({
       title: 'ยืนยันการลบกลุ่ม?', text: `คุณแน่ใจหรือไม่ว่าต้องการลบกลุ่ม "${group.name}"?`, icon: 'warning',
       showCancelButton: true, confirmButtonColor: '#ef4444', confirmButtonText: 'ใช่, ลบเลย!', cancelButtonText: 'ยกเลิก',
+      customClass: {
+        confirmButton: 'rounded-lg',
+        cancelButton: 'rounded-lg'
+      }
     });
     if (result.isConfirmed) {
       const deletePromise = groupService.deleteGroup(group.id);
@@ -161,58 +164,128 @@ const GroupManagement = () => {
   };
 
   return (
-    <div className="space-y-6 pb-10 animate-in fade-in duration-500">
-      {/* Header & Search */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
-        <div>
-          <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2"><Users className="text-blue-600" /> Device Groups</h2>
-          <p className="text-slate-500 mt-1">จัดการกลุ่มอุปกรณ์และการแจ้งเตือนผ่าน Telegram</p>
-        </div>
-        <div className="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto">
-          <div className="relative w-full sm:w-64">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-            <input type="text" placeholder="ค้นหากลุ่ม..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-100 transition" />
+    <div className="space-y-6 pb-28 animate-in fade-in duration-500">
+      
+      {/* 1. Page Header (แบบ Classic & Clean) */}
+      <div className="space-y-4">
+        {/* Breadcrumbs */}
+        <nav className="flex items-center text-sm font-medium text-slate-500 gap-2">
+          <a href="/" className="hover:text-blue-600 transition-colors">Home</a>
+          <ChevronRight size={14} className="text-slate-400" />
+          <a href="/devices" className="hover:text-blue-600 transition-colors">Devices</a>
+          <ChevronRight size={14} className="text-slate-400" />
+          <span className="text-slate-800">Groups</span>
+        </nav>
+
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold text-slate-800 tracking-tight flex items-center gap-2">
+              <Users className="text-blue-600" size={28} /> 
+              Device Groups
+            </h1>
+            <p className="text-sm text-slate-500 mt-1">
+              จัดการกลุ่มอุปกรณ์ การแบ่งสิทธิ์ และการแจ้งเตือนผ่าน Telegram
+            </p>
           </div>
-          <button onClick={openAddModal} className="w-full sm:w-auto bg-blue-600 text-white px-5 py-2.5 rounded-xl flex items-center justify-center gap-2 hover:bg-blue-700 font-bold shadow-sm whitespace-nowrap"><Plus size={20} /> Create Group</button>
+          
+          {/* ปุ่ม Create สไตล์ Soft/Tonal ที่คุณเลือก */}
+          <button 
+            onClick={openAddModal} 
+            className="shrink-0 bg-blue-50 text-blue-700 px-5 py-2.5 rounded-lg flex items-center justify-center gap-2 hover:bg-blue-100 transition-all font-semibold text-sm border border-blue-100"
+          >
+            <Plus size={18} strokeWidth={2.5} /> 
+            <span>Create Group</span>
+          </button>
+        </div>
+
+        {/* เส้นกั้น Solid Divider */}
+        <hr className="border-slate-200 mt-2" />
+      </div>
+
+      {/* 2. Control Toolbar (Search & Filters) */}
+      <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-sm flex flex-col sm:flex-row justify-between items-center gap-4">
+        <div className="relative w-full sm:max-w-md">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+          <input 
+            type="text" 
+            placeholder="ค้นหากลุ่มอุปกรณ์..." 
+            value={searchQuery} 
+            onChange={(e) => setSearchQuery(e.target.value)} 
+            className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-sm" 
+          />
+        </div>
+        <div className="text-sm text-slate-500 font-medium px-2">
+          พบทั้งหมด <span className="text-slate-800 font-bold">{filteredGroups.length}</span> กลุ่ม
         </div>
       </div>
 
-      {/* Group List */}
+      {/* 3. Content Area */}
       {loadingGroups ? (
-        <div className="p-10 text-center text-slate-400">Loading groups...</div>
+        <div className="flex flex-col items-center justify-center py-20 text-slate-400">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-4"></div>
+          <p>กำลังโหลดข้อมูลกลุ่ม...</p>
+        </div>
       ) : filteredGroups.length === 0 ? (
-        <div className="p-10 text-center text-slate-500 border border-dashed border-slate-300 rounded-2xl flex flex-col items-center justify-center min-h-[300px]">
-          <Users size={48} className="text-slate-300 mb-4" />
-          <p className="font-bold text-lg text-slate-700">No Groups Found</p>
+        <div className="bg-white border border-dashed border-slate-300 rounded-2xl flex flex-col items-center justify-center min-h-[400px] text-center p-8 shadow-sm">
+          <div className="bg-slate-50 p-4 rounded-full mb-4">
+            <Layers size={48} className="text-slate-300" />
+          </div>
+          <h3 className="text-lg font-bold text-slate-700 mb-1">ไม่พบกลุ่มอุปกรณ์</h3>
+          <p className="text-slate-500 text-sm max-w-sm mb-6">
+            คุณยังไม่มีกลุ่มอุปกรณ์ หรือไม่พบผลลัพธ์จากการค้นหา กรุณาสร้างกลุ่มใหม่เพื่อเริ่มต้น
+          </p>
+          <button 
+            onClick={openAddModal} 
+            className="text-blue-600 font-medium text-sm hover:underline flex items-center gap-1"
+          >
+            <Plus size={16} /> สร้างกลุ่มอุปกรณ์ใหม่
+          </button>
         </div>
       ) : (
         <div className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
             {paginatedGroups.map(group => (
               <GroupCard key={group.id} group={group} onEdit={openEditModal} onDelete={handleDeleteGroup} onManageDevices={openDeviceModal} />
             ))}
           </div>
 
-          {/* Pagination Controls */}
+          {/* Pagination Controls (Tinted Glass) */}
           {totalPages > 1 && (
-            <div className="flex justify-center items-center gap-4 mt-8 pt-6 border-t border-slate-100">
-              <button 
-                onClick={() => setCurrentPage(p => Math.max(1, p - 1))} 
-                disabled={currentPage === 1} 
-                className="flex items-center gap-1 px-4 py-2 rounded-xl bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:hover:bg-white transition font-bold text-sm shadow-sm"
-              >
-                <ChevronLeft size={16} /> ก่อนหน้า
-              </button>
-              <span className="text-sm font-bold text-slate-500 bg-slate-100 px-4 py-2 rounded-xl">
-                หน้า {currentPage} / {totalPages}
-              </span>
-              <button 
-                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} 
-                disabled={currentPage === totalPages} 
-                className="flex items-center gap-1 px-4 py-2 rounded-xl bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:hover:bg-white transition font-bold text-sm shadow-sm"
-              >
-                ถัดไป <ChevronRight size={16} />
-              </button>
+            <div className="sticky bottom-6 z-30 flex justify-center mt-8 pointer-events-none">
+              <div className="flex items-center gap-1 p-1.5 bg-blue-50/80 backdrop-blur-md border border-blue-200/60 rounded-full shadow-[0_8px_30px_rgb(59,130,246,0.15)] pointer-events-auto transition-all hover:bg-blue-50/95">
+                
+                <button 
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))} 
+                  disabled={currentPage === 1} 
+                  className="p-2 rounded-full text-blue-500 hover:bg-blue-100 hover:text-blue-700 disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-blue-500 transition-all"
+                >
+                  <ChevronLeft size={20} strokeWidth={2.5} />
+                </button>
+                
+                <div className="flex items-center gap-1 px-2">
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                    <button
+                      key={page}
+                      onClick={() => setCurrentPage(page)}
+                      className={`w-9 h-9 rounded-full text-sm font-bold transition-all ${
+                        currentPage === page 
+                          ? 'bg-blue-600 text-white shadow-md shadow-blue-500/30' 
+                          : 'text-blue-600/70 hover:bg-blue-100 hover:text-blue-700'
+                      }`}
+                    >
+                      {page}
+                    </button>
+                  ))}
+                </div>
+
+                <button 
+                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} 
+                  disabled={currentPage === totalPages} 
+                  className="p-2 rounded-full text-blue-500 hover:bg-blue-100 hover:text-blue-700 disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-blue-500 transition-all"
+                >
+                  <ChevronRight size={20} strokeWidth={2.5} />
+                </button>
+              </div>
             </div>
           )}
         </div>

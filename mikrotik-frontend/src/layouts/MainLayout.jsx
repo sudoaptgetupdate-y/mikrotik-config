@@ -149,12 +149,19 @@ const MainLayout = () => {
 
       {/* 💻 Content Area */}
       <main className="flex-1 overflow-y-auto relative w-full min-w-0 flex flex-col bg-slate-50/50">
+        
+        {/* 1. ส่วนเนื้อหาหลัก ใช้ flex-1 เพื่อให้ขยายเต็มพื้นที่ว่าง */}
         <div className="flex-1 p-4 md:p-8 max-w-7xl mx-auto w-full">
           <Outlet /> 
         </div>
-        <div className="px-4 md:px-8 max-w-7xl mx-auto w-full pb-4">
-          <Footer />
+        
+        {/* 2. ส่วน Footer Container ใช้ mt-auto เพื่อดันตัวเองไปติดขอบล่างสุดเสมอ */}
+        <div className="mt-auto w-full">
+          <div className="max-w-7xl mx-auto w-full px-4 md:px-8">
+            <Footer />
+          </div>
         </div>
+        
       </main>
 
     </div>

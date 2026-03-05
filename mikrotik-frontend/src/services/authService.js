@@ -9,5 +9,11 @@ export const authService = {
   logout: async () => {
     const response = await apiClient.post('/api/auth/logout');
     return response.data;
+  },
+
+  // ✅ฟังก์ชันสำหรับ Silent Refresh
+  refreshToken: async () => {
+    const response = await apiClient.post('/api/auth/refresh-token');
+    return response.data;
   }
 };
