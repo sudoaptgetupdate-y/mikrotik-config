@@ -70,7 +70,6 @@ export default function TabAdmins({ initialData }) {
     handleSaveToBackend(updatedList, () => {
       setNewAdmin({ username: '', password: '', group: 'full' });
       setShowNewPassword(false);
-      // เมื่อเพิ่มข้อมูลใหม่ ให้กระโดดไปหน้าสุดท้าย
       setCurrentPage(Math.ceil(updatedList.length / itemsPerPage));
     });
   };
@@ -112,7 +111,7 @@ export default function TabAdmins({ initialData }) {
         <p className="text-sm text-slate-500 mt-1">รายชื่อผู้ดูแลระบบที่จะถูกฝังเข้าไปในสคริปต์ MikroTik (บันทึกอัตโนมัติ)</p>
       </div>
       
-      {/* 🟢 ย้ายฟอร์มเพิ่มข้อมูลมาไว้ด้านบน */}
+      {/* ฟอร์มเพิ่มข้อมูล */}
       <div className="bg-white border border-slate-200 shadow-sm rounded-xl p-4 mb-6 shrink-0">
         <div className="grid grid-cols-2 md:flex items-center gap-3">
           <input type="text" placeholder="New Username" value={newAdmin.username} onChange={e => setNewAdmin({...newAdmin, username: e.target.value.replace(/\s/g, '')})} className="col-span-2 md:flex-1 border border-slate-300 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-50 transition-all" />
@@ -132,33 +131,36 @@ export default function TabAdmins({ initialData }) {
         </div>
       </div>
 
-      {/* 🟢 รายการข้อมูล */}
-      <div className="space-y-4 flex-1">
-        {paginatedAdmins.map((admin, idx) => (
-          <div key={idx} className="flex flex-wrap items-center gap-3 bg-slate-50 p-4 rounded-xl border border-slate-200 shadow-sm transition-all hover:border-blue-300">
-            <div className="flex-1 min-w-[120px] flex items-center gap-2">
-              <ShieldCheck size={18} className="text-blue-500" />
-              <span className="font-bold text-slate-700">{admin.username}</span>
+      {/* 🟢 Container ล็อคความสูงขั้นต่ำ (480px) เผื่อเนื้อหาหายไปในหน้าสุดท้าย */}
+      <div className="flex-1 flex flex-col min-h-[480px]">
+        {/* รายการข้อมูล (ปรับให้เหมือนหน้า IP) */}
+        <div className="flex-1 space-y-4">
+          {paginatedAdmins.map((admin, idx) => (
+            <div key={idx} className="flex flex-wrap items-center gap-3 bg-slate-50 p-3 rounded-xl border border-slate-200 shadow-sm transition-all hover:border-blue-300">
+              <div className="flex-1 min-w-[120px] flex items-center gap-2">
+                <ShieldCheck size={16} className="text-blue-500 shrink-0" />
+                <span className="flex-1 text-sm font-mono text-slate-800 font-bold">{admin.username}</span>
+              </div>
+              <div className="flex-1 min-w-[120px] text-slate-400 font-mono text-sm tracking-widest">••••••••</div>
+              <div className="w-24 text-center">
+                <span className={`px-2 py-1 rounded text-[11px] font-bold uppercase ${admin.group === 'full' ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-200 text-slate-600'}`}>
+                  Group: {admin.group}
+                </span>
+              </div>
+              <button onClick={() => removeAdmin(idx, admin.username)} disabled={isSaving} className="text-slate-400 hover:text-red-600 bg-white border border-slate-200 hover:bg-red-50 p-2 rounded-lg transition-colors disabled:opacity-50">
+                <Trash2 size={16} />
+              </button>
             </div>
-            <div className="flex-1 min-w-[120px] text-slate-400 font-mono text-sm tracking-widest">••••••••</div>
-            <div className="w-24 text-center">
-              <span className={`px-2 py-1 rounded text-[11px] font-bold uppercase ${admin.group === 'full' ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-200 text-slate-600'}`}>
-                Group: {admin.group}
-              </span>
-            </div>
-            <button onClick={() => removeAdmin(idx, admin.username)} disabled={isSaving} className="flex justify-center text-slate-400 hover:text-red-600 bg-white hover:bg-red-50 border border-slate-200 p-2 rounded-lg transition-colors disabled:opacity-50">
-              <Trash2 size={18} />
-            </button>
-          </div>
-        ))}
+          ))}
 
-        {routerAdmins.length === 0 && (
-          <div className="text-center py-6 text-slate-400 text-sm border border-dashed border-slate-300 rounded-xl bg-slate-50">ยังไม่มีรายชื่อ Admin เริ่มต้น</div>
-        )}
+          {routerAdmins.length === 0 && (
+            <div className="text-center py-6 text-slate-400 text-sm border border-dashed border-slate-300 rounded-xl bg-slate-50">ยังไม่มีรายชื่อ Admin เริ่มต้น</div>
+          )}
+        </div>
 
-        {/* 🟢 Pagination Controls */}
+        {/* Pagination Controls */}
         {totalPages > 1 && (
-          <div className="flex justify-center mt-6 mb-2">
+          <div className="flex justify-center mt-auto mb-2 pt-4">
             <div className="flex items-center gap-1 p-1.5 bg-blue-50/80 backdrop-blur-md border border-blue-200/60 rounded-full shadow-[0_4px_20px_rgb(59,130,246,0.1)] transition-all">
               <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="p-2 rounded-full text-blue-500 hover:bg-blue-100 hover:text-blue-700 disabled:opacity-40 disabled:hover:bg-transparent transition-all">
                 <ChevronLeft size={20} strokeWidth={2.5} />

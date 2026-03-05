@@ -164,13 +164,13 @@ const GroupManagement = () => {
   };
 
   return (
+    // 🟢 เปลี่ยนกลับมาใช้ pb-28 เพื่อเว้นพื้นที่ด้านล่างให้กล่อง Pagination ลอยได้โดยไม่บังการ์ด
     <div className="space-y-6 pb-28 animate-in fade-in duration-500">
       
       {/* 1. Page Header (แบบ Classic & Clean) */}
       <div className="space-y-4">
-        {/* Breadcrumbs */}
         <nav className="flex items-center text-sm font-medium text-slate-500 gap-2">
-          <a href="/" className="hover:text-blue-600 transition-colors">Home</a>
+          <a href="/dashboard" className="hover:text-blue-600 transition-colors">Home</a>
           <ChevronRight size={14} className="text-slate-400" />
           <a href="/devices" className="hover:text-blue-600 transition-colors">Devices</a>
           <ChevronRight size={14} className="text-slate-400" />
@@ -188,7 +188,7 @@ const GroupManagement = () => {
             </p>
           </div>
           
-          {/* ปุ่ม Create สไตล์ Soft/Tonal ที่คุณเลือก */}
+          {/* ปุ่ม Create สไตล์ Soft/Tonal */}
           <button 
             onClick={openAddModal} 
             className="shrink-0 bg-blue-50 text-blue-700 px-5 py-2.5 rounded-lg flex items-center justify-center gap-2 hover:bg-blue-100 transition-all font-semibold text-sm border border-blue-100"
@@ -221,7 +221,7 @@ const GroupManagement = () => {
 
       {/* 3. Content Area */}
       {loadingGroups ? (
-        <div className="flex flex-col items-center justify-center py-20 text-slate-400">
+        <div className="flex flex-col items-center justify-center py-20 text-slate-400 min-h-[400px]">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-4"></div>
           <p>กำลังโหลดข้อมูลกลุ่ม...</p>
         </div>
@@ -242,14 +242,18 @@ const GroupManagement = () => {
           </button>
         </div>
       ) : (
-        <div className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-            {paginatedGroups.map(group => (
-              <GroupCard key={group.id} group={group} onEdit={openEditModal} onDelete={handleDeleteGroup} onManageDevices={openDeviceModal} />
-            ))}
+        <>
+          {/* 🟢 ครอบตรงนี้ด้วย min-h-[700px] เพื่อล็อคความสูงให้การ์ดไม่กระตุกเวลาข้อมูลน้อย */}
+          <div className="min-h-[700px]">
+            {/* ข้อมูล Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+              {paginatedGroups.map(group => (
+                <GroupCard key={group.id} group={group} onEdit={openEditModal} onDelete={handleDeleteGroup} onManageDevices={openDeviceModal} />
+              ))}
+            </div>
           </div>
 
-          {/* Pagination Controls (Tinted Glass) */}
+          {/* 🟢 Pagination Controls ลอยได้ตามปกติ (sticky) */}
           {totalPages > 1 && (
             <div className="sticky bottom-6 z-30 flex justify-center mt-8 pointer-events-none">
               <div className="flex items-center gap-1 p-1.5 bg-blue-50/80 backdrop-blur-md border border-blue-200/60 rounded-full shadow-[0_8px_30px_rgb(59,130,246,0.15)] pointer-events-auto transition-all hover:bg-blue-50/95">
@@ -288,7 +292,7 @@ const GroupManagement = () => {
               </div>
             </div>
           )}
-        </div>
+        </>
       )}
 
       {/* Modals */}

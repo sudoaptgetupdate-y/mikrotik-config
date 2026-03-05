@@ -25,7 +25,7 @@ const ModelManager = () => {
   const [currentPage, setCurrentPage] = useState(1);
   
   // ✅ ปรับลดจำนวนการแสดงผลต่อหน้าให้พอดีกับหน้าจอ (2 แถว แถวละ 3)
-  const itemsPerPage = 6;
+  const itemsPerPage = 9;
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
