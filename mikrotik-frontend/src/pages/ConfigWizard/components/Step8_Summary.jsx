@@ -15,7 +15,7 @@ const Step8_Summary = ({
   token, 
   apiHost,
   onSaveAndFinish,
-  onFinish // ✅ รับฟังก์ชันเปลี่ยนหน้ามาจาก ConfigWizard
+  onFinish 
 }) => {
 
   const [isGenerating, setIsGenerating] = useState(false);
@@ -43,16 +43,20 @@ const Step8_Summary = ({
 
       // 3. บันทึกลง Database
       if (onSaveAndFinish) {
-        // savedDevice ตรงนี้จะได้ข้อมูลแบบ 100% แล้วเพราะเราไป re-fetch มาใน ConfigWizard
         const savedDevice = await onSaveAndFinish(configData);
         
-        if (savedDevice?.apiToken) {
-          configData.token = savedDevice.apiToken;
-        } else if (savedDevice?.device?.apiToken) {
-          configData.token = savedDevice.device.apiToken;
-        } else if (savedDevice?.data?.apiToken) {
-          configData.token = savedDevice.data.apiToken;
+        // 🚨 จับ Token ชื่อ combinedToken ที่ Backend ส่งมาให้ตรงๆ
+        let finalToken = configData.token || "";
+        
+        if (savedDevice?.combinedToken) {
+          finalToken = savedDevice.combinedToken;
+        } else if (savedDevice?.data?.combinedToken) {
+          finalToken = savedDevice.data.combinedToken;
+        } else if (savedDevice?.apiToken) {
+          finalToken = savedDevice.apiToken;
         }
+
+        configData.token = finalToken;
       }
 
       // 4. สร้างสคริปต์ MikroTik โดยใช้ข้อมูลที่มี Token แล้ว
@@ -67,7 +71,7 @@ const Step8_Summary = ({
       element.click();
       document.body.removeChild(element);
 
-      // 🌟 6. ชะลอเวลา 1.5 วินาทีเพื่อให้ Browser เรียกกล่องโหลดไฟล์ขึ้นมาก่อน แล้วค่อยเปลี่ยนหน้าไป DeviceList
+      // 6. ชะลอเวลา 1.5 วินาทีเพื่อให้ Browser เรียกกล่องโหลดไฟล์ขึ้นมาก่อน แล้วค่อยเปลี่ยนหน้าไป DeviceList
       if (onFinish) {
         setTimeout(() => {
           onFinish();
