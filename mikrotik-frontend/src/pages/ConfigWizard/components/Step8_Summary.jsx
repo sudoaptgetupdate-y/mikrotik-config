@@ -14,7 +14,8 @@ const Step8_Summary = ({
   circuitId, 
   token, 
   apiHost,
-  onSaveAndFinish 
+  onSaveAndFinish,
+  onFinish // ✅ รับฟังก์ชันเปลี่ยนหน้ามาจาก ConfigWizard
 }) => {
 
   const [isGenerating, setIsGenerating] = useState(false);
@@ -23,16 +24,15 @@ const Step8_Summary = ({
     setIsGenerating(true); 
 
     try {
-      // 🚀 1. ดึงข้อมูล Global Settings จาก Backend
+      // 1. ดึงข้อมูล Global Settings จาก Backend
       const settingsRes = await apiClient.get('/api/settings');
       const globalSettings = {};
       
-      // แปลงข้อมูลให้อยู่ในรูปแบบ Object (Key: Value)
       settingsRes.data.forEach(s => {
         globalSettings[s.key] = s.value;
       });
 
-      // 📦 2. เตรียมข้อมูลทั้งหมด (รวมข้อมูล Wizard + Global Settings)
+      // 2. เตรียมข้อมูลทั้งหมด
       let configData = {
         selectedModel, wanList, networks, portConfig, pbrConfig, wirelessConfig,
         dnsConfig, circuitId, token, apiHost,
@@ -41,31 +41,24 @@ const Step8_Summary = ({
         adminUsers: globalSettings.ROUTER_ADMINS
       };
 
-      // 💾 3. บันทึกลง Database
+      // 3. บันทึกลง Database
       if (onSaveAndFinish) {
+        // savedDevice ตรงนี้จะได้ข้อมูลแบบ 100% แล้วเพราะเราไป re-fetch มาใน ConfigWizard
         const savedDevice = await onSaveAndFinish(configData);
         
-        // 🚨 ดักจับ Token จาก Response ทุกรูปแบบที่เป็นไปได้ (ครอบคลุมทั้ง Prisma และ Axios)
-        let finalToken = configData.token || "";
-        
         if (savedDevice?.apiToken) {
-          finalToken = savedDevice.apiToken;
+          configData.token = savedDevice.apiToken;
         } else if (savedDevice?.device?.apiToken) {
-          finalToken = savedDevice.device.apiToken;
+          configData.token = savedDevice.device.apiToken;
         } else if (savedDevice?.data?.apiToken) {
-          finalToken = savedDevice.data.apiToken;
-        } else if (savedDevice?.data?.device?.apiToken) {
-          finalToken = savedDevice.data.device.apiToken;
+          configData.token = savedDevice.data.apiToken;
         }
-
-        // ยัด Token ตัวจริงใส่กลับเข้าไปใน configData ก่อนส่งให้ Generator
-        configData.token = finalToken;
       }
 
-      // ⚙️ 4. สร้างสคริปต์ MikroTik โดยส่งข้อมูลที่สมบูรณ์แล้วเข้าไป
+      // 4. สร้างสคริปต์ MikroTik โดยใช้ข้อมูลที่มี Token แล้ว
       const scriptContent = generateMikrotikScript(configData);
 
-      // 📥 5. ดาวน์โหลดไฟล์ .rsc
+      // 5. ดาวน์โหลดไฟล์ .rsc
       const element = document.createElement("a");
       const file = new Blob([scriptContent], {type: 'text/plain'});
       element.href = URL.createObjectURL(file);
@@ -73,6 +66,13 @@ const Step8_Summary = ({
       document.body.appendChild(element); 
       element.click();
       document.body.removeChild(element);
+
+      // 🌟 6. ชะลอเวลา 1.5 วินาทีเพื่อให้ Browser เรียกกล่องโหลดไฟล์ขึ้นมาก่อน แล้วค่อยเปลี่ยนหน้าไป DeviceList
+      if (onFinish) {
+        setTimeout(() => {
+          onFinish();
+        }, 1500);
+      }
 
     } catch (error) {
       console.error("Generation failed:", error);

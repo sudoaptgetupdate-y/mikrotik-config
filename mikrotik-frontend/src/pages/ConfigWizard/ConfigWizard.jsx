@@ -46,14 +46,11 @@ const ConfigWizard = ({ mode = 'create', initialData, onFinish }) => {
     allowRemoteRequests: true
   });
 
-  // Default VLANs (รอโหลดจาก Backend)
   const [networks, setNetworks] = useState([]);
-
   const [portConfig, setPortConfig] = useState({});
   const [pbrConfig, setPbrConfig] = useState({ enabled: false, mappings: {} });
   const [wirelessConfig, setWirelessConfig] = useState({}); 
 
-  // --- 🧠 ระบบอัจฉริยะคำนวณสเต็ป (Dynamic Steps) ---
   const getActiveSteps = () => {
     const hasWLAN = selectedModel?.ports?.some(p => p.type === 'WLAN');
     const steps = [
@@ -64,7 +61,6 @@ const ConfigWizard = ({ mode = 'create', initialData, onFinish }) => {
       { id: 'assign', label: 'Assign' },
     ];
     
-    // แทรกหน้า Wireless ถ้าอุปกรณ์มี Wi-Fi
     if (hasWLAN) steps.push({ id: 'wireless', label: 'Wireless' });
     
     steps.push({ id: 'pbr', label: 'PBR' });
@@ -76,26 +72,21 @@ const ConfigWizard = ({ mode = 'create', initialData, onFinish }) => {
   const activeSteps = getActiveSteps();
   const currentStepData = activeSteps[currentStepIndex];
 
-  // --- DATA FETCHING & SYNC ---
   useEffect(() => {
     const initWizard = async () => {
       try {
-        // ⭐ 1. โหลด Models
         const resModels = await apiClient.get('/api/master/models');
         const availableModels = resModels.data;
         setModels(availableModels);
         
-        // ⭐ 2. โหลด Settings (เพื่อหา DEFAULT_NETWORKS)
         const resSettings = await apiClient.get('/api/settings');
         const defaultNetSetting = resSettings.data.find(s => s.key === 'DEFAULT_NETWORKS');
         
-        // ค่าเผื่อฉุกเฉิน กรณีที่ใน Database ยังไม่เคยตั้งค่า DEFAULT_NETWORKS เลย
         let initialNetworks = [
           { id: 'net_10', name: 'vlan10Service1', vlanId: 10, ip: '192.168.10.1/24', type: 'network', dhcp: true, hotspot: false },
           { id: 'net_56', name: 'vlan56NMS', vlanId: 56, ip: '10.234.56.254/24', type: 'network', dhcp: true, hotspot: false },
         ];
 
-        // ถ้า Backend มีค่าเซ็ตไว้ ให้ใช้ค่านั้นแทน
         if (defaultNetSetting && defaultNetSetting.value) {
           try {
             initialNetworks = typeof defaultNetSetting.value === 'string' 
@@ -106,7 +97,6 @@ const ConfigWizard = ({ mode = 'create', initialData, onFinish }) => {
           }
         }
         
-        // ⭐ 3. กำหนดค่า State
         if (mode === 'edit' && initialData && initialData.configData) {
           const savedConfig = typeof initialData.configData === 'string' ? JSON.parse(initialData.configData) : initialData.configData;
           
@@ -116,15 +106,11 @@ const ConfigWizard = ({ mode = 'create', initialData, onFinish }) => {
           }
           if (savedConfig.wanList) setWanList(savedConfig.wanList);
           if (savedConfig.dnsConfig) setDnsConfig(savedConfig.dnsConfig);
-          
-          // ใช้ค่าจาก Config เดิมที่เคย Save ไว้ ถ้าไม่มีค่อยใช้ initialNetworks
           setNetworks(savedConfig.networks || initialNetworks);
-          
           if (savedConfig.portConfig) setPortConfig(savedConfig.portConfig);
           if (savedConfig.wirelessConfig) setWirelessConfig(savedConfig.wirelessConfig);
           if (savedConfig.pbrConfig) setPbrConfig(savedConfig.pbrConfig);
         } else {
-          // โหมด Create: โยนค่า initialNetworks (ที่โหลดจาก Global Settings) ไปเป็นค่าเริ่มต้นเลย
           setNetworks(initialNetworks);
         }
       } catch (error) {
@@ -138,7 +124,6 @@ const ConfigWizard = ({ mode = 'create', initialData, onFinish }) => {
 
   // --- ACTION: Save Config ---
   const saveConfigToBackend = async (finalConfigData) => {
-    // 1. สร้าง Promise สำหรับการยิง API
     const savePromise = (async () => {
       if (mode === 'create') {
         const payload = { name: deviceMeta.name, circuitId: deviceMeta.circuitId, configData: finalConfigData };
@@ -154,7 +139,6 @@ const ConfigWizard = ({ mode = 'create', initialData, onFinish }) => {
       }
     })();
 
-    // 2. ใช้ toast.promise จัดการแจ้งเตือนทั้งตอน กำลังโหลด, สำเร็จ, และ ล้มเหลว
     toast.promise(savePromise, {
       loading: mode === 'create' ? 'กำลังสร้างอุปกรณ์...' : 'กำลังอัปเดตอุปกรณ์...',
       success: mode === 'create' ? 'สร้างอุปกรณ์สำเร็จ!' : 'อัปเดตข้อมูลสำเร็จ!',
@@ -164,16 +148,28 @@ const ConfigWizard = ({ mode = 'create', initialData, onFinish }) => {
     try {
       const response = await savePromise;
       
-      // ⭐ 3. หัวใจสำคัญ: สั่งล้าง Cache ของ React Query เพื่อให้หน้า DeviceList โหลดข้อมูลใหม่ทันที
-      queryClient.invalidateQueries({ queryKey: ['devices'] });
-      // เผื่อไว้กรณีมี Dashboard ดึงข้อมูลอุปกรณ์ไปแสดงผล
+      // สั่งให้ React Query อัปเดตข้อมูลใหม่รอไว้
+      await queryClient.invalidateQueries({ queryKey: ['devices'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard'] }); 
 
-      if (onFinish) onFinish();
+      // 🌟 ทริคพิเศษ: ยิงดึง Device ล่าสุดมาเลย เพื่อบังคับให้ได้ apiToken มา 100%
+      try {
+        const devicesRes = await apiClient.get('/api/devices');
+        const matchedDevice = devicesRes.data.find(d => 
+          mode === 'edit' ? d.id === initialData.id : (d.circuitId === deviceMeta.circuitId && d.name === deviceMeta.name)
+        );
+        
+        if (matchedDevice) {
+          return matchedDevice; // ส่งกลับไปให้ Step8 ซึ่งมี .apiToken แน่นอน
+        }
+      } catch (e) {
+        console.error("Failed to fetch fresh device token", e);
+      }
+
+      // (เอาบรรทัด onFinish() ของเก่าออกไป เพื่อป้องกันการเปลี่ยนหน้าตัดจบการดาวน์โหลดไฟล์)
       return response.data; 
     } catch (error) {
       console.error("Failed to save config:", error);
-      // เอา alert(...) เดิมออกได้เลย เพราะ toast.promise จัดการ error ให้แล้ว
       throw error;
     }
   };
@@ -181,7 +177,6 @@ const ConfigWizard = ({ mode = 'create', initialData, onFinish }) => {
   const nextStep = () => setCurrentStepIndex(prev => Math.min(prev + 1, activeSteps.length - 1));
   const prevStep = () => setCurrentStepIndex(prev => Math.max(prev - 1, 0));
 
-  // --- Validation Rules ---
   const canGoNext = () => {
     const stepId = currentStepData.id;
     if (stepId === 'model') return !!selectedModel && deviceMeta.name.trim() !== "" && deviceMeta.circuitId.trim() !== "";
@@ -192,11 +187,8 @@ const ConfigWizard = ({ mode = 'create', initialData, onFinish }) => {
   };
 
   return (
-    // ✅ จุดที่ 1: ปรับ Padding และ Margin บนมือถือให้แคบลง (p-4 my-4) และกว้างปกติบนจอใหญ่ (sm:p-6 sm:my-8)
     <div className="max-w-6xl mx-auto p-4 sm:p-6 bg-white sm:rounded-xl shadow-sm border-0 sm:border border-slate-200 my-4 sm:my-8">
       
-      {/* Dynamic Progress Bar */}
-      {/* ✅ จุดที่ 2: เพิ่ม overflow-x-auto และซ่อน Scrollbar เพื่อให้เลื่อนซ้ายขวาได้บนมือถือ */}
       <div className="relative mb-8 sm:mb-10">
         <div className="absolute top-[1.25rem] sm:top-[1.25rem] left-0 w-full h-1 bg-slate-100 hidden sm:block" /> 
         
@@ -205,7 +197,6 @@ const ConfigWizard = ({ mode = 'create', initialData, onFinish }) => {
             const stepNum = idx + 1;
             const isActive = currentStepIndex >= idx;
             return (
-              // ✅ บังคับขนาดความกว้างขั้นต่ำ (min-w) บนมือถือเพื่อไม่ให้โดนบีบ
               <div key={step.id} className="flex flex-col items-center relative z-10 bg-white px-2 min-w-[64px] sm:min-w-[80px]">
                 <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center text-xs sm:text-base font-bold transition-all duration-300 border-2 ${
                   isActive ? 'bg-blue-600 border-blue-600 text-white' : 'bg-white border-slate-200 text-slate-400'
@@ -221,7 +212,6 @@ const ConfigWizard = ({ mode = 'create', initialData, onFinish }) => {
         </div>
       </div>
 
-      {/* ✅ จุดที่ 3: ปรับความสูงขั้นต่ำให้ยืดหยุ่นบนมือถือ */}
       <div className="min-h-[300px] sm:min-h-[450px]">
         {loading ? (
           <div className="text-center py-20 text-slate-400 font-medium italic">Loading...</div>
@@ -245,13 +235,13 @@ const ConfigWizard = ({ mode = 'create', initialData, onFinish }) => {
                 wirelessConfig={wirelessConfig}
                 pbrConfig={pbrConfig}
                 onSaveAndFinish={saveConfigToBackend}
+                onFinish={onFinish} // ✅ ส่ง onFinish ต่อให้ Step8 จัดการการเปลี่ยนหน้าเอง
               />
             )}
           </>
         )}
       </div>
 
-      {/* ✅ จุดที่ 4: เปลี่ยนปุ่มให้เป็นแถวแนวตั้งบนมือถือ (Back อยู่ล่าง Next อยู่บน) หรือเรียงคู่กันให้เต็มจอ */}
       <div className="flex flex-col-reverse sm:flex-row justify-between items-center mt-8 pt-6 border-t border-slate-100 gap-3">
         <button 
           onClick={prevStep} 
