@@ -147,6 +147,11 @@ model ManagedDevice {
   temp    String?
   latency String?
 
+  //สำหรับระบบหน่วงเวลาแจ้งเตือน (Flap Detection)
+  warningStartedAt DateTime? // เวลาที่เริ่มพบปัญหา
+  isWarningAlerted Boolean   @default(false) // เตือนเรื่องโหลดหนักไปแล้วหรือยัง
+  isOfflineAlerted Boolean   @default(false) // เตือนเรื่องออฟไลน์ไปแล้วหรือยัง
+
   userId    Int
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -158,13 +163,8 @@ model ManagedDevice {
   ackByUserId    Int?
   ackAt          DateTime?
 
-  // Relation ไปยัง Config History
   configHistory Config[]
-
-  // ✅ 2. เชื่อมความสัมพันธ์ไปยังตาราง DeviceEventLog
   eventLogs DeviceEventLog[]
-
-  // ✅ 3. เชื่อมความสัมพันธ์ Many-to-Many ไปยัง DeviceGroup
   groups DeviceGroup[]
 
   @@index([userId], map: "ManagedDevice_userId_fkey")

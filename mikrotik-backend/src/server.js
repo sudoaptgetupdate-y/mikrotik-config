@@ -15,6 +15,9 @@ async function startServer() {
       
       // ✅ เริ่มการทำงานของ Cron Job สำหรับส่งรายงาน Telegram ประจำวัน (07:30)
       telegramController.initDailyReportCron();
+      
+      // 🟢 เริ่มการทำงานของ Cron Job สำหรับตรวจจับอุปกรณ์ Offline ทุกๆ 1 นาที
+      telegramController.initRealtimeMonitorCron();
     });
   } catch (error) {
     logger.error('❌ Failed to start server:', error); 

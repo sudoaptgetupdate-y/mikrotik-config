@@ -203,3 +203,57 @@ exports.initDailyReportCron = () => {
 
   console.log("🕒 Telegram Daily Report Scheduled: 07:30 AM (Asia/Bangkok)");
 };
+
+// ==========================================
+// ⏰ Cron Job: ตรวจสอบอุปกรณ์ Offline (ทำงานทุก 1 นาที)
+// ==========================================
+exports.initRealtimeMonitorCron = () => {
+  cron.schedule('* * * * *', async () => {
+    try {
+      // คำนวณเวลาย้อนหลังไป 3 นาที
+      const threeMinsAgo = new Date(Date.now() - 3 * 60 * 1000);
+
+      // ค้นหาอุปกรณ์ที่ยัง Active, ขาดการติดต่อนานกว่า 3 นาที และ "ยังไม่เคยแจ้งเตือน Offline"
+      const deadDevices = await prisma.managedDevice.findMany({
+        where: {
+          status: { not: 'DELETED' },
+          lastSeen: { lt: threeMinsAgo },
+          isOfflineAlerted: false 
+        },
+        include: { groups: true }
+      });
+
+      for (const device of deadDevices) {
+        // 1. อัปเดตฐานข้อมูลว่า "เตือน Offline ไปแล้วนะ"
+        await prisma.managedDevice.update({
+          where: { id: device.id },
+          data: { isOfflineAlerted: true, isAcknowledged: false } // ปลด Ack เผื่อมีค้างไว้
+        });
+
+        // 2. บันทึกประวัติ
+        await prisma.deviceEventLog.create({
+          data: { 
+            deviceId: device.id, 
+            eventType: 'OFFLINE', 
+            details: 'Device went offline (No heartbeat for > 3 mins)' 
+          }
+        });
+
+        // 3. ยิง Telegram แจ้งเตือน
+        const msg = `🔴 <b>[DEVICE OFFLINE]</b>\nขาดการติดต่อจากอุปกรณ์เกิน 3 นาที!\n\n🖥 <b>อุปกรณ์:</b> <code>${device.name}</code>\n✨ <b>วงจร:</b> <code>${device.circuitId || '-'}</code>\n⏳ <b>ติดต่อล่าสุด:</b> ${new Date(device.lastSeen).toLocaleTimeString('th-TH')}`;
+
+        if (device.groups && device.groups.length > 0) {
+          for (const group of device.groups) {
+            if (group.isNotifyEnabled && group.telegramBotToken && group.telegramChatId) {
+              await sendTelegramAlert(group.telegramBotToken, group.telegramChatId, msg);
+            }
+          }
+        }
+      }
+    } catch (error) {
+      console.error("❌ Offline Monitor Cron Error:", error);
+    }
+  });
+
+  console.log("🕒 Real-time Offline Monitor Scheduled (Every 1 minute)");
+};
