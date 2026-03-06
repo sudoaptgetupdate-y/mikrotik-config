@@ -7,7 +7,9 @@ const AcknowledgeModal = ({
   ackReason, 
   setAckReason, 
   onSubmit, 
-  isSubmitting 
+  isSubmitting,
+  // 🟢 1. รับค่า thresholds เข้ามา พร้อมค่าตั้งต้นเผื่อมีปัญหา
+  thresholds = { cpu: 85, ram: 85, storage: 85, temp: 60, latency: 80 } 
 }) => {
   if (!isOpen) return null;
 
@@ -34,7 +36,7 @@ const AcknowledgeModal = ({
   const storage = parseFloat(device?.storage) || 0;
   const temp = parseFloat(device?.temp) || 0;
   
-  // ✅ แปลงค่า Latency ที่ถูกต้อง
+  // แปลงค่า Latency ที่ถูกต้อง
   let latencyMs = 0;
   if (device?.latency === "timeout") {
     latencyMs = 999;
@@ -61,11 +63,12 @@ const AcknowledgeModal = ({
   if (isOffline) {
     warningText.push("Device Offline");
   } else {
-    if (cpu > 85) warningText.push(`CPU ${cpu}%`);
-    if (ram > 85) warningText.push(`RAM ${ram}%`);
-    if (storage > 85) warningText.push(`Storage ${storage}%`);
-    if (temp > 60) warningText.push(`Temp ${temp}°C`);
-    if (latencyMs > 80) warningText.push(`Ping ${latencyMs}ms`);
+    // 🟢 2. เปลี่ยนตัวเลขตายตัวให้มาใช้ตัวแปรจาก thresholds แทน
+    if (cpu > thresholds.cpu) warningText.push(`CPU ${cpu}%`);
+    if (ram > thresholds.ram) warningText.push(`RAM ${ram}%`);
+    if (storage > thresholds.storage) warningText.push(`Storage ${storage}%`);
+    if (temp > thresholds.temp) warningText.push(`Temp ${temp}°C`);
+    if (latencyMs > thresholds.latency) warningText.push(`Ping ${latencyMs}ms`);
   }
   
   const currentWarning = warningText.length > 0 ? warningText.join(', ') : 'Unknown Status';
