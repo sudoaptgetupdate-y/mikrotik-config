@@ -1,11 +1,11 @@
 import React from 'react';
 import { 
   Cpu, Zap, HardDrive, Thermometer, Wifi, ServerOff, 
-  Clock, Download, History, RotateCcw, Settings, Trash2, BellRing, CheckCircle, Activity
+  Clock, Download, History, RotateCcw, Settings, Trash2, BellRing, CheckCircle, Activity, AlertTriangle
 } from 'lucide-react';
 import { formatUptime, formatLatency } from '../../../utils/formatters';
 
-// 🟢 ปรับให้รับค่า limit แทนการล็อคเลข 85
+// รับค่า limit (thresholds) เข้ามาใช้ในการคำนวณสีหลอด
 const getProgressColor = (value, type, limit = 85) => {
   const num = parseFloat(value) || 0;
   if (num > limit) return 'bg-red-500';
@@ -37,7 +37,6 @@ const getLatencyColor = (latency) => {
   return 'text-blue-500';
 };
 
-// 🟢 รับค่า thresholds เข้ามาใช้งาน
 const DeviceTableRow = ({ device, status, thresholds, onDownload, onViewHistory, onViewEvents, onRestore, onEdit, onDelete, onAcknowledge, canEdit }) => {
   const isDeleted = status.state === 'deleted'; 
   
@@ -48,20 +47,26 @@ const DeviceTableRow = ({ device, status, thresholds, onDownload, onViewHistory,
   const ramVal = device.ram || device.memoryUsage || 0;
   const storageVal = device.storage || 0;
 
+  // 🟢 เพิ่มตัวแปรสำหรับรับค่า Issue เพื่อนำไปแสดงใน Tooltip
   let latestAckReason = 'No reason provided';
+  let latestAckWarning = ''; 
   let ackCount = 0;
   
   if (device.ackReason) {
     if (Array.isArray(device.ackReason)) {
       if (device.ackReason.length > 0) {
-        latestAckReason = device.ackReason[device.ackReason.length - 1].reason;
+        const last = device.ackReason[device.ackReason.length - 1];
+        latestAckReason = last.reason;
+        latestAckWarning = last.warningData || ''; // ดึง Issue ล่าสุดออกมา
         ackCount = device.ackReason.length;
       }
     } else if (typeof device.ackReason === 'string') {
       try {
         const historyArr = JSON.parse(device.ackReason);
         if (Array.isArray(historyArr) && historyArr.length > 0) {
-          latestAckReason = historyArr[historyArr.length - 1].reason;
+          const last = historyArr[historyArr.length - 1];
+          latestAckReason = last.reason;
+          latestAckWarning = last.warningData || ''; // ดึง Issue ล่าสุดออกมา
           ackCount = historyArr.length;
         }
       } catch (e) {
@@ -71,21 +76,10 @@ const DeviceTableRow = ({ device, status, thresholds, onDownload, onViewHistory,
     }
   }
 
+  // 🟢 ยกเลิกการบังคับสีเขียว ปล่อยให้แสดงผลสีส้ม/แดง ตามความเป็นจริง (รับมาจาก getDeviceStatus)
   let mainStateLabel = status.label;
   let mainStateColor = status.color;
   let mainStateIcon = status.icon;
-
-  if (status.state === 'acknowledged' || device.isAcknowledged) {
-    if (isDeviceOffline) {
-      mainStateLabel = 'Offline';
-      mainStateColor = 'bg-rose-50 text-rose-700 border-rose-200';
-      mainStateIcon = <ServerOff size={14} />;
-    } else {
-      mainStateLabel = 'Online';
-      mainStateColor = 'bg-green-50 text-green-700 border-green-200';
-      mainStateIcon = <CheckCircle size={14} />;
-    }
-  }
 
   return (
     <tr className={`transition group ${isDeleted ? 'bg-slate-50 opacity-75' : 'hover:bg-slate-50'}`}>
@@ -99,7 +93,8 @@ const DeviceTableRow = ({ device, status, thresholds, onDownload, onViewHistory,
           {device.isAcknowledged && (
             <span 
               className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold border bg-blue-50 text-blue-600 border-blue-200 cursor-help mt-1"
-              title={`Latest Update:\n${latestAckReason}`}
+              // 🟢 แสดง Issue และ Note ใน Tooltip
+              title={`Issue: ${latestAckWarning || 'Unknown'}\nNote: ${latestAckReason}`}
             >
               <CheckCircle size={12}/> {ackCount > 1 ? `Ack (${ackCount})` : 'Acknowledged'}
             </span>
@@ -141,7 +136,7 @@ const DeviceTableRow = ({ device, status, thresholds, onDownload, onViewHistory,
                 <span className="font-medium">{parseFloat(cpuVal).toFixed(1)}%</span>
               </div>
               <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
-                {/* 🟢 แนบค่า limit จาก thresholds */}
+                {/* 🟢 ส่ง thresholds ลงไปเพื่อเปลี่ยนสีหลอดให้ถูกต้อง */}
                 <div className={`h-full transition-all duration-500 ${getProgressColor(cpuVal, 'cpu', thresholds?.cpu)}`} style={{ width: `${Math.min(cpuVal, 100)}%` }}></div>
               </div>
             </div>
@@ -151,7 +146,6 @@ const DeviceTableRow = ({ device, status, thresholds, onDownload, onViewHistory,
                 <span className="font-medium">{parseFloat(ramVal).toFixed(1)}%</span>
               </div>
               <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
-                {/* 🟢 แนบค่า limit จาก thresholds */}
                 <div className={`h-full transition-all duration-500 ${getProgressColor(ramVal, 'ram', thresholds?.ram)}`} style={{ width: `${Math.min(ramVal, 100)}%` }}></div>
               </div>
             </div>
@@ -162,7 +156,6 @@ const DeviceTableRow = ({ device, status, thresholds, onDownload, onViewHistory,
                   <span className="font-medium">{parseFloat(storageVal).toFixed(1)}%</span>
                 </div>
                 <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
-                  {/* 🟢 แนบค่า limit จาก thresholds */}
                   <div className={`h-full transition-all duration-500 ${getProgressColor(storageVal, 'storage', thresholds?.storage)}`} style={{ width: `${Math.min(storageVal, 100)}%` }}></div>
                 </div>
               </div>

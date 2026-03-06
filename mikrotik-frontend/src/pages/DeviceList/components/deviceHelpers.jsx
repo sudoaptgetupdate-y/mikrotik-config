@@ -1,6 +1,5 @@
 import { Activity, CheckCircle, AlertTriangle, XCircle, Archive, Server } from 'lucide-react';
 
-// 🟢 เพิ่มการรับพารามิเตอร์ thresholds เข้ามา (พร้อมกำหนดค่า Default กันเหนียว)
 export const getDeviceStatus = (device, thresholds = { cpu: 85, ram: 85, storage: 85, temp: 60, latency: 80 }) => {
   if (device.status === 'DELETED') {
       return { state: 'deleted', color: 'bg-slate-100 text-slate-500 border-slate-200', icon: <Archive size={14}/>, label: 'Inactive' };
@@ -37,11 +36,8 @@ export const getDeviceStatus = (device, thresholds = { cpu: 85, ram: 85, storage
     }
   }
   
-  // 🌟 ใชัตัวแปร thresholds แทนตัวเลขตายตัว
+  // 🟢 เอาการ Return 'acknowledged' ออกไป ให้มันโชว์สถานะเป็น 'warning' สีส้มเสมอ
   if (cpu > thresholds.cpu || ram > thresholds.ram || storage > thresholds.storage || temp > thresholds.temp || latencyMs > thresholds.latency) {
-    if (device.isAcknowledged) {
-      return { state: 'acknowledged', color: 'bg-blue-50 text-blue-600 border-blue-200', icon: <CheckCircle size={14}/>, label: 'Acknowledged' };
-    }
     return { state: 'warning', color: 'bg-orange-50 text-orange-600 border-orange-200', icon: <AlertTriangle size={14}/>, label: 'Warning' };
   }
   
@@ -49,6 +45,7 @@ export const getDeviceStatus = (device, thresholds = { cpu: 85, ram: 85, storage
 };
 
 export const FILTER_OPTIONS = [
+  // ... (ส่วนของ FILTER_OPTIONS เหมือนเดิมทุกอย่างครับ) ...
   { value: 'ACTIVE_ONLY', label: 'Active Devices', icon: Activity, color: 'text-blue-600', bg: 'bg-blue-100' },
   { value: 'ONLINE', label: 'Online', icon: CheckCircle, color: 'text-green-600', bg: 'bg-green-100' },
   { value: 'WARNING', label: 'Warning', icon: AlertTriangle, color: 'text-orange-500', bg: 'bg-orange-100' },

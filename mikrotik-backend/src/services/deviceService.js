@@ -1,7 +1,7 @@
 const prisma = require('../config/prisma');
 const crypto = require('crypto');
 const { encrypt, decrypt } = require('../utils/cryptoUtil');
-const { sendTelegramAlert } = require('../utils/telegramUtil'); // ✅ Import ตัวยิง Telegram
+const { sendTelegramAlert } = require('../utils/telegramUtil'); 
 
 // Helper: บันทึก History (Private Function)
 const saveConfigHistory = async (userId, name, configData, managedDeviceId) => {
@@ -27,7 +27,6 @@ exports.createDevice = async (name, circuitId, groupIds, configData, actionUserI
   const plainToken = crypto.randomUUID();
   const encryptedToken = encrypt(plainToken);
 
-  // เตรียมข้อมูลเชื่อมกลุ่ม (Many-to-Many)
   const groupConnection = groupIds && Array.isArray(groupIds) && groupIds.length > 0 
     ? { connect: groupIds.map(id => ({ id: parseInt(id) })) } 
     : undefined;
@@ -75,7 +74,6 @@ exports.updateDevice = async (id, name, circuitId, groupIds, status, configData,
       finalConfigData = { ...configData, token: combinedToken }; 
   }
 
-  // อัปเดตกลุ่มอุปกรณ์ (ลบของเก่าทิ้งแล้วใส่ใหม่)
   const groupUpdate = groupIds !== undefined 
     ? { set: Array.isArray(groupIds) ? groupIds.map(gid => ({ id: parseInt(gid) })) : [] } 
     : undefined;
@@ -172,7 +170,7 @@ exports.restoreDevice = async (id, actionUserId) => {
 exports.acknowledgeWarning = async (id, reason, warningData, actionUserId, actionUserName) => {
   const device = await prisma.managedDevice.findUnique({ 
     where: { id: parseInt(id) },
-    include: { groups: true } // ✅ เพื่อดึงข้อมูลกลุ่มสำหรับแจ้งเตือน Telegram
+    include: { groups: true } 
   });
   
   if (!device) throw new Error("NOT_FOUND");
@@ -193,27 +191,30 @@ exports.acknowledgeWarning = async (id, reason, warningData, actionUserId, actio
     data: { isAcknowledged: true, ackReason: ackHistory, ackByUserId: actionUserId, ackAt: new Date() }
   });
 
+  // 🟢 1. แก้ไขการสร้าง Event Log (เปลี่ยนเป็น WARNING และใส่ warningData เข้าไปใน details)
   await prisma.deviceEventLog.create({
     data: {
       deviceId: parseInt(id),
-      eventType: 'ONLINE', 
-      details: `[Ack] รับทราบแล้ว: ${reason} (โดย ${actionUserName || 'Admin'})`
+      eventType: 'WARNING', 
+      details: `[Ack] รับทราบปัญหา (${warningData || 'Unknown'}): ${reason} (โดย ${actionUserName || 'Admin'})`
     }
   });
 
+  // 🟢 2. อัปเดต Activity Log ให้ชัดเจนขึ้น
   await prisma.activityLog.create({ 
     data: { 
       userId: actionUserId, 
       action: "UPDATE_DEVICE", 
-      details: `Acknowledged update on: ${device.name}. Reason: ${reason}` 
+      details: `Acknowledged warning on: ${device.name} [Issue: ${warningData || 'Unknown'}]. Reason: ${reason}` 
     } 
   });
 
-  // 🌟 ✅ ยิงข้อความ Telegram แจ้งเตือนเวลา Admin กดรับทราบ (Ack)
+  // 🌟 3. อัปเดตข้อความใน Telegram (แทรกบรรทัด 'ปัญหา:' เข้าไป)
   if (device.groups && device.groups.length > 0) {
     for (const group of device.groups) {
       const adminInfo = (group.adminName || group.adminContact) ? `\n\n👨‍🔧 <b>ผู้รับผิดชอบดูแล:</b> ${group.adminName || '-'}\n📞 <b>ติดต่อ:</b> ${group.adminContact || '-'}` : '';
-      const msg = `👁️‍🗨️ <b>[ISSUE ACKNOWLEDGED]</b>\nมีผู้รับทราบปัญหาแล้ว!\n\n🖥 <b>อุปกรณ์:</b> <code>${device.name}</code>\n✨ <b>วงจร:</b> <code>${device.circuitId || '-'}</code>\n👤 <b>รับทราบโดย:</b> ${actionUserName || 'Admin'}\n📝 <b>หมายเหตุ/เหตุผล:</b> <i>${reason}</i>${adminInfo}`;
+      
+      const msg = `👁️‍🗨️ <b>[ISSUE ACKNOWLEDGED]</b>\nมีผู้รับทราบปัญหาแล้ว!\n\n🖥 <b>อุปกรณ์:</b> <code>${device.name}</code>\n✨ <b>วงจร:</b> <code>${device.circuitId || '-'}</code>\n⚠️ <b>ปัญหา:</b> <code>${warningData || 'Unknown'}</code>\n👤 <b>รับทราบโดย:</b> ${actionUserName || 'Admin'}\n📝 <b>หมายเหตุ/เหตุผล:</b> <i>${reason}</i>${adminInfo}`;
       
       if (group.isNotifyEnabled && group.telegramBotToken && group.telegramChatId) {
         await sendTelegramAlert(group.telegramBotToken, group.telegramChatId, msg);
