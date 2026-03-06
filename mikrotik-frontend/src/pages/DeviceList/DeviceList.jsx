@@ -65,6 +65,78 @@ const DeviceList = () => {
   const lastUpdatedText = dataUpdatedAt ? new Date(dataUpdatedAt).toLocaleTimeString() : '...';
 
   // ==========================================
+  // Filtering & Sorting Logic
+  // ==========================================
+  const filteredDevices = devices.filter(d => {
+    const searchLower = searchTerm.toLowerCase();
+    const modelName = typeof d.model === 'string' ? d.model : (d.model?.name || '');
+    const matchesSearch = 
+      (d.name?.toLowerCase().includes(searchLower)) || 
+      (d.circuitId?.toLowerCase().includes(searchLower)) ||
+      (d.ipAddress?.toLowerCase().includes(searchLower)) ||
+      (d.boardName?.toLowerCase().includes(searchLower)) || 
+      (modelName?.toLowerCase().includes(searchLower));
+
+    const statusObj = getDeviceStatus(d);
+    
+    if (statusFilter === 'ACTIVE_ONLY') return statusObj.state !== 'deleted' && matchesSearch;
+    if (statusFilter === 'ONLINE') return statusObj.state === 'online' && matchesSearch;
+    if (statusFilter === 'WARNING') return statusObj.state === 'warning' && matchesSearch;
+    if (statusFilter === 'OFFLINE') return statusObj.state === 'offline' && matchesSearch;
+    if (statusFilter === 'DELETED') return statusObj.state === 'deleted' && matchesSearch;
+    return matchesSearch; 
+  });
+
+  const sortedDevices = filteredDevices.sort((a, b) => {
+    if (statusFilter === 'ACTIVE_ONLY' || statusFilter === 'ALL') {
+      const stateA = getDeviceStatus(a).state;
+      const stateB = getDeviceStatus(b).state;
+      
+      const priority = {
+        'offline': 1,
+        'warning': 2,
+        'online': 3,
+        'acknowledged': 4,
+        'deleted': 5
+      };
+      
+      const rankA = priority[stateA] || 99;
+      const rankB = priority[stateB] || 99;
+      
+      if (rankA !== rankB) {
+        return rankA - rankB;
+      }
+    }
+    return 0; 
+  });
+  
+  const displayedDevices = sortedDevices.slice(0, displayLimit);
+
+  // ==========================================
+  // 🟢 Infinite Scroll Logic (ส่วนที่เพิ่มเข้ามา)
+  // ==========================================
+  useEffect(() => {
+    const target = observerTarget.current;
+    if (!target) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        // เมื่อเป้าหมาย (ด้านล่างตาราง) โผล่เข้ามาในหน้าจอ และยังมีข้อมูลเหลือให้โหลด
+        if (entries[0].isIntersecting && displayLimit < filteredDevices.length) {
+          setDisplayLimit((prev) => prev + 15);
+        }
+      },
+      { threshold: 0.1, rootMargin: '100px' } // เผื่อระยะโหลดล่วงหน้า 100px ก่อนไถถึงล่างสุด
+    );
+
+    observer.observe(target);
+
+    return () => {
+      if (target) observer.unobserve(target);
+    };
+  }, [loading, filteredDevices.length, displayLimit]);
+
+  // ==========================================
   // Handlers (Actions)
   // ==========================================
   const handleRefresh = () => refetch();
@@ -143,13 +215,11 @@ const DeviceList = () => {
     const processDownload = async () => {
       await deviceService.logDownload(device.id, null); 
       
-      // ✅ นำ apiToken ที่อยู่นอก configData มารวมกัน ก่อนส่งให้ Generator
       const payloadForGenerator = {
         ...device.configData,
         token: device.apiToken 
       };
 
-      // ✅ ส่ง payload ที่รวม token แล้วเข้าไป
       const script = generateMikrotikScript(payloadForGenerator);
       
       const element = document.createElement("a");
@@ -207,7 +277,6 @@ const DeviceList = () => {
     const storage = parseFloat(deviceToAck?.storage) || 0;
     const temp = parseFloat(deviceToAck?.temp || 0);
 
-    // ✅ แปลงค่า Latency ที่ถูกต้องสำหรับบันทึก Ack
     let latencyMs = 0;
     if (deviceToAck?.latency === "timeout") {
       latencyMs = 999;
@@ -260,55 +329,6 @@ const DeviceList = () => {
     } catch (error) { console.error(error); } 
     finally { setIsAckSubmitting(false); }
   };
-
-  // ==========================================
-  // Filtering & Sorting Logic
-  // ==========================================
-  const filteredDevices = devices.filter(d => {
-    const searchLower = searchTerm.toLowerCase();
-    const modelName = typeof d.model === 'string' ? d.model : (d.model?.name || '');
-    const matchesSearch = 
-      (d.name?.toLowerCase().includes(searchLower)) || 
-      (d.circuitId?.toLowerCase().includes(searchLower)) ||
-      (d.ipAddress?.toLowerCase().includes(searchLower)) ||
-      (d.boardName?.toLowerCase().includes(searchLower)) || 
-      (modelName?.toLowerCase().includes(searchLower));
-
-    const statusObj = getDeviceStatus(d);
-    
-    if (statusFilter === 'ACTIVE_ONLY') return statusObj.state !== 'deleted' && matchesSearch;
-    if (statusFilter === 'ONLINE') return statusObj.state === 'online' && matchesSearch;
-    if (statusFilter === 'WARNING') return statusObj.state === 'warning' && matchesSearch;
-    if (statusFilter === 'OFFLINE') return statusObj.state === 'offline' && matchesSearch;
-    if (statusFilter === 'DELETED') return statusObj.state === 'deleted' && matchesSearch;
-    return matchesSearch; 
-  });
-
-  // 🌟 ปรับปรุงการเรียงลำดับใหม่ ให้ Acknowledged ไปอยู่ด้านล่าง Online
-  const sortedDevices = filteredDevices.sort((a, b) => {
-    if (statusFilter === 'ACTIVE_ONLY' || statusFilter === 'ALL') {
-      const stateA = getDeviceStatus(a).state;
-      const stateB = getDeviceStatus(b).state;
-      
-      const priority = {
-        'offline': 1,
-        'warning': 2,
-        'online': 3,       // ดัน online ขึ้นมาแสดงก่อน
-        'acknowledged': 4, // นำ acknowledged ไปไว้ด้านล่าง online
-        'deleted': 5
-      };
-      
-      const rankA = priority[stateA] || 99;
-      const rankB = priority[stateB] || 99;
-      
-      if (rankA !== rankB) {
-        return rankA - rankB;
-      }
-    }
-    return 0; 
-  });
-  
-  const displayedDevices = sortedDevices.slice(0, displayLimit);
 
   return (
     <div className="space-y-6 pb-28 animate-in fade-in duration-500">
