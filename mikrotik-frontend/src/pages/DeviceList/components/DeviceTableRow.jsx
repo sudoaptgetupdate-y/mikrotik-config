@@ -5,10 +5,11 @@ import {
 } from 'lucide-react';
 import { formatUptime, formatLatency } from '../../../utils/formatters';
 
-const getProgressColor = (value, type) => {
+// 🟢 ปรับให้รับค่า limit แทนการล็อคเลข 85
+const getProgressColor = (value, type, limit = 85) => {
   const num = parseFloat(value) || 0;
-  if (num > 85) return 'bg-red-500';
-  if (num > 70) return 'bg-orange-400';
+  if (num > limit) return 'bg-red-500';
+  if (num > limit - 15) return 'bg-orange-400';
   if (type === 'cpu') return 'bg-blue-500';
   if (type === 'storage') return 'bg-purple-500';
   return 'bg-green-500';
@@ -36,10 +37,10 @@ const getLatencyColor = (latency) => {
   return 'text-blue-500';
 };
 
-const DeviceTableRow = ({ device, status, onDownload, onViewHistory, onViewEvents, onRestore, onEdit, onDelete, onAcknowledge, canEdit }) => {
+// 🟢 รับค่า thresholds เข้ามาใช้งาน
+const DeviceTableRow = ({ device, status, thresholds, onDownload, onViewHistory, onViewEvents, onRestore, onEdit, onDelete, onAcknowledge, canEdit }) => {
   const isDeleted = status.state === 'deleted'; 
   
-  // ✅ ตรวจสอบสถานะ Offline จาก lastSeen ด้วย
   const diffMinutes = device.lastSeen ? (new Date() - new Date(device.lastSeen)) / 1000 / 60 : 999;
   const isDeviceOffline = diffMinutes > 3;
 
@@ -70,7 +71,6 @@ const DeviceTableRow = ({ device, status, onDownload, onViewHistory, onViewEvent
     }
   }
 
-  // ✅ กำหนด Status หลัก (หน้าเว็บจะแสดง Online หรือ Offline ก่อนเสมอถ้าโดน Ack ไปแล้ว)
   let mainStateLabel = status.label;
   let mainStateColor = status.color;
   let mainStateIcon = status.icon;
@@ -96,7 +96,6 @@ const DeviceTableRow = ({ device, status, onDownload, onViewHistory, onViewEvent
           <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold border ${mainStateColor}`}>
             {mainStateIcon} {mainStateLabel}
           </span>
-          {/* ✅ ถ้ารับทราบแล้ว จะมีป้ายห้อยโชว์ขึ้นมาด้านล่าง */}
           {device.isAcknowledged && (
             <span 
               className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold border bg-blue-50 text-blue-600 border-blue-200 cursor-help mt-1"
@@ -142,7 +141,8 @@ const DeviceTableRow = ({ device, status, onDownload, onViewHistory, onViewEvent
                 <span className="font-medium">{parseFloat(cpuVal).toFixed(1)}%</span>
               </div>
               <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
-                <div className={`h-full transition-all duration-500 ${getProgressColor(cpuVal, 'cpu')}`} style={{ width: `${Math.min(cpuVal, 100)}%` }}></div>
+                {/* 🟢 แนบค่า limit จาก thresholds */}
+                <div className={`h-full transition-all duration-500 ${getProgressColor(cpuVal, 'cpu', thresholds?.cpu)}`} style={{ width: `${Math.min(cpuVal, 100)}%` }}></div>
               </div>
             </div>
             <div>
@@ -151,7 +151,8 @@ const DeviceTableRow = ({ device, status, onDownload, onViewHistory, onViewEvent
                 <span className="font-medium">{parseFloat(ramVal).toFixed(1)}%</span>
               </div>
               <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
-                <div className={`h-full transition-all duration-500 ${getProgressColor(ramVal, 'ram')}`} style={{ width: `${Math.min(ramVal, 100)}%` }}></div>
+                {/* 🟢 แนบค่า limit จาก thresholds */}
+                <div className={`h-full transition-all duration-500 ${getProgressColor(ramVal, 'ram', thresholds?.ram)}`} style={{ width: `${Math.min(ramVal, 100)}%` }}></div>
               </div>
             </div>
             {device.storage !== null && device.storage !== undefined && (
@@ -161,7 +162,8 @@ const DeviceTableRow = ({ device, status, onDownload, onViewHistory, onViewEvent
                   <span className="font-medium">{parseFloat(storageVal).toFixed(1)}%</span>
                 </div>
                 <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
-                  <div className={`h-full transition-all duration-500 ${getProgressColor(storageVal, 'storage')}`} style={{ width: `${Math.min(storageVal, 100)}%` }}></div>
+                  {/* 🟢 แนบค่า limit จาก thresholds */}
+                  <div className={`h-full transition-all duration-500 ${getProgressColor(storageVal, 'storage', thresholds?.storage)}`} style={{ width: `${Math.min(storageVal, 100)}%` }}></div>
                 </div>
               </div>
             )}
@@ -221,7 +223,6 @@ const DeviceTableRow = ({ device, status, onDownload, onViewHistory, onViewEvent
       <td className="p-4 align-middle text-right pr-6">
         <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
           
-          {/* ✅ อนุญาตให้กด Ack ได้ทั้งตอน Warning หรือตอนอุปกรณ์ Offline */}
           {canEdit && (status.state === 'warning' || isDeviceOffline || device.isAcknowledged) && !isDeleted && (
             <button 
               onClick={() => onAcknowledge(device)} 

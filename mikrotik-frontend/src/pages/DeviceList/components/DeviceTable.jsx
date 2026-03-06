@@ -7,13 +7,13 @@ const DeviceTable = ({
   devices, 
   handlers, 
   canEdit,
-  // 🟢 รับ Props ของ Pagination
   pageSizes,
   itemsPerPage,
   setItemsPerPage,
   from,
   to,
-  total
+  total,
+  thresholds // 🟢 รับ thresholds มาจาก DeviceList
 }) => {
   if (loading && devices.length === 0) {
     return (
@@ -55,7 +55,8 @@ const DeviceTable = ({
             <DeviceTableRow 
               key={device.id} 
               device={device}
-              status={getDeviceStatus(device)}
+              status={getDeviceStatus(device, thresholds)} // 🟢 ส่ง thresholds เข้าไปคำนวณสถานะ
+              thresholds={thresholds} // 🟢 ส่ง thresholds ลงไปให้แถวสำหรับเปลี่ยนสีหลอด
               canEdit={canEdit}
               {...handlers}
             />
@@ -63,7 +64,7 @@ const DeviceTable = ({
         </tbody>
       </table>
 
-      {/* 🟢 Table Footer: เลือกจำนวนหน้า & สรุปรายการ (mt-auto ดันติดขอบล่างเสมอ) */}
+      {/* Table Footer: เลือกจำนวนหน้า & สรุปรายการ */}
       <div className="bg-slate-50 border-t border-slate-100 p-4 flex flex-col sm:flex-row justify-between items-center gap-4 text-xs mt-auto">
         <div className="flex items-center gap-2">
           <span className="text-slate-500 font-medium">รายการต่อหน้า:</span>

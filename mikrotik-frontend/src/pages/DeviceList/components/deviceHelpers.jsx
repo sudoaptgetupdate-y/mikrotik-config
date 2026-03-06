@@ -1,6 +1,7 @@
 import { Activity, CheckCircle, AlertTriangle, XCircle, Archive, Server } from 'lucide-react';
 
-export const getDeviceStatus = (device) => {
+// 🟢 เพิ่มการรับพารามิเตอร์ thresholds เข้ามา (พร้อมกำหนดค่า Default กันเหนียว)
+export const getDeviceStatus = (device, thresholds = { cpu: 85, ram: 85, storage: 85, temp: 60, latency: 80 }) => {
   if (device.status === 'DELETED') {
       return { state: 'deleted', color: 'bg-slate-100 text-slate-500 border-slate-200', icon: <Archive size={14}/>, label: 'Inactive' };
   }
@@ -11,10 +12,9 @@ export const getDeviceStatus = (device) => {
   
   const cpu = parseFloat(device.cpu || device.cpuLoad) || 0;
   const ram = parseFloat(device.ram || device.memoryUsage) || 0;
-  const storage = parseFloat(device.storage) || 0; // ✅ เพิ่ม Storage
-  const temp = parseFloat(device.temp) || 0;       // ✅ เพิ่ม Temp
+  const storage = parseFloat(device.storage) || 0; 
+  const temp = parseFloat(device.temp) || 0;       
   
-  // ✅ แปลงค่า Latency (Ping) ที่รองรับหน่วย us, ms, s
   let latencyMs = 0;
   if (device.latency === "timeout") {
     latencyMs = 999;
@@ -37,8 +37,8 @@ export const getDeviceStatus = (device) => {
     }
   }
   
-  // 🌟 เงื่อนไข Warning: CPU 85, RAM 85, Storage 85, Temp 60, Ping 80
-  if (cpu > 85 || ram > 85 || storage > 85 || temp > 60 || latencyMs > 80) {
+  // 🌟 ใชัตัวแปร thresholds แทนตัวเลขตายตัว
+  if (cpu > thresholds.cpu || ram > thresholds.ram || storage > thresholds.storage || temp > thresholds.temp || latencyMs > thresholds.latency) {
     if (device.isAcknowledged) {
       return { state: 'acknowledged', color: 'bg-blue-50 text-blue-600 border-blue-200', icon: <CheckCircle size={14}/>, label: 'Acknowledged' };
     }

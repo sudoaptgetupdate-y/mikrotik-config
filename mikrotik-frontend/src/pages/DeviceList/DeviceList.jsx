@@ -7,6 +7,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import Swal from 'sweetalert2';
 
 import { deviceService } from '../../services/deviceService';
+import { settingService } from '../../services/settingService'; // 🟢 เพิ่ม settingService
 import { generateMikrotikScript } from '../../utils/mikrotikGenerator';
 
 import { getDeviceStatus } from './components/deviceHelpers';
@@ -16,7 +17,7 @@ import AcknowledgeModal from './components/AcknowledgeModal';
 import HistoryModal from './components/HistoryModal';
 import EventLogModal from './components/EventLogModal';
 
-// 🟢 กำหนดตัวเลือกจำนวนรายการต่อหน้า (เริ่มที่ 5)
+// กำหนดตัวเลือกจำนวนรายการต่อหน้า (เริ่มที่ 5)
 const PAGE_SIZES = [5, 10, 20, 50];
 
 const DeviceList = () => {
@@ -35,7 +36,7 @@ const DeviceList = () => {
   
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(PAGE_SIZES[0]); // 🟢 ใช้ State คุมจำนวนต่อหน้า
+  const [itemsPerPage, setItemsPerPage] = useState(PAGE_SIZES[0]);
 
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [selectedDeviceHistory, setSelectedDeviceHistory] = useState(null);
@@ -67,6 +68,25 @@ const DeviceList = () => {
     onError: () => toast.error("ดึงข้อมูลอุปกรณ์ไม่สำเร็จ")
   });
 
+  // 🟢 ดึงข้อมูลการตั้งค่า (Settings) เพื่อเอามาทำ Thresholds
+  const { data: rawSettings } = useQuery({
+    queryKey: ['settings'],
+    queryFn: () => settingService.getSettings(),
+  });
+
+  // 🟢 คำนวณ Thresholds เตรียมไว้
+  const thresholds = useMemo(() => {
+    const defaultTh = { cpu: 85, ram: 85, latency: 80, temp: 60, storage: 85 };
+    if (!rawSettings) return defaultTh;
+    const alertSetting = rawSettings.find(s => s.key === 'ALERT_THRESHOLDS');
+    if (alertSetting && alertSetting.value) {
+      try {
+        return { ...defaultTh, ...(typeof alertSetting.value === 'string' ? JSON.parse(alertSetting.value) : alertSetting.value) };
+      } catch (e) { return defaultTh; }
+    }
+    return defaultTh;
+  }, [rawSettings]);
+
   const lastUpdatedText = dataUpdatedAt ? new Date(dataUpdatedAt).toLocaleTimeString() : '...';
 
   // ==========================================
@@ -83,7 +103,7 @@ const DeviceList = () => {
         (d.boardName?.toLowerCase().includes(searchLower)) || 
         (modelName?.toLowerCase().includes(searchLower));
 
-      const statusObj = getDeviceStatus(d);
+      const statusObj = getDeviceStatus(d, thresholds); // 🟢 ส่ง thresholds ไปคำนวณสถานะ
       
       if (statusFilter === 'ACTIVE_ONLY') return statusObj.state !== 'deleted' && matchesSearch;
       if (statusFilter === 'ONLINE') return statusObj.state === 'online' && matchesSearch;
@@ -92,13 +112,13 @@ const DeviceList = () => {
       if (statusFilter === 'DELETED') return statusObj.state === 'deleted' && matchesSearch;
       return matchesSearch; 
     });
-  }, [devices, searchTerm, statusFilter]);
+  }, [devices, searchTerm, statusFilter, thresholds]);
 
   const sortedDevices = useMemo(() => {
     return [...filteredDevices].sort((a, b) => {
       if (statusFilter === 'ACTIVE_ONLY' || statusFilter === 'ALL') {
-        const stateA = getDeviceStatus(a).state;
-        const stateB = getDeviceStatus(b).state;
+        const stateA = getDeviceStatus(a, thresholds).state;
+        const stateB = getDeviceStatus(b, thresholds).state;
         
         const priority = {
           'offline': 1,
@@ -117,7 +137,7 @@ const DeviceList = () => {
       }
       return 0; 
     });
-  }, [filteredDevices, statusFilter]);
+  }, [filteredDevices, statusFilter, thresholds]);
   
   // คำนวณหน้าและการหั่นข้อมูล (Pagination)
   const totalPages = Math.ceil(sortedDevices.length / itemsPerPage) || 1;
@@ -125,19 +145,14 @@ const DeviceList = () => {
     return sortedDevices.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
   }, [sortedDevices, currentPage, itemsPerPage]);
 
-  // 🟢 คำนวณตัวเลขสำหรับแสดงในแถบ Footer (จาก X ถึง Y)
   const totalFiltered = sortedDevices.length;
   const fromItem = totalFiltered > 0 ? (currentPage - 1) * itemsPerPage + 1 : 0;
   const toItem = Math.min(currentPage * itemsPerPage, totalFiltered);
 
-  // รีเซ็ตหน้าหากข้อมูลเปลี่ยน
   useEffect(() => {
-    if (currentPage > totalPages) {
-      setCurrentPage(Math.max(1, totalPages));
-    }
+    if (currentPage > totalPages) setCurrentPage(Math.max(1, totalPages));
   }, [totalPages, currentPage]);
 
-  // 🟢 กลับไปหน้า 1 เสมอเวลาค้นหา, เปลี่ยนฟิลเตอร์, หรือเปลี่ยนจำนวนต่อหน้า
   useEffect(() => {
     setCurrentPage(1); 
   }, [searchTerm, statusFilter, itemsPerPage]);
@@ -170,15 +185,8 @@ const DeviceList = () => {
 
     if (result.isConfirmed) {
       const deletePromise = deviceService.deleteDevice(device.id);
-      toast.promise(deletePromise, {
-        loading: 'กำลังลบอุปกรณ์...',
-        success: 'ลบอุปกรณ์สำเร็จ!',
-        error: 'ลบอุปกรณ์ไม่สำเร็จ'
-      });
-      try { 
-        await deletePromise;
-        queryClient.invalidateQueries({ queryKey: ['devices'] });
-      } catch (e) { console.error(e); }
+      toast.promise(deletePromise, { loading: 'กำลังลบอุปกรณ์...', success: 'ลบอุปกรณ์สำเร็จ!', error: 'ลบอุปกรณ์ไม่สำเร็จ' });
+      try { await deletePromise; queryClient.invalidateQueries({ queryKey: ['devices'] }); } catch (e) { console.error(e); }
     }
   };
 
@@ -203,15 +211,8 @@ const DeviceList = () => {
 
     if (result.isConfirmed) {
       const restorePromise = deviceService.restoreDevice(device.id);
-      toast.promise(restorePromise, {
-        loading: 'กำลังกู้คืนอุปกรณ์...',
-        success: 'กู้คืนอุปกรณ์สำเร็จ!',
-        error: 'กู้คืนอุปกรณ์ไม่สำเร็จ'
-      });
-      try { 
-        await restorePromise;
-        queryClient.invalidateQueries({ queryKey: ['devices'] });
-      } catch (e) { console.error(e); }
+      toast.promise(restorePromise, { loading: 'กำลังกู้คืนอุปกรณ์...', success: 'กู้คืนอุปกรณ์สำเร็จ!', error: 'กู้คืนอุปกรณ์ไม่สำเร็จ' });
+      try { await restorePromise; queryClient.invalidateQueries({ queryKey: ['devices'] }); } catch (e) { console.error(e); }
     }
   };
 
@@ -220,12 +221,7 @@ const DeviceList = () => {
     
     const processDownload = async () => {
       await deviceService.logDownload(device.id, null); 
-      
-      const payloadForGenerator = {
-        ...device.configData,
-        token: device.apiToken 
-      };
-
+      const payloadForGenerator = { ...device.configData, token: device.apiToken };
       const script = generateMikrotikScript(payloadForGenerator);
       
       const element = document.createElement("a");
@@ -236,11 +232,7 @@ const DeviceList = () => {
       document.body.removeChild(element);
     };
 
-    toast.promise(processDownload(), {
-      loading: 'กำลังสร้างสคริปต์...',
-      success: 'ดาวน์โหลดสคริปต์สำเร็จ!',
-      error: 'เกิดข้อผิดพลาดในการสร้างสคริปต์'
-    });
+    toast.promise(processDownload(), { loading: 'กำลังสร้างสคริปต์...', success: 'ดาวน์โหลดสคริปต์สำเร็จ!', error: 'เกิดข้อผิดพลาดในการสร้างสคริปต์' });
   };
 
   const handleViewHistory = async (device) => {
@@ -309,11 +301,11 @@ const DeviceList = () => {
     if (isOffline) {
       currentWarning.push("Offline");
     } else {
-      if (cpu > 85) currentWarning.push(`CPU ${cpu}%`);
-      if (ram > 85) currentWarning.push(`RAM ${ram}%`);
-      if (storage > 85) currentWarning.push(`Storage ${storage}%`);
-      if (temp > 60) currentWarning.push(`Temp ${temp}°C`);
-      if (latencyMs > 80) currentWarning.push(`Ping ${latencyMs}ms`);
+      if (cpu > thresholds.cpu) currentWarning.push(`CPU ${cpu}%`);
+      if (ram > thresholds.ram) currentWarning.push(`RAM ${ram}%`);
+      if (storage > thresholds.storage) currentWarning.push(`Storage ${storage}%`);
+      if (temp > thresholds.temp) currentWarning.push(`Temp ${temp}°C`);
+      if (latencyMs > thresholds.latency) currentWarning.push(`Ping ${latencyMs}ms`);
     }
 
     const ackPromise = deviceService.acknowledgeWarning(deviceToAck.id, {
@@ -321,11 +313,7 @@ const DeviceList = () => {
       warningData: currentWarning.length > 0 ? currentWarning.join(', ') : 'Unknown Load'
     });
 
-    toast.promise(ackPromise, {
-      loading: 'กำลังบันทึกข้อมูล...',
-      success: 'รับทราบสถานะเรียบร้อย!',
-      error: 'ไม่สามารถบันทึกได้ กรุณาลองใหม่'
-    });
+    toast.promise(ackPromise, { loading: 'กำลังบันทึกข้อมูล...', success: 'รับทราบสถานะเรียบร้อย!', error: 'ไม่สามารถบันทึกได้ กรุณาลองใหม่' });
 
     try {
       await ackPromise;
@@ -380,13 +368,13 @@ const DeviceList = () => {
           devices={paginatedDevices} 
           canEdit={canEdit} 
           handlers={{ onDownload: handleDownloadLatest, onViewHistory: handleViewHistory, onViewEvents: handleViewEvents, onRestore: handleRestoreClick, onEdit: handleEditClick, onDelete: handleDeleteClick, onAcknowledge: handleAcknowledgeClick }} 
-          // 🟢 ส่งค่าสำหรับ Page Selector ไปให้ DeviceTable
           pageSizes={PAGE_SIZES}
           itemsPerPage={itemsPerPage}
           setItemsPerPage={setItemsPerPage}
           from={fromItem}
           to={toItem}
           total={totalFiltered}
+          thresholds={thresholds} // 🟢 ส่ง thresholds เข้าตาราง
         />
       </div>
 
