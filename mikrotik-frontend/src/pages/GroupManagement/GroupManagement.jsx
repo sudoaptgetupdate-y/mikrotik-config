@@ -164,7 +164,6 @@ const GroupManagement = () => {
   };
 
   return (
-    // 🟢 เปลี่ยนกลับมาใช้ pb-28 เพื่อเว้นพื้นที่ด้านล่างให้กล่อง Pagination ลอยได้โดยไม่บังการ์ด
     <div className="space-y-6 pb-28 animate-in fade-in duration-500">
       
       {/* 1. Page Header (แบบ Classic & Clean) */}
@@ -221,12 +220,14 @@ const GroupManagement = () => {
 
       {/* 3. Content Area */}
       {loadingGroups ? (
-        <div className="flex flex-col items-center justify-center py-20 text-slate-400 min-h-[400px]">
+        // 🟢 เปลี่ยนความสูงตอน Loading ให้เป็น Responsive
+        <div className="flex flex-col items-center justify-center py-20 text-slate-400 min-h-[450px] md:min-h-[600px] xl:min-h-[700px]">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-4"></div>
           <p>กำลังโหลดข้อมูลกลุ่ม...</p>
         </div>
       ) : filteredGroups.length === 0 ? (
-        <div className="bg-white border border-dashed border-slate-300 rounded-2xl flex flex-col items-center justify-center min-h-[400px] text-center p-8 shadow-sm">
+        // 🟢 เปลี่ยนความสูงตอน Empty State ให้เป็น Responsive
+        <div className="bg-white border border-dashed border-slate-300 rounded-2xl flex flex-col items-center justify-center min-h-[450px] md:min-h-[600px] xl:min-h-[700px] text-center p-8 shadow-sm">
           <div className="bg-slate-50 p-4 rounded-full mb-4">
             <Layers size={48} className="text-slate-300" />
           </div>
@@ -243,8 +244,8 @@ const GroupManagement = () => {
         </div>
       ) : (
         <>
-          {/* 🟢 ครอบตรงนี้ด้วย min-h-[700px] เพื่อล็อคความสูงให้การ์ดไม่กระตุกเวลาข้อมูลน้อย */}
-          <div className="min-h-[700px]">
+          {/* 🟢 เปลี่ยนความสูงกล่องเนื้อหาหลัก (Grid) ให้เป็น Responsive */}
+          <div className="min-h-[450px] md:min-h-[600px] xl:min-h-[700px]">
             {/* ข้อมูล Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
               {paginatedGroups.map(group => (

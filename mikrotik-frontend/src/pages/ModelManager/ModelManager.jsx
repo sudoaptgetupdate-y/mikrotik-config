@@ -25,7 +25,7 @@ const ModelManager = () => {
   const [currentPage, setCurrentPage] = useState(1);
   
   // ✅ ปรับลดจำนวนการแสดงผลต่อหน้าให้พอดีกับหน้าจอ (2 แถว แถวละ 3)
-  const itemsPerPage = 9;
+  const itemsPerPage = 6;
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
@@ -246,12 +246,14 @@ const ModelManager = () => {
 
       {/* 3. Content Area */}
       {loading ? (
-        <div className="flex flex-col items-center justify-center py-20 text-slate-400">
+        // 🟢 เพิ่ม Responsive Min-Height ตอน Loading
+        <div className="flex flex-col items-center justify-center py-20 text-slate-400 min-h-[450px] md:min-h-[600px] xl:min-h-[700px]">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-4"></div>
           <p>กำลังโหลดข้อมูล Models...</p>
         </div>
       ) : filteredModels.length === 0 ? (
-        <div className="bg-white border border-dashed border-slate-300 rounded-2xl flex flex-col items-center justify-center min-h-[400px] text-center p-8 shadow-sm">
+        // 🟢 เพิ่ม Responsive Min-Height ตอนไม่พบข้อมูล
+        <div className="bg-white border border-dashed border-slate-300 rounded-2xl flex flex-col items-center justify-center min-h-[450px] md:min-h-[600px] xl:min-h-[700px] text-center p-8 shadow-sm">
           <div className="bg-slate-50 p-4 rounded-full mb-4">
             <Server size={48} className="text-slate-300" />
           </div>
@@ -270,18 +272,21 @@ const ModelManager = () => {
         </div>
       ) : (
         <>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {paginatedModels.map(model => (
-              <ModelCard 
-                key={model.id}
-                model={model}
-                showDeleted={showDeleted}
-                isSuperAdmin={isSuperAdmin}
-                onEdit={handleOpenEdit}
-                onDelete={handleDeleteModel}
-                onRestore={handleRestoreModel}
-              />
-            ))}
+          {/* 🟢 ครอบ Content ด้วย Responsive Min-Height */}
+          <div className="min-h-[450px] md:min-h-[600px] xl:min-h-[700px]">
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+              {paginatedModels.map(model => (
+                <ModelCard 
+                  key={model.id}
+                  model={model}
+                  showDeleted={showDeleted}
+                  isSuperAdmin={isSuperAdmin}
+                  onEdit={handleOpenEdit}
+                  onDelete={handleDeleteModel}
+                  onRestore={handleRestoreModel}
+                />
+              ))}
+            </div>
           </div>
 
           {/* 4. Pagination Controls (Tinted Glass) */}
