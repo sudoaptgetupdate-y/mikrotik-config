@@ -59,8 +59,8 @@ const generateGroupReportText = (group, isDaily = false, thresholds) => {
       return;
     }
 
-    const cpu = parseFloat(d.cpuLoad) || 0;
-    const ram = parseFloat(d.memoryUsage) || 0;
+    const cpu = parseFloat(d.cpu || d.cpuLoad) || 0;
+    const ram = parseFloat(d.ram || d.memoryUsage) || 0;
     const storage = parseFloat(d.storage) || 0;
     const temp = parseFloat(d.temp) || 0;
     const latencyMs = parseLatencyToMs(d.latency);
