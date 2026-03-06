@@ -1,6 +1,6 @@
 const prisma = require('../config/prisma');
 const { sendTelegramAlert } = require('../utils/telegramUtil');
-const cron = require('node-cron'); // ✅ นำเข้า node-cron สำหรับทำ Schedule
+const cron = require('node-cron'); 
 
 const parseLatencyToMs = (latencyStr) => {
   if (!latencyStr || latencyStr === "timeout") return 999;
@@ -24,9 +24,27 @@ const parseLatencyToMs = (latencyStr) => {
 };
 
 // ==========================================
+// 🛠 Helper: ฟังก์ชันดึงค่า Thresholds จาก DB
+// ==========================================
+const getAlertThresholds = async () => {
+  let thresholds = { cpu: 85, ram: 85, latency: 80, temp: 60, storage: 85 }; // ค่า Default เผื่อ DB พัง
+  try {
+    const setting = await prisma.setting.findFirst({ where: { key: 'ALERT_THRESHOLDS' } });
+    if (setting && setting.value) {
+      const parsed = typeof setting.value === 'string' ? JSON.parse(setting.value) : setting.value;
+      thresholds = { ...thresholds, ...parsed }; // เอาค่าจาก DB ทับค่า Default
+    }
+  } catch (error) {
+    console.error("⚠️ ไม่สามารถดึงค่า Thresholds ได้ ใช้ค่า Default แทน", error);
+  }
+  return thresholds;
+};
+
+// ==========================================
 // 🛠 Helper Function: สร้างข้อความ Report
 // ==========================================
-const generateGroupReportText = (group, isDaily = false) => {
+// 🟢 รับตัวแปร thresholds เข้ามาใช้งานด้วย
+const generateGroupReportText = (group, isDaily = false, thresholds) => {
   const devices = group.devices || [];
   
   let onlineList = [];
@@ -48,11 +66,13 @@ const generateGroupReportText = (group, isDaily = false) => {
     const latencyMs = parseLatencyToMs(d.latency);
 
     let issues = [];
-    if (cpu > 85) issues.push(`CPU ${cpu}%`);
-    if (ram > 85) issues.push(`RAM ${ram}%`);
-    if (storage > 85) issues.push(`Storage ${storage}%`);
-    if (temp > 60) issues.push(`Temp ${temp}°C`);
-    if (latencyMs > 80) issues.push(`Ping ${latencyMs}ms`);
+    
+    // 🟢 เปลี่ยนจากเลขตายตัว เป็นการใช้ค่าจากตัวแปร thresholds ที่ดึงมาจาก DB
+    if (cpu > thresholds.cpu) issues.push(`CPU ${cpu}%`);
+    if (ram > thresholds.ram) issues.push(`RAM ${ram}%`);
+    if (storage > thresholds.storage) issues.push(`Storage ${storage}%`);
+    if (temp > thresholds.temp) issues.push(`Temp ${temp}°C`);
+    if (latencyMs > thresholds.latency) issues.push(`Ping ${latencyMs}ms`);
 
     if (issues.length > 0) {
       const problemData = { name: d.name, circuit: d.circuitId, issues: issues.join(', ') };
@@ -128,8 +148,10 @@ exports.handleWebhook = async (req, res) => {
     }
 
     if (text === '/report' || text.startsWith('/report@')) {
-      // ✅ เรียกใช้ Helper Function เพื่อสร้างข้อความ
-      const msg = generateGroupReportText(group, false);
+      // 🟢 ดึงค่า Thresholds ก่อนสร้างข้อความ
+      const thresholds = await getAlertThresholds();
+      const msg = generateGroupReportText(group, false, thresholds);
+      
       await sendTelegramAlert(group.telegramBotToken, chatId, msg);
     }
   } catch (error) {
@@ -141,7 +163,6 @@ exports.handleWebhook = async (req, res) => {
 // ⏰ Cron Job: ส่งรายงานอัตโนมัติ 07:30 ทุกวัน
 // ==========================================
 exports.initDailyReportCron = () => {
-  // เวลา '30 7 * * *' หมายถึง 07:30 น. ของทุกวัน
   cron.schedule('30 7 * * *', async () => {
     console.log("⏰ [CRON] Starting Daily Telegram Report...");
 
@@ -156,14 +177,19 @@ exports.initDailyReportCron = () => {
         include: { devices: { where: { status: { not: 'DELETED' } } } }
       });
 
-      // 2. วนลูปส่งรายงานให้แต่ละกลุ่ม
-      for (const group of groups) {
-        if (group.devices && group.devices.length > 0) {
-          const msg = generateGroupReportText(group, true);
-          await sendTelegramAlert(group.telegramBotToken, group.telegramChatId, msg);
-          
-          // ชะลอเวลาเล็กน้อย ป้องกัน Telegram API แบน (Rate limit) กรณีมีหลายกลุ่ม
-          await new Promise(resolve => setTimeout(resolve, 1500));
+      if (groups.length > 0) {
+        // 🟢 2. ดึงค่า Thresholds แค่รอบเดียวเพื่อใช้งานกับทุกกลุ่ม (ลดภาระ Database)
+        const thresholds = await getAlertThresholds();
+
+        // 3. วนลูปส่งรายงานให้แต่ละกลุ่ม
+        for (const group of groups) {
+          if (group.devices && group.devices.length > 0) {
+            // ส่ง Thresholds เข้าไปคำนวณด้วย
+            const msg = generateGroupReportText(group, true, thresholds);
+            await sendTelegramAlert(group.telegramBotToken, group.telegramChatId, msg);
+            
+            await new Promise(resolve => setTimeout(resolve, 1500));
+          }
         }
       }
       console.log("✅ [CRON] Daily Telegram Report Sent Successfully.");
@@ -172,7 +198,7 @@ exports.initDailyReportCron = () => {
     }
   }, {
     scheduled: true,
-    timezone: "Asia/Bangkok" // ✅ ล็อคโซนเวลาเป็นประเทศไทย (สำคัญมาก)
+    timezone: "Asia/Bangkok" 
   });
 
   console.log("🕒 Telegram Daily Report Scheduled: 07:30 AM (Asia/Bangkok)");
