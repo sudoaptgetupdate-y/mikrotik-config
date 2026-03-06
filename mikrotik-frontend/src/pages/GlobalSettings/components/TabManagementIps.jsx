@@ -8,34 +8,22 @@ import Swal from 'sweetalert2';
 export default function TabManagementIps({ initialData }) {
   const queryClient = useQueryClient();
 
-  // ==========================================
-  // States
-  // ==========================================
   const [managementIps, setManagementIps] = useState(initialData || []);
   const [newManagementIp, setNewManagementIp] = useState('');
   const [isSaving, setIsSaving] = useState(false);
 
-  // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 15; // แสดง 9 รายการ (3 แถว แถวละ 3)
+  const itemsPerPage = 15;
 
-  // ==========================================
-  // Pagination Logic
-  // ==========================================
   const totalPages = Math.ceil(managementIps.length / itemsPerPage) || 1;
   const paginatedIps = useMemo(() => {
     return managementIps.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
   }, [managementIps, currentPage]);
 
   useEffect(() => {
-    if (currentPage > totalPages) {
-      setCurrentPage(Math.max(1, totalPages));
-    }
+    if (currentPage > totalPages) setCurrentPage(Math.max(1, totalPages));
   }, [totalPages, currentPage]);
 
-  // ==========================================
-  // Handlers (Actions)
-  // ==========================================
   const handleSaveToBackend = async (updatedList, onSuccess) => {
     setIsSaving(true);
     const savePromise = apiClient.put(`/api/settings/MANAGEMENT_IPS`, { value: updatedList });
@@ -69,20 +57,12 @@ export default function TabManagementIps({ initialData }) {
 
   const removeManagementIp = async (index, ip) => {
     const realIndex = (currentPage - 1) * itemsPerPage + index;
-
     const result = await Swal.fire({
-      title: 'ยืนยันการลบ IP?',
-      text: `คุณต้องการลบ IP "${ip}" ออกจาก Allow List ใช่หรือไม่?`,
-      icon: 'warning',
-      showCancelButton: true,
-      confirmButtonText: 'ใช่, ลบออก!',
-      cancelButtonText: 'ยกเลิก',
-      buttonsStyling: false,
+      title: 'ยืนยันการลบ IP?', text: `คุณต้องการลบ IP "${ip}" ออกจาก Allow List ใช่หรือไม่?`, icon: 'warning',
+      showCancelButton: true, confirmButtonText: 'ใช่, ลบออก!', cancelButtonText: 'ยกเลิก', buttonsStyling: false,
       customClass: {
-        popup: 'rounded-3xl p-6 border border-slate-100 shadow-xl',
-        title: 'text-xl font-bold text-slate-800',
-        htmlContainer: 'text-sm text-slate-500 font-medium mt-2',
-        actions: 'flex gap-3 mt-6 w-full justify-center',
+        popup: 'rounded-3xl p-6 border border-slate-100 shadow-xl', title: 'text-xl font-bold text-slate-800',
+        htmlContainer: 'text-sm text-slate-500 font-medium mt-2', actions: 'flex gap-3 mt-6 w-full justify-center',
         confirmButton: 'bg-red-600 hover:bg-red-700 text-white px-6 py-2.5 rounded-xl text-sm font-bold shadow-sm transition-all',
         cancelButton: 'bg-slate-100 hover:bg-slate-200 text-slate-600 px-6 py-2.5 rounded-xl text-sm font-bold transition-all'
       }
@@ -94,9 +74,6 @@ export default function TabManagementIps({ initialData }) {
     }
   };
 
-  // ==========================================
-  // Render
-  // ==========================================
   return (
     <div className="flex-1 flex flex-col h-full">
       <div className="mb-6 pb-4 border-b border-slate-100 shrink-0">
@@ -104,7 +81,6 @@ export default function TabManagementIps({ initialData }) {
         <p className="text-sm text-slate-500 mt-1">IP ที่ได้รับอนุญาตให้เข้าถึงระบบจัดการของอุปกรณ์ (บันทึกอัตโนมัติ)</p>
       </div>
 
-      {/* ฟอร์มเพิ่มข้อมูล */}
       <div className="flex flex-col sm:flex-row items-center gap-3 mb-6 bg-white p-4 border border-slate-200 rounded-xl shadow-sm shrink-0">
         <input type="text" placeholder="e.g. 10.234.56.0/24 หรือ 192.168.1.100" value={newManagementIp} onChange={e => setNewManagementIp(e.target.value)} onKeyDown={e => e.key === 'Enter' && addManagementIp()} className="w-full sm:flex-1 border border-slate-300 rounded-xl px-4 py-2.5 text-sm font-mono outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-50 transition-all" />
         <button onClick={addManagementIp} disabled={isSaving} className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-400 text-white px-6 py-2.5 rounded-xl flex items-center justify-center gap-2 font-bold transition-all shadow-sm whitespace-nowrap">
@@ -112,15 +88,14 @@ export default function TabManagementIps({ initialData }) {
         </button>
       </div>
 
-      {/* 🟢 Container ล็อคความสูงขั้นต่ำ */}
-      <div className="flex-1 flex flex-col min-h-[420px]">
-        {/* รายการข้อมูล */}
+      <div className="flex-1 flex flex-col">
         <div className="flex-1">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
             {paginatedIps.map((ip, idx) => (
               <div key={idx} className="flex items-center gap-3 bg-slate-50 p-3 rounded-xl border border-slate-200 shadow-sm transition-all hover:border-emerald-300">
                 <Network size={16} className="text-emerald-500 shrink-0" />
-                <span className="flex-1 text-sm font-mono text-emerald-900 font-bold">{ip}</span>
+                {/* 🟢 นำ font-bold ออกจาก IP Address */}
+                <span className="flex-1 text-sm font-mono text-emerald-800">{ip}</span>
                 <button onClick={() => removeManagementIp(idx, ip)} disabled={isSaving} className="text-slate-400 hover:text-red-600 bg-white border border-slate-200 hover:bg-red-50 p-2 rounded-lg transition-colors disabled:opacity-50">
                   <Trash2 size={16} />
                 </button>
@@ -135,7 +110,6 @@ export default function TabManagementIps({ initialData }) {
           )}
         </div>
 
-        {/* 🟢 Pagination Controls (ใช้ mt-auto เพื่อดันลงไปล่างสุด) */}
         {totalPages > 1 && (
           <div className="flex justify-center mt-auto mb-2 pt-4">
             <div className="flex items-center gap-1 p-1.5 bg-blue-50/80 backdrop-blur-md border border-blue-200/60 rounded-full shadow-[0_4px_20px_rgb(59,130,246,0.1)] transition-all">
@@ -156,7 +130,6 @@ export default function TabManagementIps({ initialData }) {
           </div>
         )}
       </div>
-      
     </div>
   );
 }

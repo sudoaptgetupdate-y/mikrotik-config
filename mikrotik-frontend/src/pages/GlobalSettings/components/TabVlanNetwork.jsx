@@ -7,15 +7,9 @@ import { useQueryClient } from '@tanstack/react-query';
 export default function TabVlanNetwork({ initialData }) {
   const queryClient = useQueryClient();
 
-  // ==========================================
-  // States
-  // ==========================================
   const [defaultNetworks, setDefaultNetworks] = useState(initialData || []);
   const [isSaving, setIsSaving] = useState(false);
 
-  // ==========================================
-  // Handlers (Actions)
-  // ==========================================
   const addDefaultNetwork = () => {
     const customVlans = defaultNetworks.filter(n => n.vlanId !== 56).map(n => n.vlanId);
     const nextVlan = customVlans.length > 0 ? Math.max(...customVlans) + 10 : 10;
@@ -28,8 +22,6 @@ export default function TabVlanNetwork({ initialData }) {
       dhcp: true, 
       hotspot: false
     };
-    
-    // ✅ นำ newNet ไปแทรกไว้ด้านหน้าสุดของ Array 
     setDefaultNetworks([newNet, ...defaultNetworks]);
   };
 
@@ -66,12 +58,9 @@ export default function TabVlanNetwork({ initialData }) {
     finally { setIsSaving(false); }
   };
 
-  // ==========================================
-  // Render
-  // ==========================================
   return (
-    <div className="flex-1 flex flex-col">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 pb-4 border-b border-slate-100 gap-4">
+    <div className="flex-1 flex flex-col h-full">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 pb-4 border-b border-slate-100 gap-4 shrink-0">
         <div>
           <h3 className="text-lg font-bold text-slate-800">Default LAN & VLAN</h3>
           <p className="text-sm text-slate-500">ค่าเริ่มต้นของวงเครือข่ายเมื่อสร้าง Config ใหม่</p>
@@ -86,8 +75,8 @@ export default function TabVlanNetwork({ initialData }) {
         </div>
       </div>
 
-      {/* ✅ ปรับ Container นี้ให้สามารถ Scroll แนวตั้งได้ */}
-      <div className="space-y-3 overflow-y-auto max-h-[450px] pr-2 pb-2 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-200 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-slate-300 transition-all">
+      {/* 🟢 ใช้ flex-1 แทน max-h เพื่อให้กล่องยืดหยุ่นเต็มพื้นที่ */}
+      <div className="flex-1 space-y-3 overflow-y-auto pr-2 pb-2 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-200 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-slate-300 transition-all">
         {defaultNetworks.map((net) => (
           <div key={net.id} className="grid grid-cols-2 md:grid-cols-12 gap-3 items-center bg-slate-50 p-4 rounded-xl border border-slate-200 transition-all hover:border-purple-200 hover:shadow-sm">
             <div className="col-span-1 md:col-span-2">

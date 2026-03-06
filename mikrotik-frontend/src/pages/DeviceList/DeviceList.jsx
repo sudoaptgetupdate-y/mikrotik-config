@@ -1,6 +1,6 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Activity, Plus, ChevronRight } from 'lucide-react';
+import { Activity, Plus, ChevronRight, ChevronLeft } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import toast from 'react-hot-toast';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -16,6 +16,9 @@ import AcknowledgeModal from './components/AcknowledgeModal';
 import HistoryModal from './components/HistoryModal';
 import EventLogModal from './components/EventLogModal';
 
+// 🟢 กำหนดตัวเลือกจำนวนรายการต่อหน้า (เริ่มที่ 5)
+const PAGE_SIZES = [5, 10, 20, 50];
+
 const DeviceList = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -29,8 +32,10 @@ const DeviceList = () => {
   // ==========================================
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState(location.state?.filter || 'ACTIVE_ONLY');
-  const [displayLimit, setDisplayLimit] = useState(15);
-  const observerTarget = useRef(null);
+  
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(PAGE_SIZES[0]); // 🟢 ใช้ State คุมจำนวนต่อหน้า
 
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [selectedDeviceHistory, setSelectedDeviceHistory] = useState(null);
@@ -65,76 +70,77 @@ const DeviceList = () => {
   const lastUpdatedText = dataUpdatedAt ? new Date(dataUpdatedAt).toLocaleTimeString() : '...';
 
   // ==========================================
-  // Filtering & Sorting Logic
+  // Filtering & Sorting & Pagination Logic
   // ==========================================
-  const filteredDevices = devices.filter(d => {
-    const searchLower = searchTerm.toLowerCase();
-    const modelName = typeof d.model === 'string' ? d.model : (d.model?.name || '');
-    const matchesSearch = 
-      (d.name?.toLowerCase().includes(searchLower)) || 
-      (d.circuitId?.toLowerCase().includes(searchLower)) ||
-      (d.ipAddress?.toLowerCase().includes(searchLower)) ||
-      (d.boardName?.toLowerCase().includes(searchLower)) || 
-      (modelName?.toLowerCase().includes(searchLower));
+  const filteredDevices = useMemo(() => {
+    return devices.filter(d => {
+      const searchLower = searchTerm.toLowerCase();
+      const modelName = typeof d.model === 'string' ? d.model : (d.model?.name || '');
+      const matchesSearch = 
+        (d.name?.toLowerCase().includes(searchLower)) || 
+        (d.circuitId?.toLowerCase().includes(searchLower)) ||
+        (d.ipAddress?.toLowerCase().includes(searchLower)) ||
+        (d.boardName?.toLowerCase().includes(searchLower)) || 
+        (modelName?.toLowerCase().includes(searchLower));
 
-    const statusObj = getDeviceStatus(d);
-    
-    if (statusFilter === 'ACTIVE_ONLY') return statusObj.state !== 'deleted' && matchesSearch;
-    if (statusFilter === 'ONLINE') return statusObj.state === 'online' && matchesSearch;
-    if (statusFilter === 'WARNING') return statusObj.state === 'warning' && matchesSearch;
-    if (statusFilter === 'OFFLINE') return statusObj.state === 'offline' && matchesSearch;
-    if (statusFilter === 'DELETED') return statusObj.state === 'deleted' && matchesSearch;
-    return matchesSearch; 
-  });
-
-  const sortedDevices = filteredDevices.sort((a, b) => {
-    if (statusFilter === 'ACTIVE_ONLY' || statusFilter === 'ALL') {
-      const stateA = getDeviceStatus(a).state;
-      const stateB = getDeviceStatus(b).state;
+      const statusObj = getDeviceStatus(d);
       
-      const priority = {
-        'offline': 1,
-        'warning': 2,
-        'online': 3,
-        'acknowledged': 4,
-        'deleted': 5
-      };
-      
-      const rankA = priority[stateA] || 99;
-      const rankB = priority[stateB] || 99;
-      
-      if (rankA !== rankB) {
-        return rankA - rankB;
-      }
-    }
-    return 0; 
-  });
-  
-  const displayedDevices = sortedDevices.slice(0, displayLimit);
+      if (statusFilter === 'ACTIVE_ONLY') return statusObj.state !== 'deleted' && matchesSearch;
+      if (statusFilter === 'ONLINE') return statusObj.state === 'online' && matchesSearch;
+      if (statusFilter === 'WARNING') return statusObj.state === 'warning' && matchesSearch;
+      if (statusFilter === 'OFFLINE') return statusObj.state === 'offline' && matchesSearch;
+      if (statusFilter === 'DELETED') return statusObj.state === 'deleted' && matchesSearch;
+      return matchesSearch; 
+    });
+  }, [devices, searchTerm, statusFilter]);
 
-  // ==========================================
-  // 🟢 Infinite Scroll Logic (ส่วนที่เพิ่มเข้ามา)
-  // ==========================================
-  useEffect(() => {
-    const target = observerTarget.current;
-    if (!target) return;
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        // เมื่อเป้าหมาย (ด้านล่างตาราง) โผล่เข้ามาในหน้าจอ และยังมีข้อมูลเหลือให้โหลด
-        if (entries[0].isIntersecting && displayLimit < filteredDevices.length) {
-          setDisplayLimit((prev) => prev + 15);
+  const sortedDevices = useMemo(() => {
+    return [...filteredDevices].sort((a, b) => {
+      if (statusFilter === 'ACTIVE_ONLY' || statusFilter === 'ALL') {
+        const stateA = getDeviceStatus(a).state;
+        const stateB = getDeviceStatus(b).state;
+        
+        const priority = {
+          'offline': 1,
+          'warning': 2,
+          'online': 3,
+          'acknowledged': 4,
+          'deleted': 5
+        };
+        
+        const rankA = priority[stateA] || 99;
+        const rankB = priority[stateB] || 99;
+        
+        if (rankA !== rankB) {
+          return rankA - rankB;
         }
-      },
-      { threshold: 0.1, rootMargin: '100px' } // เผื่อระยะโหลดล่วงหน้า 100px ก่อนไถถึงล่างสุด
-    );
+      }
+      return 0; 
+    });
+  }, [filteredDevices, statusFilter]);
+  
+  // คำนวณหน้าและการหั่นข้อมูล (Pagination)
+  const totalPages = Math.ceil(sortedDevices.length / itemsPerPage) || 1;
+  const paginatedDevices = useMemo(() => {
+    return sortedDevices.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+  }, [sortedDevices, currentPage, itemsPerPage]);
 
-    observer.observe(target);
+  // 🟢 คำนวณตัวเลขสำหรับแสดงในแถบ Footer (จาก X ถึง Y)
+  const totalFiltered = sortedDevices.length;
+  const fromItem = totalFiltered > 0 ? (currentPage - 1) * itemsPerPage + 1 : 0;
+  const toItem = Math.min(currentPage * itemsPerPage, totalFiltered);
 
-    return () => {
-      if (target) observer.unobserve(target);
-    };
-  }, [loading, filteredDevices.length, displayLimit]);
+  // รีเซ็ตหน้าหากข้อมูลเปลี่ยน
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(Math.max(1, totalPages));
+    }
+  }, [totalPages, currentPage]);
+
+  // 🟢 กลับไปหน้า 1 เสมอเวลาค้นหา, เปลี่ยนฟิลเตอร์, หรือเปลี่ยนจำนวนต่อหน้า
+  useEffect(() => {
+    setCurrentPage(1); 
+  }, [searchTerm, statusFilter, itemsPerPage]);
 
   // ==========================================
   // Handlers (Actions)
@@ -333,9 +339,8 @@ const DeviceList = () => {
   return (
     <div className="space-y-6 pb-28 animate-in fade-in duration-500">
       
-      {/* 1. Page Header (แบบ Classic & Clean) */}
+      {/* 1. Page Header */}
       <div className="space-y-4">
-        {/* Breadcrumbs */}
         <nav className="flex items-center text-sm font-medium text-slate-500 gap-2">
           <a href="/dashboard" className="hover:text-blue-600 transition-colors">Home</a>
           <ChevronRight size={14} className="text-slate-400" />
@@ -355,7 +360,6 @@ const DeviceList = () => {
             </p>
           </div>
           
-          {/* ปุ่ม Create สไตล์ Soft/Tonal */}
           <button 
             onClick={handleAddClick} 
             className="shrink-0 bg-blue-50 text-blue-700 px-5 py-2.5 rounded-lg flex items-center justify-center gap-2 hover:bg-blue-100 transition-all font-semibold text-sm border border-blue-100"
@@ -365,16 +369,68 @@ const DeviceList = () => {
           </button>
         </div>
 
-        {/* เส้นกั้น Solid Divider */}
         <hr className="border-slate-200 mt-2" />
       </div>
 
       <DeviceListToolbar searchTerm={searchTerm} setSearchTerm={setSearchTerm} statusFilter={statusFilter} setStatusFilter={setStatusFilter} onRefresh={handleRefresh} loading={loading} />
 
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
-        <DeviceTable loading={loading} devices={displayedDevices} filteredCount={filteredDevices.length} displayLimit={displayLimit} observerTarget={observerTarget} canEdit={canEdit} handlers={{ onDownload: handleDownloadLatest, onViewHistory: handleViewHistory, onViewEvents: handleViewEvents, onRestore: handleRestoreClick, onEdit: handleEditClick, onDelete: handleDeleteClick, onAcknowledge: handleAcknowledgeClick }} />
+      <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col min-h-[450px] md:min-h-[600px] xl:min-h-[700px]">
+        <DeviceTable 
+          loading={loading} 
+          devices={paginatedDevices} 
+          canEdit={canEdit} 
+          handlers={{ onDownload: handleDownloadLatest, onViewHistory: handleViewHistory, onViewEvents: handleViewEvents, onRestore: handleRestoreClick, onEdit: handleEditClick, onDelete: handleDeleteClick, onAcknowledge: handleAcknowledgeClick }} 
+          // 🟢 ส่งค่าสำหรับ Page Selector ไปให้ DeviceTable
+          pageSizes={PAGE_SIZES}
+          itemsPerPage={itemsPerPage}
+          setItemsPerPage={setItemsPerPage}
+          from={fromItem}
+          to={toItem}
+          total={totalFiltered}
+        />
       </div>
 
+      {/* Pagination Controls */}
+      {totalPages > 1 && (
+        <div className="sticky bottom-6 z-30 flex justify-center mt-8 pointer-events-none">
+          <div className="flex items-center gap-1 p-1.5 bg-blue-50/80 backdrop-blur-md border border-blue-200/60 rounded-full shadow-[0_8px_30px_rgb(59,130,246,0.15)] pointer-events-auto transition-all hover:bg-blue-50/95">
+            
+            <button 
+              onClick={() => setCurrentPage(p => Math.max(1, p - 1))} 
+              disabled={currentPage === 1} 
+              className="p-2 rounded-full text-blue-500 hover:bg-blue-100 hover:text-blue-700 disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-blue-500 transition-all"
+            >
+              <ChevronLeft size={20} strokeWidth={2.5} />
+            </button>
+            
+            <div className="flex items-center gap-1 px-2">
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                <button
+                  key={page}
+                  onClick={() => setCurrentPage(page)}
+                  className={`w-9 h-9 rounded-full text-sm font-bold transition-all ${
+                    currentPage === page 
+                      ? 'bg-blue-600 text-white shadow-md shadow-blue-500/30' 
+                      : 'text-blue-600/70 hover:bg-blue-100 hover:text-blue-700'
+                  }`}
+                >
+                  {page}
+                </button>
+              ))}
+            </div>
+
+            <button 
+              onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} 
+              disabled={currentPage === totalPages} 
+              className="p-2 rounded-full text-blue-500 hover:bg-blue-100 hover:text-blue-700 disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-blue-500 transition-all"
+            >
+              <ChevronRight size={20} strokeWidth={2.5} />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Modals */}
       <AcknowledgeModal isOpen={isAckModalOpen} onClose={() => setIsAckModalOpen(false)} device={deviceToAck} ackReason={ackReason} setAckReason={setAckReason} onSubmit={submitAcknowledge} isSubmitting={isAckSubmitting} />
       <HistoryModal isOpen={isHistoryOpen} onClose={() => setIsHistoryOpen(false)} device={selectedDeviceHistory} history={historyData} loading={historyLoading} />
       <EventLogModal isOpen={isEventOpen} onClose={() => setIsEventOpen(false)} device={selectedDeviceEvent} events={eventData} loading={eventLoading} />

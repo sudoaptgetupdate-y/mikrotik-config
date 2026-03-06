@@ -150,8 +150,9 @@ const UserManagement = () => {
   // ==========================================
   // Render
   // ==========================================
+  // 🟢 เปลี่ยนจาก pb-10 เป็น pb-28 เพื่อเว้นที่ให้ Pagination ลอยได้
   return (
-    <div className="space-y-6 pb-10 animate-in fade-in duration-500">
+    <div className="space-y-6 pb-28 animate-in fade-in duration-500">
       
       {/* 1. Page Header (แบบ Classic & Clean) */}
       <div className="space-y-4">
@@ -206,9 +207,8 @@ const UserManagement = () => {
         </div>
       </div>
 
-      {/* 3. User Table Component & Pagination (🟢 ล็อคความสูงขั้นต่ำ min-h-[660px]) */}
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col min-h-[660px]">
-        {/* กล่องตาราง */}
+      {/* 3. Content Area (🟢 เปลี่ยนมาใช้ Responsive Min-Height ให้กล่องตาราง) */}
+      <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col min-h-[450px] md:min-h-[600px] xl:min-h-[700px]">
         <div className="flex-1">
           <UserTable 
             users={paginatedUsers} 
@@ -217,47 +217,47 @@ const UserManagement = () => {
             onDelete={handleDelete} 
           />
         </div>
-
-        {/* 4. Pagination Controls (🟢 ใช้ mt-auto ดันลงไปติดขอบล่างของ Card เสมอ) */}
-        {totalPages > 1 && (
-          <div className="flex justify-center mt-auto mb-6 pt-4 border-t border-slate-100">
-            <div className="flex items-center gap-1 p-1.5 bg-blue-50/80 backdrop-blur-md border border-blue-200/60 rounded-full shadow-[0_4px_20px_rgb(59,130,246,0.1)] transition-all">
-              
-              <button 
-                onClick={() => setCurrentPage(p => Math.max(1, p - 1))} 
-                disabled={currentPage === 1} 
-                className="p-2 rounded-full text-blue-500 hover:bg-blue-100 hover:text-blue-700 disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-blue-500 transition-all"
-              >
-                <ChevronLeft size={20} strokeWidth={2.5} />
-              </button>
-              
-              <div className="flex items-center gap-1 px-2">
-                {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
-                  <button
-                    key={page}
-                    onClick={() => setCurrentPage(page)}
-                    className={`w-9 h-9 rounded-full text-sm font-bold transition-all ${
-                      currentPage === page 
-                        ? 'bg-blue-600 text-white shadow-md shadow-blue-500/30' 
-                        : 'text-blue-600/70 hover:bg-blue-100 hover:text-blue-700'
-                    }`}
-                  >
-                    {page}
-                  </button>
-                ))}
-              </div>
-
-              <button 
-                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} 
-                disabled={currentPage === totalPages} 
-                className="p-2 rounded-full text-blue-500 hover:bg-blue-100 hover:text-blue-700 disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-blue-500 transition-all"
-              >
-                <ChevronRight size={20} strokeWidth={2.5} />
-              </button>
-            </div>
-          </div>
-        )}
       </div>
+
+      {/* 4. Pagination Controls (🟢 ใช้ Tinted Glass แบบลอยตัวเหมือนหน้าอื่นๆ) */}
+      {totalPages > 1 && (
+        <div className="sticky bottom-6 z-30 flex justify-center mt-8 pointer-events-none">
+          <div className="flex items-center gap-1 p-1.5 bg-blue-50/80 backdrop-blur-md border border-blue-200/60 rounded-full shadow-[0_8px_30px_rgb(59,130,246,0.15)] pointer-events-auto transition-all hover:bg-blue-50/95">
+            
+            <button 
+              onClick={() => setCurrentPage(p => Math.max(1, p - 1))} 
+              disabled={currentPage === 1} 
+              className="p-2 rounded-full text-blue-500 hover:bg-blue-100 hover:text-blue-700 disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-blue-500 transition-all"
+            >
+              <ChevronLeft size={20} strokeWidth={2.5} />
+            </button>
+            
+            <div className="flex items-center gap-1 px-2">
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                <button
+                  key={page}
+                  onClick={() => setCurrentPage(page)}
+                  className={`w-9 h-9 rounded-full text-sm font-bold transition-all ${
+                    currentPage === page 
+                      ? 'bg-blue-600 text-white shadow-md shadow-blue-500/30' 
+                      : 'text-blue-600/70 hover:bg-blue-100 hover:text-blue-700'
+                  }`}
+                >
+                  {page}
+                </button>
+              ))}
+            </div>
+
+            <button 
+              onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} 
+              disabled={currentPage === totalPages} 
+              className="p-2 rounded-full text-blue-500 hover:bg-blue-100 hover:text-blue-700 disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-blue-500 transition-all"
+            >
+              <ChevronRight size={20} strokeWidth={2.5} />
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* User Form Modal Component */}
       <UserFormModal 

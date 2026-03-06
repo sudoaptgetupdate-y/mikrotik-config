@@ -143,7 +143,7 @@ const AuditLog = () => {
       </div>
 
       {/* 2. Control Toolbar (Search & Filters) */}
-      <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-sm flex flex-col gap-4">
+      <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col gap-4">
         <div className="flex flex-col md:flex-row md:items-center gap-4">
           <div className="relative flex-1 w-full">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
@@ -161,7 +161,7 @@ const AuditLog = () => {
         </div>
 
         {/* Date Filter */}
-        <div className="flex flex-col md:flex-row md:items-center gap-3 pt-3 border-t border-slate-100">
+        <div className="flex flex-col xl:flex-row xl:items-center gap-3 pt-3 border-t border-slate-100">
           <div className="flex items-center gap-2 text-sm text-slate-500 font-bold px-1"><Calendar size={16} /> ช่วงเวลา:</div>
           <div className="flex flex-wrap gap-2">
             {[{ id: 'all', label: 'ทั้งหมด' }, { id: 'today', label: 'วันนี้' }, { id: '7days', label: '7 วันที่ผ่านมา' }, { id: '30days', label: '30 วันที่ผ่านมา' }, { id: 'custom', label: 'กำหนดเอง' }].map(preset => (
@@ -175,7 +175,7 @@ const AuditLog = () => {
             ))}
           </div>
           {activePreset === 'custom' && (
-            <div className="flex flex-wrap items-center gap-2 animate-in fade-in slide-in-from-left-4 mt-2 md:mt-0">
+            <div className="flex flex-wrap items-center gap-2 animate-in fade-in slide-in-from-left-4 mt-2 xl:mt-0 xl:ml-2">
               <input type="date" value={dateRange.start} onChange={(e) => setDateRange(prev => ({ ...prev, start: e.target.value }))} className="px-3 py-1.5 text-xs border border-slate-200 rounded-lg outline-none focus:border-blue-500 transition-all text-slate-600" />
               <span className="text-slate-400 text-xs">-</span>
               <input type="date" value={dateRange.end} onChange={(e) => setDateRange(prev => ({ ...prev, end: e.target.value }))} className="px-3 py-1.5 text-xs border border-slate-200 rounded-lg outline-none focus:border-blue-500 transition-all text-slate-600" />
@@ -184,15 +184,15 @@ const AuditLog = () => {
         </div>
       </div>
 
-      {/* 3. Content Area */}
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
+      {/* 3. Content Area (🟢 เพิ่ม Responsive Min-Height ที่กรอบนอกสุด และให้ flex-1 ดัน Footer ลงล่าง) */}
+      <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col min-h-[450px] md:min-h-[600px] xl:min-h-[700px]">
         {isLoading ? (
-          <div className="flex flex-col items-center justify-center py-20 text-slate-400 bg-white min-h-[400px]">
+          <div className="flex-1 flex flex-col items-center justify-center p-8 text-slate-400">
             <Loader2 size={36} className="animate-spin text-blue-600 mb-4" />
             <p className="font-medium text-sm">กำลังโหลดข้อมูลประวัติ...</p>
           </div>
         ) : logs.length === 0 ? (
-          <div className="bg-white flex flex-col items-center justify-center min-h-[400px] text-center p-8">
+          <div className="flex-1 flex flex-col items-center justify-center text-center p-8">
             <div className="bg-slate-50 p-5 rounded-full mb-4">
               <FileText size={48} className="text-slate-300" />
             </div>
@@ -202,46 +202,49 @@ const AuditLog = () => {
             </p>
           </div>
         ) : (
-          <div className="overflow-x-auto relative">
-            <table className={`w-full text-left border-collapse transition-opacity duration-200 ${isFetching ? 'opacity-50' : 'opacity-100'}`}>
-              <thead>
-                <tr className="bg-slate-50/80 border-b border-slate-200 text-xs uppercase tracking-wider text-slate-500 font-bold">
-                  <th className="p-4 pl-6 w-48 whitespace-nowrap">Date / Time</th>
-                  <th className="p-4 w-40 whitespace-nowrap">User</th>
-                  <th className="p-4 w-56 whitespace-nowrap">Action</th>
-                  <th className="p-4 whitespace-nowrap">Details</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 bg-white">
-                {logs.map((log) => {
-                  const badge = getActionBadge(log.action);
-                  return (
-                    <tr key={log.id} className="hover:bg-slate-50/50 transition-colors">
-                      <td className="p-4 pl-6 text-sm text-slate-600 font-medium whitespace-nowrap">
-                        {new Date(log.createdAt).toLocaleString('th-TH', { 
-                          year: 'numeric', month: 'short', day: 'numeric', 
-                          hour: '2-digit', minute: '2-digit', second: '2-digit' 
-                        })}
-                      </td>
-                      <td className="p-4 text-sm font-bold text-slate-800 whitespace-nowrap">
-                        {log.user?.username || `User #${log.userId}`}
-                      </td>
-                      <td className="p-4 whitespace-nowrap">
-                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-bold border ${badge.color}`}>
-                          {badge.icon} {log.action.replace('_', ' ')}
-                        </span>
-                      </td>
-                      <td className="p-4 text-sm text-slate-600 max-w-md truncate" title={log.details || '-'}>
-                        {log.details || '-'}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+          <div className="flex-1 flex flex-col">
+            {/* Table Container (flex-1 เพื่อให้ตารางยืดเต็มพื้นที่ด้านบน) */}
+            <div className="overflow-x-auto relative flex-1">
+              <table className={`w-full text-left border-collapse transition-opacity duration-200 ${isFetching ? 'opacity-50' : 'opacity-100'}`}>
+                <thead>
+                  <tr className="bg-slate-50/80 border-b border-slate-200 text-xs uppercase tracking-wider text-slate-500 font-bold">
+                    <th className="p-4 pl-6 w-48 whitespace-nowrap">Date / Time</th>
+                    <th className="p-4 w-40 whitespace-nowrap">User</th>
+                    <th className="p-4 w-56 whitespace-nowrap">Action</th>
+                    <th className="p-4 whitespace-nowrap">Details</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 bg-white">
+                  {logs.map((log) => {
+                    const badge = getActionBadge(log.action);
+                    return (
+                      <tr key={log.id} className="hover:bg-slate-50/50 transition-colors">
+                        <td className="p-4 pl-6 text-sm text-slate-600 font-medium whitespace-nowrap">
+                          {new Date(log.createdAt).toLocaleString('th-TH', { 
+                            year: 'numeric', month: 'short', day: 'numeric', 
+                            hour: '2-digit', minute: '2-digit', second: '2-digit' 
+                          })}
+                        </td>
+                        <td className="p-4 text-sm font-bold text-slate-800 whitespace-nowrap">
+                          {log.user?.username || `User #${log.userId}`}
+                        </td>
+                        <td className="p-4 whitespace-nowrap">
+                          <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-bold border ${badge.color}`}>
+                            {badge.icon} {log.action.replace('_', ' ')}
+                          </span>
+                        </td>
+                        <td className="p-4 text-sm text-slate-600 max-w-md truncate" title={log.details || '-'}>
+                          {log.details || '-'}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
             
-            {/* Table Footer: Rows per page & Showing summary */}
-            <div className="bg-slate-50 border-t border-slate-100 p-4 flex flex-col sm:flex-row justify-between items-center gap-4 text-xs">
+            {/* Table Footer: Rows per page & Showing summary (mt-auto ดันติดขอบล่างเสมอ) */}
+            <div className="bg-slate-50 border-t border-slate-100 p-4 flex flex-col sm:flex-row justify-between items-center gap-4 text-xs mt-auto">
               <div className="flex items-center gap-2">
                 <span className="text-slate-500 font-medium">รายการต่อหน้า:</span>
                 <div className="flex gap-1">
