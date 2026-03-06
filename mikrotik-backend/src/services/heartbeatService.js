@@ -151,16 +151,15 @@ exports.processHeartbeat = async (token, payload, remoteIp) => {
     }
   } else {
     // ==========================================
-    // 5. กรณีสถานะกลับสู่ภาวะปกติ (System Recovery)
+    // 5. สถานะกลับสู่ภาวะปกติ (Warning Recovery)
     // ==========================================
     if (isWarningAlerted) {
       await prisma.deviceEventLog.create({ 
         data: { deviceId: device.id, eventType: 'ONLINE', details: 'System load is back to normal' } 
       });
 
-      const msg = `✅ <b>[SYSTEM RECOVERY]</b>\n🖥 <b>อุปกรณ์:</b> <code>${device.name}</code>\n✨ <b>วงจร:</b> <code>${device.circuitId || '-'}</code>\n\n🟢 <b>สถานะ:</b> การทำงานกลับสู่ภาวะปกติแล้ว`;
-      
       if (device.groups && device.groups.length > 0) {
+        const msg = `✅ <b>[SYSTEM RECOVERY]</b>\n🖥 <b>อุปกรณ์:</b> <code>${device.name}</code>\n✨ <b>วงจร:</b> <code>${device.circuitId || '-'}</code>\n\n🟢 <b>สถานะ:</b> การทำงานกลับสู่ภาวะปกติแล้ว`;
         for (const group of device.groups) {
           if (group.isNotifyEnabled && group.telegramBotToken && group.telegramChatId) {
             await sendTelegramAlert(group.telegramBotToken, group.telegramChatId, msg);
@@ -171,6 +170,7 @@ exports.processHeartbeat = async (token, payload, remoteIp) => {
     
     warningStartedAt = null; 
     isWarningAlerted = false; 
+    isAcknowledged = false; // 🟢 เพิ่มบรรทัดนี้: เพื่อล้างป้าย Ack สีฟ้าออกเมื่ออุปกรณ์หายป่วย
   }
 
   // ==========================================
@@ -189,11 +189,10 @@ exports.processHeartbeat = async (token, payload, remoteIp) => {
       version: version || device.version, 
       latency: latency || device.latency, 
       
-      // อัปเดต State ต่างๆ ของการแจ้งเตือน
       warningStartedAt,
       isWarningAlerted,
       isOfflineAlerted,
-      isAcknowledged: isAcknowledged && device.isAcknowledged 
+      isAcknowledged // 🟢 เปลี่ยนจาก isAcknowledged: isAcknowledged && device.isAcknowledged ให้เหลือแค่นี้ครับ
     }
   });
 };
