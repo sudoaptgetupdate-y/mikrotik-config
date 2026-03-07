@@ -164,7 +164,7 @@ const GroupManagement = () => {
   };
 
   return (
-    <div className="space-y-6 pb-28 animate-in fade-in duration-500">
+    <div className="space-y-6 animate-in fade-in duration-500">
       
       {/* 1. Page Header (แบบ Classic & Clean) */}
       <div className="space-y-4">
@@ -221,13 +221,13 @@ const GroupManagement = () => {
       {/* 3. Content Area */}
       {loadingGroups ? (
         // 🟢 เปลี่ยนความสูงตอน Loading ให้เป็น Responsive
-        <div className="flex flex-col items-center justify-center py-20 text-slate-400 min-h-[450px] md:min-h-[600px] xl:min-h-[700px]">
+        <div className="flex flex-col items-center justify-center py-20 text-slate-400 ">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-4"></div>
           <p>กำลังโหลดข้อมูลกลุ่ม...</p>
         </div>
       ) : filteredGroups.length === 0 ? (
         // 🟢 เปลี่ยนความสูงตอน Empty State ให้เป็น Responsive
-        <div className="bg-white border border-dashed border-slate-300 rounded-2xl flex flex-col items-center justify-center min-h-[450px] md:min-h-[600px] xl:min-h-[700px] text-center p-8 shadow-sm">
+        <div className="bg-white border border-dashed border-slate-300 rounded-2xl flex flex-col items-center justify-center  text-center p-8 shadow-sm">
           <div className="bg-slate-50 p-4 rounded-full mb-4">
             <Layers size={48} className="text-slate-300" />
           </div>
@@ -245,7 +245,7 @@ const GroupManagement = () => {
       ) : (
         <>
           {/* 🟢 เปลี่ยนความสูงกล่องเนื้อหาหลัก (Grid) ให้เป็น Responsive */}
-          <div className="min-h-[450px] md:min-h-[600px] xl:min-h-[700px]">
+          <div className="">
             {/* ข้อมูล Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
               {paginatedGroups.map(group => (
