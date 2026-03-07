@@ -43,7 +43,6 @@ const getAlertThresholds = async () => {
 // ==========================================
 // 🛠 Helper Function: สร้างข้อความ Report
 // ==========================================
-// 🟢 รับตัวแปร thresholds เข้ามาใช้งานด้วย
 const generateGroupReportText = (group, isDaily = false, thresholds) => {
   const devices = group.devices || [];
   
@@ -67,7 +66,7 @@ const generateGroupReportText = (group, isDaily = false, thresholds) => {
 
     let issues = [];
     
-    // 🟢 เปลี่ยนจากเลขตายตัว เป็นการใช้ค่าจากตัวแปร thresholds ที่ดึงมาจาก DB
+    // 🟢 เช็คเงื่อนไข Warning ด้วยค่า thresholds
     if (cpu > thresholds.cpu) issues.push(`CPU ${cpu}%`);
     if (ram > thresholds.ram) issues.push(`RAM ${ram}%`);
     if (storage > thresholds.storage) issues.push(`Storage ${storage}%`);
@@ -86,14 +85,18 @@ const generateGroupReportText = (group, isDaily = false, thresholds) => {
     }
   });
 
+  // 🟢 คำนวณตัวเลขสำหรับสรุปผลแบบจัดกลุ่มย่อย
+  const totalWarning = problemList.length + ackList.length;
+  const totalOnline = onlineList.length + totalWarning;
+
   // ประกอบข้อความ
   const title = isDaily ? "🗓️ <b>รายงานสถานะระบบประจำวัน</b>" : "📊 <b>รายงานสถานะระบบ</b>";
-  let msg = `${title} (กลุ่ม: ${group.name})\n\n`;
+  let msg = `${title}\n(กลุ่ม: ${group.name})\n\n`;
   msg += `📦 <b>อุปกรณ์ทั้งหมด:</b> ${devices.length} รายการ\n`;
-  msg += `🟢 <b>Online:</b> ${onlineList.length} รายการ\n`;
-  msg += `🔴 <b>Offline:</b> ${offlineList.length} รายการ\n`;
-  msg += `⚠️ <b>Problem:</b> ${problemList.length} รายการ\n`;
-  msg += `⌛ <b>Problem Ack:</b> ${ackList.length} รายการ\n`;
+  msg += `🟢 <b>Online: ${totalOnline} รายการ</b>\n`;
+  msg += `      ├─ ✅ ทำงานปกติ (Healthy): ${onlineList.length}\n`;
+  msg += `      └─ ⚠️ พบปัญหา (Warning): ${totalWarning}\n`;
+  msg += `🔴 <b>Offline: ${offlineList.length} รายการ</b>\n`;
 
   msg += `\n🚨 <b>อุปกรณ์ที่มีปัญหา:</b>\n`;
   if (problemList.length > 0) {
@@ -101,7 +104,7 @@ const generateGroupReportText = (group, isDaily = false, thresholds) => {
       msg += `🔻 <b>${p.name}</b> (${p.circuit || '-'}): <i>${p.issues}</i>\n`;
     });
   } else {
-    msg += `✅ <i>ไม่พบอุปกรณ์ที่มีปัญหา</i>\n`;
+    msg += `✅ <i>ไม่พบอุปกรณ์ที่มีปัญหา (ที่ยังไม่ได้รับทราบ)</i>\n`;
   }
 
   if (ackList.length > 0) {
