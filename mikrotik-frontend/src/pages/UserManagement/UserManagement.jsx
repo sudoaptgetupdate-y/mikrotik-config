@@ -152,7 +152,7 @@ const UserManagement = () => {
   // ==========================================
   // 🟢 เปลี่ยนจาก pb-10 เป็น pb-28 เพื่อเว้นที่ให้ Pagination ลอยได้
   return (
-    <div className="space-y-6 pb-28 animate-in fade-in duration-500">
+    <div className="space-y-6                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 animate-in fade-in duration-500">
       
       {/* 1. Page Header (แบบ Classic & Clean) */}
       <div className="space-y-4">

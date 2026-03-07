@@ -77,7 +77,7 @@ const MainLayout = () => {
       {/* 🖥️ Sidebar */}
       <div className={`fixed md:static inset-y-0 left-0 z-40 w-72 bg-slate-950 text-slate-300 transform transition-transform duration-300 ease-in-out flex flex-col shadow-2xl md:shadow-none ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}>
         
-        {/* Sidebar Header (Logo) - ✅ ใช้รูปแบบเดิมที่คุณต้องการ */}
+        {/* Sidebar Header (Logo) */}
         <div 
           onClick={() => navigate('/dashboard')}
           className="h-16 flex items-center justify-center px-6 bg-slate-950 border-b border-slate-800/80 cursor-pointer hover:bg-slate-900 transition-colors shrink-0"
@@ -150,13 +150,13 @@ const MainLayout = () => {
       {/* 💻 Content Area */}
       <main className="flex-1 overflow-y-auto relative w-full min-w-0 flex flex-col bg-slate-50/50">
         
-        {/* 1. ส่วนเนื้อหาหลัก ใช้ flex-1 เพื่อให้ขยายเต็มพื้นที่ว่าง */}
-        <div className="flex-1 p-4 md:p-8 max-w-7xl mx-auto w-full">
+        {/* 1. ส่วนเนื้อหาหลัก (ลบ flex-1 ออก เพื่อไม่ให้มันดัน Footer หนีเนื้อหา) */}
+        <div className="p-4 md:p-8 max-w-7xl mx-auto w-full">
           <Outlet /> 
         </div>
         
-        {/* 2. ส่วน Footer Container ใช้ mt-auto เพื่อดันตัวเองไปติดขอบล่างสุดเสมอ */}
-        <div className="mt-auto w-full">
+        {/* 2. ส่วน Footer (ใช้ mt-8 หรือระยะที่ต้องการ เพื่อเว้นระยะจากเนื้อหาพอดีๆ) */}
+        <div className="w-full mt-8 mb-4">
           <div className="max-w-7xl mx-auto w-full px-4 md:px-8">
             <Footer />
           </div>
