@@ -11,6 +11,9 @@ router.use(requireRole(['SUPER_ADMIN']));
 // GET /api/settings - ดึงข้อมูลทั้งหมด
 router.get('/', settingController.getSettings);
 
+// 🟢 เพิ่ม Route ใหม่ สำหรับรับข้อมูลจากหน้า Auto Cleanup
+router.post('/update', settingController.upsertSetting);
+
 // PUT /api/settings/:key - อัปเดตข้อมูลตาม Key (เช่น PUT /api/settings/MONITOR_IPS)
 router.put('/:key', settingController.updateSetting);
 
