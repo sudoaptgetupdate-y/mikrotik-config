@@ -24,7 +24,7 @@ const parseLatencyToMs = (latencyStr) => {
 };
 
 exports.processHeartbeat = async (token, payload, remoteIp) => {
-  const { cpu, ram, storage, temp, latency, uptime, version } = payload;
+  const { cpu, ram, storage, temp, latency, uptime, version, boardName } = payload;
   let matchedDeviceId = null;
   let device = null;
 
@@ -196,7 +196,6 @@ exports.processHeartbeat = async (token, payload, remoteIp) => {
       version: version || device.version, 
       latency: latency || device.latency, 
       
-      // 🟢 เพิ่มบรรทัดนี้เข้าไป เพื่อเซฟชื่อบอร์ดลง DB ด้วย
       boardName: boardName || device.boardName, 
 
       warningStartedAt,
