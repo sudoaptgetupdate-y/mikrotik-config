@@ -27,9 +27,10 @@ const parseLatencyToMs = (latencyStr) => {
 // 🛠 Helper: ฟังก์ชันดึงค่า Thresholds จาก DB
 // ==========================================
 const getAlertThresholds = async () => {
-  let thresholds = { cpu: 85, ram: 85, latency: 80, temp: 60, storage: 85 }; // ค่า Default เผื่อ DB พัง
+  let thresholds = { cpu: 85, ram: 85, latency: 80, temp: 60, storage: 85 }; // ค่า Default
   try {
-    const setting = await prisma.setting.findFirst({ where: { key: 'ALERT_THRESHOLDS' } });
+    const setting = await prisma.systemSetting.findFirst({ where: { key: 'ALERT_THRESHOLDS' } });
+    
     if (setting && setting.value) {
       const parsed = typeof setting.value === 'string' ? JSON.parse(setting.value) : setting.value;
       thresholds = { ...thresholds, ...parsed }; // เอาค่าจาก DB ทับค่า Default
