@@ -267,8 +267,14 @@ exports.initRealtimeMonitorCron = () => {
         // 3. ยิง Telegram แจ้งเตือน
         const msg = `🔴 <b>[DEVICE OFFLINE]</b>\nขาดการติดต่อจากอุปกรณ์เกิน 3 นาที!\n\n🖥 <b>อุปกรณ์:</b> <code>${device.name}</code>\n✨ <b>วงจร:</b> <code>${device.circuitId || '-'}</code>\n⏳ <b>ติดต่อล่าสุด:</b> ${new Date(device.lastSeen).toLocaleTimeString('th-TH')}`;
 
+        // 3. ยิง Telegram แจ้งเตือน
         if (device.groups && device.groups.length > 0) {
           for (const group of device.groups) {
+            // ดึงชื่อและเบอร์โทรแอดมินมาแสดง
+            const adminInfo = (group.adminName || group.adminContact) ? `\n\n👨‍🔧 <b>ผู้รับผิดชอบดูแล:</b> ${group.adminName || '-'}\n📞 <b>ติดต่อ:</b> ${group.adminContact || '-'}` : '';
+            
+            const msg = `🚨 <b>[DEVICE OFFLINE] - ขาดการติดต่อ</b>\n\n🖥 <b>อุปกรณ์:</b> <code>${device.name}</code>\n✨ <b>วงจร:</b> <code>${device.circuitId || '-'}</code>\n⚠️ <b>สถานะ:</b> ไม่สามารถเชื่อมต่อได้เกิน 3 นาที (อาจเกิดจากไฟดับหรืออินเทอร์เน็ตหลุด)${adminInfo}`;
+
             if (group.isNotifyEnabled && group.telegramBotToken && group.telegramChatId) {
               await sendTelegramAlert(group.telegramBotToken, group.telegramChatId, msg);
             }
