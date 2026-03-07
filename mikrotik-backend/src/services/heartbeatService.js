@@ -181,7 +181,7 @@ exports.processHeartbeat = async (token, payload, remoteIp) => {
   }
 
   // ==========================================
-  // 6. อัปเดตข้อมูลลงฐานข้อมูล
+  // 6. อัปเดตข้อมูลลงฐานข้อมูล (ใน heartbeatService.js)
   // ==========================================
   await prisma.managedDevice.update({
     where: { id: device.id },
@@ -196,11 +196,14 @@ exports.processHeartbeat = async (token, payload, remoteIp) => {
       version: version || device.version, 
       latency: latency || device.latency, 
       
+      // 🟢 เพิ่มบรรทัดนี้เข้าไป เพื่อเซฟชื่อบอร์ดลง DB ด้วย
+      boardName: boardName || device.boardName, 
+
       warningStartedAt,
       isWarningAlerted,
       isOfflineAlerted,
       isAcknowledged,
-      lastAlertMessageIds: alertMsgIds // 🟢 เซฟ ID ล่าสุดลงฐานข้อมูล
+      lastAlertMessageIds: alertMsgIds
     }
   });
 };
