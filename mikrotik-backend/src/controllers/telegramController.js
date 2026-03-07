@@ -46,18 +46,23 @@ const getAlertThresholds = async () => {
 const generateGroupReportText = (group, isDaily = false, thresholds) => {
   const devices = group.devices || [];
   
-  let onlineList = [];
-  let offlineList = [];
-  let problemList = [];
-  let ackList = [];
+  // แบ่งหมวดหมู่ให้ละเอียดขึ้นตามสถานะ Ack
+  let onlineHealthy = [];
+  let warningUnack = [];
+  let warningAck = [];
+  let offlineUnack = [];
+  let offlineAck = [];
 
   devices.forEach(d => {
+    // 1. ตรวจสอบสถานะ Offline
     const diffMinutes = d.lastSeen ? (new Date() - new Date(d.lastSeen)) / 1000 / 60 : 999;
     if (diffMinutes > 3) {
-      offlineList.push(d);
+      if (d.isAcknowledged) offlineAck.push(d);
+      else offlineUnack.push(d);
       return;
     }
 
+    // 2. ตรวจสอบสถานะ Warning
     const cpu = parseFloat(d.cpu || d.cpuLoad) || 0;
     const ram = parseFloat(d.ram || d.memoryUsage) || 0;
     const storage = parseFloat(d.storage) || 0;
@@ -65,59 +70,76 @@ const generateGroupReportText = (group, isDaily = false, thresholds) => {
     const latencyMs = parseLatencyToMs(d.latency);
 
     let issues = [];
-    
-    // 🟢 เช็คเงื่อนไข Warning ด้วยค่า thresholds
     if (cpu > thresholds.cpu) issues.push(`CPU ${cpu}%`);
     if (ram > thresholds.ram) issues.push(`RAM ${ram}%`);
     if (storage > thresholds.storage) issues.push(`Storage ${storage}%`);
     if (temp > thresholds.temp) issues.push(`Temp ${temp}°C`);
     if (latencyMs > thresholds.latency) issues.push(`Ping ${latencyMs}ms`);
 
+    // แยกเครื่องปกติ กับเครื่องที่มีปัญหา (และดูว่า Ack หรือยัง)
     if (issues.length > 0) {
       const problemData = { name: d.name, circuit: d.circuitId, issues: issues.join(', ') };
-      if (d.isAcknowledged) {
-        ackList.push(problemData);
-      } else {
-        problemList.push(problemData);
-      }
+      if (d.isAcknowledged) warningAck.push(problemData);
+      else warningUnack.push(problemData);
     } else {
-      onlineList.push(d);
+      onlineHealthy.push(d);
     }
   });
 
-  // 🟢 คำนวณตัวเลขสำหรับสรุปผลแบบจัดกลุ่มย่อย
-  const totalWarning = problemList.length + ackList.length;
-  const totalOnline = onlineList.length + totalWarning;
+  // คำนวณตัวเลขรวม
+  const totalWarning = warningUnack.length + warningAck.length;
+  const totalOnline = onlineHealthy.length + totalWarning;
+  const totalOffline = offlineUnack.length + offlineAck.length;
 
-  // ประกอบข้อความ
+  // ==============================
+  // ส่วนที่ 1: ประกอบข้อความ Header & สรุปตัวเลข
+  // ==============================
   const title = isDaily ? "🗓️ <b>รายงานสถานะระบบประจำวัน</b>" : "📊 <b>รายงานสถานะระบบ</b>";
   let msg = `${title}\n(กลุ่ม: ${group.name})\n\n`;
-  msg += `📦 <b>อุปกรณ์ทั้งหมด:</b> ${devices.length} รายการ\n`;
+  
+  msg += `📦 <b>อุปกรณ์ทั้งหมด: ${devices.length} รายการ</b>\n`;
+  
+  // สรุป Online (Nested)
   msg += `🟢 <b>Online: ${totalOnline} รายการ</b>\n`;
-  msg += `      ├─ ✅ ทำงานปกติ (Healthy): ${onlineList.length}\n`;
-  msg += `      └─ ⚠️ พบปัญหา (Warning): ${totalWarning}\n`;
-  msg += `🔴 <b>Offline: ${offlineList.length} รายการ</b>\n`;
+  msg += `      ├─ ✅ ทำงานปกติ: ${onlineHealthy.length}\n`;
+  msg += `      └─ ⚠️ พบปัญหา: ${totalWarning} ${warningAck.length > 0 ? `<i>(Ack แล้ว ${warningAck.length})</i>` : ''}\n`;
+  
+  // สรุป Offline (Nested)
+  msg += `🔴 <b>Offline: ${totalOffline} รายการ</b>\n`;
+  if (totalOffline > 0) {
+    msg += `      ├─ 🚨 ยังไม่รับทราบ: ${offlineUnack.length}\n`;
+    msg += `      └─ ⌛ รับทราบแล้ว: ${offlineAck.length}\n`;
+  }
 
-  msg += `\n🚨 <b>อุปกรณ์ที่มีปัญหา:</b>\n`;
-  if (problemList.length > 0) {
-    problemList.forEach(p => {
+  msg += `\n`;
+
+  // ==============================
+  // ส่วนที่ 2: รายละเอียด (แบ่งกลุ่มตามการ Action)
+  // ==============================
+  
+  // กลุ่มแดง: ต้องลงมือทำทันที (Unacked ทั้งหมด)
+  msg += `🚨 <b>อุปกรณ์ที่พบปัญหา (ต้องตรวจสอบด่วน):</b>\n`;
+  if (warningUnack.length === 0 && offlineUnack.length === 0) {
+    msg += `✅ <i>ไม่พบอุปกรณ์ที่มีปัญหา (ที่ยังไม่ได้รับทราบ)</i>\n`;
+  } else {
+    // เอา Offline ที่ยังไม่รับทราบ ขึ้นก่อน (เพราะด่วนกว่า)
+    offlineUnack.forEach(o => {
+      msg += `🔻 <b>${o.name}</b> (${o.circuitId || '-'}): <i>[OFFLINE] ขาดการติดต่อ</i>\n`;
+    });
+    // ตามด้วย Warning ที่ยังไม่รับทราบ
+    warningUnack.forEach(p => {
       msg += `🔻 <b>${p.name}</b> (${p.circuit || '-'}): <i>${p.issues}</i>\n`;
     });
-  } else {
-    msg += `✅ <i>ไม่พบอุปกรณ์ที่มีปัญหา (ที่ยังไม่ได้รับทราบ)</i>\n`;
   }
 
-  if (ackList.length > 0) {
-    msg += `\n⌛ <b>อุปกรณ์ที่ผู้ดูแลรับทราบปัญหาแล้ว:</b>\n`;
-    ackList.forEach(a => {
-      msg += `🔸 <b>${a.name}</b> (${a.circuit || '-'}): <i>${a.issues}</i>\n`;
+  // กลุ่มส้ม: มีคนรับผิดชอบแล้ว (Acked ทั้งหมด)
+  if (warningAck.length > 0 || offlineAck.length > 0) {
+    msg += `\n⌛ <b>อุปกรณ์ที่รับทราบปัญหาแล้ว (กำลังดำเนินการ):</b>\n`;
+    offlineAck.forEach(o => {
+      msg += `🔸 <b>${o.name}</b> (${o.circuitId || '-'}): <i>[OFFLINE] ขาดการติดต่อ</i>\n`;
     });
-  }
-
-  if (offlineList.length > 0) {
-    msg += `\n🔌 <b>อุปกรณ์ที่ Offline:</b>\n`;
-    offlineList.forEach(o => {
-      msg += `▪️ <b>${o.name}</b> (${o.circuitId || '-'})\n`;
+    warningAck.forEach(a => {
+      msg += `🔸 <b>${a.name}</b> (${a.circuit || '-'}): <i>${a.issues}</i>\n`;
     });
   }
 
