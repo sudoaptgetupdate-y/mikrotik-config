@@ -250,37 +250,31 @@ exports.initRealtimeMonitorCron = () => {
       });
 
       for (const device of deadDevices) {
-        // 1. อัปเดตฐานข้อมูลว่า "เตือน Offline ไปแล้วนะ"
-        await prisma.managedDevice.update({
-          where: { id: device.id },
-          data: { isOfflineAlerted: true, isAcknowledged: false } // ปลด Ack เผื่อมีค้างไว้
-        });
+        // 🟢 1. ดึงข้อมูล Message ID เดิมออกมาก่อน
+        let alertMsgIds = device.lastAlertMessageIds ? (typeof device.lastAlertMessageIds === 'string' ? JSON.parse(device.lastAlertMessageIds) : device.lastAlertMessageIds) : {};
 
-        // 2. บันทึกประวัติ
         await prisma.deviceEventLog.create({
-          data: { 
-            deviceId: device.id, 
-            eventType: 'OFFLINE', 
-            details: 'Device went offline (No heartbeat for > 3 mins)' 
-          }
+          data: { deviceId: device.id, eventType: 'OFFLINE', details: 'Device went offline (No heartbeat for > 3 mins)' }
         });
 
-        // 3. ยิง Telegram แจ้งเตือน
-        const msg = `🔴 <b>[DEVICE OFFLINE]</b>\nขาดการติดต่อจากอุปกรณ์เกิน 3 นาที!\n\n🖥 <b>อุปกรณ์:</b> <code>${device.name}</code>\n✨ <b>วงจร:</b> <code>${device.circuitId || '-'}</code>\n⏳ <b>ติดต่อล่าสุด:</b> ${new Date(device.lastSeen).toLocaleTimeString('th-TH')}`;
-
-        // 3. ยิง Telegram แจ้งเตือน
         if (device.groups && device.groups.length > 0) {
           for (const group of device.groups) {
-            // ดึงชื่อและเบอร์โทรแอดมินมาแสดง
             const adminInfo = (group.adminName || group.adminContact) ? `\n\n👨‍🔧 <b>ผู้รับผิดชอบดูแล:</b> ${group.adminName || '-'}\n📞 <b>ติดต่อ:</b> ${group.adminContact || '-'}` : '';
-            
-            const msg = `🚨 <b>[DEVICE OFFLINE] - ขาดการติดต่อ</b>\n\n🖥 <b>อุปกรณ์:</b> <code>${device.name}</code>\n✨ <b>วงจร:</b> <code>${device.circuitId || '-'}</code>\n⚠️ <b>สถานะ:</b> ไม่สามารถเชื่อมต่อได้เกิน 3 นาที (อาจเกิดจากไฟดับหรืออินเทอร์เน็ตหลุด)${adminInfo}`;
+            const msg = `🔴 <b>[DEVICE OFFLINE]</b>\nขาดการติดต่อจากอุปกรณ์เกิน 3 นาที!\n\n🖥 <b>อุปกรณ์:</b> <code>${device.name}</code>\n✨ <b>วงจร:</b> <code>${device.circuitId || '-'}</code>\n⏳ <b>ติดต่อล่าสุด:</b> ${new Date(device.lastSeen).toLocaleTimeString('th-TH')}${adminInfo}`;
 
             if (group.isNotifyEnabled && group.telegramBotToken && group.telegramChatId) {
-              await sendTelegramAlert(group.telegramBotToken, group.telegramChatId, msg);
+              // 🟢 2. ยิงข้อความไป แล้วเอา Message ID มาเซฟไว้
+              const msgId = await sendTelegramAlert(group.telegramBotToken, group.telegramChatId, msg);
+              if (msgId) alertMsgIds[group.telegramChatId] = msgId;
             }
           }
         }
+
+        // 🟢 3. อัปเดตฐานข้อมูล (พร้อมเซฟ lastAlertMessageIds)
+        await prisma.managedDevice.update({
+          where: { id: device.id },
+          data: { isOfflineAlerted: true, isAcknowledged: false, lastAlertMessageIds: alertMsgIds } 
+        });
       }
     } catch (error) {
       console.error("❌ Offline Monitor Cron Error:", error);

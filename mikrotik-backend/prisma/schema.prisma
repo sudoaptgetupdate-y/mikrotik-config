@@ -151,6 +151,7 @@ model ManagedDevice {
   warningStartedAt DateTime? // เวลาที่เริ่มพบปัญหา
   isWarningAlerted Boolean   @default(false) // เตือนเรื่องโหลดหนักไปแล้วหรือยัง
   isOfflineAlerted Boolean   @default(false) // เตือนเรื่องออฟไลน์ไปแล้วหรือยัง
+  lastAlertMessageIds Json?
 
   userId    Int
   createdAt DateTime @default(now())

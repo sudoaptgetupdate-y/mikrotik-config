@@ -209,15 +209,20 @@ exports.acknowledgeWarning = async (id, reason, warningData, actionUserId, actio
     } 
   });
 
-  // 🌟 3. อัปเดตข้อความใน Telegram (แทรกบรรทัด 'ปัญหา:' เข้าไป)
+  // 🌟 3. อัปเดตข้อความใน Telegram 
   if (device.groups && device.groups.length > 0) {
+    // 🟢 ดึง ID เดิมออกมา
+    let alertMsgIds = device.lastAlertMessageIds ? (typeof device.lastAlertMessageIds === 'string' ? JSON.parse(device.lastAlertMessageIds) : device.lastAlertMessageIds) : {};
+
     for (const group of device.groups) {
       const adminInfo = (group.adminName || group.adminContact) ? `\n\n👨‍🔧 <b>ผู้รับผิดชอบดูแล:</b> ${group.adminName || '-'}\n📞 <b>ติดต่อ:</b> ${group.adminContact || '-'}` : '';
       
       const msg = `👁️‍🗨️ <b>[ISSUE ACKNOWLEDGED]</b>\nมีผู้รับทราบปัญหาแล้ว!\n\n🖥 <b>อุปกรณ์:</b> <code>${device.name}</code>\n✨ <b>วงจร:</b> <code>${device.circuitId || '-'}</code>\n⚠️ <b>ปัญหา:</b> <code>${warningData || 'Unknown'}</code>\n👤 <b>รับทราบโดย:</b> ${actionUserName || 'Admin'}\n📝 <b>หมายเหตุ/เหตุผล:</b> <i>${reason}</i>${adminInfo}`;
       
       if (group.isNotifyEnabled && group.telegramBotToken && group.telegramChatId) {
-        await sendTelegramAlert(group.telegramBotToken, group.telegramChatId, msg);
+        // 🟢 ส่งแบบ Reply กลับไปหาข้อความแจ้งเตือนเดิม!
+        const replyId = alertMsgIds[group.telegramChatId];
+        await sendTelegramAlert(group.telegramBotToken, group.telegramChatId, msg, replyId);
       }
     }
   }

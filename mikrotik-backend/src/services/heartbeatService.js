@@ -90,40 +90,40 @@ exports.processHeartbeat = async (token, payload, remoteIp) => {
   // ==========================================
   // 3. ตรวจสอบการกลับมาออนไลน์ (Offline Recovery)
   // ==========================================
-  // ถ้าเพิ่งกลับมาออนไลน์ (เกิน 3 นาที หรือเคยแจ้งเตือนว่าออฟไลน์ไปแล้ว)
   const diffMinutesFromLastSeen = device.lastSeen ? (now - new Date(device.lastSeen)) / 1000 / 60 : 0;
+  // 🟢 โหลด ID ข้อความที่เคยส่งไป
+  let alertMsgIds = device.lastAlertMessageIds ? (typeof device.lastAlertMessageIds === 'string' ? JSON.parse(device.lastAlertMessageIds) : device.lastAlertMessageIds) : {};
   
   if (isOfflineAlerted || diffMinutesFromLastSeen > 3) {
     await prisma.deviceEventLog.create({ 
       data: { deviceId: device.id, eventType: 'ONLINE', details: 'Device is back online' } 
     });
 
-    const msgOnline = `🟢 <b>[DEVICE ONLINE] - ระบบกลับมาออนไลน์</b>\n\n🖥 <b>อุปกรณ์:</b> <code>${device.name}</code>\n✨ <b>วงจร:</b> <code>${device.circuitId || '-'}</code>\n✅ <b>สถานะ:</b> กลับมาเชื่อมต่อระบบได้ตามปกติแล้ว`;
-    if (device.groups && device.groups.length > 0 && isOfflineAlerted) { // เตือนเฉพาะถ้าเคยส่ง Offline ไปแล้ว
+    if (isOfflineAlerted && device.groups && device.groups.length > 0) {
+      const msgOnline = `🟢 <b>[DEVICE ONLINE] - ระบบกลับมาออนไลน์</b>\n\n🖥 <b>อุปกรณ์:</b> <code>${device.name}</code>\n✨ <b>วงจร:</b> <code>${device.circuitId || '-'}</code>\n✅ <b>สถานะ:</b> กลับมาเชื่อมต่อระบบได้ตามปกติแล้ว`;
       for (const group of device.groups) {
         if (group.isNotifyEnabled && group.telegramBotToken && group.telegramChatId) {
-          await sendTelegramAlert(group.telegramBotToken, group.telegramChatId, msgOnline);
+          // 🟢 สั่งให้ Reply ข้อความเดิมตอนพัง แล้วลบ ID ทิ้ง
+          const replyId = alertMsgIds[group.telegramChatId];
+          await sendTelegramAlert(group.telegramBotToken, group.telegramChatId, msgOnline, replyId);
+          delete alertMsgIds[group.telegramChatId];
         }
       }
     }
-    
     isOfflineAlerted = false;
-    isAcknowledged = false; // ปลด Ack อัตโนมัติเมื่อกลับมาดี
+    isAcknowledged = false; 
   }
 
   // ==========================================
   // 4. ตรวจสอบเงื่อนไข Warning 3 นาที (Flap Detection)
   // ==========================================
   if (isHighLoad) {
-    // เพิ่งเริ่มโหลดหนัก ให้จดเวลาไว้ (ยังไม่แจ้งเตือน)
     if (!warningStartedAt) {
       warningStartedAt = now;
     } else {
-      // โหลดหนักมาต่อเนื่อง เช็คว่าครบ 3 นาทีหรือยัง?
       const warningDurationMins = (now - new Date(warningStartedAt)) / 1000 / 60;
       
       if (warningDurationMins >= 3 && !isWarningAlerted) {
-        // ครบ 3 นาทีแล้ว และยังไม่เคยเตือน -> ยิงแจ้งเตือนทันที!
         const details = [];
         if (isCpuHigh) details.push(`CPU: ${cpuVal}%`);
         if (isRamHigh) details.push(`RAM: ${ramVal}%`);
@@ -135,18 +135,22 @@ exports.processHeartbeat = async (token, payload, remoteIp) => {
           data: { deviceId: device.id, eventType: 'WARNING', details: `High Load: ${details.join(', ')}` } 
         });
 
-        const msg = `⚠️ <b>[HIGH LOAD ALERT]</b>\nมีอุปกรณ์ทำงานหนักต่อเนื่องเกิน 3 นาที!\n\n🖥 <b>อุปกรณ์:</b> <code>${device.name}</code>\n✨ <b>วงจร:</b> <code>${device.circuitId || '-'}</code>\n🌐 <b>IP:</b> ${remoteIp}\n\n🚨 <b>ปัญหาที่พบ:</b>\n${details.map(d => `• ${d}`).join('\n')}`;
-        
         if (device.groups && device.groups.length > 0) {
           for (const group of device.groups) {
             if (group.isNotifyEnabled && group.telegramBotToken && group.telegramChatId) {
-              await sendTelegramAlert(group.telegramBotToken, group.telegramChatId, msg);
+              // 🟢 เพิ่มชื่อผู้รับผิดชอบใน Warning
+              const adminInfo = (group.adminName || group.adminContact) ? `\n\n👨‍🔧 <b>ผู้รับผิดชอบดูแล:</b> ${group.adminName || '-'}\n📞 <b>ติดต่อ:</b> ${group.adminContact || '-'}` : '';
+              const msg = `⚠️ <b>[HIGH LOAD ALERT]</b>\nพบอุปกรณ์ทำงานหนักต่อเนื่องเกิน 3 นาที!\n\n🖥 <b>อุปกรณ์:</b> <code>${device.name}</code>\n✨ <b>วงจร:</b> <code>${device.circuitId || '-'}</code>\n\n🚨 <b>ปัญหาที่พบ:</b>\n${details.map(d => `• ${d}`).join('\n')}${adminInfo}`;
+              
+              // 🟢 ส่งแล้วเก็บ ID ไว้
+              const msgId = await sendTelegramAlert(group.telegramBotToken, group.telegramChatId, msg);
+              if (msgId) alertMsgIds[group.telegramChatId] = msgId;
             }
           }
         }
         
         isWarningAlerted = true;
-        isAcknowledged = false; // ปลด Ack กรณีเกิดปัญหาซ้ำ
+        isAcknowledged = false; 
       }
     }
   } else {
@@ -162,7 +166,10 @@ exports.processHeartbeat = async (token, payload, remoteIp) => {
         const msg = `✅ <b>[SYSTEM RECOVERY]</b>\n🖥 <b>อุปกรณ์:</b> <code>${device.name}</code>\n✨ <b>วงจร:</b> <code>${device.circuitId || '-'}</code>\n\n🟢 <b>สถานะ:</b> การทำงานกลับสู่ภาวะปกติแล้ว`;
         for (const group of device.groups) {
           if (group.isNotifyEnabled && group.telegramBotToken && group.telegramChatId) {
-            await sendTelegramAlert(group.telegramBotToken, group.telegramChatId, msg);
+            // 🟢 สั่งให้ Reply ข้อความเดิมตอนพัง แล้วลบ ID ทิ้ง
+            const replyId = alertMsgIds[group.telegramChatId];
+            await sendTelegramAlert(group.telegramBotToken, group.telegramChatId, msg, replyId);
+            delete alertMsgIds[group.telegramChatId];
           }
         }
       }
@@ -170,7 +177,7 @@ exports.processHeartbeat = async (token, payload, remoteIp) => {
     
     warningStartedAt = null; 
     isWarningAlerted = false; 
-    isAcknowledged = false; // 🟢 เพิ่มบรรทัดนี้: เพื่อล้างป้าย Ack สีฟ้าออกเมื่ออุปกรณ์หายป่วย
+    isAcknowledged = false;
   }
 
   // ==========================================
@@ -192,7 +199,8 @@ exports.processHeartbeat = async (token, payload, remoteIp) => {
       warningStartedAt,
       isWarningAlerted,
       isOfflineAlerted,
-      isAcknowledged // 🟢 เปลี่ยนจาก isAcknowledged: isAcknowledged && device.isAcknowledged ให้เหลือแค่นี้ครับ
+      isAcknowledged,
+      lastAlertMessageIds: alertMsgIds // 🟢 เซฟ ID ล่าสุดลงฐานข้อมูล
     }
   });
 };
