@@ -11,8 +11,13 @@ const Step5_PortAssign = ({ selectedModel, wanList, networks, portConfig, setPor
 
   const lanPorts = getLanPorts();
   
-  // ✅ หาค่า VLAN ตัวแรกจากสเต็ปที่ 4 เพื่อใช้เป็นค่า PVID ตั้งต้น (ถ้าไม่มีใช้ 1)
-  const defaultVlan = networks && networks.length > 0 ? parseInt(networks[0].vlanId) : 1;
+  // 🟢 บังคับหาค่า VLAN 10 เพื่อใช้เป็นค่า PVID ตั้งต้นเสมอ (ถ้าไม่มีจริงๆ ให้เอา vlan ที่น้อยที่สุดแทน)
+  const defaultVlan = React.useMemo(() => {
+    if (!networks || networks.length === 0) return 1;
+    const hasVlan10 = networks.some(n => parseInt(n.vlanId) === 10);
+    if (hasVlan10) return 10;
+    return Math.min(...networks.map(n => parseInt(n.vlanId)));
+  }, [networks]);
 
   // === State สำหรับ Bulk Action ===
   const [selectedPorts, setSelectedPorts] = useState([]);

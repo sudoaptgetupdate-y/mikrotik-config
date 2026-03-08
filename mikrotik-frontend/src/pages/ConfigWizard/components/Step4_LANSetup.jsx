@@ -1,8 +1,19 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Network, Plus, Trash2, Server, ShieldCheck, Settings2, Globe } from 'lucide-react';
 
 const Step4_LANSetup = ({ networks, setNetworks, dnsConfig }) => {
   
+  // 🟢 จัดเรียง Network ตาม VLAN ID จากน้อยไปมาก ทันทีที่โหลดหน้านี้ (เช่น ตอนกด Back กลับมา)
+  useEffect(() => {
+    setNetworks(prevNetworks => {
+      const sorted = [...prevNetworks].sort((a, b) => (a.vlanId || 0) - (b.vlanId || 0));
+      // เช็คเพื่อป้องกันการอัปเดต state ซ้ำซ้อนถ้าข้อมูลเรียงอยู่แล้ว
+      if (JSON.stringify(prevNetworks) === JSON.stringify(sorted)) return prevNetworks;
+      return sorted;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // [] หมายถึงทำงานแค่จังหวะที่ Component นี้ถูกเรียกขึ้นมาแสดง (Mount)
+
   // ฟังก์ชันคำนวณ VLAN และ IP ตัวถัดไป
   const getNextVlanAndIp = () => {
     // กรองเอาเฉพาะ VLAN ที่ไม่ใช่ 56 ออกเพื่อหาค่าสูงสุดมาบวกเพิ่มทีละ 10
@@ -14,7 +25,7 @@ const Step4_LANSetup = ({ networks, setNetworks, dnsConfig }) => {
     };
   };
 
-  // เพิ่ม Network ใหม่ (ยุบเหลือปุ่มเดียว)
+  // เพิ่ม Network ใหม่
   const addNetwork = () => {
     const { vlanId, ip } = getNextVlanAndIp();
     const defaultName = `vlan${vlanId}`;
@@ -29,6 +40,7 @@ const Step4_LANSetup = ({ networks, setNetworks, dnsConfig }) => {
       hotspot: false // ค่าเริ่มต้นปิด Hotspot
     };
     
+    // ดันรายการใหม่ขึ้นบนสุดเพื่อให้ง่ายต่อการแก้ไข (พอกด Next แล้วค่อยกลับมาใหม่ มันจะถูกเรียงอัตโนมัติ)
     setNetworks([newNet, ...networks]);
   };
 
@@ -78,7 +90,7 @@ const Step4_LANSetup = ({ networks, setNetworks, dnsConfig }) => {
         </button>
       </div>
 
-      {/* --- Content Area (Removed Scrollbar Classes) --- */}
+      {/* --- Content Area --- */}
       <div className="space-y-5 pb-4">
         
         {networks.map((net) => {

@@ -7,7 +7,12 @@ import { useQueryClient } from '@tanstack/react-query';
 export default function TabVlanNetwork({ initialData }) {
   const queryClient = useQueryClient();
 
-  const [defaultNetworks, setDefaultNetworks] = useState(initialData || []);
+  // 🟢 1. เรียงลำดับข้อมูลตั้งแต่ตอนโหลดครั้งแรก (vlanId น้อยไปหามาก)
+  const [defaultNetworks, setDefaultNetworks] = useState(() => {
+    const data = initialData || [];
+    return [...data].sort((a, b) => (a.vlanId || 0) - (b.vlanId || 0));
+  });
+  
   const [isSaving, setIsSaving] = useState(false);
 
   const addDefaultNetwork = () => {
@@ -22,6 +27,7 @@ export default function TabVlanNetwork({ initialData }) {
       dhcp: true, 
       hotspot: false
     };
+    // ให้อันที่สร้างใหม่เด้งขึ้นมาบนสุดเพื่อให้ง่ายต่อการแก้ไข พอกด Save ค่อยเรียงใหม่
     setDefaultNetworks([newNet, ...defaultNetworks]);
   };
 
@@ -43,7 +49,14 @@ export default function TabVlanNetwork({ initialData }) {
 
   const handleSave = async () => {
     setIsSaving(true);
-    const savePromise = apiClient.put(`/api/settings/DEFAULT_NETWORKS`, { value: JSON.stringify(defaultNetworks) });
+
+    // 🟢 2. ทำการเรียงลำดับ vlanId จากน้อยไปมาก ก่อนบันทึกลง Database
+    const sortedNetworks = [...defaultNetworks].sort((a, b) => (a.vlanId || 0) - (b.vlanId || 0));
+    
+    // อัปเดต State ให้หน้าจอแสดงผลตามลำดับที่เรียงแล้วทันทีหลังกดเซฟ
+    setDefaultNetworks(sortedNetworks);
+
+    const savePromise = apiClient.put(`/api/settings/DEFAULT_NETWORKS`, { value: JSON.stringify(sortedNetworks) });
     
     toast.promise(savePromise, {
       loading: 'กำลังบันทึกข้อมูล...',
@@ -54,8 +67,11 @@ export default function TabVlanNetwork({ initialData }) {
     try {
       await savePromise;
       queryClient.invalidateQueries({ queryKey: ['settings'] });
-    } catch (error) { console.error(error); } 
-    finally { setIsSaving(false); }
+    } catch (error) { 
+      console.error(error); 
+    } finally { 
+      setIsSaving(false); 
+    }
   };
 
   return (
@@ -75,7 +91,6 @@ export default function TabVlanNetwork({ initialData }) {
         </div>
       </div>
 
-      {/* 🟢 ใช้ flex-1 แทน max-h เพื่อให้กล่องยืดหยุ่นเต็มพื้นที่ */}
       <div className="flex-1 space-y-3 overflow-y-auto pr-2 pb-2 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-200 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-slate-300 transition-all">
         {defaultNetworks.map((net) => (
           <div key={net.id} className="grid grid-cols-2 md:grid-cols-12 gap-3 items-center bg-slate-50 p-4 rounded-xl border border-slate-200 transition-all hover:border-purple-200 hover:shadow-sm">
