@@ -38,7 +38,7 @@ app.use((req, res, next) => {
 });
 
 // 🌟 2. เชื่อใจ Reverse Proxy ภายในวงแลนตามปกติ
-app.set('trust proxy', ['loopback', 'uniquelocal']);
+app.set('trust proxy', ['loopback', 'linklocal', 'uniquelocal', '192.168.191.0/24']);
 
 // ==========================================
 // 🛡️ 1. Security Headers (Helmet)
