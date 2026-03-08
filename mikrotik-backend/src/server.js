@@ -1,7 +1,7 @@
 const app = require('./app');
 const prisma = require('./config/prisma'); 
 const logger = require('./utils/logger'); // ✅ นำเข้า logger
-const telegramController = require('./controllers/telegramController'); // ✅ นำเข้า telegramController เพื่อใช้ Cron Job
+const telegramController = require('./controllers/telegramController');
 
 const PORT = process.env.PORT || 3000;
 
