@@ -63,16 +63,27 @@ const Step1_ModelSelect = ({
     });
   };
 
+  // 🌟 จดจำ Model เดิมที่ถูกเลือกไว้ตอนโหลดหน้า Edit เพื่อนำไปดันขึ้นบนสุด
+  // (ใช้ useRef เพื่อไม่ให้รายการกระโดดสลับที่ หากเรากดเลือก Model อื่นระหว่างใช้งาน)
+  const initialModelIdRef = useRef(selectedModel?.id);
+
   // === Logic ของ Model ===
   const processedModels = useMemo(() => {
     return [...models]
       .filter(model => model.name.toLowerCase().includes(searchTerm.toLowerCase()))
       .sort((a, b) => {
+        // 🟢 1. ดัน Model เดิมที่ใช้งานอยู่ (โหมด Edit) ขึ้นบนสุด
+        if (initialModelIdRef.current) {
+          if (a.id === initialModelIdRef.current && b.id !== initialModelIdRef.current) return -1;
+          if (b.id === initialModelIdRef.current && a.id !== initialModelIdRef.current) return 1;
+        }
+        
+        // 🟢 2. ที่เหลือให้เรียงตามความ Popular (ใช้งานบ่อยสุด)
         const countA = a._count?.configs || 0;
         const countB = b._count?.configs || 0;
         return countB - countA; 
       });
-  }, [models, searchTerm]);
+  }, [models, searchTerm]); // ❌ ไม่ใส่ selectedModel ใน Array นี้ เพื่อป้องกันไม่ให้รายการสลับตำแหน่งเวลา User คลิกเลือก Model ใหม่
 
   useEffect(() => { setCurrentPage(1); }, [searchTerm]);
   const totalPages = Math.ceil(processedModels.length / itemsPerPage);

@@ -126,7 +126,12 @@ const ConfigWizard = ({ mode = 'create', initialData, onFinish }) => {
   const saveConfigToBackend = async (finalConfigData) => {
     const savePromise = (async () => {
       if (mode === 'create') {
-        const payload = { name: deviceMeta.name, circuitId: deviceMeta.circuitId, configData: finalConfigData };
+        const payload = { 
+          name: deviceMeta.name, 
+          circuitId: deviceMeta.circuitId, 
+          groupIds: deviceMeta.groupIds, 
+          configData: finalConfigData 
+        };
         return await apiClient.post('/api/devices', payload);
       } else {
         if (!initialData?.id) throw new Error("Missing Device ID for update");
