@@ -8,7 +8,7 @@ import toast from 'react-hot-toast';
 import { deviceService } from '../../services/deviceService';
 import { modelService } from '../../services/modelService';
 import { logService } from '../../services/logService';
-import apiClient from '../../utils/apiClient'; // 🟢 เพิ่ม apiClient สำหรับดึง Settings (หรือใช้ settingService ของคุณ)
+import { settingService } from '../../services/settingService';
 
 import StatCards from './components/StatCards';
 import QuickActions from './components/QuickActions';
@@ -33,19 +33,23 @@ const Dashboard = () => {
   const { data, isLoading, dataUpdatedAt } = useQuery({
     queryKey: ['dashboard', user?.id], 
     queryFn: async () => {
-      // 🟢 1. โหลดข้อมูลทั้งหมดรวมถึง Settings ของ Thresholds
-      const [allDevices, models, logsData, settingsRes] = await Promise.all([
+      // 🟢 1. โหลดข้อมูลทั้งหมด และเรียกใช้ settingService แทน apiClient ดิบๆ
+      const [allDevices, models, logsData, settingsData] = await Promise.all([
         deviceService.getUserDevices(user?.id || 1),
         modelService.getModels(),
         logService.getActivityLogs({ limit: 5 }),
-        apiClient.get('/api/settings/ALERT_THRESHOLDS').catch(() => ({ data: { value: null } })) // ดึงค่า Settings
+        settingService.getSettings('ALERT_THRESHOLDS').catch(() => null) // 🟢 ดึงค่า Settings อย่างถูกต้อง
       ]);
 
-      // 🟢 2. แปลงค่า Thresholds (ถ้าไม่มีให้ใช้ Default)
+      // 🟢 2. แกะกล่องข้อมูล Thresholds อย่างรัดกุม (รองรับทั้ง Array และ Object)
       let thresholds = { cpu: 85, ram: 85, latency: 80, temp: 60, storage: 85 };
-      if (settingsRes?.data?.value) {
-        const parsed = typeof settingsRes.data.value === 'string' ? JSON.parse(settingsRes.data.value) : settingsRes.data.value;
-        thresholds = { ...thresholds, ...parsed };
+      if (settingsData) {
+        const targetSetting = Array.isArray(settingsData) ? settingsData[0] : settingsData;
+        
+        if (targetSetting && targetSetting.value) {
+          const parsed = typeof targetSetting.value === 'string' ? JSON.parse(targetSetting.value) : targetSetting.value;
+          thresholds = { ...thresholds, ...parsed };
+        }
       }
 
       const activeDevices = (allDevices || []).filter(device => device.status !== 'DELETED');
@@ -90,7 +94,7 @@ const Dashboard = () => {
 
         if (isOnline) {
           onlineCount++;
-          // 🟢 3. เปลี่ยนจากตัวเลขฝังตายตัว มาใช้ค่าจาก thresholds ที่ดึงมา
+          // 🟢 3. ใช้ค่า thresholds ในการประเมินสถานะ High Load
           const isHighLoad = cpuVal > thresholds.cpu || ramVal > thresholds.ram || storageVal > thresholds.storage || tempVal > thresholds.temp || latencyMs > thresholds.latency;
           
           if (isHighLoad) {
@@ -114,7 +118,7 @@ const Dashboard = () => {
         },
         recentLogs: logsArray.slice(0, 5),
         topHighLoadDevices: highLoadList.slice(0, 5),
-        thresholds // 🟢 4. ส่ง thresholds ออกไปให้ Component ลูกใช้งานด้วย
+        thresholds // ส่ง thresholds ไปให้ Component อื่นใช้งานต่อ
       };
     },
     refetchInterval: 30000, 
