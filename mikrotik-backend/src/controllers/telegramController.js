@@ -172,21 +172,15 @@ exports.handleWebhook = async (req, res) => {
     const devices = group.devices || [];
     const thresholds = await getAlertThresholds();
 
-    // --- คำสั่ง /help ---
-    if (command === '/help' || command.startsWith('/help@')) {
-      let helpMsg = `🤖 <b>คำสั่งที่รองรับ:</b>\n\n`;
-      helpMsg += `/report - สรุปภาพรวมของระบบทั้งหมด\n`;
-      helpMsg += `/offline - ดูรายชื่ออุปกรณ์ที่ดับไป\n`;
-      helpMsg += `/problem - ดูอุปกรณ์ที่มีปัญหา (ยังไม่ได้รับทราบ)\n`;
-      helpMsg += `/top - จัดอันดับอุปกรณ์กินทรัพยากร 5 อันดับแรก\n`;
-      helpMsg += `/status [ชื่อ หรือ CircuitID] - ดูข้อมูลเชิงลึก\n`;
-      await sendTelegramAlert(group.telegramBotToken, chatId, helpMsg);
-      return;
-    }
-
-    // --- 🟢 คำสั่ง /hi, /start, /menu (เมนูหลัก) ---
-    if (command === '/hi' || command === '/start' || command === '/menu') {
-      let msg = `👋 <b>สวัสดีครับ! ระบบจัดการ Network พร้อมให้บริการ</b>\nกรุณาเลือกดูข้อมูลจากเมนูด้านล่างได้เลยครับ:`;
+    // --- 🟢 คำสั่ง /help, /hi, /start, /menu (เมนูหลัก) ---
+    if (['/help', '/hi', '/start', '/menu'].includes(command) || command.startsWith('/help@')) {
+      let msg = `👋 <b>สวัสดีครับ! ระบบจัดการ Network พร้อมให้บริการ</b>\n`;
+      msg += `กรุณาจิ้มเลือกดูข้อมูลจากเมนูด้านล่างได้เลยครับ 👇\n\n`;
+      
+      // อธิบายการใช้งาน /status ให้ผู้ใช้ทราบ
+      msg += `🔍 <b>ต้องการดูสถานะเฉพาะเครื่อง?</b>\n`;
+      msg += `พิมพ์คำสั่ง <code>/status [ชื่อ หรือ Circuit ID]</code>\n`;
+      msg += `<i>ตัวอย่าง: <code>/status องค์การ</code> หรือ <code>/status 7534j</code></i>`;
 
       // 🟢 สร้างปุ่มกด (จัดเรียงเป็น 2 แถว)
       const mainMenuKeyboard = [
