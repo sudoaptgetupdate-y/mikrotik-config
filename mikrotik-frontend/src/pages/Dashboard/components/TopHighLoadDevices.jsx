@@ -2,8 +2,12 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Server, Cpu, HardDrive, Thermometer, Activity, CheckCircle2 } from 'lucide-react';
 
-const TopHighLoadDevices = ({ devices }) => {
+// 🟢 รับ props thresholds เพิ่มเติม
+const TopHighLoadDevices = ({ devices, thresholds }) => {
   const navigate = useNavigate();
+
+  // ป้องกันกรณี thresholds ส่งมาไม่ทัน
+  const safeThresholds = thresholds || { cpu: 85, ram: 85, latency: 80, temp: 60, storage: 85 };
 
   return (
     <div className="space-y-3 h-full flex flex-col">
@@ -41,11 +45,12 @@ const TopHighLoadDevices = ({ devices }) => {
                 
                 <div className="flex flex-col items-end gap-1.5 shrink-0">
                   <div className="flex flex-wrap justify-end gap-1 text-[10px] font-bold">
-                    {device.cpuVal > 85 && <span className="text-orange-600 bg-orange-50 px-1.5 py-0.5 rounded flex items-center gap-1"><Cpu size={10}/> {device.cpuVal}%</span>}
-                    {device.ramVal > 85 && <span className="text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded flex items-center gap-1"><HardDrive size={10}/> {device.ramVal}%</span>}
-                    {device.storageVal > 85 && <span className="text-purple-600 bg-purple-50 px-1.5 py-0.5 rounded flex items-center gap-1"><HardDrive size={10}/> {device.storageVal}%</span>}
-                    {device.tempVal > 60 && <span className="text-red-600 bg-red-50 px-1.5 py-0.5 rounded flex items-center gap-1"><Thermometer size={10}/> {device.tempVal}°C</span>}
-                    {device.latencyMs > 80 && <span className="text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded flex items-center gap-1"><Activity size={10}/> {device.latencyMs}ms</span>}
+                    {/* 🟢 เปลี่ยนจากตัวเลขฝังตายตัว มาใช้ safeThresholds */}
+                    {device.cpuVal > safeThresholds.cpu && <span className="text-orange-600 bg-orange-50 px-1.5 py-0.5 rounded flex items-center gap-1"><Cpu size={10}/> {device.cpuVal}%</span>}
+                    {device.ramVal > safeThresholds.ram && <span className="text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded flex items-center gap-1"><HardDrive size={10}/> {device.ramVal}%</span>}
+                    {device.storageVal > safeThresholds.storage && <span className="text-purple-600 bg-purple-50 px-1.5 py-0.5 rounded flex items-center gap-1"><HardDrive size={10}/> {device.storageVal}%</span>}
+                    {device.tempVal > safeThresholds.temp && <span className="text-red-600 bg-red-50 px-1.5 py-0.5 rounded flex items-center gap-1"><Thermometer size={10}/> {device.tempVal}°C</span>}
+                    {device.latencyMs > safeThresholds.latency && <span className="text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded flex items-center gap-1"><Activity size={10}/> {device.latencyMs}ms</span>}
                   </div>
                 </div>
               </div>

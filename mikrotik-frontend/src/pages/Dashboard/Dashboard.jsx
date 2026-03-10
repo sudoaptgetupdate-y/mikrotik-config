@@ -8,11 +8,12 @@ import toast from 'react-hot-toast';
 import { deviceService } from '../../services/deviceService';
 import { modelService } from '../../services/modelService';
 import { logService } from '../../services/logService';
+import apiClient from '../../utils/apiClient'; // 🟢 เพิ่ม apiClient สำหรับดึง Settings (หรือใช้ settingService ของคุณ)
 
 import StatCards from './components/StatCards';
 import QuickActions from './components/QuickActions';
 import RecentActivity from './components/RecentActivity';
-import TopHighLoadDevices from './components/TopHighLoadDevices'; // 🟢 เพิ่ม Import นี้
+import TopHighLoadDevices from './components/TopHighLoadDevices';
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -29,23 +30,29 @@ const Dashboard = () => {
     weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' 
   });
 
-  // ==========================================
-  // React Query Fetching & Calculation Logic
-  // ==========================================
   const { data, isLoading, dataUpdatedAt } = useQuery({
     queryKey: ['dashboard', user?.id], 
     queryFn: async () => {
-      const [allDevices, models, logsData] = await Promise.all([
+      // 🟢 1. โหลดข้อมูลทั้งหมดรวมถึง Settings ของ Thresholds
+      const [allDevices, models, logsData, settingsRes] = await Promise.all([
         deviceService.getUserDevices(user?.id || 1),
         modelService.getModels(),
-        logService.getActivityLogs({ limit: 5 })
+        logService.getActivityLogs({ limit: 5 }),
+        apiClient.get('/api/settings/ALERT_THRESHOLDS').catch(() => ({ data: { value: null } })) // ดึงค่า Settings
       ]);
+
+      // 🟢 2. แปลงค่า Thresholds (ถ้าไม่มีให้ใช้ Default)
+      let thresholds = { cpu: 85, ram: 85, latency: 80, temp: 60, storage: 85 };
+      if (settingsRes?.data?.value) {
+        const parsed = typeof settingsRes.data.value === 'string' ? JSON.parse(settingsRes.data.value) : settingsRes.data.value;
+        thresholds = { ...thresholds, ...parsed };
+      }
 
       const activeDevices = (allDevices || []).filter(device => device.status !== 'DELETED');
       const logsArray = Array.isArray(logsData) ? logsData : (logsData?.data || []);
       
       let onlineCount = 0; let offlineCount = 0; let alertCount = 0;
-      let highLoadList = []; // 🟢 เก็บรายชื่อเครื่องที่ทำงานหนัก
+      let highLoadList = []; 
 
       activeDevices.forEach(device => {
         let isOnline = false;
@@ -83,11 +90,11 @@ const Dashboard = () => {
 
         if (isOnline) {
           onlineCount++;
-          const isHighLoad = cpuVal > 85 || ramVal > 85 || storageVal > 85 || tempVal > 60 || latencyMs > 80;
+          // 🟢 3. เปลี่ยนจากตัวเลขฝังตายตัว มาใช้ค่าจาก thresholds ที่ดึงมา
+          const isHighLoad = cpuVal > thresholds.cpu || ramVal > thresholds.ram || storageVal > thresholds.storage || tempVal > thresholds.temp || latencyMs > thresholds.latency;
           
           if (isHighLoad) {
             if (!device.isAcknowledged) alertCount++;
-            // 🟢 เก็บเข้า List ถ้าเป็นเครื่องที่โหลดหนัก พร้อมแนบค่าไปแสดงผล
             highLoadList.push({ ...device, cpuVal, ramVal, storageVal, tempVal, latencyMs });
           }
         } else {
@@ -95,7 +102,6 @@ const Dashboard = () => {
         }
       });
 
-      // 🟢 จัดเรียง High Load List โดยเอาตัวที่ CPU หรือ RAM โหลดหนักสุดขึ้นก่อน
       highLoadList.sort((a, b) => Math.max(b.cpuVal, b.ramVal) - Math.max(a.cpuVal, a.ramVal));
 
       return {
@@ -107,17 +113,20 @@ const Dashboard = () => {
           activeAlerts: alertCount
         },
         recentLogs: logsArray.slice(0, 5),
-        topHighLoadDevices: highLoadList.slice(0, 5) // ส่งไปแค่ 5 อันดับแรก
+        topHighLoadDevices: highLoadList.slice(0, 5),
+        thresholds // 🟢 4. ส่ง thresholds ออกไปให้ Component ลูกใช้งานด้วย
       };
     },
     refetchInterval: 30000, 
     onError: () => toast.error("ไม่สามารถดึงข้อมูลสรุป Dashboard ได้")
   });
 
-  const { stats, recentLogs, topHighLoadDevices } = data || { 
+  // 🟢 5. รับค่า thresholds ออกมาใช้งาน
+  const { stats, recentLogs, topHighLoadDevices, thresholds } = data || { 
     stats: { totalDevices: 0, onlineDevices: 0, offlineDevices: 0, activeAlerts: 0 }, 
     recentLogs: [], 
-    topHighLoadDevices: [] 
+    topHighLoadDevices: [],
+    thresholds: { cpu: 85, ram: 85, latency: 80, temp: 60, storage: 85 } // ค่า Default กันพัง
   };
   
   const onlinePercentage = stats.totalDevices > 0 ? (stats.onlineDevices / stats.totalDevices) * 100 : 0;
@@ -125,9 +134,6 @@ const Dashboard = () => {
   const lastSyncTime = dataUpdatedAt ? new Date(dataUpdatedAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : 'Syncing...';
   const handleCardClick = (filterState) => navigate('/devices', { state: { filter: filterState } });
 
-  // ==========================================
-  // Render
-  // ==========================================
   if (isLoading) {
     return (
       <div className="flex flex-col items-center justify-center h-[70vh] text-slate-400">
@@ -140,7 +146,7 @@ const Dashboard = () => {
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">
       
-      {/* Header Banner */}
+      {/* Header Banner (คงเดิม) */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 bg-white p-6 md:p-8 rounded-2xl border border-slate-200 shadow-sm relative overflow-hidden">
         <div className="absolute top-0 right-0 -mt-10 -mr-10 w-40 h-40 bg-blue-50 rounded-full blur-3xl opacity-50 pointer-events-none"></div>
         <div className="absolute bottom-0 left-20 w-32 h-32 bg-indigo-50 rounded-full blur-3xl opacity-50 pointer-events-none"></div>
@@ -181,21 +187,20 @@ const Dashboard = () => {
         </div>
       </div>
 
-      {/* Top Stat Cards Component */}
       <StatCards 
         stats={stats} 
         onlinePercentage={onlinePercentage} 
         onCardClick={handleCardClick} 
       />
 
-      {/* 🟢 Bottom Layout (Bento Grid) */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
         <div className="lg:col-span-3">
           <QuickActions />
         </div>
         
         <div className="lg:col-span-4">
-          <TopHighLoadDevices devices={topHighLoadDevices} />
+          {/* 🟢 6. ส่ง thresholds ไปให้ TopHighLoadDevices ใช้ในการแสดงผล Badge */}
+          <TopHighLoadDevices devices={topHighLoadDevices} thresholds={thresholds} />
         </div>
 
         <div className="lg:col-span-5">
