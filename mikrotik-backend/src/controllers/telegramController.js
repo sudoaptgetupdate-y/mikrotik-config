@@ -180,7 +180,7 @@ exports.handleWebhook = async (req, res) => {
       // อธิบายการใช้งาน /status ให้ผู้ใช้ทราบ
       msg += `🔍 <b>ต้องการดูสถานะเฉพาะเครื่อง?</b>\n`;
       msg += `พิมพ์คำสั่ง <code>/status [ชื่อ หรือ Circuit ID]</code>\n`;
-      msg += `<i>ตัวอย่าง: <code>/status องค์การ</code> หรือ <code>/status 7534j</code></i>`;
+      msg += `<i>ตัวอย่าง: <code>/status โรงเรียนxxx</code> หรือ <code>/status 7534j</code></i>`;
 
       // 🟢 สร้างปุ่มกด (จัดเรียงเป็น 2 แถว)
       const mainMenuKeyboard = [
