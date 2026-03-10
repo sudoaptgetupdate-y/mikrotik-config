@@ -216,17 +216,23 @@ exports.handleWebhook = async (req, res) => {
 
     // --- 🟢 คำสั่ง /status ---
     if (command === '/status' || command.startsWith('/status@')) {
-      const targetCircuit = args[1];
-      if (!targetCircuit) {
-        await sendTelegramAlert(group.telegramBotToken, chatId, "⚠️ <b>รูปแบบคำสั่งผิด:</b> กรุณาระบุ Circuit ID\nตัวอย่าง: <code>/status 7534j7572</code>");
+      // 🟢 เปลี่ยนมารับข้อความทั้งหมดที่อยู่หลังคำสั่ง เพื่อรองรับชื่อที่มีเว้นวรรค
+      const searchKeyword = args.slice(1).join(' ').trim().toLowerCase();
+      
+      if (!searchKeyword) {
+        await sendTelegramAlert(group.telegramBotToken, chatId, "⚠️ <b>รูปแบบคำสั่งผิด:</b> กรุณาระบุ Circuit ID หรือ ชื่ออุปกรณ์\nตัวอย่าง:\n<code>/status 7534j7572</code>\n<code>/status ออฟฟิศหลัก</code>");
         return;
       }
 
-      // ค้นหาอุปกรณ์ในกลุ่มที่มี circuitId ตรงกับที่พิมพ์มา (ค้นหาแบบมีส่วนคล้าย)
-      const device = devices.find(d => d.circuitId && d.circuitId.toLowerCase().includes(targetCircuit.toLowerCase()));
+      // 🟢 ค้นหาอุปกรณ์ในกลุ่มที่มี circuitId หรือ name ตรงกับที่พิมพ์มา
+      const device = devices.find(d => {
+        const matchCircuit = d.circuitId && d.circuitId.toLowerCase().includes(searchKeyword);
+        const matchName = d.name && d.name.toLowerCase().includes(searchKeyword);
+        return matchCircuit || matchName;
+      });
 
       if (!device) {
-        await sendTelegramAlert(group.telegramBotToken, chatId, `❌ ไม่พบอุปกรณ์ที่มี Circuit ID: <b>${targetCircuit}</b> ในกลุ่มนี้`);
+        await sendTelegramAlert(group.telegramBotToken, chatId, `❌ ไม่พบอุปกรณ์ที่มีข้อมูลตรงกับ: <b>${searchKeyword}</b> ในกลุ่มนี้`);
         return;
       }
 
@@ -244,7 +250,6 @@ exports.handleWebhook = async (req, res) => {
         const timeStr = device.lastSeen ? formatTimeAgo(getOfflineMinutes(device.lastSeen)) : "ไม่เคยเชื่อมต่อ";
         msg += `⚠️ <i>ขาดการติดต่อไปตั้งแต่: ${timeStr} ที่แล้ว</i>`;
       } else {
-        // 🟢 แปลงค่า Ping ให้เป็น ms โดยเรียกใช้ parseLatencyToMs
         const latencyMs = device.latency && device.latency !== "timeout" ? parseLatencyToMs(device.latency) + 'ms' : 'timeout';
 
         msg += `🧠 <b>CPU:</b> ${device.cpuLoad || 0}% | 💾 <b>RAM:</b> ${device.memoryUsage || 0}%\n`;
