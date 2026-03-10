@@ -184,6 +184,27 @@ exports.handleWebhook = async (req, res) => {
       return;
     }
 
+    // --- 🟢 คำสั่ง /hi, /start, /menu (เมนูหลัก) ---
+    if (command === '/hi' || command === '/start' || command === '/menu') {
+      let msg = `👋 <b>สวัสดีครับ! ระบบจัดการ Network พร้อมให้บริการ</b>\nกรุณาเลือกดูข้อมูลจากเมนูด้านล่างได้เลยครับ:`;
+
+      // 🟢 สร้างปุ่มกด (จัดเรียงเป็น 2 แถว)
+      const mainMenuKeyboard = [
+        [
+          { text: "🔴 ดูเครื่องออฟไลน์", callback_data: "/offline" },
+          { text: "⚠️ ดูเครื่องมีปัญหา", callback_data: "/problem" }
+        ],
+        [
+          { text: "📊 รายงานภาพรวม", callback_data: "/report" },
+          { text: "🔥 จัดอันดับ Top 5", callback_data: "/top" }
+        ]
+      ];
+
+      // ส่งข้อความพร้อมแนบปุ่มเมนูไป
+      await sendTelegramAlert(group.telegramBotToken, chatId, msg, { inline_keyboard: mainMenuKeyboard });
+      return;
+    }
+
     // --- คำสั่ง /report ---
     if (command === '/report' || command.startsWith('/report@')) {
       const msg = generateGroupReportText(group, false, thresholds);
