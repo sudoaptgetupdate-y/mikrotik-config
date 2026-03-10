@@ -304,22 +304,45 @@ exports.handleWebhook = async (req, res) => {
       return;
     }
 
-    // --- คำสั่ง /problem ---
+    // --- 🟢 คำสั่ง /problem (อัปเดตให้เช็คครอบคลุมเหมือนหน้าเว็บ) ---
     if (command === '/problem' || command.startsWith('/problem@')) {
-      const problemDevices = devices.filter(d => {
-        if (d.isAcknowledged) return false; // ข้ามตัวที่รับทราบแล้ว
-        
-        const isOffline = getOfflineMinutes(d.lastSeen) > 3;
-        const isCpuHigh = (parseFloat(d.cpuLoad) || 0) > thresholds.cpu;
-        const isRamHigh = (parseFloat(d.memoryUsage) || 0) > thresholds.ram;
-        
-        if (isOffline) d.issue = "🔴 Offline";
-        else if (isCpuHigh) d.issue = `🟠 CPU สูง (${d.cpuLoad}%)`;
-        else if (isRamHigh) d.issue = `🟠 RAM สูง (${d.memoryUsage}%)`;
+      const problemDevices = [];
 
-        return isOffline || isCpuHigh || isRamHigh;
+      devices.forEach(d => {
+        if (d.isAcknowledged) return; // ข้ามตัวที่รับทราบแล้ว
+
+        const diffMinutes = getOfflineMinutes(d.lastSeen);
+        const isOffline = diffMinutes > 3;
+
+        // 1. ถ้าออฟไลน์ ให้ถือว่าเป็นปัญหาทันที
+        if (isOffline) {
+          d.issue = "🔴 Offline";
+          problemDevices.push(d);
+          return;
+        }
+
+        // 2. ถ้าไม่ออฟไลน์ ให้ตรวจเช็คค่า Resource ต่างๆ (เหมือนในหน้าเว็บ)
+        const cpu = parseFloat(d.cpu || d.cpuLoad) || 0;
+        const ram = parseFloat(d.ram || d.memoryUsage) || 0;
+        const storage = parseFloat(d.storage) || 0;
+        const temp = parseFloat(d.temp) || 0;
+        const latencyMs = parseLatencyToMs(d.latency);
+
+        let issues = [];
+        if (cpu > thresholds.cpu) issues.push(`CPU ${cpu}%`);
+        if (ram > thresholds.ram) issues.push(`RAM ${ram}%`);
+        if (storage > thresholds.storage) issues.push(`Storage ${storage}%`);
+        if (temp > thresholds.temp) issues.push(`Temp ${temp}°C`);
+        if (latencyMs > thresholds.latency) issues.push(`Ping ${latencyMs}ms`);
+
+        // ถ้าพบ Warning อย่างน้อย 1 อย่าง ให้เก็บใส่ List ที่มีปัญหา
+        if (issues.length > 0) {
+          d.issue = `🟠 ${issues.join(', ')}`;
+          problemDevices.push(d);
+        }
       });
 
+      // สรุปผลลัพธ์
       if (problemDevices.length === 0) {
         await sendTelegramAlert(group.telegramBotToken, chatId, "✅ <b>ยอดเยี่ยม!</b> ไม่มีอุปกรณ์ที่มีปัญหาตกค้างในระบบครับ");
         return;
