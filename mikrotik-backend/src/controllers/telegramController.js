@@ -2,6 +2,9 @@ const prisma = require('../config/prisma');
 const { sendTelegramAlert } = require('../utils/telegramUtil');
 const cron = require('node-cron'); 
 
+// ==========================================
+// 🛠 Helper Functions
+// ==========================================
 const parseLatencyToMs = (latencyStr) => {
   if (!latencyStr || latencyStr === "timeout") return 999;
   const str = String(latencyStr).toLowerCase();
@@ -23,9 +26,6 @@ const parseLatencyToMs = (latencyStr) => {
   return Math.round(num);
 };
 
-// ==========================================
-// 🛠 Helper: ฟังก์ชันดึงค่า Thresholds จาก DB
-// ==========================================
 const getAlertThresholds = async () => {
   let thresholds = { cpu: 85, ram: 85, latency: 80, temp: 60, storage: 85 }; // ค่า Default
   try {
@@ -33,7 +33,7 @@ const getAlertThresholds = async () => {
     
     if (setting && setting.value) {
       const parsed = typeof setting.value === 'string' ? JSON.parse(setting.value) : setting.value;
-      thresholds = { ...thresholds, ...parsed }; // เอาค่าจาก DB ทับค่า Default
+      thresholds = { ...thresholds, ...parsed }; 
     }
   } catch (error) {
     console.error("⚠️ ไม่สามารถดึงค่า Thresholds ได้ ใช้ค่า Default แทน", error);
@@ -41,9 +41,6 @@ const getAlertThresholds = async () => {
   return thresholds;
 };
 
-// ==========================================
-// 🛠 Helper: ฟังก์ชันคำนวณเวลา (นาที) และข้อความ
-// ==========================================
 const getOfflineMinutes = (lastSeen) => {
   if (!lastSeen) return 9999;
   return (new Date() - new Date(lastSeen)) / 1000 / 60;
@@ -55,13 +52,9 @@ const formatTimeAgo = (minutes) => {
   return `${Math.floor(minutes)} นาที`;
 };
 
-// ==========================================
-// 🛠 Helper Function: สร้างข้อความ Report
-// ==========================================
 const generateGroupReportText = (group, isDaily = false, thresholds) => {
   const devices = group.devices || [];
   
-  // แบ่งหมวดหมู่ให้ละเอียดขึ้นตามสถานะ Ack
   let onlineHealthy = [];
   let warningUnack = [];
   let warningAck = [];
@@ -91,7 +84,7 @@ const generateGroupReportText = (group, isDaily = false, thresholds) => {
     if (temp > thresholds.temp) issues.push(`Temp ${temp}°C`);
     if (latencyMs > thresholds.latency) issues.push(`Ping ${latencyMs}ms`);
 
-    // แยกเครื่องปกติ กับเครื่องที่มีปัญหา (และดูว่า Ack หรือยัง)
+    // แยกเครื่องปกติ กับเครื่องที่มีปัญหา
     if (issues.length > 0) {
       const problemData = { name: d.name, circuit: d.circuitId, issues: issues.join(', ') };
       if (d.isAcknowledged) warningAck.push(problemData);
@@ -101,7 +94,6 @@ const generateGroupReportText = (group, isDaily = false, thresholds) => {
     }
   });
 
-  // คำนวณตัวเลขรวม
   const totalWarning = warningUnack.length + warningAck.length;
   const totalOnline = onlineHealthy.length + totalWarning;
   const totalOffline = offlineUnack.length + offlineAck.length;
@@ -148,7 +140,7 @@ const generateGroupReportText = (group, isDaily = false, thresholds) => {
 };
 
 // ==========================================
-// 🎯 API: จัดการ Webhook (จากคำสั่งพิมพ์เอง และ ปุ่มกด)
+// 🎯 API: จัดการ Webhook (รับคำสั่งจาก Telegram)
 // ==========================================
 exports.handleWebhook = async (req, res) => {
   // ตอบกลับ Telegram ทันทีเพื่อไม่ให้ระบบมันมองว่า Timeout
@@ -156,16 +148,15 @@ exports.handleWebhook = async (req, res) => {
 
   let chatId, text;
 
-  // 🟢 1. แยกประเภท: พิมพ์ข้อความปกติ หรือ กดปุ่ม (callback_query)
+  // 🟢 แยกประเภท: พิมพ์ข้อความปกติ หรือ กดปุ่ม (callback_query)
   if (req.body.message && req.body.message.text) {
     chatId = req.body.message.chat.id.toString();
     text = req.body.message.text.trim();
   } else if (req.body.callback_query) {
-    // ดึงข้อมูลจากการกดปุ่ม (เช่น "/status 15")
     chatId = req.body.callback_query.message.chat.id.toString();
     text = req.body.callback_query.data.trim();
   } else {
-    return; // ถ้าเป็นรูปภาพ หรือสติ๊กเกอร์ ให้ข้ามไป
+    return;
   }
 
   const args = text.split(' ');
@@ -182,7 +173,6 @@ exports.handleWebhook = async (req, res) => {
     const thresholds = await getAlertThresholds();
 
     // --- คำสั่ง /help ---
-    // (โค้ด /help เดิมของคุณ...)
     if (command === '/help' || command.startsWith('/help@')) {
       let helpMsg = `🤖 <b>คำสั่งที่รองรับ:</b>\n\n`;
       helpMsg += `/report - สรุปภาพรวมของระบบทั้งหมด\n`;
@@ -194,10 +184,38 @@ exports.handleWebhook = async (req, res) => {
       return;
     }
 
-    // --- คำสั่ง /report, /offline, /problem, /top คงไว้เหมือนเดิมได้เลยครับ ---
-    // ...
+    // --- คำสั่ง /report ---
+    if (command === '/report' || command.startsWith('/report@')) {
+      const msg = generateGroupReportText(group, false, thresholds);
+      await sendTelegramAlert(group.telegramBotToken, chatId, msg);
+      return;
+    }
 
-    // --- 🟢 คำสั่ง /status (อัปเกรดให้รองรับปุ่มกด) ---
+    // --- คำสั่ง /offline ---
+    if (command === '/offline' || command.startsWith('/offline@')) {
+      const offlineDevices = devices.filter(d => getOfflineMinutes(d.lastSeen) > 3);
+
+      if (offlineDevices.length === 0) {
+        await sendTelegramAlert(group.telegramBotToken, chatId, "🟢 <b>สถานะปกติ:</b> ไม่มีอุปกรณ์ใด Offline ในขณะนี้ครับ");
+        return;
+      }
+
+      offlineDevices.sort((a, b) => getOfflineMinutes(b.lastSeen) - getOfflineMinutes(a.lastSeen));
+
+      let msg = `🔴 <b>สรุปอุปกรณ์ที่ขาดการติดต่อ (Offline)</b>\n`;
+      msg += `พบจำนวน: <b>${offlineDevices.length}</b> อุปกรณ์\n\n`;
+
+      offlineDevices.forEach((d, index) => {
+        const mins = getOfflineMinutes(d.lastSeen);
+        const timeStr = d.lastSeen ? formatTimeAgo(mins) : "ไม่เคยเชื่อมต่อ";
+        msg += `${index + 1}. <b>${d.name}</b>\n   ├ 🆔 วงจร: <code>${d.circuitId || '-'}</code>\n   └ ⏱️ หายไป: <i>${timeStr}</i>\n\n`;
+      });
+
+      await sendTelegramAlert(group.telegramBotToken, chatId, msg);
+      return;
+    }
+
+    // --- 🟢 คำสั่ง /status (อัปเกรดให้รองรับปุ่มกดแบบไม่วนลูป) ---
     if (command === '/status' || command.startsWith('/status@')) {
       const searchKeyword = args.slice(1).join(' ').trim().toLowerCase();
       
@@ -206,38 +224,44 @@ exports.handleWebhook = async (req, res) => {
         return;
       }
 
-      // 🟢 ค้นหาจากชื่อ, Circuit ID, หรือ Database ID (จากการกดปุ่ม)
-      const matchedDevices = devices.filter(d => {
-        const matchCircuit = d.circuitId && d.circuitId.toLowerCase().includes(searchKeyword);
-        const matchName = d.name && d.name.toLowerCase().includes(searchKeyword);
-        const matchId = d.id.toString() === searchKeyword; // รองรับกรณีค้นหาด้วย ID ที่ฝังไว้ในปุ่ม
-        return matchCircuit || matchName || matchId;
-      });
+      let matchedDevices = [];
+
+      // เช็คว่ามีสัญลักษณ์ลับจากปุ่มกดหรือไม่ (เช่น "_id_36")
+      if (searchKeyword.startsWith('_id_')) {
+        const targetId = searchKeyword.replace('_id_', '');
+        // ค้นหาแบบเจาะจง ID เท่านั้น
+        const exactDevice = devices.find(d => d.id.toString() === targetId);
+        if (exactDevice) matchedDevices.push(exactDevice);
+      } else {
+        // ถ้าเป็นการพิมพ์ข้อความปกติ ให้ค้นหาจากชื่อ หรือ Circuit ID
+        matchedDevices = devices.filter(d => {
+          const matchCircuit = d.circuitId && d.circuitId.toLowerCase().includes(searchKeyword);
+          const matchName = d.name && d.name.toLowerCase().includes(searchKeyword);
+          return matchCircuit || matchName;
+        });
+      }
 
       if (matchedDevices.length === 0) {
-        await sendTelegramAlert(group.telegramBotToken, chatId, `❌ ไม่พบอุปกรณ์ที่ตรงกับ: <b>${searchKeyword}</b>`);
+        await sendTelegramAlert(group.telegramBotToken, chatId, `❌ ไม่พบอุปกรณ์ที่ตรงกับ: <b>${searchKeyword.replace('_id_', '')}</b>`);
         return;
       }
 
-      // 🟢 กรณีค้นเจอหลายตัว -> สร้างปุ่มกดให้เลือก (Inline Keyboard)
+      // กรณีค้นเจอหลายตัว -> สร้างปุ่มกดให้เลือก
       if (matchedDevices.length > 1) {
         let msg = `⚠️ <b>พบอุปกรณ์หลายตัวที่ตรงกับ "${searchKeyword}"</b>\nกรุณาคลิกเลือกอุปกรณ์ที่ต้องการ:\n`;
 
-        // สร้างปุ่มกด (แสดงสูงสุด 10 ปุ่ม เพื่อไม่ให้แชทรกลงมาเกินไป)
         const inlineKeyboard = matchedDevices.slice(0, 10).map(d => {
           return [{
             text: `📱 ${d.name} (${d.circuitId || '-'})`,
-            // 🟢 ฝังคำสั่งพร้อม ID ของอุปกรณ์ตัวนั้นลงไปในปุ่ม
-            callback_data: `/status ${d.id}` 
+            callback_data: `/status _id_${d.id}` 
           }];
         });
 
-        // ส่งข้อความพร้อมปุ่มไปให้ผู้ใช้
         await sendTelegramAlert(group.telegramBotToken, chatId, msg, { inline_keyboard: inlineKeyboard });
         return;
       }
 
-      // 🟢 กรณีเจอตัวเดียว (หรือคลิกเลือกมาจากปุ่มแล้ว) -> แสดงผลลัพธ์ทันที
+      // กรณีเจอตัวเดียว (หรือคลิกเลือกมาจากปุ่มแล้ว) -> แสดงผลลัพธ์ทันที
       const device = matchedDevices[0];
       const isOffline = getOfflineMinutes(device.lastSeen) > 3;
       const statusIcon = isOffline ? '🔴 Offline' : '🟢 Online';
@@ -265,20 +289,87 @@ exports.handleWebhook = async (req, res) => {
       return;
     }
 
+    // --- คำสั่ง /problem ---
+    if (command === '/problem' || command.startsWith('/problem@')) {
+      const problemDevices = devices.filter(d => {
+        if (d.isAcknowledged) return false; // ข้ามตัวที่รับทราบแล้ว
+        
+        const isOffline = getOfflineMinutes(d.lastSeen) > 3;
+        const isCpuHigh = (parseFloat(d.cpuLoad) || 0) > thresholds.cpu;
+        const isRamHigh = (parseFloat(d.memoryUsage) || 0) > thresholds.ram;
+        
+        if (isOffline) d.issue = "🔴 Offline";
+        else if (isCpuHigh) d.issue = `🟠 CPU สูง (${d.cpuLoad}%)`;
+        else if (isRamHigh) d.issue = `🟠 RAM สูง (${d.memoryUsage}%)`;
+
+        return isOffline || isCpuHigh || isRamHigh;
+      });
+
+      if (problemDevices.length === 0) {
+        await sendTelegramAlert(group.telegramBotToken, chatId, "✅ <b>ยอดเยี่ยม!</b> ไม่มีอุปกรณ์ที่มีปัญหาตกค้างในระบบครับ");
+        return;
+      }
+
+      let msg = `⚠️ <b>อุปกรณ์ที่มีปัญหา (ยังไม่มีผู้รับทราบ)</b>\n`;
+      msg += `พบจำนวน: <b>${problemDevices.length}</b> เคส\n\n`;
+
+      problemDevices.forEach((d, index) => {
+        msg += `${index + 1}. <b>${d.name}</b> (<code>${d.circuitId || '-'}</code>)\n   └ ปัญหา: ${d.issue}\n`;
+      });
+
+      msg += `\n<i>(เข้าหน้าเว็บเพื่อกด Acknowledge และอัปเดตสถานะ)</i>`;
+      await sendTelegramAlert(group.telegramBotToken, chatId, msg);
+      return;
+    }
+
+    // --- คำสั่ง /top ---
+    if (command === '/top' || command.startsWith('/top@')) {
+      const onlineDevices = devices.filter(d => getOfflineMinutes(d.lastSeen) <= 3);
+
+      if (onlineDevices.length === 0) {
+        await sendTelegramAlert(group.telegramBotToken, chatId, "⚠️ ไม่มีอุปกรณ์ที่ Online อยู่ในขณะนี้ให้จัดอันดับครับ");
+        return;
+      }
+
+      // เรียงตาม CPU มากไปน้อย
+      onlineDevices.sort((a, b) => {
+        const cpuA = parseFloat(a.cpuLoad) || 0;
+        const cpuB = parseFloat(b.cpuLoad) || 0;
+        const ramA = parseFloat(a.memoryUsage) || 0;
+        const ramB = parseFloat(b.memoryUsage) || 0;
+        
+        if (cpuB === cpuA) return ramB - ramA;
+        return cpuB - cpuA;
+      });
+
+      const top5 = onlineDevices.slice(0, 5);
+
+      let msg = `🔥 <b>Top 5 อุปกรณ์กินทรัพยากรสูงสุด</b>\n\n`;
+      
+      top5.forEach((d, index) => {
+        const cpu = parseFloat(d.cpuLoad) || 0;
+        const cpuIcon = (cpu > thresholds.cpu) ? '🔴' : (cpu > 60) ? '🟠' : '🟢';
+        msg += `${index + 1}. <b>${d.name}</b>\n`;
+        msg += `   └ ${cpuIcon} CPU: <b>${cpu}%</b> | RAM: ${d.memoryUsage || 0}%\n`;
+      });
+
+      await sendTelegramAlert(group.telegramBotToken, chatId, msg);
+      return;
+    }
+
   } catch (error) {
     console.error("Telegram Webhook Error:", error);
   }
 };
 
 // ==========================================
-// ⏰ Cron Job: ส่งรายงานอัตโนมัติ 07:30 ทุกวัน
+// ⏰ Cron Jobs
 // ==========================================
 exports.initDailyReportCron = () => {
   cron.schedule('30 7 * * *', async () => {
     console.log("⏰ [CRON] Starting Daily Telegram Report...");
 
     try {
-      // 1. ดึงข้อมูล Group ทั้งหมดที่เปิดแจ้งเตือนไว้
       const groups = await prisma.deviceGroup.findMany({
         where: {
           isNotifyEnabled: true,
@@ -289,16 +380,12 @@ exports.initDailyReportCron = () => {
       });
 
       if (groups.length > 0) {
-        // 🟢 2. ดึงค่า Thresholds แค่รอบเดียวเพื่อใช้งานกับทุกกลุ่ม (ลดภาระ Database)
         const thresholds = await getAlertThresholds();
 
-        // 3. วนลูปส่งรายงานให้แต่ละกลุ่ม
         for (const group of groups) {
           if (group.devices && group.devices.length > 0) {
-            // ส่ง Thresholds เข้าไปคำนวณด้วย
             const msg = generateGroupReportText(group, true, thresholds);
             await sendTelegramAlert(group.telegramBotToken, group.telegramChatId, msg);
-            
             await new Promise(resolve => setTimeout(resolve, 1500));
           }
         }
@@ -315,16 +402,11 @@ exports.initDailyReportCron = () => {
   console.log("🕒 Telegram Daily Report Scheduled: 07:30 AM (Asia/Bangkok)");
 };
 
-// ==========================================
-// ⏰ Cron Job: ตรวจสอบอุปกรณ์ Offline (ทำงานทุก 1 นาที)
-// ==========================================
 exports.initRealtimeMonitorCron = () => {
   cron.schedule('* * * * *', async () => {
     try {
-      // คำนวณเวลาย้อนหลังไป 3 นาที
       const threeMinsAgo = new Date(Date.now() - 3 * 60 * 1000);
 
-      // ค้นหาอุปกรณ์ที่ยัง Active, ขาดการติดต่อนานกว่า 3 นาที และ "ยังไม่เคยแจ้งเตือน Offline"
       const deadDevices = await prisma.managedDevice.findMany({
         where: {
           status: { not: 'DELETED' },
@@ -335,7 +417,6 @@ exports.initRealtimeMonitorCron = () => {
       });
 
       for (const device of deadDevices) {
-        // 🟢 1. ดึงข้อมูล Message ID เดิมออกมาก่อน
         let alertMsgIds = device.lastAlertMessageIds ? (typeof device.lastAlertMessageIds === 'string' ? JSON.parse(device.lastAlertMessageIds) : device.lastAlertMessageIds) : {};
 
         await prisma.deviceEventLog.create({
@@ -348,14 +429,12 @@ exports.initRealtimeMonitorCron = () => {
             const msg = `🔴 <b>[DEVICE OFFLINE]</b>\nขาดการติดต่อจากอุปกรณ์เกิน 3 นาที!\n\n🖥 <b>อุปกรณ์:</b> <code>${device.name}</code>\n✨ <b>วงจร:</b> <code>${device.circuitId || '-'}</code>\n⏳ <b>ติดต่อล่าสุด:</b> ${new Date(device.lastSeen).toLocaleTimeString('th-TH')}${adminInfo}`;
 
             if (group.isNotifyEnabled && group.telegramBotToken && group.telegramChatId) {
-              // 🟢 2. ยิงข้อความไป แล้วเอา Message ID มาเซฟไว้
               const msgId = await sendTelegramAlert(group.telegramBotToken, group.telegramChatId, msg);
               if (msgId) alertMsgIds[group.telegramChatId] = msgId;
             }
           }
         }
 
-        // 🟢 3. อัปเดตฐานข้อมูล (พร้อมเซฟ lastAlertMessageIds)
         await prisma.managedDevice.update({
           where: { id: device.id },
           data: { isOfflineAlerted: true, isAcknowledged: false, lastAlertMessageIds: alertMsgIds } 
