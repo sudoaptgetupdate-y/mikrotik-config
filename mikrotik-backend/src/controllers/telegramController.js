@@ -244,9 +244,12 @@ exports.handleWebhook = async (req, res) => {
         const timeStr = device.lastSeen ? formatTimeAgo(getOfflineMinutes(device.lastSeen)) : "ไม่เคยเชื่อมต่อ";
         msg += `⚠️ <i>ขาดการติดต่อไปตั้งแต่: ${timeStr} ที่แล้ว</i>`;
       } else {
+        // 🟢 แปลงค่า Ping ให้เป็น ms โดยเรียกใช้ parseLatencyToMs
+        const latencyMs = device.latency && device.latency !== "timeout" ? parseLatencyToMs(device.latency) + 'ms' : 'timeout';
+
         msg += `🧠 <b>CPU:</b> ${device.cpuLoad || 0}% | 💾 <b>RAM:</b> ${device.memoryUsage || 0}%\n`;
         msg += `🌡️ <b>Temp:</b> ${device.temp || 'N/A'}\n`;
-        msg += `📡 <b>Ping:</b> ${device.latency || 'timeout'}\n`;
+        msg += `📡 <b>Ping:</b> ${latencyMs}\n`;
         msg += `⏱️ <b>Uptime:</b> ${device.uptime || '-'}`;
       }
 
