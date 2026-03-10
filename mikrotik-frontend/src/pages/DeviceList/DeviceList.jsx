@@ -7,7 +7,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import Swal from 'sweetalert2';
 
 import { deviceService } from '../../services/deviceService';
-import { settingService } from '../../services/settingService'; // 🟢 เพิ่ม settingService
+import { settingService } from '../../services/settingService';
 import { generateMikrotikScript } from '../../utils/mikrotikGenerator';
 
 import { getDeviceStatus } from './components/deviceHelpers';
@@ -68,13 +68,11 @@ const DeviceList = () => {
     onError: () => toast.error("ดึงข้อมูลอุปกรณ์ไม่สำเร็จ")
   });
 
-  // 🟢 ดึงข้อมูลการตั้งค่า (Settings) เพื่อเอามาทำ Thresholds
   const { data: rawSettings } = useQuery({
     queryKey: ['settings'],
     queryFn: () => settingService.getSettings(),
   });
 
-  // 🟢 คำนวณ Thresholds เตรียมไว้
   const thresholds = useMemo(() => {
     const defaultTh = { cpu: 85, ram: 85, latency: 80, temp: 60, storage: 85 };
     if (!rawSettings) return defaultTh;
@@ -103,7 +101,7 @@ const DeviceList = () => {
         (d.boardName?.toLowerCase().includes(searchLower)) || 
         (modelName?.toLowerCase().includes(searchLower));
 
-      const statusObj = getDeviceStatus(d, thresholds); // 🟢 ส่ง thresholds ไปคำนวณสถานะ
+      const statusObj = getDeviceStatus(d, thresholds);
       
       if (statusFilter === 'ACTIVE_ONLY') return statusObj.state !== 'deleted' && matchesSearch;
       if (statusFilter === 'ONLINE') return statusObj.state === 'online' && matchesSearch;
@@ -139,7 +137,6 @@ const DeviceList = () => {
     });
   }, [filteredDevices, statusFilter, thresholds]);
   
-  // คำนวณหน้าและการหั่นข้อมูล (Pagination)
   const totalPages = Math.ceil(sortedDevices.length / itemsPerPage) || 1;
   const paginatedDevices = useMemo(() => {
     return sortedDevices.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
@@ -167,10 +164,10 @@ const DeviceList = () => {
   const handleDeleteClick = async (device) => {
     const result = await Swal.fire({
       title: 'ยืนยันการลบอุปกรณ์?',
-      text: `คุณต้องการลบ "${device.name}" ใช่หรือไม่? (อุปกรณ์จะถูกเปลี่ยนสถานะเป็น Inactive)`,
+      text: `คุณต้องการลบ "${device.name}" ใช่หรือไม่? (อุปกรณ์จะถูกเปลี่ยนสถานะเป็น Inactive/Trash)`,
       icon: 'warning',
       showCancelButton: true,
-      confirmButtonText: 'ใช่, ลบเลย!',
+      confirmButtonText: 'ใช่, ทิ้งลงถังขยะ!',
       cancelButtonText: 'ยกเลิก',
       buttonsStyling: false,
       customClass: {
@@ -185,7 +182,7 @@ const DeviceList = () => {
 
     if (result.isConfirmed) {
       const deletePromise = deviceService.deleteDevice(device.id);
-      toast.promise(deletePromise, { loading: 'กำลังลบอุปกรณ์...', success: 'ลบอุปกรณ์สำเร็จ!', error: 'ลบอุปกรณ์ไม่สำเร็จ' });
+      toast.promise(deletePromise, { loading: 'กำลังย้ายลงถังขยะ...', success: 'ย้ายลงถังขยะสำเร็จ!', error: 'ลบอุปกรณ์ไม่สำเร็จ' });
       try { await deletePromise; queryClient.invalidateQueries({ queryKey: ['devices'] }); } catch (e) { console.error(e); }
     }
   };
@@ -213,6 +210,34 @@ const DeviceList = () => {
       const restorePromise = deviceService.restoreDevice(device.id);
       toast.promise(restorePromise, { loading: 'กำลังกู้คืนอุปกรณ์...', success: 'กู้คืนอุปกรณ์สำเร็จ!', error: 'กู้คืนอุปกรณ์ไม่สำเร็จ' });
       try { await restorePromise; queryClient.invalidateQueries({ queryKey: ['devices'] }); } catch (e) { console.error(e); }
+    }
+  };
+
+  // 🟢 ฟังก์ชัน Hard Delete สำหรับลบถาวร
+  const handleHardDeleteClick = async (device) => {
+    const result = await Swal.fire({
+      title: 'ยืนยันการลบถาวร?',
+      text: `คำเตือน: ข้อมูลอุปกรณ์และประวัติการแจ้งเตือนของ "${device.name}" จะถูกลบทิ้งถาวรและไม่สามารถกู้คืนได้ คุณแน่ใจหรือไม่?`,
+      icon: 'error',
+      showCancelButton: true,
+      confirmButtonText: 'ใช่, ลบถาวร!',
+      cancelButtonText: 'ยกเลิก',
+      buttonsStyling: false,
+      customClass: {
+        popup: 'rounded-3xl p-6 border border-slate-100 shadow-2xl',
+        title: 'text-xl font-bold text-red-600',
+        htmlContainer: 'text-sm text-slate-500 font-medium mt-2',
+        actions: 'flex gap-3 mt-6 w-full justify-center',
+        confirmButton: 'bg-red-600 hover:bg-red-700 text-white px-6 py-2.5 rounded-xl text-sm font-bold shadow-sm transition-all',
+        cancelButton: 'bg-slate-100 hover:bg-slate-200 text-slate-600 px-6 py-2.5 rounded-xl text-sm font-bold transition-all'
+      }
+    });
+
+    if (result.isConfirmed) {
+      // เรียกใช้ API hardDeleteDevice ที่เราจะสร้างไว้ใน Service
+      const hardDeletePromise = deviceService.hardDeleteDevice(device.id);
+      toast.promise(hardDeletePromise, { loading: 'กำลังลบข้อมูลถาวร...', success: 'ลบข้อมูลถาวรสำเร็จ!', error: 'ลบข้อมูลถาวรไม่สำเร็จ' });
+      try { await hardDeletePromise; queryClient.invalidateQueries({ queryKey: ['devices'] }); } catch (e) { console.error(e); }
     }
   };
 
@@ -367,14 +392,15 @@ const DeviceList = () => {
           loading={loading} 
           devices={paginatedDevices} 
           canEdit={canEdit} 
-          handlers={{ onDownload: handleDownloadLatest, onViewHistory: handleViewHistory, onViewEvents: handleViewEvents, onRestore: handleRestoreClick, onEdit: handleEditClick, onDelete: handleDeleteClick, onAcknowledge: handleAcknowledgeClick }} 
+          // 🟢 เพิ่ม onHardDelete ส่งเข้าไปใน handlers
+          handlers={{ onDownload: handleDownloadLatest, onViewHistory: handleViewHistory, onViewEvents: handleViewEvents, onRestore: handleRestoreClick, onEdit: handleEditClick, onDelete: handleDeleteClick, onHardDelete: handleHardDeleteClick, onAcknowledge: handleAcknowledgeClick }} 
           pageSizes={PAGE_SIZES}
           itemsPerPage={itemsPerPage}
           setItemsPerPage={setItemsPerPage}
           from={fromItem}
           to={toItem}
           total={totalFiltered}
-          thresholds={thresholds} // 🟢 ส่ง thresholds เข้าตาราง
+          thresholds={thresholds} 
         />
       </div>
 

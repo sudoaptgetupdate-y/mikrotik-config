@@ -5,7 +5,6 @@ import {
 } from 'lucide-react';
 import { formatUptime, formatLatency } from '../../../utils/formatters';
 
-// รับค่า limit (thresholds) เข้ามาใช้ในการคำนวณสีหลอด
 const getProgressColor = (value, type, limit = 85) => {
   const num = parseFloat(value) || 0;
   if (num > limit) return 'bg-red-500';
@@ -37,7 +36,8 @@ const getLatencyColor = (latency) => {
   return 'text-blue-500';
 };
 
-const DeviceTableRow = ({ device, status, thresholds, onDownload, onViewHistory, onViewEvents, onRestore, onEdit, onDelete, onAcknowledge, canEdit }) => {
+// 🟢 เพิ่ม onHardDelete มารับค่า props ด้วย
+const DeviceTableRow = ({ device, status, thresholds, onDownload, onViewHistory, onViewEvents, onRestore, onEdit, onDelete, onHardDelete, onAcknowledge, canEdit }) => {
   const isDeleted = status.state === 'deleted'; 
   
   const diffMinutes = device.lastSeen ? (new Date() - new Date(device.lastSeen)) / 1000 / 60 : 999;
@@ -47,7 +47,6 @@ const DeviceTableRow = ({ device, status, thresholds, onDownload, onViewHistory,
   const ramVal = device.ram || device.memoryUsage || 0;
   const storageVal = device.storage || 0;
 
-  // 🟢 เพิ่มตัวแปรสำหรับรับค่า Issue เพื่อนำไปแสดงใน Tooltip
   let latestAckReason = 'No reason provided';
   let latestAckWarning = ''; 
   let ackCount = 0;
@@ -57,7 +56,7 @@ const DeviceTableRow = ({ device, status, thresholds, onDownload, onViewHistory,
       if (device.ackReason.length > 0) {
         const last = device.ackReason[device.ackReason.length - 1];
         latestAckReason = last.reason;
-        latestAckWarning = last.warningData || ''; // ดึง Issue ล่าสุดออกมา
+        latestAckWarning = last.warningData || ''; 
         ackCount = device.ackReason.length;
       }
     } else if (typeof device.ackReason === 'string') {
@@ -66,7 +65,7 @@ const DeviceTableRow = ({ device, status, thresholds, onDownload, onViewHistory,
         if (Array.isArray(historyArr) && historyArr.length > 0) {
           const last = historyArr[historyArr.length - 1];
           latestAckReason = last.reason;
-          latestAckWarning = last.warningData || ''; // ดึง Issue ล่าสุดออกมา
+          latestAckWarning = last.warningData || ''; 
           ackCount = historyArr.length;
         }
       } catch (e) {
@@ -76,7 +75,6 @@ const DeviceTableRow = ({ device, status, thresholds, onDownload, onViewHistory,
     }
   }
 
-  // 🟢 ยกเลิกการบังคับสีเขียว ปล่อยให้แสดงผลสีส้ม/แดง ตามความเป็นจริง (รับมาจาก getDeviceStatus)
   let mainStateLabel = status.label;
   let mainStateColor = status.color;
   let mainStateIcon = status.icon;
@@ -93,7 +91,6 @@ const DeviceTableRow = ({ device, status, thresholds, onDownload, onViewHistory,
           {device.isAcknowledged && (
             <span 
               className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold border bg-blue-50 text-blue-600 border-blue-200 cursor-help mt-1"
-              // 🟢 แสดง Issue และ Note ใน Tooltip
               title={`Issue: ${latestAckWarning || 'Unknown'}\nNote: ${latestAckReason}`}
             >
               <CheckCircle size={12}/> {ackCount > 1 ? `Ack (${ackCount})` : 'Acknowledged'}
@@ -136,7 +133,6 @@ const DeviceTableRow = ({ device, status, thresholds, onDownload, onViewHistory,
                 <span className="font-medium">{parseFloat(cpuVal).toFixed(1)}%</span>
               </div>
               <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
-                {/* 🟢 ส่ง thresholds ลงไปเพื่อเปลี่ยนสีหลอดให้ถูกต้อง */}
                 <div className={`h-full transition-all duration-500 ${getProgressColor(cpuVal, 'cpu', thresholds?.cpu)}`} style={{ width: `${Math.min(cpuVal, 100)}%` }}></div>
               </div>
             </div>
@@ -246,15 +242,21 @@ const DeviceTableRow = ({ device, status, thresholds, onDownload, onViewHistory,
 
           {canEdit && (
             isDeleted ? (
-              <button onClick={() => onRestore(device)} className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition" title="Restore Device">
-                  <RotateCcw size={16} />
-              </button>
+              <>
+                <button onClick={() => onRestore(device)} className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition" title="Restore Device">
+                    <RotateCcw size={16} />
+                </button>
+                {/* 🟢 ปุ่ม Hard Delete แสดงคู่กับ Restore */}
+                <button onClick={() => onHardDelete(device)} className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition" title="Hard Delete (Permanent)">
+                  <Trash2 size={16} />
+                </button>
+              </>
             ) : (
               <>
                 <button onClick={() => onEdit(device)} className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition" title="Edit Config">
                   <Settings size={16} />
                 </button>
-                <button onClick={() => onDelete(device)} className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition" title="Deactivate Device">
+                <button onClick={() => onDelete(device)} className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition" title="Move to Trash">
                   <Trash2 size={16} />
                 </button>
               </>

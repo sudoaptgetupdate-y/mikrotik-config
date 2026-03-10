@@ -37,6 +37,11 @@ exports.deleteDevice = async (req, res) => {
   res.json({ message: "Device marked as inactive" });
 };
 
+exports.hardDeleteDevice = async (req, res) => {
+  await deviceService.hardDeleteDevice(req.params.id, req.user.id);
+  res.json({ message: "Device permanently deleted" });
+};
+
 exports.restoreDevice = async (req, res) => {
   await deviceService.restoreDevice(req.params.id, req.user.id);
   res.json({ message: "Device restored successfully" });

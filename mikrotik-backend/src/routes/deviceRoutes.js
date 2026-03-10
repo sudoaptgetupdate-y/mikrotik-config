@@ -36,7 +36,9 @@ router.post('/', writeAccess, validate(createDeviceSchema), deviceController.cre
 router.put('/:id', writeAccess, deviceController.updateDevice);
 router.delete('/:id', writeAccess, deviceController.deleteDevice);
 router.put('/:id/restore', writeAccess, deviceController.restoreDevice);
+router.delete('/:id/hard', writeAccess, deviceController.hardDeleteDevice);
 router.post('/:id/acknowledge', writeAccess, deviceController.acknowledgeWarning);
+router.delete('/:id/hard', writeAccess, deviceController.hardDeleteDevice);
 
 // ✅ เติมบรรทัดนี้กลับเข้ามา! (Route สำหรับดาวน์โหลด Log)
 router.post('/:id/log-download', writeAccess, deviceController.logDownload);

@@ -167,6 +167,28 @@ exports.restoreDevice = async (id, actionUserId) => {
   await prisma.activityLog.create({ data: { userId: actionUserId, action: "UPDATE_DEVICE", details: `Restored device: ${device.name}` } });
 };
 
+exports.hardDeleteDevice = async (id, actionUserId) => {
+  const deviceId = parseInt(id);
+  
+  // 1. ตรวจสอบว่ามี Device อยู่จริงไหม
+  const device = await prisma.managedDevice.findUnique({ where: { id: deviceId } });
+  if (!device) throw new Error("NOT_FOUND");
+
+  // 2. สั่งลบถาวรจาก Database (Cascade ข้อมูลที่เกี่ยวข้องจะถูกลบไปด้วย)
+  await prisma.managedDevice.delete({ 
+    where: { id: deviceId } 
+  });
+
+  // 3. เก็บ Log กิจกรรมว่าใครเป็นคนลบถาวร (เก็บไว้ตรวจสอบย้อนหลังได้)
+  await prisma.activityLog.create({ 
+    data: { 
+      userId: actionUserId, 
+      action: "DELETE_DEVICE", 
+      details: `Permanently deleted device: ${device.name} (IP: ${device.currentIp || 'Unknown'})` 
+    } 
+  });
+};
+
 exports.acknowledgeWarning = async (id, reason, warningData, actionUserId, actionUserName) => {
   const device = await prisma.managedDevice.findUnique({ 
     where: { id: parseInt(id) },

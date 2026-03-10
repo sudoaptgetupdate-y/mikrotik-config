@@ -36,6 +36,12 @@ export const deviceService = {
     return response.data;
   },
 
+  // 🟢 เพิ่มฟังก์ชัน Hard Delete ตรงนี้ครับ
+  hardDeleteDevice: async (id) => {
+    const response = await apiClient.delete(`/api/devices/${id}/hard`);
+    return response.data;
+  },
+
   getDeviceHistory: async (id) => {
     const response = await apiClient.get(`/api/devices/${id}/history`);
     return response.data;

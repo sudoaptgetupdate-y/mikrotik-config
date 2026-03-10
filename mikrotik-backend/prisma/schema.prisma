@@ -60,7 +60,7 @@ model Config {
 
   // ✅ เชื่อมโยงกับ ManagedDevice (สำคัญสำหรับการเปลี่ยน Model)
   managedDeviceId Int?
-  managedDevice   ManagedDevice? @relation(fields: [managedDeviceId], references: [id])
+  managedDevice   ManagedDevice? @relation(fields: [managedDeviceId], references: [id], onDelete: SetNull)
 
   // ยังคงเก็บ Model ไว้ เพื่อให้รู้ว่าประวัตินี้ใช้กับรุ่นไหน
   deviceModelId Int
