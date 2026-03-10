@@ -1,6 +1,6 @@
 const axios = require('axios');
 
-exports.sendTelegramAlert = async (botToken, chatId, message, replyToMessageId = null) => {
+exports.sendTelegramAlert = async (botToken, chatId, message, param4 = null) => {
   if (!botToken || !chatId) return null;
   try {
     const url = `https://api.telegram.org/bot${botToken}/sendMessage`;
@@ -10,11 +10,16 @@ exports.sendTelegramAlert = async (botToken, chatId, message, replyToMessageId =
       parse_mode: 'HTML'
     };
 
-    // 🟢 ถ้ามีการส่ง ID ข้อความเดิมมา ให้สั่ง Reply
-    if (replyToMessageId) {
-      payload.reply_parameters = { message_id: replyToMessageId }; 
-      // หมายเหตุ: ใช้ reply_to_message_id (เก่า) หรือ reply_parameters (ใหม่) ก็ได้ แต่เพื่อความชัวร์ ใช้แบบนี้ครับ
-      payload.reply_to_message_id = replyToMessageId;
+    // 🟢 ตรวจสอบแยกแยะว่า param4 เป็น "ปุ่มกด" หรือ "ID สำหรับ Reply"
+    if (param4) {
+      if (typeof param4 === 'object') {
+        // กรณีที่ส่งเข้ามาเป็น Object -> คือชุดปุ่มกด (reply_markup)
+        payload.reply_markup = param4;
+      } else {
+        // กรณีที่ส่งเข้ามาเป็น String/Number -> คือ Message ID เดิม (reply_to_message_id)
+        payload.reply_parameters = { message_id: param4 }; 
+        payload.reply_to_message_id = param4;
+      }
     }
 
     const res = await axios.post(url, payload);
