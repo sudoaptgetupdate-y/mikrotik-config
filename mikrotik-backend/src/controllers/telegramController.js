@@ -42,6 +42,20 @@ const getAlertThresholds = async () => {
 };
 
 // ==========================================
+// 🛠 Helper: ฟังก์ชันคำนวณเวลา (นาที) และข้อความ
+// ==========================================
+const getOfflineMinutes = (lastSeen) => {
+  if (!lastSeen) return 9999;
+  return (new Date() - new Date(lastSeen)) / 1000 / 60;
+};
+
+const formatTimeAgo = (minutes) => {
+  if (minutes > 1440) return `${Math.floor(minutes / 1440)} วัน`;
+  if (minutes > 60) return `${Math.floor(minutes / 60)} ชม. ${Math.floor(minutes % 60)} นาที`;
+  return `${Math.floor(minutes)} นาที`;
+};
+
+// ==========================================
 // 🛠 Helper Function: สร้างข้อความ Report
 // ==========================================
 const generateGroupReportText = (group, isDaily = false, thresholds) => {
@@ -92,20 +106,14 @@ const generateGroupReportText = (group, isDaily = false, thresholds) => {
   const totalOnline = onlineHealthy.length + totalWarning;
   const totalOffline = offlineUnack.length + offlineAck.length;
 
-  // ==============================
-  // ส่วนที่ 1: ประกอบข้อความ Header & สรุปตัวเลข
-  // ==============================
   const title = isDaily ? "🗓️ <b>รายงานสถานะระบบประจำวัน</b>" : "📊 <b>รายงานสถานะระบบ</b>";
   let msg = `${title}\n(กลุ่ม: ${group.name})\n\n`;
   
   msg += `📦 <b>อุปกรณ์ทั้งหมด: ${devices.length} รายการ</b>\n`;
-  
-  // สรุป Online (Nested)
   msg += `🟢 <b>Online: ${totalOnline} รายการ</b>\n`;
   msg += `      ├─ ✅ ทำงานปกติ: ${onlineHealthy.length}\n`;
   msg += `      └─ ⚠️ พบปัญหา: ${totalWarning} ${warningAck.length > 0 ? `<i>(Ack แล้ว ${warningAck.length})</i>` : ''}\n`;
   
-  // สรุป Offline (Nested)
   msg += `🔴 <b>Offline: ${totalOffline} รายการ</b>\n`;
   if (totalOffline > 0) {
     msg += `      ├─ 🚨 ยังไม่รับทราบ: ${offlineUnack.length}\n`;
@@ -113,27 +121,19 @@ const generateGroupReportText = (group, isDaily = false, thresholds) => {
   }
 
   msg += `\n`;
-
-  // ==============================
-  // ส่วนที่ 2: รายละเอียด (แบ่งกลุ่มตามการ Action)
-  // ==============================
   
-  // กลุ่มแดง: ต้องลงมือทำทันที (Unacked ทั้งหมด)
   msg += `🚨 <b>อุปกรณ์ที่พบปัญหา (ต้องตรวจสอบด่วน):</b>\n`;
   if (warningUnack.length === 0 && offlineUnack.length === 0) {
     msg += `✅ <i>ไม่พบอุปกรณ์ที่มีปัญหา (ที่ยังไม่ได้รับทราบ)</i>\n`;
   } else {
-    // เอา Offline ที่ยังไม่รับทราบ ขึ้นก่อน (เพราะด่วนกว่า)
     offlineUnack.forEach(o => {
       msg += `🔻 <b>${o.name}</b> (${o.circuitId || '-'}): <i>[OFFLINE] ขาดการติดต่อ</i>\n`;
     });
-    // ตามด้วย Warning ที่ยังไม่รับทราบ
     warningUnack.forEach(p => {
       msg += `🔻 <b>${p.name}</b> (${p.circuit || '-'}): <i>${p.issues}</i>\n`;
     });
   }
 
-  // กลุ่มส้ม: มีคนรับผิดชอบแล้ว (Acked ทั้งหมด)
   if (warningAck.length > 0 || offlineAck.length > 0) {
     msg += `\n⌛ <b>อุปกรณ์ที่รับทราบปัญหาแล้ว (กำลังดำเนินการ):</b>\n`;
     offlineAck.forEach(o => {
@@ -158,6 +158,8 @@ exports.handleWebhook = async (req, res) => {
 
   const chatId = message.chat.id.toString();
   const text = message.text.trim();
+  const args = text.split(' ');
+  const command = args[0].toLowerCase();
 
   try {
     const group = await prisma.deviceGroup.findFirst({
@@ -166,20 +168,160 @@ exports.handleWebhook = async (req, res) => {
     });
 
     if (!group || !group.telegramBotToken) return;
+    const devices = group.devices || [];
+    const thresholds = await getAlertThresholds();
 
-    if (text === '/help' || text.startsWith('/help@')) {
-      const helpMsg = `🤖 <b>คำสั่งที่รองรับ:</b>\n\n/report - สรุปสถานะอุปกรณ์ทั้งหมดในกลุ่มนี้\n/help - ดูคำสั่งทั้งหมด`;
+    // --- คำสั่ง /help ---
+    if (command === '/help' || command.startsWith('/help@')) {
+      let helpMsg = `🤖 <b>คำสั่งที่รองรับ:</b>\n\n`;
+      helpMsg += `/report - สรุปภาพรวมของระบบทั้งหมด\n`;
+      helpMsg += `/offline - ดูรายชื่ออุปกรณ์ที่ดับไป\n`;
+      helpMsg += `/problem - ดูอุปกรณ์ที่มีปัญหา (ยังไม่ได้รับทราบ)\n`;
+      helpMsg += `/top - จัดอันดับอุปกรณ์กินทรัพยากร 5 อันดับแรก\n`;
+      helpMsg += `/status [CircuitID] - ดูข้อมูลเชิงลึกแบบ Real-time\n`;
       await sendTelegramAlert(group.telegramBotToken, chatId, helpMsg);
       return;
     }
 
-    if (text === '/report' || text.startsWith('/report@')) {
-      // 🟢 ดึงค่า Thresholds ก่อนสร้างข้อความ
-      const thresholds = await getAlertThresholds();
+    // --- คำสั่ง /report ---
+    if (command === '/report' || command.startsWith('/report@')) {
       const msg = generateGroupReportText(group, false, thresholds);
-      
       await sendTelegramAlert(group.telegramBotToken, chatId, msg);
+      return;
     }
+
+    // --- 🟢 คำสั่ง /offline ---
+    if (command === '/offline' || command.startsWith('/offline@')) {
+      const offlineDevices = devices.filter(d => getOfflineMinutes(d.lastSeen) > 3);
+
+      if (offlineDevices.length === 0) {
+        await sendTelegramAlert(group.telegramBotToken, chatId, "🟢 <b>สถานะปกติ:</b> ไม่มีอุปกรณ์ใด Offline ในขณะนี้ครับ");
+        return;
+      }
+
+      offlineDevices.sort((a, b) => getOfflineMinutes(b.lastSeen) - getOfflineMinutes(a.lastSeen));
+
+      let msg = `🔴 <b>สรุปอุปกรณ์ที่ขาดการติดต่อ (Offline)</b>\n`;
+      msg += `พบจำนวน: <b>${offlineDevices.length}</b> อุปกรณ์\n\n`;
+
+      offlineDevices.forEach((d, index) => {
+        const mins = getOfflineMinutes(d.lastSeen);
+        const timeStr = d.lastSeen ? formatTimeAgo(mins) : "ไม่เคยเชื่อมต่อ";
+        msg += `${index + 1}. <b>${d.name}</b>\n   ├ 🆔 วงจร: <code>${d.circuitId || '-'}</code>\n   └ ⏱️ หายไป: <i>${timeStr}</i>\n\n`;
+      });
+
+      await sendTelegramAlert(group.telegramBotToken, chatId, msg);
+      return;
+    }
+
+    // --- 🟢 คำสั่ง /status ---
+    if (command === '/status' || command.startsWith('/status@')) {
+      const targetCircuit = args[1];
+      if (!targetCircuit) {
+        await sendTelegramAlert(group.telegramBotToken, chatId, "⚠️ <b>รูปแบบคำสั่งผิด:</b> กรุณาระบุ Circuit ID\nตัวอย่าง: <code>/status 7534j7572</code>");
+        return;
+      }
+
+      // ค้นหาอุปกรณ์ในกลุ่มที่มี circuitId ตรงกับที่พิมพ์มา (ค้นหาแบบมีส่วนคล้าย)
+      const device = devices.find(d => d.circuitId && d.circuitId.toLowerCase().includes(targetCircuit.toLowerCase()));
+
+      if (!device) {
+        await sendTelegramAlert(group.telegramBotToken, chatId, `❌ ไม่พบอุปกรณ์ที่มี Circuit ID: <b>${targetCircuit}</b> ในกลุ่มนี้`);
+        return;
+      }
+
+      const isOffline = getOfflineMinutes(device.lastSeen) > 3;
+      const statusIcon = isOffline ? '🔴 Offline' : '🟢 Online';
+
+      let msg = `📊 <b>สถานะอุปกรณ์แบบ Real-time</b>\n`;
+      msg += `<b>ชื่อ:</b> ${device.name}\n`;
+      msg += `<b>วงจร:</b> <code>${device.circuitId || '-'}</code>\n`;
+      msg += `<b>IP:</b> <code>${device.currentIp}</code>\n`;
+      msg += `<b>สถานะ:</b> ${statusIcon}\n`;
+      msg += `<b>รุ่น:</b> ${device.boardName || '-'} (v${device.version || '-'})\n\n`;
+
+      if (isOffline) {
+        const timeStr = device.lastSeen ? formatTimeAgo(getOfflineMinutes(device.lastSeen)) : "ไม่เคยเชื่อมต่อ";
+        msg += `⚠️ <i>ขาดการติดต่อไปตั้งแต่: ${timeStr} ที่แล้ว</i>`;
+      } else {
+        msg += `🧠 <b>CPU:</b> ${device.cpuLoad || 0}% | 💾 <b>RAM:</b> ${device.memoryUsage || 0}%\n`;
+        msg += `🌡️ <b>Temp:</b> ${device.temp || 'N/A'}\n`;
+        msg += `📡 <b>Ping:</b> ${device.latency || 'timeout'}\n`;
+        msg += `⏱️ <b>Uptime:</b> ${device.uptime || '-'}`;
+      }
+
+      await sendTelegramAlert(group.telegramBotToken, chatId, msg);
+      return;
+    }
+
+    // --- 🟢 คำสั่ง /problem ---
+    if (command === '/problem' || command.startsWith('/problem@')) {
+      const problemDevices = devices.filter(d => {
+        if (d.isAcknowledged) return false; // ข้ามตัวที่รับทราบแล้ว
+        
+        const isOffline = getOfflineMinutes(d.lastSeen) > 3;
+        const isCpuHigh = (parseFloat(d.cpuLoad) || 0) > thresholds.cpu;
+        const isRamHigh = (parseFloat(d.memoryUsage) || 0) > thresholds.ram;
+        
+        if (isOffline) d.issue = "🔴 Offline";
+        else if (isCpuHigh) d.issue = `🟠 CPU สูง (${d.cpuLoad}%)`;
+        else if (isRamHigh) d.issue = `🟠 RAM สูง (${d.memoryUsage}%)`;
+
+        return isOffline || isCpuHigh || isRamHigh;
+      });
+
+      if (problemDevices.length === 0) {
+        await sendTelegramAlert(group.telegramBotToken, chatId, "✅ <b>ยอดเยี่ยม!</b> ไม่มีอุปกรณ์ที่มีปัญหาตกค้างในระบบครับ");
+        return;
+      }
+
+      let msg = `⚠️ <b>อุปกรณ์ที่มีปัญหา (ยังไม่มีผู้รับทราบ)</b>\n`;
+      msg += `พบจำนวน: <b>${problemDevices.length}</b> เคส\n\n`;
+
+      problemDevices.forEach((d, index) => {
+        msg += `${index + 1}. <b>${d.name}</b> (<code>${d.circuitId || '-'}</code>)\n   └ ปัญหา: ${d.issue}\n`;
+      });
+
+      msg += `\n<i>(เข้าหน้าเว็บเพื่อกด Acknowledge และอัปเดตสถานะ)</i>`;
+      await sendTelegramAlert(group.telegramBotToken, chatId, msg);
+      return;
+    }
+
+    // --- 🟢 คำสั่ง /top ---
+    if (command === '/top' || command.startsWith('/top@')) {
+      const onlineDevices = devices.filter(d => getOfflineMinutes(d.lastSeen) <= 3);
+
+      if (onlineDevices.length === 0) {
+        await sendTelegramAlert(group.telegramBotToken, chatId, "⚠️ ไม่มีอุปกรณ์ที่ Online อยู่ในขณะนี้ให้จัดอันดับครับ");
+        return;
+      }
+
+      // เรียงตาม CPU มากไปน้อย
+      onlineDevices.sort((a, b) => {
+        const cpuA = parseFloat(a.cpuLoad) || 0;
+        const cpuB = parseFloat(b.cpuLoad) || 0;
+        const ramA = parseFloat(a.memoryUsage) || 0;
+        const ramB = parseFloat(b.memoryUsage) || 0;
+        
+        if (cpuB === cpuA) return ramB - ramA;
+        return cpuB - cpuA;
+      });
+
+      const top5 = onlineDevices.slice(0, 5);
+
+      let msg = `🔥 <b>Top 5 อุปกรณ์กินทรัพยากรสูงสุด</b>\n\n`;
+      
+      top5.forEach((d, index) => {
+        const cpu = parseFloat(d.cpuLoad) || 0;
+        const cpuIcon = (cpu > thresholds.cpu) ? '🔴' : (cpu > 60) ? '🟠' : '🟢';
+        msg += `${index + 1}. <b>${d.name}</b>\n`;
+        msg += `   └ ${cpuIcon} CPU: <b>${cpu}%</b> | RAM: ${d.memoryUsage || 0}%\n`;
+      });
+
+      await sendTelegramAlert(group.telegramBotToken, chatId, msg);
+      return;
+    }
+
   } catch (error) {
     console.error("Telegram Webhook Error:", error);
   }
