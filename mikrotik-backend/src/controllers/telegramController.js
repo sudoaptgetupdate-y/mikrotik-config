@@ -296,11 +296,12 @@ exports.handleWebhook = async (req, res) => {
         const timeStr = device.lastSeen ? formatTimeAgo(getOfflineMinutes(device.lastSeen)) : "ไม่เคยเชื่อมต่อ";
         msg += `⚠️ <i>ขาดการติดต่อไปตั้งแต่: ${timeStr} ที่แล้ว</i>`;
       } else {
+        // 🟢 ดักเงื่อนไข "N/A" แยกออกมาเพื่อให้แสดงเป็นข้อความ N/A แทนการแปลงเป็น 0ms
         const latencyDisplay = device.latency === "N/A" ? "N/A" : (device.latency && device.latency !== "timeout" ? parseLatencyToMs(device.latency) + 'ms' : 'Timeout');
 
-        msg += `🧠 <b>CPU:</b> ${device.cpuLoad || 0}% | 💾 <b>RAM:</b> ${device.memoryUsage || 0}%\n`;
+        msg += `🎛️ <b>CPU:</b> ${device.cpuLoad || 0}% | 💾 <b>RAM:</b> ${device.memoryUsage || 0}%\n`;
         msg += `🌡️ <b>Temp:</b> ${device.temp || 'N/A'}\n`;
-        msg += `📡 <b>Ping:</b> ${latencyMs}\n`;
+        msg += `📡 <b>Ping:</b> ${latencyDisplay}\n`; // 🟢 ใช้ตัวแปรใหม่ที่ดักเงื่อนไขแล้ว
         msg += `⏱️ <b>Uptime:</b> ${device.uptime || '-'}`;
       }
 
