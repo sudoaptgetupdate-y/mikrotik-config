@@ -342,10 +342,9 @@ export const generateMikrotikScriptV6 = (config = {}) => {
     script += `\n################################################\n`;
     script += `# Start Heartbeat Monitoring (API)\n`;
     script += `################################################\n`;
-    
-    // 🟢 v6 Fix 1: เอาบรรทัดซ่อน Log !fetch ออก เพราะ v6 ไม่รองรับ
-    // (คอมเมนต์ทิ้ง หรือลบออกไปเลยครับ)
-    
+
+    // 🟢 v6 Fix: เอา !fetch ออกไปแล้ว
+
     script += `/system script remove [find name="heartbeat-script"]\n`;
     script += `/system script add name="heartbeat-script" source={\n`;
     script += `  :local serverUrl "${finalApiUrl}";\n`;
@@ -368,8 +367,7 @@ export const generateMikrotikScriptV6 = (config = {}) => {
     script += `    :set temp [$runTemp];\n`;
     script += `  } on-error={};\n`;
     
-    // 🟢 v6 Fix 2: เปลี่ยนวิธีเช็ค Ping 
-    // เนื่องจาก v6 ดึงค่า ms ออกมาตรงๆ แบบบรรทัดเดียวไม่ได้ จึงใช้วิธีเช็คว่าปิงเจอไหม ถ้าเจอก็ส่งค่าหลอกเป็น 1ms ไปก่อน (เพื่อให้สถานะหน้าเว็บเป็น Online ปกติ)
+    // 🟢 v6 Fix: เปลี่ยนวิธีเช็ค Ping ไม่ให้ใช้ as-value
     script += `  :local latency "timeout";\n`;
     script += `  :do { :if ([:ping 8.8.8.8 count=1] > 0) do={ :set latency "1ms" } } on-error={};\n`;
     
