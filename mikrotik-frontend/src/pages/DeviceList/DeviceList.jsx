@@ -9,6 +9,7 @@ import Swal from 'sweetalert2';
 import { deviceService } from '../../services/deviceService';
 import { settingService } from '../../services/settingService';
 import { generateMikrotikScript } from '../../utils/mikrotikGenerator';
+import { generateMikrotikScriptV6 } from '../../utils/mikrotikGeneratorV6';
 
 import { getDeviceStatus } from './components/deviceHelpers';
 import DeviceListToolbar from './components/DeviceListToolbar';
@@ -244,20 +245,54 @@ const DeviceList = () => {
   const handleDownloadLatest = async (device) => { 
     if (!device.configData) return toast.error("ไม่พบข้อมูล Config ของอุปกรณ์นี้");
     
+    // 🟢 1. เด้ง Popup ถามเวอร์ชันก่อนดาวน์โหลด
+    const result = await Swal.fire({
+      title: 'เลือกระบบปฏิบัติการ',
+      text: 'กรุณาเลือกเวอร์ชัน RouterOS ของอุปกรณ์ปลายทาง',
+      icon: 'question',
+      showDenyButton: true,
+      showCancelButton: true,
+      confirmButtonText: 'RouterOS v7 (ปัจจุบัน)',
+      denyButtonText: 'RouterOS v6 (6.49)',
+      cancelButtonText: 'ยกเลิก',
+      buttonsStyling: false,
+      customClass: {
+        popup: 'rounded-3xl p-6 border border-slate-100 shadow-2xl',
+        title: 'text-xl font-bold text-slate-800',
+        htmlContainer: 'text-sm text-slate-500 font-medium mt-2',
+        actions: 'flex flex-wrap gap-2 mt-6 w-full justify-center',
+        confirmButton: 'bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl text-sm font-bold shadow-sm transition-all',
+        denyButton: 'bg-indigo-500 hover:bg-indigo-600 text-white px-5 py-2.5 rounded-xl text-sm font-bold shadow-sm transition-all',
+        cancelButton: 'bg-slate-100 hover:bg-slate-200 text-slate-600 px-5 py-2.5 rounded-xl text-sm font-bold transition-all w-full sm:w-auto mt-2 sm:mt-0'
+      }
+    });
+
+    // ถ้าผู้ใช้กดยกเลิก หรือคลิกข้างนอก ให้หยุดการทำงาน
+    if (!result.isConfirmed && !result.isDenied) return; 
+    
+    const isV6 = result.isDenied; // ถ้ากดปุ่ม Deny แปลว่าเลือก v6
+
     const processDownload = async () => {
       await deviceService.logDownload(device.id, null); 
       const payloadForGenerator = { ...device.configData, token: device.apiToken };
-      const script = generateMikrotikScript(payloadForGenerator);
+      
+      // 🟢 2. เรียกใช้งาน Generator ตามเวอร์ชันที่ผู้ใช้เลือก
+      const script = isV6 ? generateMikrotikScriptV6(payloadForGenerator) : generateMikrotikScript(payloadForGenerator);
       
       const element = document.createElement("a");
       element.href = URL.createObjectURL(new Blob([script], {type: 'text/plain'}));
-      element.download = `${device.name.replace(/\s+/g, '_')}_latest.rsc`;
+      // ตั้งชื่อไฟล์ให้รู้ว่าเป็น v6 หรือ v7
+      element.download = `${device.name.replace(/\s+/g, '_')}_latest_${isV6 ? 'v6' : 'v7'}.rsc`;
       document.body.appendChild(element); 
       element.click();
       document.body.removeChild(element);
     };
 
-    toast.promise(processDownload(), { loading: 'กำลังสร้างสคริปต์...', success: 'ดาวน์โหลดสคริปต์สำเร็จ!', error: 'เกิดข้อผิดพลาดในการสร้างสคริปต์' });
+    toast.promise(processDownload(), { 
+      loading: 'กำลังสร้างสคริปต์...', 
+      success: `ดาวน์โหลดสคริปต์ ${isV6 ? 'v6' : 'v7'} สำเร็จ!`, 
+      error: 'เกิดข้อผิดพลาดในการสร้างสคริปต์' 
+    });
   };
 
   const handleViewHistory = async (device) => {

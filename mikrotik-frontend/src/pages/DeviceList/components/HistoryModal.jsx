@@ -1,31 +1,57 @@
 import React from 'react';
 import { X, Download, Clock, FileText, Loader2 } from 'lucide-react';
 import { generateMikrotikScript } from '../../../utils/mikrotikGenerator';
+import { generateMikrotikScriptV6 } from '../../../utils/mikrotikGeneratorV6';
+import Swal from 'sweetalert2'; //
 import apiClient from '../../../utils/apiClient';
 
 const HistoryModal = ({ isOpen, onClose, device, history, loading }) => {
   if (!isOpen) return null;
 
-  const handleDownload = async (configEntry) => { // ✅ เติม async
+  const handleDownload = async (configEntry) => { 
+    // 🟢 1. ถามเวอร์ชัน
+    const result = await Swal.fire({
+      title: 'ดาวน์โหลดจากประวัติ',
+      text: 'ต้องการดาวน์โหลด History นี้สำหรับ RouterOS เวอร์ชันใด?',
+      icon: 'question',
+      showDenyButton: true,
+      showCancelButton: true,
+      confirmButtonText: 'RouterOS v7',
+      denyButtonText: 'RouterOS v6',
+      cancelButtonText: 'ยกเลิก',
+      buttonsStyling: false,
+      customClass: {
+        popup: 'rounded-2xl p-5 border border-slate-100 shadow-xl',
+        title: 'text-lg font-bold text-slate-800',
+        actions: 'flex gap-2 mt-4 w-full justify-center',
+        confirmButton: 'bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-bold shadow-sm transition-all',
+        denyButton: 'bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-bold shadow-sm transition-all',
+        cancelButton: 'bg-slate-100 hover:bg-slate-200 text-slate-600 px-4 py-2 rounded-lg text-sm font-bold transition-all'
+      }
+    });
+
+    if (!result.isConfirmed && !result.isDenied) return;
+    const isV6 = result.isDenied;
+
     try {
-      // ✅ 1. ยิง API ไปเก็บ Log ก่อน (บอกด้วยว่าโหลดเวอร์ชันไหน)
       await apiClient.post(`/api/devices/${device.id}/log-download`, {
-         userId: 1, // หรือ userId ปัจจุบันที่เข้าระบบอยู่
+         userId: 1, 
          configId: configEntry.id
       });
 
-      // 2. Parse JSON และ Download เหมือนเดิม
       const configData = typeof configEntry.inputData === 'string' 
         ? JSON.parse(configEntry.inputData) 
         : configEntry.inputData;
 
-      const script = generateMikrotikScript(configData);
+      // 🟢 2. เลือกว่าจะปั่นสคริปต์ด้วยตัวไหน
+      const script = isV6 ? generateMikrotikScriptV6(configData) : generateMikrotikScript(configData);
       
       const element = document.createElement("a");
       const file = new Blob([script], {type: 'text/plain'});
       element.href = URL.createObjectURL(file);
       const dateStr = new Date(configEntry.createdAt).toISOString().split('T')[0];
-      element.download = `${device.name}_${dateStr}_v${configEntry.id}.rsc`;
+      // เติม v6 หรือ v7 ท้ายชื่อไฟล์ให้แยกออกง่ายๆ
+      element.download = `${device.name}_${dateStr}_v${configEntry.id}_${isV6 ? 'v6' : 'v7'}.rsc`;
       document.body.appendChild(element); 
       element.click();
       document.body.removeChild(element);
