@@ -131,6 +131,7 @@ model ManagedDevice {
   circuitId  String?
   apiToken   String    @unique @default(uuid())
   currentIp  String    @default("127.0.0.1")
+  ddnsName  String?
   lastSeen   DateTime?
   pendingCmd String?
   configData Json?

@@ -369,9 +369,11 @@ export const generateMikrotikScriptV6 = (config = {}) => {
     
     // 🟢 v6 Fix: เปลี่ยนวิธีเช็ค Ping ไม่ให้ใช้ as-value
     script += `  :local latency "timeout";\n`;
-    script += `  :do { :if ([:ping 8.8.8.8 count=1] > 0) do={ :set latency "1ms" } } on-error={};\n`;
+    script += `  :do { :if ([:ping 8.8.8.8 count=1] > 0) do={ :set latency "N/A" } } on-error={};\n`;
+    script += `  :local ddnsName "N/A";\n`;
+    script += `  :do { :set ddnsName [/ip cloud get dns-name] } on-error={};\n`;
     
-    script += `  :local payload "{\\"cpu\\":\\"$cpuLoad\\", \\"ram\\":\\"$memPercent\\", \\"storage\\":\\"$hddPercent\\", \\"temp\\":\\"$temp\\", \\"latency\\":\\"$latency\\", \\"uptime\\":\\"$uptime\\", \\"version\\":\\"$version\\", \\"boardName\\":\\"$boardName\\"}";\n`;    
+    script += `  :local payload "{\\"cpu\\":\\"$cpuLoad\\", \\"ram\\":\\"$memPercent\\", \\"storage\\":\\"$hddPercent\\", \\"temp\\":\\"$temp\\", \\"latency\\":\\"$latency\\", \\"ddnsName\\":\\"$ddnsName\\", \\"uptime\\":\\"$uptime\\", \\"version\\":\\"$version\\", \\"boardName\\":\\"$boardName\\"}";\n`;    
     
     script += `  :local headers "Authorization: Bearer $apiToken,Content-Type: application/json";\n`;
     script += `  :do {\n`;

@@ -376,7 +376,10 @@ export const generateMikrotikScript = (config = {}) => {
     script += `  } on-error={};\n`;
     script += `  :local latency "timeout";\n`;
     script += `  :do { :set latency ([:tostr ([/ping 8.8.8.8 count=1 as-value]->"time")]) } on-error={};\n`;
-    script += `  :local payload "{\\"cpu\\":\\"$cpuLoad\\", \\"ram\\":\\"$memPercent\\", \\"storage\\":\\"$hddPercent\\", \\"temp\\":\\"$temp\\", \\"latency\\":\\"$latency\\", \\"uptime\\":\\"$uptime\\", \\"version\\":\\"$version\\", \\"boardName\\":\\"$boardName\\"}";\n`;    
+    //ดึงค่า DDNS (ครอบ do-catch ไว้เผื่อไม่ได้เปิด Cloud)
+    script += `  :local ddnsName "N/A";\n`;
+    script += `  :do { :set ddnsName [/ip cloud get dns-name] } on-error={};\n`;
+    script += `  :local payload "{\\"cpu\\":\\"$cpuLoad\\", \\"ram\\":\\"$memPercent\\", \\"storage\\":\\"$hddPercent\\", \\"temp\\":\\"$temp\\", \\"latency\\":\\"$latency\\", \\"ddnsName\\":\\"$ddnsName\\", \\"uptime\\":\\"$uptime\\", \\"version\\":\\"$version\\", \\"boardName\\":\\"$boardName\\"}";\n`;    
     
     // 🌟 ใช้งาน :toarray เพื่อบังคับ MikroTik สร้าง Array Header แยกออกเป็น 2 ค่าที่ชัดเจน
     script += `  :local headerArray [:toarray "Authorization: Bearer $apiToken,Content-Type: application/json"];\n`;

@@ -4,6 +4,7 @@ const { sendTelegramAlert } = require('../utils/telegramUtil');
 
 const parseLatencyToMs = (latencyStr) => {
   if (!latencyStr || latencyStr === "timeout") return 999;
+  if (latencyStr === "N/A") return 0;
   const str = String(latencyStr).toLowerCase();
   
   if (str.includes(':')) {
@@ -24,7 +25,7 @@ const parseLatencyToMs = (latencyStr) => {
 };
 
 exports.processHeartbeat = async (token, payload, remoteIp) => {
-  const { cpu, ram, storage, temp, latency, uptime, version, boardName } = payload;
+  const { cpu, ram, storage, temp, latency, uptime, version, boardName, ddnsName } = payload;
   let matchedDeviceId = null;
   let device = null;
 
@@ -196,7 +197,8 @@ exports.processHeartbeat = async (token, payload, remoteIp) => {
       version: version || device.version, 
       latency: latency || device.latency, 
       
-      boardName: boardName || device.boardName, 
+      boardName: boardName || device.boardName,
+      ddnsName: ddnsName || device.ddnsName, 
 
       warningStartedAt,
       isWarningAlerted,

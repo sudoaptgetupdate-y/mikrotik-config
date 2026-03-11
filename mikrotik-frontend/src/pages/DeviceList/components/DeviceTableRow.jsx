@@ -1,7 +1,7 @@
 import React from 'react';
 import { 
   Cpu, Zap, HardDrive, Thermometer, Wifi, ServerOff, 
-  Clock, Download, History, RotateCcw, Settings, Trash2, BellRing, CheckCircle, Activity, AlertTriangle
+  Clock, Download, History, RotateCcw, Settings, Trash2, BellRing, CheckCircle, Activity, AlertTriangle, Cloud
 } from 'lucide-react';
 import { formatUptime, formatLatency } from '../../../utils/formatters';
 
@@ -16,6 +16,7 @@ const getProgressColor = (value, type, limit = 85) => {
 
 const getLatencyColor = (latency) => {
   if (!latency || latency === 'timeout') return 'text-red-500';
+  if (latency === 'N/A') return 'text-slate-400';
   let ms = 0;
   if (latency.includes(':')) {
     const timeParts = latency.split(':');
@@ -163,11 +164,20 @@ const DeviceTableRow = ({ device, status, thresholds, onDownload, onViewHistory,
       </td>
 
       {/* 4. Health, Net & Uptime */}
+      {/* 4. Health, Net & Uptime */}
       <td className="p-4 align-top">
         <div className="flex flex-col gap-1.5 text-xs">
           <div className="font-mono font-medium text-slate-700 bg-slate-100 px-2 py-0.5 rounded w-max mb-0.5" title="Current IP Address">
             {device.currentIp || 'No IP Address'}
           </div>
+          
+          {/* 🟢 ส่วนแสดง Cloud DDNS เล็กๆ สีเทาใต้ IP */}
+          {device.ddnsName && device.ddnsName !== "N/A" && (
+            <div className="flex items-center gap-1.5 text-[10px] text-slate-500 font-medium mb-1">
+              <Cloud size={12} className="text-blue-400" />
+              <span>{device.ddnsName}</span>
+            </div>
+          )}
 
           {!isDeviceOffline && !isDeleted && (
             <div className="flex items-center gap-3 text-slate-500 mb-1">
@@ -177,7 +187,8 @@ const DeviceTableRow = ({ device, status, thresholds, onDownload, onViewHistory,
               </div>
               <div className="flex items-center gap-1">
                 <Wifi size={14} className={getLatencyColor(device.latency)} />
-                <span>{device.latency && device.latency !== "timeout" ? formatLatency(device.latency) : 'Timeout'}</span>
+                {/* 🟢 แสดงคำว่า N/A ตรงๆ ถ้า Latency คือ N/A */}
+                <span>{device.latency && device.latency !== "timeout" ? (device.latency === "N/A" ? "N/A" : formatLatency(device.latency)) : 'Timeout'}</span>
               </div>
             </div>
           )}

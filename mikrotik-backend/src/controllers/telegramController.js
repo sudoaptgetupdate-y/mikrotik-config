@@ -7,6 +7,7 @@ const cron = require('node-cron');
 // ==========================================
 const parseLatencyToMs = (latencyStr) => {
   if (!latencyStr || latencyStr === "timeout") return 999;
+  if (latencyStr === "N/A") return 0;
   const str = String(latencyStr).toLowerCase();
   
   if (str.includes(':')) {
@@ -285,8 +286,11 @@ exports.handleWebhook = async (req, res) => {
       msg += `<b>ชื่อ:</b> ${device.name}\n`;
       msg += `<b>วงจร:</b> <code>${device.circuitId || '-'}</code>\n`;
       msg += `<b>IP:</b> <code>${device.currentIp}</code>\n`;
+      // แสดง DDNS ถ้ามี
+      if (device.ddnsName && device.ddnsName !== "N/A") {
+        msg += `☁️ <b>DDNS:</b> <code>${device.ddnsName}</code>\n`;
+      }
       msg += `<b>สถานะ:</b> ${statusIcon}\n`;
-      msg += `<b>รุ่น:</b> ${device.boardName || '-'} (v${device.version || '-'})\n\n`;
 
       if (isOffline) {
         const timeStr = device.lastSeen ? formatTimeAgo(getOfflineMinutes(device.lastSeen)) : "ไม่เคยเชื่อมต่อ";
@@ -464,7 +468,13 @@ exports.initRealtimeMonitorCron = () => {
         if (device.groups && device.groups.length > 0) {
           for (const group of device.groups) {
             const adminInfo = (group.adminName || group.adminContact) ? `\n\n👨‍🔧 <b>ผู้รับผิดชอบดูแล:</b> ${group.adminName || '-'}\n📞 <b>ติดต่อ:</b> ${group.adminContact || '-'}` : '';
-            const msg = `🔴 <b>[DEVICE OFFLINE]</b>\nขาดการติดต่อจากอุปกรณ์เกิน 3 นาที!\n\n🖥 <b>อุปกรณ์:</b> <code>${device.name}</code>\n✨ <b>วงจร:</b> <code>${device.circuitId || '-'}</code>\n⏳ <b>ติดต่อล่าสุด:</b> ${new Date(device.lastSeen).toLocaleTimeString('th-TH')}${adminInfo}`;
+            
+            let msg = `🔴 <b>[DEVICE OFFLINE]</b>\nขาดการติดต่อจากอุปกรณ์เกิน 3 นาที!\n\n🖥 <b>อุปกรณ์:</b> <code>${device.name}</code>\n✨ <b>วงจร:</b> <code>${device.circuitId || '-'}</code>`;
+            // แทรกลงตรงกลาง
+            if (device.ddnsName && device.ddnsName !== "N/A") {
+                msg += `\n☁️ <b>DDNS:</b> <code>${device.ddnsName}</code>`;
+            }
+            msg += `\n⏳ <b>ติดต่อล่าสุด:</b> ${new Date(device.lastSeen).toLocaleTimeString('th-TH')}${adminInfo}`;
 
             if (group.isNotifyEnabled && group.telegramBotToken && group.telegramChatId) {
               const msgId = await sendTelegramAlert(group.telegramBotToken, group.telegramChatId, msg);
