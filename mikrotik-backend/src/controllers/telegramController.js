@@ -30,11 +30,23 @@ const parseLatencyToMs = (latencyStr) => {
 const getAlertThresholds = async () => {
   let thresholds = { cpu: 85, ram: 85, latency: 80, temp: 60, storage: 85 }; // ค่า Default
   try {
-    const setting = await prisma.systemSetting.findFirst({ where: { key: 'ALERT_THRESHOLDS' } });
+    // 🟢 1. ใช้ findFirst พร้อม orderBy: { id: 'desc' } เพื่อบังคับหยิบตัวที่อัปเดตล่าสุดเสมอ
+    const setting = await prisma.systemSetting.findFirst({ 
+      where: { key: 'ALERT_THRESHOLDS' },
+      orderBy: { id: 'desc' } 
+    });
     
     if (setting && setting.value) {
       const parsed = typeof setting.value === 'string' ? JSON.parse(setting.value) : setting.value;
-      thresholds = { ...thresholds, ...parsed }; 
+      
+      // 🟢 2. บังคับแปลงเป็นตัวเลข (Number) เพื่อป้องกันบั๊กเทียบค่า String
+      thresholds = {
+        cpu: Number(parsed.cpu ?? thresholds.cpu),
+        ram: Number(parsed.ram ?? thresholds.ram),
+        latency: Number(parsed.latency ?? thresholds.latency),
+        temp: Number(parsed.temp ?? thresholds.temp),
+        storage: Number(parsed.storage ?? thresholds.storage),
+      };
     }
   } catch (error) {
     console.error("⚠️ ไม่สามารถดึงค่า Thresholds ได้ ใช้ค่า Default แทน", error);
