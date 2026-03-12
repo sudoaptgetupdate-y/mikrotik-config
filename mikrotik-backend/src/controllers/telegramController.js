@@ -251,7 +251,7 @@ exports.handleWebhook = async (req, res) => {
       offlineDevices.forEach((d, index) => {
         const mins = getOfflineMinutes(d.lastSeen);
         const timeStr = d.lastSeen ? formatTimeAgo(mins) : "ไม่เคยเชื่อมต่อ";
-        msg += `${index + 1}. <b>${d.name}</b>\n   ├ 🆔 วงจร: <code>${d.circuitId || '-'}</code>\n   └ ⏱️ หายไป: <i>${timeStr}</i>\n\n`;
+        msg += `${index + 1}. <b>${d.name}</b>\n   ├ 🆔 วงจร: <b>${d.circuitId || '-'}</b>\n   └ ⏱️ หายไป: <i>${timeStr}</i>\n\n`;
       });
 
       await sendTelegramAlert(group.telegramBotToken, chatId, msg);
@@ -263,7 +263,7 @@ exports.handleWebhook = async (req, res) => {
       const searchKeyword = args.slice(1).join(' ').trim().toLowerCase();
       
       if (!searchKeyword) {
-        await sendTelegramAlert(group.telegramBotToken, chatId, "⚠️ <b>รูปแบบคำสั่งผิด:</b> กรุณาระบุชื่อ หรือ Circuit ID\nตัวอย่าง: <code>/status องค์การ</code>");
+        await sendTelegramAlert(group.telegramBotToken, chatId, "⚠️ <b>รูปแบบคำสั่งผิด:</b> กรุณาระบุชื่อ หรือ Circuit ID\nตัวอย่าง: /status โรงเรียน");
         return;
       }
 
@@ -311,11 +311,11 @@ exports.handleWebhook = async (req, res) => {
 
       let msg = `📊 <b>สถานะอุปกรณ์แบบ Real-time</b>\n`;
       msg += `<b>ชื่อ:</b> ${device.name}\n`;
-      msg += `<b>วงจร:</b> <code>${device.circuitId || '-'}</code>\n`;
-      msg += `<b>IP:</b> <code>${device.currentIp}</code>\n`;
+      msg += `<b>วงจร:</b> <b>${device.circuitId || '-'}</b>\n`;
+      msg += `<b>IP:</b> <b>${device.currentIp}</b>\n`;
       // แสดง DDNS ถ้ามี
       if (device.ddnsName && device.ddnsName !== "N/A") {
-        msg += `☁️ <b>DDNS:</b> <code>${device.ddnsName}</code>\n`;
+        msg += `☁️ <b>DDNS:</b> <b>${device.ddnsName}</b>\n`;
       }
       msg += `<b>สถานะ:</b> ${statusIcon}\n`;
 
@@ -384,7 +384,7 @@ exports.handleWebhook = async (req, res) => {
       msg += `พบจำนวน: <b>${problemDevices.length}</b> เคส\n\n`;
 
       problemDevices.forEach((d, index) => {
-        msg += `${index + 1}. <b>${d.name}</b> (<code>${d.circuitId || '-'}</code>)\n   └ ปัญหา: ${d.issue}\n`;
+        msg += `${index + 1}. <b>${d.name}</b> (<b>${d.circuitId || '-'}</b>)\n   └ ปัญหา: ${d.issue}\n`;
       });
 
       msg += `\n<i>(เข้าหน้าเว็บเพื่อกด Acknowledge และอัปเดตสถานะ)</i>`;
@@ -500,7 +500,7 @@ exports.initRealtimeMonitorCron = () => {
             let msg = `🔴 <b>[DEVICE OFFLINE]</b>\nขาดการติดต่อจากอุปกรณ์เกิน 3 นาที!\n\n🖥 <b>อุปกรณ์:</b> <b>${device.name}</b>\n✨ <b>วงจร:</b> ${device.circuitId || '-'}`;
             // แทรกลงตรงกลาง
             if (device.ddnsName && device.ddnsName !== "N/A") {
-                msg += `\n☁️ <b>DDNS:</b> <code>${device.ddnsName}</code>`;
+                msg += `\n☁️ <b>DDNS:</b> <b>${device.ddnsName}</b>`;
             }
             msg += `\n⏳ <b>ติดต่อล่าสุด:</b> ${new Date(device.lastSeen).toLocaleTimeString('th-TH')}${adminInfo}`;
 
