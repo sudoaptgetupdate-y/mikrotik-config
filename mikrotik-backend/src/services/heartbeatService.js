@@ -24,6 +24,14 @@ const parseLatencyToMs = (latencyStr) => {
   return Math.round(num);
 };
 
+const formatDuration = (minutes) => {
+  if (!minutes || isNaN(minutes) || minutes < 0) return "ไม่ทราบเวลา";
+  if (minutes < 1) return "ไม่ถึง 1 นาที";
+  if (minutes >= 1440) return `${Math.floor(minutes / 1440)} วัน ${Math.floor((minutes % 1440) / 60)} ชม.`;
+  if (minutes >= 60) return `${Math.floor(minutes / 60)} ชม. ${Math.floor(minutes % 60)} นาที`;
+  return `${Math.floor(minutes)} นาที`;
+};
+
 exports.processHeartbeat = async (token, payload, remoteIp) => {
   const { cpu, ram, storage, temp, latency, uptime, version, boardName, ddnsName } = payload;
   let matchedDeviceId = null;
@@ -70,12 +78,25 @@ exports.processHeartbeat = async (token, payload, remoteIp) => {
 
   let thresholds = { cpu: 85, ram: 85, latency: 80, temp: 60, storage: 85 }; 
   try {
-    const setting = await prisma.systemSetting.findUnique({ where: { key: 'ALERT_THRESHOLDS' } });
+    // 🟢 กลับมาใช้ findUnique 
+    const setting = await prisma.systemSetting.findUnique({ 
+      where: { key: 'ALERT_THRESHOLDS' }
+    });
+    
     if (setting && setting.value) {
       const parsed = typeof setting.value === 'string' ? JSON.parse(setting.value) : setting.value;
-      thresholds = { ...thresholds, ...parsed }; 
+      
+      thresholds = {
+        cpu: Number(parsed.cpu ?? thresholds.cpu),
+        ram: Number(parsed.ram ?? thresholds.ram),
+        latency: Number(parsed.latency ?? parsed.ping ?? thresholds.latency),
+        temp: Number(parsed.temp ?? parsed.temperature ?? thresholds.temp),
+        storage: Number(parsed.storage ?? parsed.hdd ?? thresholds.storage),
+      };
     }
-  } catch (e) {}
+  } catch (e) {
+    console.error("⚠️ [Heartbeat] ไม่สามารถดึงค่า Thresholds ได้", e);
+  }
 
   const isCpuHigh = cpuVal > thresholds.cpu;
   const isRamHigh = ramVal > thresholds.ram;
@@ -92,7 +113,6 @@ exports.processHeartbeat = async (token, payload, remoteIp) => {
   // 3. ตรวจสอบการกลับมาออนไลน์ (Offline Recovery)
   // ==========================================
   const diffMinutesFromLastSeen = device.lastSeen ? (now - new Date(device.lastSeen)) / 1000 / 60 : 0;
-  // 🟢 โหลด ID ข้อความที่เคยส่งไป
   let alertMsgIds = device.lastAlertMessageIds ? (typeof device.lastAlertMessageIds === 'string' ? JSON.parse(device.lastAlertMessageIds) : device.lastAlertMessageIds) : {};
   
   if (isOfflineAlerted || diffMinutesFromLastSeen > 3) {
@@ -101,10 +121,12 @@ exports.processHeartbeat = async (token, payload, remoteIp) => {
     });
 
     if (isOfflineAlerted && device.groups && device.groups.length > 0) {
-      const msgOnline = `🟢 <b>[DEVICE ONLINE] - ระบบกลับมาออนไลน์</b>\n\n🖥 <b>อุปกรณ์:</b> <code>${device.name}</code>\n✨ <b>วงจร:</b> <code>${device.circuitId || '-'}</code>\n✅ <b>สถานะ:</b> กลับมาเชื่อมต่อระบบได้ตามปกติแล้ว`;
+      // 🟢 คำนวณเวลาที่ออฟไลน์ไป และเพิ่มลงในข้อความ
+      const offlineDurationStr = formatDuration(diffMinutesFromLastSeen);
+      const msgOnline = `🟢 <b>[DEVICE ONLINE] - ระบบกลับมาออนไลน์</b>\n\n🖥 <b>อุปกรณ์:</b> <code>${device.name}</code>\n✨ <b>วงจร:</b> <code>${device.circuitId || '-'}</code>\n✅ <b>สถานะ:</b> กลับมาเชื่อมต่อระบบได้ตามปกติแล้ว\n⏱️ <b>ระยะเวลาที่ขาดหาย:</b> ${offlineDurationStr}`;
+      
       for (const group of device.groups) {
         if (group.isNotifyEnabled && group.telegramBotToken && group.telegramChatId) {
-          // 🟢 สั่งให้ Reply ข้อความเดิมตอนพัง แล้วลบ ID ทิ้ง
           const replyId = alertMsgIds[group.telegramChatId];
           await sendTelegramAlert(group.telegramBotToken, group.telegramChatId, msgOnline, replyId);
           delete alertMsgIds[group.telegramChatId];
@@ -164,10 +186,17 @@ exports.processHeartbeat = async (token, payload, remoteIp) => {
       });
 
       if (device.groups && device.groups.length > 0) {
-        const msg = `✅ <b>[SYSTEM RECOVERY]</b>\n🖥 <b>อุปกรณ์:</b> <code>${device.name}</code>\n✨ <b>วงจร:</b> <code>${device.circuitId || '-'}</code>\n\n🟢 <b>สถานะ:</b> การทำงานกลับสู่ภาวะปกติแล้ว`;
+        // 🟢 คำนวณเวลาที่มีปัญหา
+        let warningDurationStr = "ไม่ทราบเวลา";
+        if (warningStartedAt) {
+          const warningMins = (now - new Date(warningStartedAt)) / 1000 / 60;
+          warningDurationStr = formatDuration(warningMins);
+        }
+        
+        const msg = `✅ <b>[SYSTEM RECOVERY]</b>\n🖥 <b>อุปกรณ์:</b> <code>${device.name}</code>\n✨ <b>วงจร:</b> <code>${device.circuitId || '-'}</code>\n\n🟢 <b>สถานะ:</b> การทำงานกลับสู่ภาวะปกติแล้ว\n⏱️ <b>ระยะเวลาที่มีปัญหา:</b> ${warningDurationStr}`;
+        
         for (const group of device.groups) {
           if (group.isNotifyEnabled && group.telegramBotToken && group.telegramChatId) {
-            // 🟢 สั่งให้ Reply ข้อความเดิมตอนพัง แล้วลบ ID ทิ้ง
             const replyId = alertMsgIds[group.telegramChatId];
             await sendTelegramAlert(group.telegramBotToken, group.telegramChatId, msg, replyId);
             delete alertMsgIds[group.telegramChatId];

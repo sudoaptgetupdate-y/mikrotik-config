@@ -28,16 +28,27 @@ const parseLatencyToMs = (latencyStr) => {
 };
 
 const getAlertThresholds = async () => {
-  let thresholds = { cpu: 85, ram: 85, latency: 80, temp: 60, storage: 85 }; // ค่า Default
+  let thresholds = { cpu: 85, ram: 85, latency: 80, temp: 60, storage: 85 };
   try {
-    const setting = await prisma.systemSetting.findFirst({ where: { key: 'ALERT_THRESHOLDS' } });
+    // 🟢 1. กลับมาใช้ findUnique เหมือนเดิม เพราะตารางนี้ไม่มีคอลัมน์ id
+    const setting = await prisma.systemSetting.findUnique({ 
+      where: { key: 'ALERT_THRESHOLDS' }
+    });
     
     if (setting && setting.value) {
       const parsed = typeof setting.value === 'string' ? JSON.parse(setting.value) : setting.value;
-      thresholds = { ...thresholds, ...parsed }; 
+      
+      // 🟢 2. ดักจับชื่อตัวแปรให้ครอบคลุมและแปลงเป็นตัวเลข
+      thresholds = {
+        cpu: Number(parsed.cpu ?? thresholds.cpu),
+        ram: Number(parsed.ram ?? thresholds.ram),
+        latency: Number(parsed.latency ?? parsed.ping ?? thresholds.latency),
+        temp: Number(parsed.temp ?? parsed.temperature ?? thresholds.temp),
+        storage: Number(parsed.storage ?? parsed.hdd ?? thresholds.storage),
+      };
     }
   } catch (error) {
-    console.error("⚠️ ไม่สามารถดึงค่า Thresholds ได้ ใช้ค่า Default แทน", error);
+    console.error("⚠️ ไม่สามารถดึงค่า Thresholds ได้", error);
   }
   return thresholds;
 };
