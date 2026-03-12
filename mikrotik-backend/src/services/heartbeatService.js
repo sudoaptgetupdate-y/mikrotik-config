@@ -95,7 +95,7 @@ exports.processHeartbeat = async (token, payload, remoteIp) => {
       };
     }
   } catch (e) {
-    console.error("⚠️ [Heartbeat] ไม่สามารถดึงค่า Thresholds ได้", e);
+    console.error("⚠️ Error [Heartbeat] ไม่สามารถดึงค่า Thresholds ได้", e);
   }
 
   const isCpuHigh = cpuVal > thresholds.cpu;
