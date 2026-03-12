@@ -78,7 +78,6 @@ exports.processHeartbeat = async (token, payload, remoteIp) => {
 
   let thresholds = { cpu: 85, ram: 85, latency: 80, temp: 60, storage: 85 }; 
   try {
-    // 🟢 เปลี่ยนจาก findUnique เป็น findFirst พร้อม orderBy เพื่อป้องกันบั๊กคิวรีพัง
     const setting = await prisma.systemSetting.findFirst({ 
       where: { key: 'ALERT_THRESHOLDS' },
       orderBy: { id: 'desc' }
@@ -87,13 +86,13 @@ exports.processHeartbeat = async (token, payload, remoteIp) => {
     if (setting && setting.value) {
       const parsed = typeof setting.value === 'string' ? JSON.parse(setting.value) : setting.value;
       
-      // 🟢 บังคับแปลงเป็นตัวเลข
       thresholds = {
         cpu: Number(parsed.cpu ?? thresholds.cpu),
         ram: Number(parsed.ram ?? thresholds.ram),
-        latency: Number(parsed.latency ?? thresholds.latency),
-        temp: Number(parsed.temp ?? thresholds.temp),
-        storage: Number(parsed.storage ?? thresholds.storage),
+        latency: Number(parsed.latency ?? parsed.ping ?? thresholds.latency),
+        // 🟢 เพิ่มดักจับทั้ง temp และ temperature
+        temp: Number(parsed.temp ?? parsed.temperature ?? thresholds.temp),
+        storage: Number(parsed.storage ?? parsed.hdd ?? thresholds.storage),
       };
     }
   } catch (e) {
