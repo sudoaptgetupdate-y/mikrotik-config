@@ -497,7 +497,7 @@ exports.initRealtimeMonitorCron = () => {
           for (const group of device.groups) {
             const adminInfo = (group.adminName || group.adminContact) ? `\n\n👨‍🔧 <b>ผู้รับผิดชอบดูแล:</b> ${group.adminName || '-'}\n📞 <b>ติดต่อ:</b> ${group.adminContact || '-'}` : '';
             
-            let msg = `🔴 <b>[DEVICE OFFLINE]</b>\nขาดการติดต่อจากอุปกรณ์เกิน 3 นาที!\n\n🖥 <b>อุปกรณ์:</b> <code>${device.name}</code>\n✨ <b>วงจร:</b> <code>${device.circuitId || '-'}</code>`;
+            let msg = `🔴 <b>[DEVICE OFFLINE]</b>\nขาดการติดต่อจากอุปกรณ์เกิน 3 นาที!\n\n🖥 <b>อุปกรณ์:</b> <b>${device.name}</b>\n✨ <b>วงจร:</b> ${device.circuitId || '-'}`;
             // แทรกลงตรงกลาง
             if (device.ddnsName && device.ddnsName !== "N/A") {
                 msg += `\n☁️ <b>DDNS:</b> <code>${device.ddnsName}</code>`;

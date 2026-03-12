@@ -133,7 +133,7 @@ exports.processHeartbeat = async (token, payload, remoteIp) => {
     if (isOfflineAlerted && device.groups && device.groups.length > 0) {
       // 🟢 คำนวณเวลาที่ออฟไลน์ไป และเพิ่มลงในข้อความ
       const offlineDurationStr = formatDuration(diffMinutesFromLastSeen);
-      const msgOnline = `🟢 <b>[DEVICE ONLINE] - ระบบกลับมาออนไลน์</b>\n\n🖥 <b>อุปกรณ์:</b> <code>${device.name}</code>\n✨ <b>วงจร:</b> <code>${device.circuitId || '-'}</code>\n✅ <b>สถานะ:</b> กลับมาเชื่อมต่อระบบได้ตามปกติแล้ว\n⏱️ <b>ระยะเวลาที่ขาดหาย:</b> ${offlineDurationStr}`;
+      const msgOnline = `🟢 <b>[DEVICE ONLINE] - ระบบกลับมาออนไลน์</b>\n\n🖥 <b>อุปกรณ์:</b> <b>${device.name}</b>\n✨ <b>วงจร:</b> ${device.circuitId || '-'}\n✅ <b>สถานะ:</b> กลับมาเชื่อมต่อระบบได้ตามปกติแล้ว\n⏱️ <b>ระยะเวลาที่ขาดหาย:</b> ${offlineDurationStr}`;
       
       for (const group of device.groups) {
         if (group.isNotifyEnabled && group.telegramBotToken && group.telegramChatId) {
@@ -173,7 +173,7 @@ exports.processHeartbeat = async (token, payload, remoteIp) => {
             if (group.isNotifyEnabled && group.telegramBotToken && group.telegramChatId) {
               // 🟢 เพิ่มชื่อผู้รับผิดชอบใน Warning
               const adminInfo = (group.adminName || group.adminContact) ? `\n\n👨‍🔧 <b>ผู้รับผิดชอบดูแล:</b> ${group.adminName || '-'}\n📞 <b>ติดต่อ:</b> ${group.adminContact || '-'}` : '';
-              const msg = `⚠️ <b>[HIGH LOAD ALERT]</b>\nพบอุปกรณ์ทำงานหนักต่อเนื่องเกิน 3 นาที!\n\n🖥 <b>อุปกรณ์:</b> <code>${device.name}</code>\n✨ <b>วงจร:</b> <code>${device.circuitId || '-'}</code>\n\n🚨 <b>ปัญหาที่พบ:</b>\n${details.map(d => `• ${d}`).join('\n')}${adminInfo}`;
+              const msg = `⚠️ <b>[HIGH LOAD ALERT]</b>\nพบอุปกรณ์ทำงานหนักต่อเนื่องเกิน 3 นาที!\n\n🖥 <b>อุปกรณ์:</b> <b>${device.name}</b>\n✨ <b>วงจร:</b> ${device.circuitId || '-'}\n\n🚨 <b>ปัญหาที่พบ:</b>\n${details.map(d => `• ${d}`).join('\n')}${adminInfo}`;
               
               // 🟢 ส่งแล้วเก็บ ID ไว้
               const msgId = await sendTelegramAlert(group.telegramBotToken, group.telegramChatId, msg);
@@ -203,7 +203,7 @@ exports.processHeartbeat = async (token, payload, remoteIp) => {
           warningDurationStr = formatDuration(warningMins);
         }
         
-        const msg = `✅ <b>[SYSTEM RECOVERY]</b>\n🖥 <b>อุปกรณ์:</b> <code>${device.name}</code>\n✨ <b>วงจร:</b> <code>${device.circuitId || '-'}</code>\n\n🟢 <b>สถานะ:</b> การทำงานกลับสู่ภาวะปกติแล้ว\n⏱️ <b>ระยะเวลาที่มีปัญหา:</b> ${warningDurationStr}`;
+        const msg = `✅ <b>[SYSTEM RECOVERY]</b>\n🖥 <b>อุปกรณ์:</b> <b>${device.name}</b>\n✨ <b>วงจร:</b> ${device.circuitId || '-'}\n\n🟢 <b>สถานะ:</b> การทำงานกลับสู่ภาวะปกติแล้ว\n⏱️ <b>ระยะเวลาที่มีปัญหา:</b> ${warningDurationStr}`;
         
         for (const group of device.groups) {
           if (group.isNotifyEnabled && group.telegramBotToken && group.telegramChatId) {
