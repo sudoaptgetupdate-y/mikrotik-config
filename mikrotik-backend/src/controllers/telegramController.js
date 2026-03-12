@@ -163,6 +163,7 @@ const generateGroupReportText = (group, isDaily = false, thresholds) => {
       msg += `🔸 <b>${a.name}</b> (${a.circuit || '-'}): <i>${a.issues}</i>\n`;
     });
   }
+  msg += `\n\n🌐 <b>เข้าสู่ระบบ:</b> https://mikrotik.ntnakhon.com`;
 
   return msg;
 };
@@ -253,6 +254,7 @@ exports.handleWebhook = async (req, res) => {
         const timeStr = d.lastSeen ? formatTimeAgo(mins) : "ไม่เคยเชื่อมต่อ";
         msg += `${index + 1}. <b>${d.name}</b>\n   ├ 🆔 วงจร: <b>${d.circuitId || '-'}</b>\n   └ ⏱️ หายไป: <i>${timeStr}</i>\n\n`;
       });
+      msg += `\n🌐 <b>เข้าสู่ระบบ:</b> https://mikrotik.ntnakhon.com`;
 
       await sendTelegramAlert(group.telegramBotToken, chatId, msg);
       return;
@@ -331,6 +333,7 @@ exports.handleWebhook = async (req, res) => {
         msg += `🌐 <b>Ping:</b> ${latencyDisplay}\n`; // 🟢 ใช้ตัวแปรใหม่ที่ดักเงื่อนไขแล้ว
         msg += `⏱️ <b>Uptime:</b> ${device.uptime || '-'}`;
       }
+      msg += `\n\n🌐 <b>เข้าสู่ระบบ:</b> https://mikrotik.ntnakhon.com`;
 
       await sendTelegramAlert(group.telegramBotToken, chatId, msg);
       return;
@@ -388,6 +391,7 @@ exports.handleWebhook = async (req, res) => {
       });
 
       msg += `\n<i>(เข้าหน้าเว็บเพื่อกด Acknowledge และอัปเดตสถานะ)</i>`;
+      msg += `\n🌐 <b>เข้าสู่ระบบ:</b> https://mikrotik.ntnakhon.com`;
       await sendTelegramAlert(group.telegramBotToken, chatId, msg);
       return;
     }
@@ -422,6 +426,7 @@ exports.handleWebhook = async (req, res) => {
         msg += `${index + 1}. <b>${d.name}</b>\n`;
         msg += `   └ ${cpuIcon} CPU: <b>${cpu}%</b> | RAM: ${d.memoryUsage || 0}%\n`;
       });
+      msg += `\n🌐 <b>เข้าสู่ระบบ:</b> https://mikrotik.ntnakhon.com`;
 
       await sendTelegramAlert(group.telegramBotToken, chatId, msg);
       return;
@@ -503,6 +508,7 @@ exports.initRealtimeMonitorCron = () => {
                 msg += `\n☁️ <b>DDNS:</b> <b>${device.ddnsName}</b>`;
             }
             msg += `\n⏳ <b>ติดต่อล่าสุด:</b> ${new Date(device.lastSeen).toLocaleTimeString('th-TH')}${adminInfo}`;
+            msg += `\n\n🌐 <b>เข้าสู่ระบบ:</b> https://mikrotik.ntnakhon.com`;
 
             if (group.isNotifyEnabled && group.telegramBotToken && group.telegramChatId) {
               const msgId = await sendTelegramAlert(group.telegramBotToken, group.telegramChatId, msg);
