@@ -78,24 +78,34 @@ exports.processHeartbeat = async (token, payload, remoteIp) => {
 
   let thresholds = { cpu: 85, ram: 85, latency: 80, temp: 60, storage: 85 }; 
   try {
-    // 🟢 กลับมาใช้ findUnique 
     const setting = await prisma.systemSetting.findUnique({ 
       where: { key: 'ALERT_THRESHOLDS' }
     });
     
     if (setting && setting.value) {
-      const parsed = typeof setting.value === 'string' ? JSON.parse(setting.value) : setting.value;
+      let parsed = setting.value;
+      
+      // 🟢 แกะ String วนลูป
+      while (typeof parsed === 'string') {
+        try { parsed = JSON.parse(parsed); } catch (e) { break; }
+      }
+
+      // 🟢 บังคับเป็นพิมพ์เล็ก
+      const safeParsed = {};
+      if (parsed && typeof parsed === 'object') {
+        for (const k in parsed) { safeParsed[k.toLowerCase()] = parsed[k]; }
+      }
       
       thresholds = {
-        cpu: Number(parsed.cpu ?? thresholds.cpu),
-        ram: Number(parsed.ram ?? thresholds.ram),
-        latency: Number(parsed.latency ?? parsed.ping ?? thresholds.latency),
-        temp: Number(parsed.temp ?? parsed.temperature ?? thresholds.temp),
-        storage: Number(parsed.storage ?? parsed.hdd ?? thresholds.storage),
+        cpu: Number(safeParsed.cpu ?? thresholds.cpu),
+        ram: Number(safeParsed.ram ?? safeParsed.memory ?? thresholds.ram),
+        latency: Number(safeParsed.latency ?? safeParsed.ping ?? thresholds.latency),
+        temp: Number(safeParsed.temp ?? safeParsed.temperature ?? thresholds.temp),
+        storage: Number(safeParsed.storage ?? safeParsed.hdd ?? thresholds.storage),
       };
     }
   } catch (e) {
-    console.error("⚠️ Error [Heartbeat] ไม่สามารถดึงค่า Thresholds ได้", e);
+    console.error("⚠️ [Heartbeat] ไม่สามารถดึงค่า Thresholds ได้", e);
   }
 
   const isCpuHigh = cpuVal > thresholds.cpu;

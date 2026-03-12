@@ -30,21 +30,37 @@ const parseLatencyToMs = (latencyStr) => {
 const getAlertThresholds = async () => {
   let thresholds = { cpu: 85, ram: 85, latency: 80, temp: 60, storage: 85 };
   try {
-    // 🟢 1. กลับมาใช้ findUnique เหมือนเดิม เพราะตารางนี้ไม่มีคอลัมน์ id
+    // 🟢 1. ใช้ findUnique ได้อย่างปลอดภัยเพราะ schema คุณมี @unique อยู่แล้ว
     const setting = await prisma.systemSetting.findUnique({ 
       where: { key: 'ALERT_THRESHOLDS' }
     });
     
     if (setting && setting.value) {
-      const parsed = typeof setting.value === 'string' ? JSON.parse(setting.value) : setting.value;
+      let parsed = setting.value;
       
-      // 🟢 2. ดักจับชื่อตัวแปรให้ครอบคลุมและแปลงเป็นตัวเลข
+      // 🟢 2. แกะ String วนไปเรื่อยๆ จนกว่าจะได้ Object (แก้ปัญหา Double Stringify)
+      while (typeof parsed === 'string') {
+        try {
+          parsed = JSON.parse(parsed);
+        } catch (e) {
+          break; 
+        }
+      }
+
+      // 🟢 3. บังคับเปลี่ยน Key ทั้งหมดเป็นตัวอักษรพิมพ์เล็ก (ป้องกันปัญหาพิมพ์ Temp, TEMP, temp)
+      const safeParsed = {};
+      if (parsed && typeof parsed === 'object') {
+        for (const k in parsed) {
+          safeParsed[k.toLowerCase()] = parsed[k];
+        }
+      }
+      
       thresholds = {
-        cpu: Number(parsed.cpu ?? thresholds.cpu),
-        ram: Number(parsed.ram ?? thresholds.ram),
-        latency: Number(parsed.latency ?? parsed.ping ?? thresholds.latency),
-        temp: Number(parsed.temp ?? parsed.temperature ?? thresholds.temp),
-        storage: Number(parsed.storage ?? parsed.hdd ?? thresholds.storage),
+        cpu: Number(safeParsed.cpu ?? thresholds.cpu),
+        ram: Number(safeParsed.ram ?? safeParsed.memory ?? thresholds.ram),
+        latency: Number(safeParsed.latency ?? safeParsed.ping ?? thresholds.latency),
+        temp: Number(safeParsed.temp ?? safeParsed.temperature ?? thresholds.temp),
+        storage: Number(safeParsed.storage ?? safeParsed.hdd ?? thresholds.storage),
       };
     }
   } catch (error) {
