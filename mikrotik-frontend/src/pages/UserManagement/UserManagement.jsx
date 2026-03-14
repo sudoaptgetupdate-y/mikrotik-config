@@ -7,6 +7,7 @@ import Swal from 'sweetalert2';
 import { userService } from '../../services/userService';
 import UserFormModal from './components/UserFormModal';
 import UserTable from './components/UserTable';
+import Pagination from '../../components/Pagination';
 
 const UserManagement = () => {
   const queryClient = useQueryClient();
@@ -219,45 +220,11 @@ const UserManagement = () => {
         </div>
       </div>
 
-      {/* 4. Pagination Controls (🟢 ใช้ Tinted Glass แบบลอยตัวเหมือนหน้าอื่นๆ) */}
-      {totalPages > 1 && (
-        <div className="sticky bottom-6 z-30 flex justify-center mt-8 pointer-events-none">
-          <div className="flex items-center gap-1 p-1.5 bg-blue-50/80 backdrop-blur-md border border-blue-200/60 rounded-full shadow-[0_8px_30px_rgb(59,130,246,0.15)] pointer-events-auto transition-all hover:bg-blue-50/95">
-            
-            <button 
-              onClick={() => setCurrentPage(p => Math.max(1, p - 1))} 
-              disabled={currentPage === 1} 
-              className="p-2 rounded-full text-blue-500 hover:bg-blue-100 hover:text-blue-700 disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-blue-500 transition-all"
-            >
-              <ChevronLeft size={20} strokeWidth={2.5} />
-            </button>
-            
-            <div className="flex items-center gap-1 px-2">
-              {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
-                <button
-                  key={page}
-                  onClick={() => setCurrentPage(page)}
-                  className={`w-9 h-9 rounded-full text-sm font-bold transition-all ${
-                    currentPage === page 
-                      ? 'bg-blue-600 text-white shadow-md shadow-blue-500/30' 
-                      : 'text-blue-600/70 hover:bg-blue-100 hover:text-blue-700'
-                  }`}
-                >
-                  {page}
-                </button>
-              ))}
-            </div>
-
-            <button 
-              onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} 
-              disabled={currentPage === totalPages} 
-              className="p-2 rounded-full text-blue-500 hover:bg-blue-100 hover:text-blue-700 disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-blue-500 transition-all"
-            >
-              <ChevronRight size={20} strokeWidth={2.5} />
-            </button>
-          </div>
-        </div>
-      )}
+      <Pagination 
+        currentPage={currentPage} 
+        totalPages={totalPages} 
+        setCurrentPage={setCurrentPage} 
+      />
 
       {/* User Form Modal Component */}
       <UserFormModal 
