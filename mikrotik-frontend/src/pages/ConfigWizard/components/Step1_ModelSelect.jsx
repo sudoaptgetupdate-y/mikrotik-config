@@ -8,7 +8,8 @@ const Step1_ModelSelect = ({
   selectedModel, 
   setSelectedModel,
   deviceMeta,     
-  setDeviceMeta   
+  setDeviceMeta,
+  mode
 }) => {
   // === State สำหรับค้นหาและแบ่งหน้า (Models) ===
   const [searchTerm, setSearchTerm] = useState("");
@@ -118,7 +119,7 @@ const Step1_ModelSelect = ({
       <div className="bg-slate-50 p-6 rounded-xl border border-slate-200 shadow-sm space-y-6">
         <div>
           <h3 className="text-sm font-bold text-slate-500 uppercase mb-4 flex items-center gap-2">
-            <MapPin size={16} /> Device Information
+            <MapPin size={16} /> Device Information {mode === 'standalone' && '(For Identification)'}
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
@@ -137,70 +138,72 @@ const Step1_ModelSelect = ({
         </div>
 
         {/* --- Section: เลือกกลุ่มอุปกรณ์ --- */}
-        <div className="pt-6 border-t border-slate-200">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
-            <div>
-              <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
-                <FolderKanban size={18} className="text-blue-600" /> Assign to Groups (Optional)
-              </h3>
-              <p className="text-xs text-slate-500 mt-1">เลือกกลุ่มเพื่อรับแจ้งเตือน Telegram (เลือกได้หลายกลุ่ม)</p>
+        {mode !== 'standalone' && (
+          <div className="pt-6 border-t border-slate-200">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
+              <div>
+                <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
+                  <FolderKanban size={18} className="text-blue-600" /> Assign to Groups (Optional)
+                </h3>
+                <p className="text-xs text-slate-500 mt-1">เลือกกลุ่มเพื่อรับแจ้งเตือน Telegram (เลือกได้หลายกลุ่ม)</p>
+              </div>
+              
+              {/* ✅ กล่องค้นหากลุ่ม */}
+              <div className="relative w-full md:w-56">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                <input 
+                  type="text" 
+                  placeholder="ค้นหาชื่อกลุ่ม..." 
+                  value={groupSearchTerm}
+                  onChange={(e) => setGroupSearchTerm(e.target.value)}
+                  className="w-full pl-9 pr-3 py-1.5 text-sm rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-200 transition" 
+                />
+              </div>
             </div>
-            
-            {/* ✅ กล่องค้นหากลุ่ม */}
-            <div className="relative w-full md:w-56">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-              <input 
-                type="text" 
-                placeholder="ค้นหาชื่อกลุ่ม..." 
-                value={groupSearchTerm}
-                onChange={(e) => setGroupSearchTerm(e.target.value)}
-                className="w-full pl-9 pr-3 py-1.5 text-sm rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-200 transition" 
-              />
-            </div>
+
+            {isLoadingGroups ? (
+              <div className="text-sm text-slate-400 p-4 bg-white rounded-xl border border-slate-200 text-center animate-pulse">กำลังโหลดรายชื่อกลุ่ม...</div>
+            ) : groups.length === 0 ? (
+              <div className="text-sm text-orange-500 p-4 bg-orange-50 rounded-xl flex items-center gap-2 font-medium border border-orange-100"><Bell size={16} /> ยังไม่มีกลุ่มอุปกรณ์ในระบบ</div>
+            ) : (
+              <div className="space-y-4">
+                {processedGroups.length === 0 ? (
+                  <div className="text-center py-6 text-sm text-slate-400 bg-white rounded-xl border border-dashed border-slate-300">ไม่พบกลุ่มที่ค้นหา</div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {paginatedGroups.map(group => {
+                      const isSelected = deviceMeta.groupIds?.includes(group.id);
+                      return (
+                        <div key={group.id} onClick={() => toggleGroup(group.id)} className={`cursor-pointer p-4 rounded-xl border-2 transition-all duration-200 flex items-start gap-3 ${isSelected ? 'border-blue-500 bg-blue-50/50 shadow-sm' : 'border-slate-200 bg-white hover:border-blue-200 hover:bg-slate-50'}`}>
+                          <div className={`mt-0.5 shrink-0 w-5 h-5 rounded flex items-center justify-center transition-colors ${isSelected ? 'bg-blue-600' : 'border-2 border-slate-300 bg-white'}`}>
+                            {isSelected && <svg className="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className={`text-sm font-bold truncate transition-colors ${isSelected ? 'text-blue-800' : 'text-slate-700'}`}>{group.name}</p>
+                            {group.isNotifyEnabled && group.telegramBotToken ? (
+                              <p className="text-[10px] font-bold text-emerald-600 mt-0.5 flex items-center gap-1"><Bell size={10} /> Telegram Active</p>
+                            ) : (
+                              <p className="text-[10px] text-slate-400 mt-0.5">ไม่มีแจ้งเตือน</p>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* ✅ Pagination สำหรับ Group */}
+                {totalGroupPages > 1 && (
+                  <div className="flex justify-end items-center gap-3 pt-2">
+                    <button onClick={() => setGroupCurrentPage(p => Math.max(1, p - 1))} disabled={groupCurrentPage === 1} className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100 disabled:opacity-50 transition"><ChevronLeft size={16} /></button>
+                    <span className="text-xs font-bold text-slate-500">Page {groupCurrentPage} of {totalGroupPages}</span>
+                    <button onClick={() => setGroupCurrentPage(p => Math.min(totalGroupPages, p + 1))} disabled={groupCurrentPage === totalGroupPages} className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100 disabled:opacity-50 transition"><ChevronRight size={16} /></button>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
-
-          {isLoadingGroups ? (
-            <div className="text-sm text-slate-400 p-4 bg-white rounded-xl border border-slate-200 text-center animate-pulse">กำลังโหลดรายชื่อกลุ่ม...</div>
-          ) : groups.length === 0 ? (
-            <div className="text-sm text-orange-500 p-4 bg-orange-50 rounded-xl flex items-center gap-2 font-medium border border-orange-100"><Bell size={16} /> ยังไม่มีกลุ่มอุปกรณ์ในระบบ</div>
-          ) : (
-            <div className="space-y-4">
-              {processedGroups.length === 0 ? (
-                 <div className="text-center py-6 text-sm text-slate-400 bg-white rounded-xl border border-dashed border-slate-300">ไม่พบกลุ่มที่ค้นหา</div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                  {paginatedGroups.map(group => {
-                    const isSelected = deviceMeta.groupIds?.includes(group.id);
-                    return (
-                      <div key={group.id} onClick={() => toggleGroup(group.id)} className={`cursor-pointer p-4 rounded-xl border-2 transition-all duration-200 flex items-start gap-3 ${isSelected ? 'border-blue-500 bg-blue-50/50 shadow-sm' : 'border-slate-200 bg-white hover:border-blue-200 hover:bg-slate-50'}`}>
-                        <div className={`mt-0.5 shrink-0 w-5 h-5 rounded flex items-center justify-center transition-colors ${isSelected ? 'bg-blue-600' : 'border-2 border-slate-300 bg-white'}`}>
-                          {isSelected && <svg className="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className={`text-sm font-bold truncate transition-colors ${isSelected ? 'text-blue-800' : 'text-slate-700'}`}>{group.name}</p>
-                          {group.isNotifyEnabled && group.telegramBotToken ? (
-                            <p className="text-[10px] font-bold text-emerald-600 mt-0.5 flex items-center gap-1"><Bell size={10} /> Telegram Active</p>
-                          ) : (
-                            <p className="text-[10px] text-slate-400 mt-0.5">ไม่มีแจ้งเตือน</p>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-
-              {/* ✅ Pagination สำหรับ Group */}
-              {totalGroupPages > 1 && (
-                <div className="flex justify-end items-center gap-3 pt-2">
-                  <button onClick={() => setGroupCurrentPage(p => Math.max(1, p - 1))} disabled={groupCurrentPage === 1} className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100 disabled:opacity-50 transition"><ChevronLeft size={16} /></button>
-                  <span className="text-xs font-bold text-slate-500">Page {groupCurrentPage} of {totalGroupPages}</span>
-                  <button onClick={() => setGroupCurrentPage(p => Math.min(totalGroupPages, p + 1))} disabled={groupCurrentPage === totalGroupPages} className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100 disabled:opacity-50 transition"><ChevronRight size={16} /></button>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
+        )}
       </div>
 
       {/* --- ส่วนที่ 2: เลือก Model --- */}

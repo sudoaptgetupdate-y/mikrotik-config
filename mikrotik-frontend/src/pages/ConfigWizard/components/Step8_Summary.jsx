@@ -15,7 +15,8 @@ const Step8_Summary = ({
   token, 
   apiHost,
   onSaveAndFinish,
-  onFinish 
+  onFinish,
+  mode
 }) => {
 
   const [isGenerating, setIsGenerating] = useState(false);
@@ -38,7 +39,8 @@ const Step8_Summary = ({
         dnsConfig, circuitId, token, apiHost,
         managementIps: globalSettings.MANAGEMENT_IPS,
         monitorIps: globalSettings.MONITOR_IPS,
-        adminUsers: globalSettings.ROUTER_ADMINS
+        adminUsers: globalSettings.ROUTER_ADMINS,
+        isStandalone: mode === 'standalone'
       };
 
       // 3. บันทึกลง Database
@@ -93,8 +95,14 @@ const Step8_Summary = ({
         <div className="w-24 h-24 bg-green-100 text-green-500 rounded-full flex items-center justify-center mx-auto mb-6 border-[8px] border-green-50 shadow-sm relative z-10">
           <CheckCircle size={48} className="animate-in zoom-in duration-500 delay-150" strokeWidth={2.5} />
         </div>
-        <h2 className="text-3xl font-black text-slate-800 tracking-tight">Setup Ready!</h2>
-        <p className="text-slate-500 mt-2 font-medium">ตรวจสอบรายละเอียดการตั้งค่าก่อนสร้างสคริปต์ Config</p>
+        <h2 className="text-3xl font-black text-slate-800 tracking-tight">
+          {mode === 'standalone' ? 'Config Builder Ready!' : 'Setup Ready!'}
+        </h2>
+        <p className="text-slate-500 mt-2 font-medium">
+          {mode === 'standalone' 
+            ? 'ตรวจสอบการตั้งค่าก่อนดาวน์โหลดไฟล์สคริปต์ (Standalone Mode)' 
+            : 'ตรวจสอบรายละเอียดการตั้งค่าก่อนสร้างสคริปต์ Config'}
+        </p>
       </div>
 
       {/* --- Summary Cards Grid --- */}
@@ -214,10 +222,12 @@ const Step8_Summary = ({
           ) : (
              <FileDown size={24} className="group-hover:animate-bounce" />
           )}
-          {isGenerating ? 'Generating & Saving...' : 'Generate Config & Finish'}
+          {isGenerating 
+            ? (mode === 'standalone' ? 'Generating Config...' : 'Generating & Saving...') 
+            : (mode === 'standalone' ? 'Download Standalone Config' : 'Generate Config & Finish')}
         </button>
         <p className="text-center text-sm font-medium text-slate-400 mt-5">
-          ไฟล์ <span className="text-slate-600 font-mono bg-slate-100 px-1.5 py-0.5 rounded">.rsc</span> จะถูกดาวน์โหลด และคุณจะถูกพาไปยังหน้า Dashboard
+          ไฟล์ <span className="text-slate-600 font-mono bg-slate-100 px-1.5 py-0.5 rounded">.rsc</span> จะถูกดาวน์โหลด {mode === 'standalone' ? 'และคุณสามารถนำไปใช้งานต่อได้ทันที' : 'และคุณจะถูกพาไปยังหน้า Dashboard'}
         </p>
       </div>
 

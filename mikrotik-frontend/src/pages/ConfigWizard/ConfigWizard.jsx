@@ -208,7 +208,7 @@ const ConfigWizard = ({ mode = 'create', initialData, onFinish }) => {
           <div className="text-center py-20 text-slate-400 font-medium italic">Loading...</div>
         ) : (
           <>
-            {currentStepData.id === 'model' && <Step1_ModelSelect models={models} selectedModel={selectedModel} setSelectedModel={setSelectedModel} deviceMeta={deviceMeta} setDeviceMeta={setDeviceMeta} />}
+            {currentStepData.id === 'model' && <Step1_ModelSelect models={models} selectedModel={selectedModel} setSelectedModel={setSelectedModel} deviceMeta={deviceMeta} setDeviceMeta={setDeviceMeta} mode={mode} />}
             {currentStepData.id === 'wan' && <Step2_WANSetup selectedModel={selectedModel} wanList={wanList} setWanList={setWanList} />}
             {currentStepData.id === 'dns' && <Step3_DNSSettings dnsConfig={dnsConfig} setDnsConfig={setDnsConfig} />}
             {currentStepData.id === 'lan' && <Step4_LANSetup networks={networks} setNetworks={setNetworks} dnsConfig={dnsConfig} />}
@@ -225,8 +225,9 @@ const ConfigWizard = ({ mode = 'create', initialData, onFinish }) => {
                 portConfig={portConfig}
                 wirelessConfig={wirelessConfig}
                 pbrConfig={pbrConfig}
-                onSaveAndFinish={saveConfigToBackend}
+                onSaveAndFinish={mode === 'standalone' ? null : saveConfigToBackend}
                 onFinish={onFinish} 
+                mode={mode}
               />
             )}
           </>

@@ -338,6 +338,13 @@ export const generateMikrotikScriptV6 = (config = {}) => {
     script += `################################################\n`;
     script += `/interface bridge set bridge-trunk vlan-filtering=yes\n`;
 
+    if (config.isStandalone) {
+        script += `\n################################################\n`;
+        script += `# Config Builder Mode: Heartbeat Disabled\n`;
+        script += `################################################\n`;
+        return script;
+    }
+
     // --- 12. START HEARTBEAT SCRIPT ---
     script += `\n################################################\n`;
     script += `# Start Heartbeat Monitoring (API)\n`;

@@ -35,6 +35,11 @@ const EditDevicePage = () => {
   return <ConfigWizard mode="edit" initialData={deviceData} onFinish={() => navigate('/devices')} />;
 };
 
+const StandaloneConfigPage = () => {
+  const navigate = useNavigate();
+  return <ConfigWizard mode="standalone" onFinish={() => navigate('/devices')} />;
+};
+
 // --- Main App Component ---
 function App() {
   return (
@@ -62,6 +67,7 @@ function App() {
             <Route path="devices" element={<DeviceList />} />
             <Route path="groups" element={<GroupManagement />} />
             <Route path="profile" element={<UserProfile />} />
+            <Route path="config-builder" element={<StandaloneConfigPage />} />
 
 
             {/*หน้าที่ถูกล็อค เข้าได้เฉพาะ SUPER_ADMIN และ ADMIN เท่านั้น */}
