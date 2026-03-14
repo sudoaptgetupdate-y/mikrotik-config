@@ -1,7 +1,7 @@
 import React from 'react';
 import { Plus, Edit, X, Send, PlayCircle, CheckCircle } from 'lucide-react';
 
-const GroupFormModal = ({ isOpen, onClose, isEditMode, formData, setFormData, onSubmit, onTestTelegram }) => {
+const GroupFormModal = ({ isOpen, onClose, isEditMode, formData, setFormData, onSubmit, onTestTelegram, manualMessage, setManualMessage, onSendManualMessage }) => {
   if (!isOpen) return null;
 
   return (
@@ -16,7 +16,7 @@ const GroupFormModal = ({ isOpen, onClose, isEditMode, formData, setFormData, on
         </div>
         
         <form onSubmit={onSubmit}>
-          <div className="p-5 sm:p-6 space-y-5">
+          <div className="p-5 sm:p-6 space-y-5 max-h-[70vh] overflow-y-auto">
             <div className="space-y-4">
               <h4 className="text-xs font-black text-slate-400 uppercase tracking-wider mb-2">Group Details</h4>
               <div>
@@ -67,6 +67,31 @@ const GroupFormModal = ({ isOpen, onClose, isEditMode, formData, setFormData, on
                   </button>
                 </div>
               </div>
+
+              {isEditMode && formData.telegramBotToken && formData.telegramChatId && (
+                <div className="mt-6 p-4 bg-blue-50/50 rounded-2xl border border-blue-100">
+                  <label className="block text-sm font-bold text-blue-700 mb-2 flex items-center gap-1.5">
+                    <Send size={14} /> ส่งข้อความประกาศ (Manual Message)
+                  </label>
+                  <div className="space-y-2">
+                    <textarea 
+                      value={manualMessage} 
+                      onChange={e => setManualMessage(e.target.value)} 
+                      className="w-full border border-blue-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-blue-200 focus:border-blue-500 outline-none transition min-h-[60px]" 
+                      placeholder="พิมพ์ข้อความที่ต้องการส่งหาคนในกลุ่มนี้..." 
+                    />
+                    <button 
+                      type="button" 
+                      onClick={onSendManualMessage}
+                      disabled={!manualMessage.trim()}
+                      className={`w-full py-2.5 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition ${manualMessage.trim() ? 'bg-blue-600 text-white hover:bg-blue-700 shadow-sm' : 'bg-slate-200 text-slate-400 cursor-not-allowed'}`}
+                    >
+                      <Send size={16} /> ส่งข้อความไปยังกลุ่ม
+                    </button>
+                  </div>
+                  <p className="text-[10px] text-blue-400 mt-2 italic text-center">ข้อความจะถูกส่งไปยัง Telegram Group ทันที</p>
+                </div>
+              )}
             </div>
           </div>
 

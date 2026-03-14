@@ -31,6 +31,7 @@ const GroupManagement = () => {
   const [formData, setFormData] = useState({
     name: '', description: '', telegramBotToken: '', telegramChatId: '', isNotifyEnabled: true, adminName: '', adminContact: ''
   });
+  const [manualMessage, setManualMessage] = useState("");
 
   // Fetching
   const { data: groups = [], isLoading: loadingGroups } = useQuery({
@@ -74,6 +75,7 @@ const GroupManagement = () => {
   // Handlers
   const openAddModal = () => {
     setFormData({ name: '', description: '', telegramBotToken: '', telegramChatId: '', isNotifyEnabled: true, adminName: '', adminContact: '' });
+    setManualMessage("");
     setIsEditMode(false);
     setIsFormModalOpen(true);
   };
@@ -84,6 +86,7 @@ const GroupManagement = () => {
       telegramBotToken: group.telegramBotToken || '', telegramChatId: group.telegramChatId || '', 
       isNotifyEnabled: group.isNotifyEnabled, adminName: group.adminName || '', adminContact: group.adminContact || ''
     });
+    setManualMessage("");
     setEditingId(group.id);
     setIsEditMode(true);
     setIsFormModalOpen(true);
@@ -162,6 +165,33 @@ const GroupManagement = () => {
       if ((await res.json()).ok) toast.success('สำเร็จ! เช็คใน Telegram ได้เลย', { id: tid });
       else throw new Error('Token หรือ Chat ID ไม่ถูกต้อง');
     } catch (err) { toast.error(`ส่งไม่สำเร็จ: ${err.message}`, { id: tid }); }
+  };
+
+  const handleSendManualMessage = async () => {
+    if (!manualMessage.trim()) return;
+    if (!formData.telegramBotToken || !formData.telegramChatId) return toast.error('ข้อมูล Telegram ไม่ครบถ้วน');
+
+    const tid = toast.loading('กำลังส่งข้อความประกาศ...');
+    try {
+      const res = await fetch(`https://api.telegram.org/bot${formData.telegramBotToken}/sendMessage`, {
+        method: 'POST', 
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          chat_id: formData.telegramChatId, 
+          text: `📢 <b>[ประกาศจากผู้ดูแลระบบ]</b>\n\n${manualMessage}`, 
+          parse_mode: 'HTML' 
+        })
+      });
+      const data = await res.json();
+      if (data.ok) {
+        toast.success('ส่งข้อความสำเร็จ!', { id: tid });
+        setManualMessage("");
+      } else {
+        throw new Error(data.description || 'Token หรือ Chat ID ไม่ถูกต้อง');
+      }
+    } catch (err) { 
+      toast.error(`ส่งไม่สำเร็จ: ${err.message}`, { id: tid }); 
+    }
   };
 
   return (
@@ -264,7 +294,18 @@ const GroupManagement = () => {
       )}
 
       {/* Modals */}
-      <GroupFormModal isOpen={isFormModalOpen} onClose={() => setIsFormModalOpen(false)} isEditMode={isEditMode} formData={formData} setFormData={setFormData} onSubmit={handleSubmitGroup} onTestTelegram={handleTestTelegram} />
+      <GroupFormModal 
+        isOpen={isFormModalOpen} 
+        onClose={() => setIsFormModalOpen(false)} 
+        isEditMode={isEditMode} 
+        formData={formData} 
+        setFormData={setFormData} 
+        onSubmit={handleSubmitGroup} 
+        onTestTelegram={handleTestTelegram} 
+        manualMessage={manualMessage}
+        setManualMessage={setManualMessage}
+        onSendManualMessage={handleSendManualMessage}
+      />
       <ManageDevicesModal isOpen={isDeviceModalOpen} onClose={() => setIsDeviceModalOpen(false)} group={selectedGroup} allDevices={allDevices} loadingDevices={loadingDevices} onSave={handleSaveDevices} />
     </div>
   );
