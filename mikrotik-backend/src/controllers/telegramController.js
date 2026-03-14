@@ -507,8 +507,7 @@ exports.initRealtimeMonitorCron = () => {
             if (device.ddnsName && device.ddnsName !== "N/A") {
                 msg += `\n☁️ <b>DDNS:</b> <b>${device.ddnsName}</b>`;
             }
-            msg += `\n⏳ <b>ติดต่อล่าสุด:</b> ${new Date(device.lastSeen).toLocaleTimeString('th-TH')}${adminInfo}`;
-            msg += `\n\n🌐 <b>เข้าสู่ระบบ:</b> https://mikrotik.ntnakhon.com`;
+            msg += `\n⏳ <b>ติดต่อล่าสุด:</b> ${new Date(device.lastSeen).toLocaleDateString('th-TH')} ${new Date(device.lastSeen).toLocaleTimeString('th-TH')}${adminInfo}`;            msg += `\n\n🌐 <b>เข้าสู่ระบบ:</b> https://mikrotik.ntnakhon.com`;
 
             if (group.isNotifyEnabled && group.telegramBotToken && group.telegramChatId) {
               const msgId = await sendTelegramAlert(group.telegramBotToken, group.telegramChatId, msg);
