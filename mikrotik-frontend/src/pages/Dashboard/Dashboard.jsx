@@ -26,21 +26,22 @@ const Dashboard = () => {
     if (!uptimeStr || uptimeStr === 'N/A') return 0;
     
     let totalSeconds = 0;
-    const parts = uptimeStr.split(' ');
-    const timePart = parts[parts.length - 1]; // "HH:MM:SS"
-    const datePart = parts.length > 1 ? parts[0] : ""; // "2w3d" หรือ "3d"
+    
+    // ใช้ Regex ดึงค่า w (weeks), d (days), และ HH:MM:SS
+    // รูปแบบทั่วไป: 2w3d04:12:34 หรือ 3d04:12:34 หรือ 04:12:34
+    const weeksMatch = uptimeStr.match(/(\d+)w/);
+    const daysMatch = uptimeStr.match(/(\d+)d/);
+    const timeMatch = uptimeStr.match(/(\d{1,2}):(\d{2}):(\d{2})/);
 
-    // จัดการส่วนของวันและสัปดาห์
-    if (datePart) {
-      const weeks = datePart.match(/(\d+)w/);
-      const days = datePart.match(/(\d+)d/);
-      if (weeks) totalSeconds += parseInt(weeks[1]) * 7 * 24 * 3600;
-      if (days) totalSeconds += parseInt(days[1]) * 24 * 3600;
+    if (weeksMatch) totalSeconds += parseInt(weeksMatch[1]) * 7 * 24 * 3600;
+    if (daysMatch) totalSeconds += parseInt(daysMatch[1]) * 24 * 3600;
+    
+    if (timeMatch) {
+      const h = parseInt(timeMatch[1]);
+      const m = parseInt(timeMatch[2]);
+      const s = parseInt(timeMatch[3]);
+      totalSeconds += (h * 3600) + (m * 60) + s;
     }
-
-    // จัดการส่วนของเวลา HH:MM:SS
-    const [h, m, s] = timePart.split(':').map(Number);
-    totalSeconds += (h * 3600) + (m * 60) + s;
 
     return totalSeconds;
   };
