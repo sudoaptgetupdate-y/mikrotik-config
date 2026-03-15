@@ -1,3 +1,4 @@
+import React, { useEffect } from 'react';
 import { AlertTriangle, X, History, User, Clock, Loader2, CheckCircle } from 'lucide-react';
 
 const AcknowledgeModal = ({ 
@@ -11,7 +12,21 @@ const AcknowledgeModal = ({
   // 🟢 1. รับค่า thresholds เข้ามา พร้อมค่าตั้งต้นเผื่อมีปัญหา
   thresholds = { cpu: 85, ram: 85, storage: 85, temp: 60, latency: 80 } 
 }) => {
-  if (!isOpen) return null;
+  useEffect(() => {
+    const handleEsc = (e) => {
+      if (e.key === 'Escape') onClose();
+    };
+    if (isOpen) {
+      window.addEventListener('keydown', handleEsc);
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+    return () => {
+      window.removeEventListener('keydown', handleEsc);
+      document.body.style.overflow = 'unset';
+    };
+  }, [isOpen, onClose]);
 
   let modalAckHistory = [];
   if (device?.ackReason) {
@@ -74,15 +89,37 @@ const AcknowledgeModal = ({
   const currentWarning = warningText.length > 0 ? warningText.join(', ') : 'Unknown Status';
 
   return (
-    <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl overflow-hidden flex flex-col animate-in zoom-in-95 duration-200">
+    <div 
+      className={`fixed inset-0 z-50 flex items-center justify-center p-4 transition-all duration-300 ${
+        isOpen ? 'opacity-100 visible' : 'opacity-0 pointer-events-none invisible'
+      }`}
+    >
+      {/* Backdrop */}
+      <div 
+        className={`absolute inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity duration-300 ${
+          isOpen ? 'opacity-100' : 'opacity-0'
+        }`}
+        onClick={onClose}
+      />
+
+      <div 
+        className={`bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden flex flex-col relative z-10 transition-all duration-300 transform ${
+          isOpen ? 'scale-100 translate-y-0' : 'scale-95 translate-y-4'
+        }`}
+        onClick={(e) => e.stopPropagation()}
+      >
         
-        <div className="p-4 sm:p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
-          <h3 className="font-bold text-lg text-slate-800 flex items-center gap-2">
-            <AlertTriangle className="text-orange-500" size={20} />
-            Acknowledge System
-          </h3>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition">
+        <div className="p-5 border-b border-slate-100 flex justify-between items-center bg-white">
+          <div className="flex items-center gap-4">
+            <div className="p-2.5 bg-orange-50 text-orange-600 rounded-2xl">
+              <AlertTriangle size={24} />
+            </div>
+            <div>
+              <h3 className="font-black text-xl text-slate-800 tracking-tight">Acknowledge System</h3>
+              <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Update Device Status</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 hover:bg-slate-100 p-2 rounded-xl transition-all">
             <X size={24} />
           </button>
         </div>

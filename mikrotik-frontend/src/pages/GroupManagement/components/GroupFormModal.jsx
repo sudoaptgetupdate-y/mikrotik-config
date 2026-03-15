@@ -1,12 +1,43 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Plus, Edit, X, Send, PlayCircle, CheckCircle } from 'lucide-react';
 
 const GroupFormModal = ({ isOpen, onClose, isEditMode, formData, setFormData, onSubmit, onTestTelegram, manualMessage, setManualMessage, onSendManualMessage }) => {
-  if (!isOpen) return null;
+  useEffect(() => {
+    const handleEsc = (e) => {
+      if (e.key === 'Escape') onClose();
+    };
+    if (isOpen) {
+      window.addEventListener('keydown', handleEsc);
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+    return () => {
+      window.removeEventListener('keydown', handleEsc);
+      document.body.style.overflow = 'unset';
+    };
+  }, [isOpen, onClose]);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
-      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-xl overflow-hidden animate-in zoom-in-95 duration-200">
+    <div 
+      className={`fixed inset-0 z-50 flex items-center justify-center p-4 transition-all duration-300 ${
+        isOpen ? 'opacity-100 visible' : 'opacity-0 pointer-events-none invisible'
+      }`}
+    >
+      {/* Backdrop */}
+      <div 
+        className={`absolute inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity duration-300 ${
+          isOpen ? 'opacity-100' : 'opacity-0'
+        }`}
+        onClick={onClose}
+      />
+
+      <div 
+        className={`bg-white rounded-3xl shadow-2xl w-full max-w-xl overflow-hidden relative z-10 transition-all duration-300 transform ${
+          isOpen ? 'scale-100 translate-y-0' : 'scale-95 translate-y-4'
+        }`}
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="flex justify-between items-center p-5 sm:p-6 border-b border-slate-100 bg-slate-50">
           <h3 className="font-bold text-lg text-slate-800 flex items-center gap-2">
             {isEditMode ? <Edit size={20} className="text-blue-600" /> : <Plus size={20} className="text-blue-600" />}

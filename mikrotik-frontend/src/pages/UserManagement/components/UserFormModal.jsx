@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Edit, Plus, X, Mail, User, Shield, Lock, CheckCircle2, XCircle } from 'lucide-react';
 
 const UserFormModal = ({ 
@@ -11,17 +11,52 @@ const UserFormModal = ({
   generatedUsername, 
   passwordRules 
 }) => {
-  if (!isOpen) return null;
+  useEffect(() => {
+    const handleEsc = (e) => {
+      if (e.key === 'Escape') onClose();
+    };
+    if (isOpen) {
+      window.addEventListener('keydown', handleEsc);
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+    return () => {
+      window.removeEventListener('keydown', handleEsc);
+      document.body.style.overflow = 'unset';
+    };
+  }, [isOpen, onClose]);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm px-4 py-4 sm:p-0">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+    <div 
+      className={`fixed inset-0 z-50 flex items-center justify-center p-4 transition-all duration-300 ${
+        isOpen ? 'opacity-100 visible' : 'opacity-0 pointer-events-none invisible'
+      }`}
+    >
+      {/* Backdrop */}
+      <div 
+        className={`absolute inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity duration-300 ${
+          isOpen ? 'opacity-100' : 'opacity-0'
+        }`}
+        onClick={onClose}
+      />
+
+      <div 
+        className={`bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden relative z-10 transition-all duration-300 transform ${
+          isOpen ? 'scale-100 translate-y-0' : 'scale-95 translate-y-4'
+        }`}
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="flex justify-between items-center p-4 sm:p-5 border-b border-slate-100 bg-slate-50 shrink-0">
-          <h3 className="font-bold text-slate-800 flex items-center gap-2">
-            {isEditing ? <Edit size={18} className="text-blue-600" /> : <Plus size={18} className="text-blue-600" />}
-            {isEditing ? 'แก้ไขข้อมูลผู้ใช้งาน' : 'เพิ่มผู้ใช้งานใหม่'}
-          </h3>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition"><X size={20} /></button>
+          <div className="flex items-center gap-3">
+            <div className={`p-2 rounded-xl ${isEditing ? 'bg-blue-50 text-blue-600' : 'bg-green-50 text-green-600'}`}>
+              {isEditing ? <Edit size={20} /> : <Plus size={20} />}
+            </div>
+            <h3 className="font-bold text-slate-800 text-lg tracking-tight">
+              {isEditing ? 'แก้ไขข้อมูลผู้ใช้งาน' : 'เพิ่มผู้ใช้งานใหม่'}
+            </h3>
+          </div>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition p-2 hover:bg-slate-100 rounded-lg"><X size={20} /></button>
         </div>
         <form onSubmit={handleSubmit} className="flex flex-col overflow-hidden">
           <div className="p-4 sm:p-6 space-y-4 sm:space-y-5 overflow-y-auto">

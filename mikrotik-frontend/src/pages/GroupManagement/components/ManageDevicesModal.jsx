@@ -2,8 +2,6 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { MonitorSmartphone, X, Search, ArrowRightLeft, ChevronLeft, ChevronRight, Save } from 'lucide-react';
 
 const ManageDevicesModal = ({ isOpen, onClose, group, allDevices, loadingDevices, onSave }) => {
-  if (!isOpen || !group) return null;
-
   const [deviceSearchQuery, setDeviceSearchQuery] = useState("");
   const [originalAssignedIds, setOriginalAssignedIds] = useState([]);
   const [draftAssignedIds, setDraftAssignedIds] = useState([]);
@@ -11,6 +9,22 @@ const ManageDevicesModal = ({ isOpen, onClose, group, allDevices, loadingDevices
   const [availablePage, setAvailablePage] = useState(1);
   const [assignedPage, setAssignedPage] = useState(1);
   const itemsPerModalPage = 5;
+
+  useEffect(() => {
+    const handleEsc = (e) => {
+      if (e.key === 'Escape') onClose();
+    };
+    if (isOpen) {
+      window.addEventListener('keydown', handleEsc);
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+    return () => {
+      window.removeEventListener('keydown', handleEsc);
+      document.body.style.overflow = 'unset';
+    };
+  }, [isOpen, onClose]);
 
   // Initialize data when modal opens
   useEffect(() => {
@@ -65,12 +79,29 @@ const ManageDevicesModal = ({ isOpen, onClose, group, allDevices, loadingDevices
   };
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
-      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-5xl overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]">
+    <div 
+      className={`fixed inset-0 z-50 flex items-center justify-center p-4 transition-all duration-300 ${
+        isOpen ? 'opacity-100 visible' : 'opacity-0 pointer-events-none invisible'
+      }`}
+    >
+      {/* Backdrop */}
+      <div 
+        className={`absolute inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity duration-300 ${
+          isOpen ? 'opacity-100' : 'opacity-0'
+        }`}
+        onClick={onClose}
+      />
+
+      <div 
+        className={`bg-white rounded-3xl shadow-2xl w-full max-w-5xl overflow-hidden relative z-10 transition-all duration-300 transform flex flex-col max-h-[90vh] ${
+          isOpen ? 'scale-100 translate-y-0' : 'scale-95 translate-y-4'
+        }`}
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="p-5 border-b border-slate-100 bg-slate-50 flex justify-between items-start shrink-0">
           <div>
             <h3 className="font-bold text-lg text-slate-800 flex items-center gap-2">
-              <MonitorSmartphone className="text-blue-600" /> จัดการสมาชิกกลุ่ม: <span className="text-blue-600">{group.name}</span>
+              <MonitorSmartphone className="text-blue-600" /> จัดการสมาชิกกลุ่ม: <span className="text-blue-600">{group?.name}</span>
             </h3>
             <p className="text-sm text-slate-500 mt-1">เลือกอุปกรณ์จากฝั่งซ้ายเพื่อย้ายเข้ากลุ่ม (กด <b>บันทึกการเปลี่ยนแปลง</b> เมื่อเสร็จสิ้น)</p>
           </div>

@@ -1,12 +1,26 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { X, Download, Clock, FileText, Loader2 } from 'lucide-react';
 import { generateMikrotikScript } from '../../../utils/mikrotikGenerator';
 import { generateMikrotikScriptV6 } from '../../../utils/mikrotikGeneratorV6';
-import Swal from 'sweetalert2'; //
+import Swal from 'sweetalert2'; 
 import apiClient from '../../../utils/apiClient';
 
 const HistoryModal = ({ isOpen, onClose, device, history, loading }) => {
-  if (!isOpen) return null;
+  useEffect(() => {
+    const handleEsc = (e) => {
+      if (e.key === 'Escape') onClose();
+    };
+    if (isOpen) {
+      window.addEventListener('keydown', handleEsc);
+      document.body.style.overflow = 'hidden'; // ป้องกันการ scroll พื้นหลัง
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+    return () => {
+      window.removeEventListener('keydown', handleEsc);
+      document.body.style.overflow = 'unset';
+    };
+  }, [isOpen, onClose]);
 
   const handleDownload = async (configEntry) => { 
     // 🟢 1. ถามเวอร์ชัน
@@ -62,21 +76,39 @@ const HistoryModal = ({ isOpen, onClose, device, history, loading }) => {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="bg-white rounded-2xl w-full max-w-3xl shadow-2xl overflow-hidden m-4 flex flex-col max-h-[80vh]">
+    <div 
+      className={`fixed inset-0 z-50 flex items-center justify-center p-4 transition-all duration-300 ${
+        isOpen ? 'opacity-100 visible' : 'opacity-0 pointer-events-none invisible'
+      }`}
+    >
+      {/* Backdrop */}
+      <div 
+        className={`absolute inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity duration-300 ${
+          isOpen ? 'opacity-100' : 'opacity-0'
+        }`}
+        onClick={onClose}
+      />
+
+      {/* Modal Container */}
+      <div 
+        className={`bg-white rounded-3xl w-full max-w-3xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh] relative z-10 transition-all duration-300 transform ${
+          isOpen ? 'scale-100 translate-y-0' : 'scale-95 translate-y-4'
+        }`}
+        onClick={(e) => e.stopPropagation()}
+      >
         
         {/* Header */}
-        <div className="bg-slate-900 text-white p-4 flex justify-between items-center shrink-0">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-slate-800 rounded-lg">
-              <Clock size={20} className="text-blue-400" />
+        <div className="bg-white border-b border-slate-100 p-5 flex justify-between items-center shrink-0">
+          <div className="flex items-center gap-4">
+            <div className="p-2.5 bg-blue-50 text-blue-600 rounded-2xl">
+              <Clock size={24} />
             </div>
             <div>
-              <h3 className="font-bold text-lg">Config History</h3>
-              <p className="text-xs text-slate-400">Device: {device?.name}</p>
+              <h3 className="font-black text-xl text-slate-800 tracking-tight">Config History</h3>
+              <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Device: {device?.name}</p>
             </div>
           </div>
-          <button onClick={onClose} className="text-slate-400 hover:text-white hover:bg-slate-800 p-2 rounded-full transition">
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 hover:bg-slate-100 p-2 rounded-xl transition-all">
             <X size={24} />
           </button>
         </div>
