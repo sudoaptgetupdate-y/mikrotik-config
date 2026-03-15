@@ -377,15 +377,7 @@ export const generateMikrotikScript = (config = {}) => {
     script += `  :local hddPercent 0;\n`;
     script += `  :if ($totalHdd > 0) do={ :set hddPercent (((($totalHdd - $freeHdd) * 100) / $totalHdd)) };\n`;
     script += `  :local temp "N/A";\n`;
-    script += `  :do {\n`;
-    script += `    :if ([:len [/system health find name="temperature"]] > 0) do={\n`;
-    script += `      :set temp [/system health get [find name="temperature"] value];\n`;
-    script += `    } else={\n`;
-    script += `      :do { :set temp [/system health get temperature] } on-error={\n`;
-    script += `        :do { :set temp [/system health get cpu-temperature] } on-error={ :set temp "N/A" };\n`;
-    script += `      }\n`;
-    script += `    }\n`;
-    script += `  } on-error={ :set temp "N/A" };\n`;
+    script += `  :do { :set temp ([/system health get temperature]) } on-error={ :do { :set temp ([/system health get cpu-temperature]) } on-error={} };\n`;
     script += `  :local latency "timeout";\n`;
     script += `  :do { :set latency ([:tostr ([/ping 8.8.8.8 count=1 as-value]->"time")]) } on-error={};\n`;
     //ดึงค่า DDNS (ครอบ do-catch ไว้เผื่อไม่ได้เปิด Cloud)

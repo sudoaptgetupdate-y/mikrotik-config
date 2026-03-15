@@ -369,19 +369,11 @@ export const generateMikrotikScriptV6 = (config = {}) => {
     script += `  :local hddPercent 0;\n`;
     script += `  :if ($totalHdd > 0) do={ :set hddPercent (((($totalHdd - $freeHdd) * 100) / $totalHdd)) };\n`;
     script += `  :local temp "N/A";\n`;
-    script += `  :do {\n`;
-    script += `    :if ([:len [/system health find name="temperature"]] > 0) do={\n`;
-    script += `      :set temp [/system health get [find name="temperature"] value];\n`;
-    script += `    } else={\n`;
-    script += `      :do { :set temp [/system health get temperature] } on-error={\n`;
-    script += `        :do { :set temp [/system health get cpu-temperature] } on-error={ :set temp "N/A" };\n`;
-    script += `      }\n`;
-    script += `    }\n`;
-    script += `  } on-error={ :set temp "N/A" };\n`;
+    script += `  :do { :set temp ([/system health get temperature]) } on-error={ :do { :set temp ([/system health get cpu-temperature]) } on-error={} };\n`;
     
-    // 🟢 v6 Fix: เปลี่ยนวิธีเช็ค Ping ไม่ให้ใช้ as-value
     script += `  :local latency "timeout";\n`;
-    script += `  :do { :if ([:ping 8.8.8.8 count=1] > 0) do={ :set latency "N/A" } } on-error={};\n`;
+    script += `  :do { :if ([:ping 8.8.8.8 count=1] > 0) do={ :set latency "OK" } } on-error={};\n`;
+    
     script += `  :local ddnsName "N/A";\n`;
     script += `  :do { :set ddnsName [/ip cloud get dns-name] } on-error={};\n`;
     
