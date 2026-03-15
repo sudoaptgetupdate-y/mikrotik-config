@@ -369,19 +369,19 @@ export const generateMikrotikScriptV6 = (config = {}) => {
     script += `  :local hddPercent 0;\n`;
     script += `  :if ($totalHdd > 0) do={ :set hddPercent (((($totalHdd - $freeHdd) * 100) / $totalHdd)) };\n`;
     script += `  :local temp "N/A";\n`;
-    script += `  :do { :set temp ([/system health get temperature]) } on-error={ :do { :set temp ([/system health get cpu-temperature]) } on-error={} };\n`;
+    script += `  :do { :set temp [/system health get temperature] } on-error={};\n`;
     
+    // 🟢 v6 Fix: เปลี่ยนวิธีเช็ค Ping ไม่ให้ใช้ as-value
     script += `  :local latency "timeout";\n`;
-    script += `  :do { :if ([:ping 8.8.8.8 count=1] > 0) do={ :set latency "OK" } } on-error={};\n`;
-    
+    script += `  :do { :if ([:ping 8.8.8.8 count=1] > 0) do={ :set latency "N/A" } } on-error={};\n`;
     script += `  :local ddnsName "N/A";\n`;
     script += `  :do { :set ddnsName [/ip cloud get dns-name] } on-error={};\n`;
     
     script += `  :local payload "{\\"cpu\\":\\"$cpuLoad\\", \\"ram\\":\\"$memPercent\\", \\"storage\\":\\"$hddPercent\\", \\"temp\\":\\"$temp\\", \\"latency\\":\\"$latency\\", \\"ddnsName\\":\\"$ddnsName\\", \\"uptime\\":\\"$uptime\\", \\"version\\":\\"$version\\", \\"boardName\\":\\"$boardName\\"}";\n`;    
     
-    script += `  :local headerArray [:toarray "Authorization: Bearer $apiToken,Content-Type: application/json"];\n`;
+    script += `  :local headers "Authorization: Bearer $apiToken,Content-Type: application/json";\n`;
     script += `  :do {\n`;
-    script += `    /tool fetch url=$serverUrl http-method=post http-header-field=$headerArray http-data=$payload keep-result=no ${fetchExtras};\n`;
+    script += `    /tool fetch url=$serverUrl http-method=post http-header-field=$headers http-data=$payload keep-result=no ${fetchExtras};\n`;
     script += `  } on-error={ :log error "Failed to send Heartbeat" }\n`;
     script += `}\n`;
 
