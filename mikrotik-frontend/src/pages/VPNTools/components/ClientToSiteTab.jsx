@@ -5,15 +5,16 @@ import { generateWireguardKeyPair } from '../../../utils/wireguardGenerator';
 
 const ClientToSiteTab = () => {
   const [formData, setFormData] = useState({
-    serverName: 'WG-SERVER',
+    serverName: '',
     serverPrivateKey: '',
     serverPublicKey: '',
     serverPublicIp: '',
     listenPort: '',
-    clientName: 'Mobile-User',
+    clientName: '',
     clientPrivateKey: '',
     clientPublicKey: '',
-    vpnSubnet: '10.0.88.0/24',
+    vpnSubnet: '',
+    dns: '',
     routingMode: 'full', // 'full', 'split', 'custom'
     customAllowedIPs: ''
   });
@@ -31,39 +32,36 @@ const ClientToSiteTab = () => {
     }
   };
 
+  const handleGeneratePort = () => {
+    const randomPort = Math.floor(Math.random() * (60000 - 10000 + 1)) + 10000;
+    setFormData({...formData, listenPort: randomPort.toString()});
+    toast.success(`Generated Port: ${randomPort}`);
+  };
+
   const handleGenerateConfig = () => {
-    if (!formData.serverPrivateKey || !formData.clientPublicKey || !formData.serverPublicIp) {
-        return toast.error('กรุณากรอกข้อมูลที่จำเป็นให้ครบถ้วน (ต้องการ Server Private Key, Client Public Key และ Public IP)');
+    if (!formData.clientPublicKey || !formData.serverPublicIp) {
+        return toast.error('กรุณากรอกข้อมูลที่จำเป็น (Client Public Key และ Public IP)');
     }
 
     const port = formData.listenPort || '51820';
-    const vpnIp = formData.vpnSubnet.replace('.0/', '.1/');
-    const clientVpnIp = formData.vpnSubnet.replace('.0/', '.2/');
+    const cleanSubnet = formData.vpnSubnet.split('/')[0]; // Safety check
+    const clientVpnIp = cleanSubnet.replace(/\.0$/, '.2');
 
-    const serverScript = `/interface wireguard
-add listen-port=${port} name=${formData.serverName} private-key="${formData.serverPrivateKey}"
-
-/ip address
-add address=${vpnIp} interface=${formData.serverName}
-
+    const serverScript = `# --- Server Config: Add Peer to Existing Interface ---
 /interface wireguard peers
-add allowed-address=${clientVpnIp}/32 interface=${formData.serverName} public-key="${formData.clientPublicKey}" comment="${formData.clientName}"
-
-/ip firewall filter
-add action=accept chain=input dst-port=${port} protocol=udp comment="WireGuard VPN Access"
-add action=accept chain=forward src-address=${formData.vpnSubnet} comment="WireGuard Internal Traffic"`;
+add allowed-address=${clientVpnIp}/32 interface=${formData.serverName} public-key="${formData.clientPublicKey}" comment="${formData.clientName}"`;
 
     let allowedIPs = '0.0.0.0/0';
     if (formData.routingMode === 'split') {
-        allowedIPs = formData.vpnSubnet;
+        allowedIPs = `${cleanSubnet}/24`;
     } else if (formData.routingMode === 'custom') {
-        allowedIPs = formData.customAllowedIPs || formData.vpnSubnet;
+        allowedIPs = formData.customAllowedIPs || `${cleanSubnet}/24`;
     }
 
     const clientConfig = `[Interface]
 PrivateKey = ${formData.clientPrivateKey || '(ใส่ Client Private Key ที่นี่)'}
-Address = ${clientVpnIp}
-DNS = 8.8.8.8
+Address = ${clientVpnIp}/24
+DNS = ${formData.dns || '8.8.8.8'}
 
 [Peer]
 PublicKey = ${formData.serverPublicKey || '(คัดลอก Public Key จาก MikroTik มาวาง)'}
@@ -89,35 +87,41 @@ Endpoint = ${formData.serverPublicIp}:${port}`;
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
       <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-6">
         <h3 className="font-bold text-slate-800 flex items-center gap-2 border-b border-slate-50 pb-4">
-          <Terminal size={20} className="text-blue-500" /> Server & Client Setup
+          <Terminal size={20} className="text-blue-500" /> VPN Client Setup
         </h3>
         
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
-            <div>
+            <div className="col-span-2 md:col-span-1">
               <label className="block text-xs font-black text-slate-400 uppercase mb-1.5">Public IP / DDNS</label>
               <input type="text" value={formData.serverPublicIp} onChange={e => setFormData({...formData, serverPublicIp: e.target.value})} className="w-full border border-slate-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-blue-500 outline-none transition" placeholder="my.ddns.com หรือ 1.2.3.4" />
             </div>
-            <div>
+            <div className="col-span-2 md:col-span-1">
               <label className="block text-xs font-black text-slate-400 uppercase mb-1.5">Listen Port</label>
-              <input 
-                type="text" 
-                value={formData.listenPort} 
-                onChange={e => setFormData({...formData, listenPort: e.target.value.replace(/[^0-9]/g, '')})} 
-                className="w-full border border-slate-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-blue-500 outline-none transition" 
-                placeholder="51820" 
-              />
+              <div className="flex gap-2">
+                <input 
+                    type="text" 
+                    value={formData.listenPort} 
+                    onChange={e => setFormData({...formData, listenPort: e.target.value.replace(/[^0-9]/g, '')})} 
+                    className="w-full border border-slate-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-blue-500 outline-none transition" 
+                    placeholder="51820" 
+                />
+                <button onClick={handleGeneratePort} className="px-4 py-2 bg-slate-800 text-white rounded-xl text-xs font-bold hover:bg-slate-900 transition flex items-center gap-2 shadow-sm">Gen</button>
+              </div>
             </div>
           </div>
 
           <div className="p-4 bg-slate-50 rounded-2xl space-y-3">
-             <label className="block text-xs font-black text-slate-600 uppercase">Server Keys (From MikroTik or Gen New)</label>
-             <div className="space-y-3">
-                <div className="flex gap-2">
-                    <input type="text" value={formData.serverPrivateKey} onChange={e => setFormData({...formData, serverPrivateKey: e.target.value})} className="flex-1 border border-slate-200 rounded-xl p-3 text-sm font-mono focus:ring-2 focus:ring-blue-500 outline-none transition bg-white" placeholder="Server Private Key (จาก MikroTik)" />
-                    <button onClick={() => handleGenerateKeys('server')} className="px-4 py-2 bg-slate-800 text-white rounded-xl text-xs font-bold hover:bg-slate-900 transition flex items-center gap-2 shadow-sm"><RefreshCw size={14} /> Gen</button>
+             <label className="block text-xs font-black text-slate-600 uppercase">Existing Server Info (From MikroTik)</label>
+             <div className="grid grid-cols-2 gap-3">
+                <div>
+                   <label className="block text-[10px] font-bold text-slate-500 mb-1">Interface Name</label>
+                   <input type="text" value={formData.serverName} onChange={e => setFormData({...formData, serverName: e.target.value})} className="w-full border border-slate-200 rounded-xl p-2.5 text-xs bg-white" placeholder="เช่น wireguard1" />
                 </div>
-                <input type="text" value={formData.serverPublicKey} onChange={e => setFormData({...formData, serverPublicKey: e.target.value})} className="w-full border border-slate-200 rounded-xl p-3 text-sm font-mono focus:ring-2 focus:ring-blue-500 outline-none transition bg-white" placeholder="Server Public Key (จาก MikroTik)" />
+                <div>
+                   <label className="block text-[10px] font-bold text-slate-500 mb-1">Server Public Key</label>
+                   <input type="text" value={formData.serverPublicKey} onChange={e => setFormData({...formData, serverPublicKey: e.target.value})} className="w-full border border-slate-200 rounded-xl p-2.5 text-xs font-mono bg-white" placeholder="Public Key ของ Server" />
+                </div>
              </div>
           </div>
 
@@ -157,8 +161,18 @@ Endpoint = ${formData.serverPublicIp}:${port}`;
                 </div>
                 <div>
                    <label className="block text-[11px] font-bold text-slate-500 mb-1.5">VPN Subnet</label>
-                   <input type="text" value={formData.vpnSubnet} onChange={e => setFormData({...formData, vpnSubnet: e.target.value})} className="w-full border border-slate-200 rounded-xl p-2.5 text-sm font-mono" placeholder="10.0.88.0/24" />
+                   <input 
+                     type="text" 
+                     value={formData.vpnSubnet} 
+                     onChange={e => setFormData({...formData, vpnSubnet: e.target.value.replace(/\//g, '')})} 
+                     className="w-full border border-slate-200 rounded-xl p-2.5 text-sm font-mono" 
+                     placeholder="เช่น 10.0.88.0" 
+                   />
                 </div>
+             </div>
+             <div>
+                <label className="block text-[11px] font-bold text-slate-500 mb-1.5">DNS Server(s)</label>
+                <input type="text" value={formData.dns} onChange={e => setFormData({...formData, dns: e.target.value})} className="w-full border border-slate-200 rounded-xl p-2.5 text-sm font-mono" placeholder="เช่น 8.8.8.8, 1.1.1.1" />
              </div>
              <div className="p-4 bg-blue-50/50 rounded-2xl border border-blue-100/50 space-y-3">
                 <label className="block text-xs font-black text-blue-600 uppercase">Client Keys (Generate for Client)</label>
