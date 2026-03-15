@@ -5,11 +5,25 @@ import { Zap, Clock, CheckCircle2 } from 'lucide-react';
 const TopUptimeDevices = ({ devices }) => {
   const navigate = useNavigate();
 
-  // ฟังก์ชันช่วยจัดรูปแบบ Uptime ให้สั้นและสวยงาม (ถ้าต้องการ)
-  const formatUptimeSimple = (uptime) => {
-    if (!uptime || uptime === 'N/A') return 'Unknown';
-    // MikroTik Format: "2w3d 04:12:00" -> "2w 3d"
-    return uptime.split(' ')[0].replace(/([a-z])([0-9])/g, '$1 $2');
+  // ฟังก์ชันแปลง Uptime ของ MikroTik (ที่มักจะหยุดแค่ weeks) ให้แสดงเป็น years
+  const formatUptimeWithYears = (uptimeStr) => {
+    if (!uptimeStr || uptimeStr === 'N/A') return 'Unknown';
+    
+    // ดึงค่า weeks
+    const weeksMatch = uptimeStr.match(/(\d+)w/);
+    if (!weeksMatch) return uptimeStr;
+
+    let weeks = parseInt(weeksMatch[1]);
+    if (weeks < 52) return uptimeStr; // ถ้าไม่ถึงปี ให้แสดงแบบเดิม
+
+    const years = Math.floor(weeks / 52);
+    const remainingWeeks = weeks % 52;
+    
+    // สร้างข้อความใหม่ เช่น "1y 14w 1d..."
+    let newUptime = `${years}y ${remainingWeeks > 0 ? remainingWeeks + 'w ' : ''}`;
+    // เติมส่วนที่เหลือ (days และ time)
+    const restOfUptime = uptimeStr.replace(/^\d+w/, '').trim();
+    return newUptime + restOfUptime;
   };
 
   return (
@@ -19,7 +33,7 @@ const TopUptimeDevices = ({ devices }) => {
         <h3 className="text-base font-black text-slate-800">Top Performance (Uptime)</h3>
       </div>
       
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex-1 flex flex-col">
         {devices.length === 0 ? (
           <div className="p-8 text-center text-slate-400 flex flex-col items-center justify-center min-h-[200px]">
             <p className="text-sm font-medium">No uptime data available</p>
@@ -44,7 +58,7 @@ const TopUptimeDevices = ({ devices }) => {
                 
                 <div className="flex flex-col items-end gap-1 shrink-0">
                   <span className="text-xs font-black text-slate-700 bg-slate-100 px-2 py-1 rounded-lg">
-                    {device.uptime || 'N/A'}
+                    {formatUptimeWithYears(device.uptime)}
                   </span>
                   {index === 0 && (
                     <span className="text-[9px] font-black text-emerald-600 flex items-center gap-1">
