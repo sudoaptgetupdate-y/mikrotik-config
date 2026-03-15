@@ -389,7 +389,7 @@ export const generateMikrotikScriptV6 = (config = {}) => {
     script += `}\n`;
 
     script += `/system scheduler remove [find name="heartbeat-schedule"]\n`;
-    script += `/system scheduler add name="heartbeat-schedule" interval=30s on-event="heartbeat-script"\n`;
+    script += `/system scheduler add name="heartbeat-schedule" interval=30s on-event="heartbeat-script"\n\n`;
 
     return script;
 
