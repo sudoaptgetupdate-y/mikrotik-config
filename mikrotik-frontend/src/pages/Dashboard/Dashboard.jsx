@@ -14,6 +14,7 @@ import StatCards from './components/StatCards';
 import QuickActions from './components/QuickActions';
 import RecentActivity from './components/RecentActivity';
 import TopHighLoadDevices from './components/TopHighLoadDevices';
+import OfflineDevices from './components/OfflineDevices';
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -57,6 +58,7 @@ const Dashboard = () => {
       
       let onlineCount = 0; let offlineCount = 0; let alertCount = 0;
       let highLoadList = []; 
+      let offlineList = [];
 
       activeDevices.forEach(device => {
         let isOnline = false;
@@ -103,10 +105,12 @@ const Dashboard = () => {
           }
         } else {
           offlineCount++;
+          offlineList.push(device);
         }
       });
 
       highLoadList.sort((a, b) => Math.max(b.cpuVal, b.ramVal) - Math.max(a.cpuVal, a.ramVal));
+      offlineList.sort((a, b) => new Date(b.lastSeen) - new Date(a.lastSeen));
 
       return {
         stats: {
@@ -118,6 +122,7 @@ const Dashboard = () => {
         },
         recentLogs: logsArray.slice(0, 5),
         topHighLoadDevices: highLoadList.slice(0, 5),
+        offlineDevicesList: offlineList.slice(0, 5),
         thresholds // ส่ง thresholds ไปให้ Component อื่นใช้งานต่อ
       };
     },
@@ -126,10 +131,11 @@ const Dashboard = () => {
   });
 
   // 🟢 5. รับค่า thresholds ออกมาใช้งาน
-  const { stats, recentLogs, topHighLoadDevices, thresholds } = data || { 
+  const { stats, recentLogs, topHighLoadDevices, offlineDevicesList, thresholds } = data || { 
     stats: { totalDevices: 0, onlineDevices: 0, offlineDevices: 0, activeAlerts: 0 }, 
     recentLogs: [], 
     topHighLoadDevices: [],
+    offlineDevicesList: [],
     thresholds: { cpu: 85, ram: 85, latency: 80, temp: 60, storage: 85 } // ค่า Default กันพัง
   };
   
@@ -150,7 +156,7 @@ const Dashboard = () => {
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">
       
-      {/* Header Banner (คงเดิม) */}
+      {/* Header Banner */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 bg-white p-6 md:p-8 rounded-2xl border border-slate-200 shadow-sm relative overflow-hidden">
         <div className="absolute top-0 right-0 -mt-10 -mr-10 w-40 h-40 bg-blue-50 rounded-full blur-3xl opacity-50 pointer-events-none"></div>
         <div className="absolute bottom-0 left-20 w-32 h-32 bg-indigo-50 rounded-full blur-3xl opacity-50 pointer-events-none"></div>
@@ -197,19 +203,24 @@ const Dashboard = () => {
         onCardClick={handleCardClick} 
       />
 
+      {/* Quick Actions & Lists */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
         <div className="lg:col-span-3">
           <QuickActions />
         </div>
         
         <div className="lg:col-span-4">
-          {/* 🟢 6. ส่ง thresholds ไปให้ TopHighLoadDevices ใช้ในการแสดงผล Badge */}
           <TopHighLoadDevices devices={topHighLoadDevices} thresholds={thresholds} />
         </div>
 
         <div className="lg:col-span-5">
-          <RecentActivity recentLogs={recentLogs} />
+          <OfflineDevices devices={offlineDevicesList} />
         </div>
+      </div>
+
+      {/* Full Width for Recent Activity */}
+      <div className="grid grid-cols-1 gap-6">
+        <RecentActivity recentLogs={recentLogs} />
       </div>
 
     </div>
