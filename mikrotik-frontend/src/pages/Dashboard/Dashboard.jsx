@@ -2,7 +2,7 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useQuery } from '@tanstack/react-query'; 
-import { Activity, Calendar, CheckCircle2, AlertTriangle } from 'lucide-react';
+import { Activity, Calendar, CheckCircle2, AlertTriangle, Megaphone } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 import { deviceService } from '../../services/deviceService';
@@ -12,10 +12,11 @@ import { settingService } from '../../services/settingService';
 
 import StatCards from './components/StatCards';
 import QuickActions from './components/QuickActions';
-import RecentActivity from './components/RecentActivity';
 import TopHighLoadDevices from './components/TopHighLoadDevices';
 import OfflineDevices from './components/OfflineDevices';
 import TopUptimeDevices from './components/TopUptimeDevices';
+import EventSummaryCard from './components/EventSummaryCard';
+import TopTroubleDevices from './components/TopTroubleDevices';
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -28,7 +29,6 @@ const Dashboard = () => {
     let totalSeconds = 0;
     
     // ใช้ Regex ดึงค่า w (weeks), d (days), และ HH:MM:SS
-    // รูปแบบทั่วไป: 2w3d04:12:34 หรือ 3d04:12:34 หรือ 04:12:34
     const weeksMatch = uptimeStr.match(/(\d+)w/);
     const daysMatch = uptimeStr.match(/(\d+)d/);
     const timeMatch = uptimeStr.match(/(\d{1,2}):(\d{2}):(\d{2})/);
@@ -60,27 +60,32 @@ const Dashboard = () => {
   const { data, isLoading, dataUpdatedAt } = useQuery({
     queryKey: ['dashboard', user?.id], 
     queryFn: async () => {
-      // 🟢 1. โหลดข้อมูลทั้งหมด และเรียกใช้ settingService แทน apiClient ดิบๆ
-      const [allDevices, models, logsData, settingsData] = await Promise.all([
+      // 🟢 1. โหลดข้อมูลทั้งหมด
+      const [allDevices, models, settingsData, announcementData] = await Promise.all([
         deviceService.getUserDevices(user?.id || 1),
         modelService.getModels(),
-        logService.getActivityLogs({ limit: 5 }),
-        settingService.getSettings('ALERT_THRESHOLDS').catch(() => null) // 🟢 ดึงค่า Settings อย่างถูกต้อง
+        settingService.getSettings('ALERT_THRESHOLDS').catch(() => null),
+        settingService.getSettings('DASHBOARD_ANNOUNCEMENT').catch(() => null)
       ]);
 
-      // 🟢 2. แกะกล่องข้อมูล Thresholds อย่างรัดกุม (รองรับทั้ง Array และ Object)
+      // 🟢 2. แกะกล่องข้อมูล Thresholds
       let thresholds = { cpu: 85, ram: 85, latency: 80, temp: 60, storage: 85 };
       if (settingsData) {
         const targetSetting = Array.isArray(settingsData) ? settingsData[0] : settingsData;
-        
         if (targetSetting && targetSetting.value) {
           const parsed = typeof targetSetting.value === 'string' ? JSON.parse(targetSetting.value) : targetSetting.value;
           thresholds = { ...thresholds, ...parsed };
         }
       }
 
+      // 🟢 3. แกะกล่องข้อมูล Announcement
+      let announcement = "";
+      if (announcementData) {
+        const targetAnnounce = Array.isArray(announcementData) ? announcementData[0] : announcementData;
+        announcement = targetAnnounce?.value || "";
+      }
+
       const activeDevices = (allDevices || []).filter(device => device.status !== 'DELETED');
-      const logsArray = Array.isArray(logsData) ? logsData : (logsData?.data || []);
       
       let onlineCount = 0; let offlineCount = 0; let alertCount = 0;
       let highLoadList = []; 
@@ -123,9 +128,7 @@ const Dashboard = () => {
 
         if (isOnline) {
           onlineCount++;
-          // 🟢 3. ใช้ค่า thresholds ในการประเมินสถานะ High Load
           const isHighLoad = cpuVal > thresholds.cpu || ramVal > thresholds.ram || storageVal > thresholds.storage || tempVal > thresholds.temp || latencyMs > thresholds.latency;
-          
           if (isHighLoad) {
             if (!device.isAcknowledged) alertCount++;
             highLoadList.push({ ...device, cpuVal, ramVal, storageVal, tempVal, latencyMs });
@@ -148,25 +151,24 @@ const Dashboard = () => {
           offlineDevices: offlineCount,
           activeAlerts: alertCount
         },
-        recentLogs: logsArray.slice(0, 5),
         topHighLoadDevices: highLoadList.slice(0, 5),
         offlineDevicesList: offlineList.slice(0, 5),
         topUptimeDevices: uptimeList.slice(0, 5),
-        thresholds // ส่ง thresholds ไปให้ Component อื่นใช้งานต่อ
+        thresholds,
+        announcement
       };
     },
     refetchInterval: 30000, 
     onError: () => toast.error("ไม่สามารถดึงข้อมูลสรุป Dashboard ได้")
   });
 
-  // 🟢 5. รับค่า thresholds ออกมาใช้งาน
-  const { stats, recentLogs, topHighLoadDevices, offlineDevicesList, topUptimeDevices, thresholds } = data || { 
+  const { stats, topHighLoadDevices, offlineDevicesList, topUptimeDevices, thresholds, announcement } = data || { 
     stats: { totalDevices: 0, onlineDevices: 0, offlineDevices: 0, activeAlerts: 0 }, 
-    recentLogs: [], 
     topHighLoadDevices: [],
     offlineDevicesList: [],
     topUptimeDevices: [],
-    thresholds: { cpu: 85, ram: 85, latency: 80, temp: 60, storage: 85 } // ค่า Default กันพัง
+    thresholds: { cpu: 85, ram: 85, latency: 80, temp: 60, storage: 85 },
+    announcement: ""
   };
   
   const onlinePercentage = stats.totalDevices > 0 ? (stats.onlineDevices / stats.totalDevices) * 100 : 0;
@@ -187,44 +189,65 @@ const Dashboard = () => {
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">
       
       {/* Header Banner */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 bg-white p-6 md:p-8 rounded-2xl border border-slate-200 shadow-sm relative overflow-hidden">
+      <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden relative">
         <div className="absolute top-0 right-0 -mt-10 -mr-10 w-40 h-40 bg-blue-50 rounded-full blur-3xl opacity-50 pointer-events-none"></div>
-        <div className="absolute bottom-0 left-20 w-32 h-32 bg-indigo-50 rounded-full blur-3xl opacity-50 pointer-events-none"></div>
         
-        <div className="relative z-10">
-          <div className="flex items-center gap-2 text-blue-600 mb-2">
-            <Activity size={16} />
-            <span className="text-[11px] font-black uppercase tracking-widest">System Overview</span>
+        {/* Banner Content */}
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 p-6 md:p-8 relative z-10">
+          <div className="relative z-10">
+            <div className="flex items-center gap-2 text-blue-600 mb-2">
+              <Activity size={16} />
+              <span className="text-[11px] font-black uppercase tracking-widest">System Overview</span>
+            </div>
+            <h2 className="text-3xl font-black text-slate-800 tracking-tight">
+              {getGreeting()}, <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600">{user?.username || user?.firstName || 'User'}</span>! 👋
+            </h2>
+            <p className="text-sm text-slate-500 mt-1.5 flex items-center gap-1.5 font-medium">
+              <Calendar size={14} /> {currentDate}
+            </p>
           </div>
-          <h2 className="text-3xl font-black text-slate-800 tracking-tight">
-            {getGreeting()}, <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600">{user?.username || user?.firstName || 'User'}</span>! 👋
-          </h2>
-          <p className="text-sm text-slate-500 mt-1.5 flex items-center gap-1.5 font-medium">
-            <Calendar size={14} /> {currentDate}
-          </p>
+
+          <div className="relative z-10 flex flex-col items-start md:items-end gap-2 mt-4 md:mt-0">
+            <div className={`flex items-center gap-2.5 px-4 py-2 rounded-xl border backdrop-blur-sm transition-all duration-300 ${
+              isSystemHealthy 
+                ? 'bg-emerald-50/80 border-emerald-200 text-emerald-700' 
+                : 'bg-orange-50/80 border-orange-200 text-orange-700'
+            }`}>
+              <span className="relative flex h-3 w-3">
+                <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${isSystemHealthy ? 'bg-emerald-500' : 'bg-orange-500'}`}></span>
+                <span className={`relative inline-flex rounded-full h-3 w-3 ${isSystemHealthy ? 'bg-emerald-500' : 'bg-orange-500'}`}></span>
+              </span>
+              <div className="flex flex-col">
+                <span className="text-xs font-black uppercase tracking-wider">
+                  System {isSystemHealthy ? 'Optimal' : 'Attention'}
+                </span>
+              </div>
+              {isSystemHealthy ? <CheckCircle2 size={18} className="ml-1 opacity-80" /> : <AlertTriangle size={18} className="ml-1 opacity-80" />}
+            </div>
+            <p className="text-[11px] text-slate-400 font-medium tracking-wide">
+              Last updated: <span className="text-slate-500">{lastSyncTime}</span>
+            </p>
+          </div>
         </div>
 
-        <div className="relative z-10 flex flex-col items-start md:items-end gap-2 mt-4 md:mt-0">
-          <div className={`flex items-center gap-2.5 px-4 py-2 rounded-xl border backdrop-blur-sm transition-all duration-300 ${
-            isSystemHealthy 
-              ? 'bg-emerald-50/80 border-emerald-200 text-emerald-700' 
-              : 'bg-orange-50/80 border-orange-200 text-orange-700'
-          }`}>
-            <span className="relative flex h-3 w-3">
-              <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${isSystemHealthy ? 'bg-emerald-500' : 'bg-orange-500'}`}></span>
-              <span className={`relative inline-flex rounded-full h-3 w-3 ${isSystemHealthy ? 'bg-emerald-500' : 'bg-orange-500'}`}></span>
-            </span>
-            <div className="flex flex-col">
-              <span className="text-xs font-black uppercase tracking-wider">
-                System {isSystemHealthy ? 'Optimal' : 'Attention'}
-              </span>
+        {/* 🟢 Marquee Announcement Area */}
+        {announcement && (
+          <div className="bg-slate-900 border-t border-slate-800 py-2.5 relative flex items-center">
+            <div className="absolute left-0 top-0 bottom-0 bg-slate-900 px-4 flex items-center z-20 border-r border-slate-800 shadow-[10px_0_15px_rgba(0,0,0,0.5)]">
+              <Megaphone size={16} className="text-blue-400 animate-bounce" />
+              <span className="ml-2 text-[10px] font-black text-white uppercase tracking-tighter">News</span>
             </div>
-            {isSystemHealthy ? <CheckCircle2 size={18} className="ml-1 opacity-80" /> : <AlertTriangle size={18} className="ml-1 opacity-80" />}
+            <div className="overflow-hidden whitespace-nowrap w-full">
+              <div className="inline-block animate-marquee pl-32 text-blue-100 text-xs font-bold tracking-wide">
+                <span className="inline-block px-10">{announcement}</span>
+                <span className="inline-block px-10 text-blue-400">|</span>
+                <span className="inline-block px-10">{announcement}</span>
+                <span className="inline-block px-10 text-blue-400">|</span>
+                <span className="inline-block px-10">{announcement}</span>
+              </div>
+            </div>
           </div>
-          <p className="text-[11px] text-slate-400 font-medium tracking-wide">
-            Last updated: <span className="text-slate-500">{lastSyncTime}</span>
-          </p>
-        </div>
+        )}
       </div>
 
       <StatCards 
@@ -233,23 +256,24 @@ const Dashboard = () => {
         onCardClick={handleCardClick} 
       />
 
-      {/* Lists Section */}
+      {/* Main Grid Layout */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         
-        {/* Column 1: Core Monitoring */}
+        {/* Column 1: Real-time Alerts */}
         <div className="space-y-6">
           <TopHighLoadDevices devices={topHighLoadDevices} thresholds={thresholds} />
           <OfflineDevices devices={offlineDevicesList} />
         </div>
 
-        {/* Column 2: Performance & Activity */}
+        {/* Column 2: Trends & Analytics */}
         <div className="space-y-6">
-          <TopUptimeDevices devices={topUptimeDevices} />
-          <RecentActivity recentLogs={recentLogs} />
+          <EventSummaryCard />
+          <TopTroubleDevices />
         </div>
 
-        {/* Column 3: Quick Actions */}
+        {/* Column 3: Performance & Tools */}
         <div className="space-y-6">
+          <TopUptimeDevices devices={topUptimeDevices} />
           <QuickActions />
         </div>
 

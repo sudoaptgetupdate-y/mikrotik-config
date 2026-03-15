@@ -7,9 +7,23 @@ export const settingService = {
     return response.data;
   },
 
+  updateSettings: async (key, settingData) => {
+    // Standardizing to expect an object with value property
+    const payload = typeof settingData === 'object' && settingData !== null && 'value' in settingData 
+      ? settingData 
+      : { value: settingData };
+      
+    const response = await apiClient.put(`/api/settings/${key}`, payload);
+    return response.data;
+  },
+
   updateSetting: async (key, settingData) => {
-    // settingData = { value: [...], description: "..." }
-    const response = await apiClient.put(`/api/settings/${key}`, settingData);
+    // Alias for updateSettings to maintain backward compatibility
+    const payload = typeof settingData === 'object' && settingData !== null && 'value' in settingData 
+      ? settingData 
+      : { value: settingData };
+      
+    const response = await apiClient.put(`/api/settings/${key}`, payload);
     return response.data;
   }
 };

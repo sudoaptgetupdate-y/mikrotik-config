@@ -11,3 +11,15 @@ exports.getActivityLogs = async (req, res) => {
   
   res.json(result);
 };
+
+exports.getEventSummary = async (req, res) => {
+  const days = parseInt(req.query.days) || 1;
+  const result = await logService.getEventSummary(days);
+  res.json(result);
+};
+
+exports.getTopTroubleDevices = async (req, res) => {
+  const days = parseInt(req.query.days) || 1;
+  const result = await logService.getTopTroubleDevices(days);
+  res.json(result);
+};

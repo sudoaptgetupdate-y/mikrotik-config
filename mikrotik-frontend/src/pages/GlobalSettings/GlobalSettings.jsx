@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Shield, Network, Globe, Settings2, Database, Loader2, Bell, ChevronRight } from 'lucide-react';
+import { Shield, Network, Globe, Settings2, Database, Loader2, Bell, ChevronRight, Megaphone } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 
 import { settingService } from '../../services/settingService';
@@ -11,6 +11,7 @@ import TabPbrTargets from './components/TabPbrTargets';
 import TabVlanNetwork from './components/TabVlanNetwork';
 import TabMaintenance from './components/TabMaintenance';
 import TabAlertThresholds from './components/TabAlertThresholds';
+import TabDashboardAnnouncement from './components/TabDashboardAnnouncement';
 
 const GlobalSettings = () => {
   const [activeTab, setActiveTab] = useState(() => localStorage.getItem('activeGlobalSettingsTab') || 'ADMINS');
@@ -26,14 +27,14 @@ const GlobalSettings = () => {
   });
 
   const settingsData = useMemo(() => {
-    const parsed = { ROUTER_ADMINS: [], MANAGEMENT_IPS: [], MONITOR_IPS: [], DEFAULT_NETWORKS: [], ALERT_THRESHOLDS: null };
+    const parsed = { ROUTER_ADMINS: [], MANAGEMENT_IPS: [], MONITOR_IPS: [], DEFAULT_NETWORKS: [], ALERT_THRESHOLDS: null, DASHBOARD_ANNOUNCEMENT: '' };
     if (!rawSettings) return parsed;
 
     rawSettings.forEach(item => {
-      if (item.key === 'DEFAULT_NETWORKS') {
+      if (item.key === 'DEFAULT_NETWORKS' || item.key === 'ALERT_THRESHOLDS') {
         try { parsed[item.key] = typeof item.value === 'string' ? JSON.parse(item.value) : item.value; } catch (e) {}
       } else {
-        parsed[item.key] = item.value || [];
+        parsed[item.key] = item.value;
       }
     });
     return parsed;
@@ -82,6 +83,7 @@ const GlobalSettings = () => {
             <button onClick={() => setActiveTab('DEFAULTS')} className={`flex items-center gap-2 px-4 sm:px-6 py-3 font-bold border-b-2 transition-colors whitespace-nowrap ${activeTab === 'DEFAULTS' ? 'border-purple-600 text-purple-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}><Settings2 size={18} /> Default LAN/VLAN</button>
             <button onClick={() => setActiveTab('MAINTENANCE')} className={`flex items-center gap-2 px-4 sm:px-6 py-3 font-bold border-b-2 transition-colors whitespace-nowrap ${activeTab === 'MAINTENANCE' ? 'border-rose-600 text-rose-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}><Database size={18} /> Maintenance</button>
             <button onClick={() => setActiveTab('ALERTS')} className={`flex items-center gap-2 px-4 sm:px-6 py-3 font-bold border-b-2 transition-colors whitespace-nowrap ${activeTab === 'ALERTS' ? 'border-rose-500 text-rose-500' : 'border-transparent text-slate-500 hover:text-slate-700'}`}><Bell size={18} /> Alert Thresholds</button>
+            <button onClick={() => setActiveTab('ANNOUNCEMENT')} className={`flex items-center gap-2 px-4 sm:px-6 py-3 font-bold border-b-2 transition-colors whitespace-nowrap ${activeTab === 'ANNOUNCEMENT' ? 'border-blue-500 text-blue-500' : 'border-transparent text-slate-500 hover:text-slate-700'}`}><Megaphone size={18} /> Announcement</button>
           </div>
 
           {/* 🟢 กล่องแม่: เอา min-h ออกแล้ว กล่องจะยืดหดตามเนื้อหา Tab อัตโนมัติ */}
@@ -92,6 +94,7 @@ const GlobalSettings = () => {
             {activeTab === 'DEFAULTS' && <TabVlanNetwork initialData={settingsData.DEFAULT_NETWORKS} />}
             {activeTab === 'MAINTENANCE' && <TabMaintenance />}
             {activeTab === 'ALERTS' && <TabAlertThresholds initialData={settingsData.ALERT_THRESHOLDS} />}
+            {activeTab === 'ANNOUNCEMENT' && <TabDashboardAnnouncement initialData={settingsData.DASHBOARD_ANNOUNCEMENT} />}
           </div>
         </>
       )}

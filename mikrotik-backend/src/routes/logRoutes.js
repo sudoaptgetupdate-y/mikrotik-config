@@ -9,5 +9,7 @@ router.use(verifyToken);
 const adminAccess = requireRole(['SUPER_ADMIN', 'ADMIN']);
 
 router.get('/', adminAccess, logController.getActivityLogs);
+router.get('/event-summary', adminAccess, logController.getEventSummary);
+router.get('/top-trouble-devices', adminAccess, logController.getTopTroubleDevices);
 
 module.exports = router;
