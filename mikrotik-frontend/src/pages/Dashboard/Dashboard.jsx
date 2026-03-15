@@ -21,30 +21,32 @@ import TopTroubleDevices from './components/TopTroubleDevices';
 const Dashboard = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
+// ฟังก์ชันช่วยแปลง Uptime ของ MikroTik ให้เป็นวินาทีเพื่อใช้ในการเรียงลำดับ
+const uptimeToSeconds = (uptimeStr) => {
+  if (!uptimeStr || uptimeStr === 'N/A') return 0;
 
-  // ฟังก์ชันช่วยแปลง Uptime ของ MikroTik ให้เป็นวินาทีเพื่อใช้ในการเรียงลำดับ
-  const uptimeToSeconds = (uptimeStr) => {
-    if (!uptimeStr || uptimeStr === 'N/A') return 0;
-    
-    let totalSeconds = 0;
-    
-    // ใช้ Regex ดึงค่า w (weeks), d (days), และ HH:MM:SS
-    const weeksMatch = uptimeStr.match(/(\d+)w/);
-    const daysMatch = uptimeStr.match(/(\d+)d/);
-    const timeMatch = uptimeStr.match(/(\d{1,2}):(\d{2}):(\d{2})/);
+  let totalSeconds = 0;
 
-    if (weeksMatch) totalSeconds += parseInt(weeksMatch[1]) * 7 * 24 * 3600;
-    if (daysMatch) totalSeconds += parseInt(daysMatch[1]) * 24 * 3600;
-    
-    if (timeMatch) {
-      const h = parseInt(timeMatch[1]);
-      const m = parseInt(timeMatch[2]);
-      const s = parseInt(timeMatch[3]);
-      totalSeconds += (h * 3600) + (m * 60) + s;
-    }
+  // ใช้ Regex ดึงค่า y (years), w (weeks), d (days), และ HH:MM:SS
+  // รูปแบบที่รองรับ: 1y2w3d04:12:34 หรือ 2w3d04:12:34 หรือ 04:12:34
+  const yearsMatch = uptimeStr.match(/(\d+)y/);
+  const weeksMatch = uptimeStr.match(/(\d+)w/);
+  const daysMatch = uptimeStr.match(/(\d+)d/);
+  const timeMatch = uptimeStr.match(/(\d{1,2}):(\d{2}):(\d{2})/);
 
-    return totalSeconds;
-  };
+  if (yearsMatch) totalSeconds += parseInt(yearsMatch[1]) * 365 * 24 * 3600;
+  if (weeksMatch) totalSeconds += parseInt(weeksMatch[1]) * 7 * 24 * 3600;
+  if (daysMatch) totalSeconds += parseInt(daysMatch[1]) * 24 * 3600;
+
+  if (timeMatch) {
+    const h = parseInt(timeMatch[1]);
+    const m = parseInt(timeMatch[2]);
+    const s = parseInt(timeMatch[3]);
+    totalSeconds += (h * 3600) + (m * 60) + s;
+  }
+
+  return totalSeconds;
+};
 
   const getGreeting = () => {
     const hour = new Date().getHours();
