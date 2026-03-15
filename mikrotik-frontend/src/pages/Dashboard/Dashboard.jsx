@@ -15,10 +15,35 @@ import QuickActions from './components/QuickActions';
 import RecentActivity from './components/RecentActivity';
 import TopHighLoadDevices from './components/TopHighLoadDevices';
 import OfflineDevices from './components/OfflineDevices';
+import TopUptimeDevices from './components/TopUptimeDevices';
 
 const Dashboard = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
+
+  // ฟังก์ชันช่วยแปลง Uptime ของ MikroTik ให้เป็นวินาทีเพื่อใช้ในการเรียงลำดับ
+  const uptimeToSeconds = (uptimeStr) => {
+    if (!uptimeStr || uptimeStr === 'N/A') return 0;
+    
+    let totalSeconds = 0;
+    const parts = uptimeStr.split(' ');
+    const timePart = parts[parts.length - 1]; // "HH:MM:SS"
+    const datePart = parts.length > 1 ? parts[0] : ""; // "2w3d" หรือ "3d"
+
+    // จัดการส่วนของวันและสัปดาห์
+    if (datePart) {
+      const weeks = datePart.match(/(\d+)w/);
+      const days = datePart.match(/(\d+)d/);
+      if (weeks) totalSeconds += parseInt(weeks[1]) * 7 * 24 * 3600;
+      if (days) totalSeconds += parseInt(days[1]) * 24 * 3600;
+    }
+
+    // จัดการส่วนของเวลา HH:MM:SS
+    const [h, m, s] = timePart.split(':').map(Number);
+    totalSeconds += (h * 3600) + (m * 60) + s;
+
+    return totalSeconds;
+  };
 
   const getGreeting = () => {
     const hour = new Date().getHours();
@@ -59,6 +84,7 @@ const Dashboard = () => {
       let onlineCount = 0; let offlineCount = 0; let alertCount = 0;
       let highLoadList = []; 
       let offlineList = [];
+      let uptimeList = [...activeDevices];
 
       activeDevices.forEach(device => {
         let isOnline = false;
@@ -111,6 +137,7 @@ const Dashboard = () => {
 
       highLoadList.sort((a, b) => Math.max(b.cpuVal, b.ramVal) - Math.max(a.cpuVal, a.ramVal));
       offlineList.sort((a, b) => new Date(b.lastSeen) - new Date(a.lastSeen));
+      uptimeList.sort((a, b) => uptimeToSeconds(b.uptime) - uptimeToSeconds(a.uptime));
 
       return {
         stats: {
@@ -123,6 +150,7 @@ const Dashboard = () => {
         recentLogs: logsArray.slice(0, 5),
         topHighLoadDevices: highLoadList.slice(0, 5),
         offlineDevicesList: offlineList.slice(0, 5),
+        topUptimeDevices: uptimeList.slice(0, 5),
         thresholds // ส่ง thresholds ไปให้ Component อื่นใช้งานต่อ
       };
     },
@@ -131,11 +159,12 @@ const Dashboard = () => {
   });
 
   // 🟢 5. รับค่า thresholds ออกมาใช้งาน
-  const { stats, recentLogs, topHighLoadDevices, offlineDevicesList, thresholds } = data || { 
+  const { stats, recentLogs, topHighLoadDevices, offlineDevicesList, topUptimeDevices, thresholds } = data || { 
     stats: { totalDevices: 0, onlineDevices: 0, offlineDevices: 0, activeAlerts: 0 }, 
     recentLogs: [], 
     topHighLoadDevices: [],
     offlineDevicesList: [],
+    topUptimeDevices: [],
     thresholds: { cpu: 85, ram: 85, latency: 80, temp: 60, storage: 85 } // ค่า Default กันพัง
   };
   
@@ -203,24 +232,26 @@ const Dashboard = () => {
         onCardClick={handleCardClick} 
       />
 
-      {/* Quick Actions & Lists */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
-        <div className="lg:col-span-3">
-          <QuickActions />
-        </div>
+      {/* Lists Section */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         
-        <div className="lg:col-span-4">
+        {/* Column 1: Core Monitoring */}
+        <div className="space-y-6">
           <TopHighLoadDevices devices={topHighLoadDevices} thresholds={thresholds} />
-        </div>
-
-        <div className="lg:col-span-5">
           <OfflineDevices devices={offlineDevicesList} />
         </div>
-      </div>
 
-      {/* Full Width for Recent Activity */}
-      <div className="grid grid-cols-1 gap-6">
-        <RecentActivity recentLogs={recentLogs} />
+        {/* Column 2: Performance & Activity */}
+        <div className="space-y-6">
+          <TopUptimeDevices devices={topUptimeDevices} />
+          <RecentActivity recentLogs={recentLogs} />
+        </div>
+
+        {/* Column 3: Quick Actions */}
+        <div className="space-y-6">
+          <QuickActions />
+        </div>
+
       </div>
 
     </div>

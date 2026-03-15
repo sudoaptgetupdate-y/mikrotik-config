@@ -17,7 +17,7 @@ const RecentActivity = ({ recentLogs }) => {
   };
 
   return (
-    <div className="space-y-3 h-full flex flex-col">
+    <div className="space-y-3">
       <div className="flex items-center justify-between mb-1">
         <div className="flex items-center gap-2">
           <div className="w-1.5 h-5 bg-emerald-500 rounded-full"></div>

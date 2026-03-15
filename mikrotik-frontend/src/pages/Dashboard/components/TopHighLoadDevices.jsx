@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Server, Cpu, HardDrive, Thermometer, Activity, CheckCircle2 } from 'lucide-react';
+import { AlertTriangle, Cpu, HardDrive, Thermometer, Activity, CheckCircle2 } from 'lucide-react';
 
 // 🟢 รับ props thresholds เพิ่มเติม
 const TopHighLoadDevices = ({ devices, thresholds }) => {
@@ -10,15 +10,15 @@ const TopHighLoadDevices = ({ devices, thresholds }) => {
   const safeThresholds = thresholds || { cpu: 85, ram: 85, latency: 80, temp: 60, storage: 85 };
 
   return (
-    <div className="space-y-3 h-full flex flex-col">
+    <div className="space-y-3">
       <div className="flex items-center gap-2 mb-1">
         <div className="w-1.5 h-5 bg-orange-500 rounded-full"></div>
         <h3 className="text-base font-black text-slate-800">High-Load Devices</h3>
       </div>
       
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex-1 flex flex-col">
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
         {devices.length === 0 ? (
-          <div className="p-8 text-center text-slate-400 flex flex-col items-center justify-center flex-1">
+          <div className="p-8 text-center text-slate-400 flex flex-col items-center justify-center min-h-[200px]">
             <div className="w-14 h-14 bg-emerald-50 rounded-full flex items-center justify-center mb-3">
               <CheckCircle2 size={28} className="text-emerald-500" />
             </div>
@@ -26,7 +26,7 @@ const TopHighLoadDevices = ({ devices, thresholds }) => {
             <p className="text-[11px] mt-1 text-slate-400">No high-load devices detected</p>
           </div>
         ) : (
-          <div className="divide-y divide-slate-100 flex-1 overflow-y-auto custom-scrollbar">
+          <div className="divide-y divide-slate-100 max-h-[320px] overflow-y-auto custom-scrollbar">
             {devices.map((device) => (
               <div 
                 key={device.id} 
@@ -34,11 +34,16 @@ const TopHighLoadDevices = ({ devices, thresholds }) => {
                 className="p-4 hover:bg-slate-50 transition-colors flex items-center justify-between cursor-pointer group"
               >
                 <div className="flex items-center gap-3 min-w-0 pr-2">
-                  <div className="w-10 h-10 rounded-xl bg-orange-50 text-orange-600 flex items-center justify-center shrink-0 group-hover:bg-orange-500 group-hover:text-white transition-colors">
-                    <Server size={18} />
+                  {/* High-Load Alert Pulse Icon */}
+                  <div className="relative flex items-center justify-center shrink-0">
+                    <span className="absolute inline-flex h-full w-full rounded-xl bg-orange-400 opacity-25 animate-ping"></span>
+                    <div className="relative w-10 h-10 rounded-xl bg-orange-50 text-orange-600 flex items-center justify-center group-hover:bg-orange-500 group-hover:text-white transition-all duration-300">
+                      <AlertTriangle size={18} />
+                    </div>
                   </div>
+
                   <div className="min-w-0">
-                    <h4 className="text-sm font-bold text-slate-800 truncate">{device.name}</h4>
+                    <h4 className="text-sm font-bold text-slate-800 truncate group-hover:text-orange-600 transition-colors">{device.name}</h4>
                     <p className="text-xs text-slate-500 font-mono truncate">{device.currentIp}</p>
                   </div>
                 </div>
