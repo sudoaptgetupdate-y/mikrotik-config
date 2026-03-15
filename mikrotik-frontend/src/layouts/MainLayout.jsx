@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { 
   Server, Activity, Menu, X, 
-  Database, LayoutDashboard, Users, LogOut, User, Settings, FolderKanban, Wand2 
+  Database, LayoutDashboard, Users, LogOut, User, Settings, FolderKanban, Wand2, ShieldCheck 
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext'; 
 import Footer from '../components/Footer';
@@ -34,6 +34,7 @@ const MainLayout = () => {
         { to: '/groups', icon: FolderKanban, label: 'Device Groups', roles: ['SUPER_ADMIN', 'ADMIN'] }, 
         { to: '/models', icon: Database, label: 'Hardware Models', roles: ['SUPER_ADMIN', 'ADMIN'] },
         { to: '/config-builder', icon: Wand2, label: 'Config Builder', roles: ['SUPER_ADMIN', 'ADMIN', 'EMPLOYEE'] },
+        { to: '/vpn-tools', icon: ShieldCheck, label: 'VPN Tools', roles: ['SUPER_ADMIN', 'ADMIN', 'EMPLOYEE'] },
       ]
     },
     {

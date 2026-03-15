@@ -19,6 +19,7 @@ import GlobalSettings from './pages/GlobalSettings/GlobalSettings';
 
 // --- Features (ระบบ Wizard แยกเฉพาะ) ---
 import ConfigWizard from './pages/ConfigWizard/ConfigWizard';
+import VPNTools from './pages/VPNTools/VPNTools';
 
 // --- Wrapper Components ---
 const CreateDevicePage = () => {
@@ -68,6 +69,7 @@ function App() {
             <Route path="groups" element={<GroupManagement />} />
             <Route path="profile" element={<UserProfile />} />
             <Route path="config-builder" element={<StandaloneConfigPage />} />
+            <Route path="vpn-tools" element={<VPNTools />} />
 
 
             {/*หน้าที่ถูกล็อค เข้าได้เฉพาะ SUPER_ADMIN และ ADMIN เท่านั้น */}
