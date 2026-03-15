@@ -263,8 +263,8 @@ const uptimeToSeconds = (uptimeStr) => {
         
         {/* Column 1: Real-time Alerts */}
         <div className="space-y-6">
-          <TopHighLoadDevices devices={topHighLoadDevices} thresholds={thresholds} />
           <OfflineDevices devices={offlineDevicesList} />
+          <TopHighLoadDevices devices={topHighLoadDevices} thresholds={thresholds} />
         </div>
 
         {/* Column 2: Trends & Analytics */}
