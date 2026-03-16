@@ -17,15 +17,15 @@ router.get('/:id', userController.getUserById);
 router.put('/:id', userController.updateUser);    
 
 // =========================================================
-// 🔴 โซนผู้ดูแล: เฉพาะ Super Admin ที่สามารถจัดการระบบ User ได้
+// 🔴 โซนผู้ดูแล: เฉพาะ Admin และ Super Admin ที่สามารถจัดการระบบ User ได้
 // =========================================================
-const superAdminAccess = requireRole(['SUPER_ADMIN']);
+const adminAccess = requireRole(['SUPER_ADMIN', 'ADMIN']);
 
-router.get('/', superAdminAccess, userController.getUsers);      
+router.get('/', adminAccess, userController.getUsers);      
 
 // 🛡️ ดักจับข้อมูลด้วย validate(createUserSchema) ก่อนเข้า Controller
-router.post('/', superAdminAccess, validate(createUserSchema), userController.createUser);   
+router.post('/', adminAccess, validate(createUserSchema), userController.createUser);   
 
-router.delete('/:id', superAdminAccess, userController.deleteUser); 
+router.delete('/:id', adminAccess, userController.deleteUser); 
 
 module.exports = router;
