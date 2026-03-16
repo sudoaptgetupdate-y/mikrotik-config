@@ -2,13 +2,15 @@ import React, { useState } from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { 
   Server, Activity, Menu, X, 
-  Database, LayoutDashboard, Users, LogOut, User, Settings, FolderKanban, Wand2, ShieldCheck 
+  Database, LayoutDashboard, Users, LogOut, User, Settings, FolderKanban, Wand2, ShieldCheck,
+  ChevronLeft, ChevronRight
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext'; 
 import Footer from '../components/Footer';
 
 const MainLayout = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const { user, logout } = useAuth();
   const navigate = useNavigate();
 
@@ -56,8 +58,8 @@ const MainLayout = () => {
   // Render
   // ==========================================
   return (
-    <div className="flex h-screen bg-slate-50 overflow-hidden font-sans">
-      
+    <div className="flex h-screen bg-slate-50 overflow-hidden font-sans text-slate-900">
+
       {/* 📱 Mobile Menu Button */}
       <div className="md:hidden fixed top-4 right-4 z-50">
         <button 
@@ -77,28 +79,53 @@ const MainLayout = () => {
       )}
 
       {/* 🖥️ Sidebar */}
-      <div className={`fixed md:static inset-y-0 left-0 z-40 w-72 bg-slate-950 text-slate-300 transform transition-transform duration-300 ease-in-out flex flex-col shadow-2xl md:shadow-none ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}>
-        
+      <div className={`
+        fixed md:static inset-y-0 left-0 z-40 
+        w-72 ${isSidebarCollapsed ? 'md:w-20' : 'md:w-72'} 
+        bg-slate-950 text-slate-300 transform transition-all duration-300 ease-in-out flex flex-col shadow-2xl md:shadow-none 
+        ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
+      `}>
+
         {/* Sidebar Header (Logo) */}
         <div 
-          onClick={() => navigate('/dashboard')}
-          className="h-16 flex items-center justify-center px-6 bg-slate-950 border-b border-slate-800/80 cursor-pointer hover:bg-slate-900 transition-colors shrink-0"
+          className="h-16 flex items-center justify-between px-4 bg-slate-950 border-b border-slate-800/80 shrink-0 relative overflow-hidden"
         >
-          <span className="font-black text-xl text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-300 tracking-widest uppercase">
-            Mikrotik
-          </span>
-          <span className="font-medium text-lg text-slate-400 ml-2 tracking-wide">
-            Panel
-          </span>
+          <div 
+            onClick={() => navigate('/dashboard')}
+            className={`flex items-center cursor-pointer hover:opacity-80 transition-all duration-300 ${isSidebarCollapsed ? 'md:mx-auto ml-2' : 'ml-2'}`}
+          >
+            <span className="font-black text-xl text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-300 tracking-widest uppercase shrink-0">
+              M
+            </span>
+            <div className={`flex items-center transition-all duration-300 ${isSidebarCollapsed ? 'md:hidden opacity-0 w-0' : 'opacity-100 w-auto'}`}>
+              <span className="font-black text-xl text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-300 tracking-widest uppercase">
+                ikrotik
+              </span>
+              <span className="font-medium text-lg text-slate-400 ml-2 tracking-wide whitespace-nowrap">
+                Panel
+              </span>
+            </div>
+          </div>
+
+          {/* Desktop Toggle Button */}
+          <button
+            onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+            className="hidden md:flex absolute right-1 top-1/2 -translate-y-1/2 p-1.5 bg-slate-800 text-slate-400 rounded-lg hover:bg-slate-700 hover:text-white transition-colors"
+          >
+            {isSidebarCollapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
+          </button>
         </div>
 
         {/* Sidebar Navigation */}
-        <div className="flex-1 overflow-y-auto py-6 px-4 space-y-8 custom-scrollbar">
+        <div className="flex-1 overflow-y-auto py-6 px-3 space-y-8 custom-scrollbar scroll-smooth">
           {menuCategories.map((category, idx) => (
             <div key={idx}>
-              <h3 className="px-4 text-[11px] font-black text-slate-500 uppercase tracking-widest mb-3">
+              <h3 className={`px-4 text-[11px] font-black text-slate-500 uppercase tracking-widest mb-3 transition-all duration-300 ${isSidebarCollapsed ? 'md:hidden opacity-0' : 'opacity-100'}`}>
                 {category.title}
               </h3>
+              {isSidebarCollapsed && (
+                <div className="hidden md:block h-4 border-b border-slate-800/50 mb-3 mx-2"></div>
+              )}
               <div className="space-y-1">
                 {filterMenuItems(category.items).map((item) => {
                   const Icon = item.icon;
@@ -106,9 +133,11 @@ const MainLayout = () => {
                     <NavLink 
                       key={item.to} 
                       to={item.to}
+                      title={isSidebarCollapsed ? item.label : ''}
                       onClick={() => setIsMobileMenuOpen(false)}
                       className={({ isActive }) => `
-                        flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 group
+                        flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 group relative
+                        ${isSidebarCollapsed ? 'md:justify-center md:px-0' : ''}
                         ${isActive 
                           ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20' 
                           : 'text-slate-400 hover:text-white hover:bg-slate-800/50'
@@ -117,8 +146,13 @@ const MainLayout = () => {
                     >
                       {({ isActive }) => (
                         <>
-                          <Icon size={20} className={isActive ? "text-white" : "text-slate-500 group-hover:text-blue-400 transition-colors"} />
-                          {item.label}
+                          <Icon size={20} className={`shrink-0 ${isActive ? "text-white" : "text-slate-500 group-hover:text-blue-400 transition-colors"}`} />
+                          <span className={`truncate transition-all duration-300 ${isSidebarCollapsed ? 'md:hidden opacity-0 w-0' : 'opacity-100 w-auto'}`}>
+                            {item.label}
+                          </span>
+                          {isSidebarCollapsed && isActive && (
+                             <div className="hidden md:block absolute left-0 w-1 h-6 bg-white rounded-r-full"></div>
+                          )}
                         </>
                       )}
                     </NavLink>
@@ -130,40 +164,50 @@ const MainLayout = () => {
         </div>
 
         {/* Sidebar Footer (User & Logout) */}
-        <div className="p-4 bg-slate-900 border-t border-slate-800 shrink-0">
+        <div className="p-3 bg-slate-900 border-t border-slate-800 shrink-0">
            <div className="space-y-1">
             <NavLink 
               to="/profile" 
+              title={isSidebarCollapsed ? "My Profile" : ""}
               onClick={() => setIsMobileMenuOpen(false)}
-              className={({isActive}) => `flex items-center gap-3 px-4 py-3 rounded-xl text-sm transition-colors ${isActive ? 'bg-slate-800 text-white' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}
+              className={({isActive}) => `
+                flex items-center gap-3 px-4 py-3 rounded-xl text-sm transition-all duration-200
+                ${isSidebarCollapsed ? 'md:justify-center md:px-0' : ''}
+                ${isActive ? 'bg-slate-800 text-white' : 'text-slate-400 hover:text-white hover:bg-slate-800'}
+              `}
             >
-              <User size={20} /> My Profile
+              <User size={20} className="shrink-0" />
+              <span className={`transition-all duration-300 ${isSidebarCollapsed ? 'md:hidden opacity-0 w-0' : 'opacity-100 w-auto'}`}>My Profile</span>
             </NavLink>
             <button 
               onClick={() => { setIsMobileMenuOpen(false); handleLogout(); }} 
-              className="flex items-center gap-3 px-4 py-3 w-full rounded-xl text-sm text-red-400 hover:text-red-300 hover:bg-red-400/10 transition-colors"
+              title={isSidebarCollapsed ? "Logout" : ""}
+              className={`
+                flex items-center gap-3 px-4 py-3 w-full rounded-xl text-sm text-red-400 hover:text-red-300 hover:bg-red-400/10 transition-all duration-200
+                ${isSidebarCollapsed ? 'md:justify-center md:px-0' : ''}
+              `}
             >
-              <LogOut size={20} /> Logout
+              <LogOut size={20} className="shrink-0" />
+              <span className={`transition-all duration-300 ${isSidebarCollapsed ? 'md:hidden opacity-0 w-0' : 'opacity-100 w-auto'}`}>Logout</span>
             </button>
           </div>
         </div>
       </div>
-
       {/* 💻 Content Area */}
       <main className="flex-1 overflow-y-auto relative w-full min-w-0 flex flex-col bg-slate-50/50">
-        
-        {/* 1. ส่วนเนื้อหาหลัก (ลบ flex-1 ออก เพื่อไม่ให้มันดัน Footer หนีเนื้อหา) */}
+
+        {/* 1. ส่วนเนื้อหาหลัก */}
         <div className="p-4 md:p-8 max-w-7xl mx-auto w-full">
           <Outlet /> 
         </div>
-        
-        {/* 2. ส่วน Footer (ใช้ mt-8 หรือระยะที่ต้องการ เพื่อเว้นระยะจากเนื้อหาพอดีๆ) */}
-        <div className="w-full mt-8 mb-4">
+
+        {/* 2. ส่วน Footer */}
+        <div className="w-full mt-auto mb-4">
           <div className="max-w-7xl mx-auto w-full px-4 md:px-8">
             <Footer />
           </div>
         </div>
-        
+
       </main>
 
     </div>
