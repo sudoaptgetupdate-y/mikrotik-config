@@ -77,12 +77,12 @@ function App() {
               <Route path="add-device" element={<CreateDevicePage />} />
               <Route path="edit-device/:id" element={<EditDevicePage />} />
               <Route path="models" element={<ModelManager />} />
-              <Route path="users" element={<UserManagement />} />
               <Route path="audit-logs" element={<AuditLog />} />
             </Route>
 
             {/* หน้าที่เข้าได้เฉพาะ SUPER_ADMIN เท่านั้น*/}
             <Route element={<ProtectedRoute allowedRoles={['SUPER_ADMIN']} />}>
+              <Route path="users" element={<UserManagement />} />
               <Route path="settings" element={<GlobalSettings />} />
             </Route>
 
