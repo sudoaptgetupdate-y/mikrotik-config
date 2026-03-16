@@ -4,17 +4,16 @@ const router = express.Router();
 const settingController = require('../controllers/settingController');
 const { verifyToken, requireRole } = require('../middlewares/authMiddleware');
 
-// ทุก Route ในนี้ต้อง Login และเป็น SUPER_ADMIN เท่านั้น
+// ทุก Route ในนี้ต้อง Login ก่อน
 router.use(verifyToken);
-router.use(requireRole(['SUPER_ADMIN']));
 
-// GET /api/settings - ดึงข้อมูลทั้งหมด
-router.get('/', settingController.getSettings);
+// GET /api/settings - ดึงข้อมูลทั้งหมด (อนุญาตทั้ง SUPER_ADMIN และ ADMIN)
+router.get('/', requireRole(['SUPER_ADMIN', 'ADMIN']), settingController.getSettings);
 
-// 🟢 เพิ่ม Route ใหม่ สำหรับรับข้อมูลจากหน้า Auto Cleanup
-router.post('/update', settingController.upsertSetting);
+// 🟢 เพิ่ม Route ใหม่ สำหรับรับข้อมูลจากหน้า Auto Cleanup (เฉพาะ SUPER_ADMIN)
+router.post('/update', requireRole(['SUPER_ADMIN']), settingController.upsertSetting);
 
-// PUT /api/settings/:key - อัปเดตข้อมูลตาม Key (เช่น PUT /api/settings/MONITOR_IPS)
-router.put('/:key', settingController.updateSetting);
+// PUT /api/settings/:key - อัปเดตข้อมูลตาม Key (เฉพาะ SUPER_ADMIN)
+router.put('/:key', requireRole(['SUPER_ADMIN']), settingController.updateSetting);
 
 module.exports = router;
