@@ -16,9 +16,10 @@ const UserManagement = () => {
   // States
   // ==========================================
   const [searchTerm, setSearchTerm] = useState('');
+  const [activeTab, setActiveTab] = useState('active'); // 'active' or 'inactive'
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
-  const [formData, setFormData] = useState({ id: null, firstName: '', lastName: '', email: '', role: 'EMPLOYEE', password: '', confirmPassword: '' });
+  const [formData, setFormData] = useState({ id: null, firstName: '', lastName: '', email: '', role: 'EMPLOYEE', isActive: true, password: '', confirmPassword: '' });
 
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
@@ -50,12 +51,18 @@ const UserManagement = () => {
   // Filtering & Pagination Logic
   // ==========================================
   const filteredUsers = useMemo(() => {
-    return users.filter(u => 
-      `${u.firstName} ${u.lastName}`.toLowerCase().includes(searchTerm.toLowerCase()) || 
-      u.email.toLowerCase().includes(searchTerm.toLowerCase()) || 
-      u.username.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-  }, [users, searchTerm]);
+    return users.filter(u => {
+      const matchesSearch = `${u.firstName} ${u.lastName}`.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                            u.email.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                            u.username.toLowerCase().includes(searchTerm.toLowerCase());
+      
+      // แท็บ 1: แสดงทุกคนที่ยังไม่โดน Archive (ทั้งคน Active และ Inactive)
+      // แท็บ 2: แสดงคนที่โดน Archive แล้ว
+      const matchesTab = activeTab === 'active' ? !u.isArchived : u.isArchived;
+      
+      return matchesSearch && matchesTab;
+    });
+  }, [users, searchTerm, activeTab]);
 
   const totalPages = Math.ceil(filteredUsers.length / itemsPerPage) || 1;
   const paginatedUsers = useMemo(() => {
@@ -75,29 +82,62 @@ const UserManagement = () => {
   // Handlers (Actions)
   // ==========================================
   const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    const { name, value, type, checked } = e.target;
+    setFormData(prev => ({ ...prev, [name]: type === 'checkbox' ? checked : value }));
   };
 
   const openAddModal = () => {
-    setFormData({ id: null, firstName: '', lastName: '', email: '', role: 'EMPLOYEE', password: '', confirmPassword: '' });
+    setFormData({ id: null, firstName: '', lastName: '', email: '', role: 'EMPLOYEE', isActive: true, isArchived: false, password: '', confirmPassword: '' });
     setIsEditing(false);
     setIsModalOpen(true);
   };
 
   const openEditModal = (user) => {
-    setFormData({ id: user.id, firstName: user.firstName, lastName: user.lastName, email: user.email, role: user.role, password: '', confirmPassword: '' });
+    setFormData({ id: user.id, firstName: user.firstName, lastName: user.lastName, email: user.email, role: user.role, isActive: user.isActive, isArchived: user.isArchived, password: '', confirmPassword: '' });
     setIsEditing(true);
     setIsModalOpen(true);
   };
 
+  const handleToggleStatus = async (user) => {
+    const newStatus = !user.isActive;
+    const updatePromise = userService.updateUser(user.id, { isActive: newStatus });
+    
+    toast.promise(updatePromise, {
+      loading: 'กำลังอัปเดตสถานะ...',
+      success: `เปลี่ยนสถานะเป็น ${newStatus ? 'Active' : 'Inactive'} เรียบร้อย!`,
+      error: (err) => err.response?.data?.error || "ไม่สามารถเปลี่ยนสถานะได้"
+    });
+
+    try {
+      await updatePromise;
+      queryClient.invalidateQueries({ queryKey: ['users'] });
+    } catch (error) {}
+  };
+
+  const handleRestoreUser = async (user) => {
+    const updatePromise = userService.updateUser(user.id, { isArchived: false, isActive: true });
+    
+    toast.promise(updatePromise, {
+      loading: 'กำลังกู้คืนบัญชี...',
+      success: 'กู้คืนบัญชีผู้ใช้เรียบร้อย!',
+      error: (err) => err.response?.data?.error || "กู้คืนบัญชีไม่สำเร็จ"
+    });
+
+    try {
+      await updatePromise;
+      queryClient.invalidateQueries({ queryKey: ['users'] });
+    } catch (error) {}
+  };
+
   const handleDelete = async (user) => {
     const result = await Swal.fire({
-      title: 'ยืนยันการลบผู้ใช้งาน?',
-      text: `คุณแน่ใจหรือไม่ว่าต้องการลบผู้ใช้ "${user.firstName} ${user.lastName}"?`,
+      title: user.isArchived ? 'ยืนยันการลบถาวร?' : 'ยืนยันการลบผู้ใช้งาน?',
+      text: user.isArchived 
+        ? `ระวัง! ข้อมูลของ "${user.firstName}" จะถูกลบออกจากฐานข้อมูลอย่างถาวรและไม่สามารถกู้คืนได้`
+        : `คุณแน่ใจหรือไม่ว่าต้องการลบผู้ใช้ "${user.firstName} ${user.lastName}"?`,
       icon: 'warning',
       showCancelButton: true,
-      confirmButtonText: 'ใช่, ลบเลย!',
+      confirmButtonText: user.isArchived ? 'ใช่, ลบถาวร!' : 'ใช่, ลบเลย!',
       cancelButtonText: 'ยกเลิก',
       buttonsStyling: false,
       customClass: {
@@ -114,7 +154,7 @@ const UserManagement = () => {
       const deletePromise = userService.deleteUser(user.id);
       toast.promise(deletePromise, {
         loading: 'Deleting user...',
-        success: 'ลบผู้ใช้สำเร็จ!',
+        success: (res) => res.type === 'SOFT_DELETE' ? 'ย้ายผู้ใช้ไปห้องเก็บประวัติ (Archived) เนื่องจากมีข้อมูลผูกพัน' : 'ลบผู้ใช้สำเร็จ!',
         error: (err) => err.response?.data?.error || "ลบผู้ใช้ไม่สำเร็จ"
       });
       try {
@@ -132,7 +172,7 @@ const UserManagement = () => {
       if (!isValidPassword) return toast.error("รหัสผ่านไม่ตรงตามเงื่อนไขความปลอดภัย");
     }
 
-    const payload = isEditing ? { firstName: formData.firstName, lastName: formData.lastName, role: formData.role, ...(formData.password && {password: formData.password}) } : formData;
+    const payload = isEditing ? { firstName: formData.firstName, lastName: formData.lastName, role: formData.role, isActive: formData.isActive, isArchived: formData.isArchived, ...(formData.password && {password: formData.password}) } : formData;
     const savePromise = isEditing ? userService.updateUser(formData.id, payload) : userService.createUser(payload);
 
     toast.promise(savePromise, {
@@ -153,7 +193,7 @@ const UserManagement = () => {
   // ==========================================
   // 🟢 เปลี่ยนจาก pb-10 เป็น pb-28 เพื่อเว้นที่ให้ Pagination ลอยได้
   return (
-    <div className="space-y-6                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 animate-in fade-in duration-500">
+    <div className="space-y-6 animate-in fade-in duration-500">
       
       {/* 1. Page Header (แบบ Classic & Clean) */}
       <div className="space-y-4">
@@ -191,20 +231,53 @@ const UserManagement = () => {
         <hr className="border-slate-200 mt-2" />
       </div>
 
-      {/* 2. Control Toolbar (Search & Filters) */}
-      <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-sm flex flex-col sm:flex-row justify-between items-center gap-4">
-        <div className="relative w-full sm:max-w-md">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-          <input 
-            type="text" 
-            placeholder="ค้นหาชื่อ, อีเมล, หรือ Username..." 
-            className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-sm" 
-            value={searchTerm} 
-            onChange={(e) => setSearchTerm(e.target.value)} 
-          />
+      {/* 2. Control Toolbar (Tabs & Search) */}
+      <div className="space-y-4">
+        {/* Tab Selection */}
+        <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl w-max border border-slate-200 shadow-inner">
+          <button 
+            onClick={() => { setActiveTab('active'); setCurrentPage(1); }}
+            className={`px-6 py-2 rounded-lg text-sm font-bold transition-all ${
+              activeTab === 'active' 
+              ? 'bg-white text-blue-600 shadow-sm ring-1 ring-slate-200' 
+              : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50/50'
+            }`}
+          >
+            Users
+            <span className={`ml-2 px-1.5 py-0.5 rounded-md text-[10px] ${activeTab === 'active' ? 'bg-blue-100 text-blue-700' : 'bg-slate-200 text-slate-500'}`}>
+              {users.filter(u => !u.isArchived).length}
+            </span>
+          </button>
+          <button 
+            onClick={() => { setActiveTab('inactive'); setCurrentPage(1); }}
+            className={`px-6 py-2 rounded-lg text-sm font-bold transition-all ${
+              activeTab === 'inactive' 
+              ? 'bg-white text-orange-600 shadow-sm ring-1 ring-slate-200' 
+              : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50/50'
+            }`}
+          >
+            Archived
+            <span className={`ml-2 px-1.5 py-0.5 rounded-md text-[10px] ${activeTab === 'inactive' ? 'bg-orange-100 text-orange-700' : 'bg-slate-200 text-slate-500'}`}>
+              {users.filter(u => u.isArchived).length}
+            </span>
+          </button>
         </div>
-        <div className="text-sm text-slate-500 font-medium px-2">
-          พบทั้งหมด <span className="text-slate-800 font-bold">{filteredUsers.length}</span> บัญชีผู้ใช้
+
+        {/* Search Toolbar */}
+        <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-sm flex flex-col sm:flex-row justify-between items-center gap-4">
+          <div className="relative w-full sm:max-w-md">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+            <input 
+              type="text" 
+              placeholder={`ค้นหาใน ${activeTab === 'active' ? 'รายชื่อผู้ใช้' : 'จดหมายเหตุ'}...`} 
+              className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-sm" 
+              value={searchTerm} 
+              onChange={(e) => setSearchTerm(e.target.value)} 
+            />
+          </div>
+          <div className="text-sm text-slate-500 font-medium px-2">
+            พบ <span className={`font-bold ${activeTab === 'active' ? 'text-blue-600' : 'text-orange-600'}`}>{filteredUsers.length}</span> รายการ
+          </div>
         </div>
       </div>
 
@@ -216,6 +289,9 @@ const UserManagement = () => {
             loading={loading} 
             onEdit={openEditModal} 
             onDelete={handleDelete} 
+            onToggleStatus={handleToggleStatus}
+            onRestore={handleRestoreUser}
+            isArchivedTab={activeTab === 'inactive'}
           />
         </div>
       </div>

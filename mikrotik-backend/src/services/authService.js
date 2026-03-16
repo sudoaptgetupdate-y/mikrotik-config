@@ -9,12 +9,23 @@ const DUMMY_HASH = bcrypt.hashSync('dummy_password_for_timing_attack', 10);
 
 exports.login = async (identifier, password) => {
   const user = await prisma.user.findFirst({
-    where: { OR: [{ email: identifier }, { username: identifier }] }
+    where: { 
+      OR: [
+        { email: identifier }, 
+        { username: identifier }
+      ] 
+    }
   });
 
-  if (!user) {
+  // เช็คว่ามี User ไหม และ Active หรือไม่ หรือถูก Archive หรือไม่
+  if (!user || user.isActive === false || user.isArchived === true) {
     await bcrypt.compare(password, DUMMY_HASH); 
-    throw new Error("UNAUTHORIZED: Invalid username or password");
+    let errorMsg = "UNAUTHORIZED: Invalid username or password";
+    if (user) {
+      if (user.isArchived) errorMsg = "UNAUTHORIZED: This account has been deleted/archived.";
+      else if (!user.isActive) errorMsg = "UNAUTHORIZED: Your account has been deactivated. Please contact admin.";
+    }
+    throw new Error(errorMsg);
   }
 
   const isMatch = await bcrypt.compare(password, user.password);
@@ -45,7 +56,7 @@ exports.refreshAccessToken = async (refreshToken) => {
   try {
     const decoded = jwt.verify(refreshToken, REFRESH_SECRET);
     const user = await prisma.user.findUnique({ where: { id: decoded.id } });
-    if (!user) throw new Error("UNAUTHORIZED: User not found");
+    if (!user || user.isActive === false || user.isArchived === true) throw new Error("UNAUTHORIZED: User not found or inactive/archived");
 
     // ออก Access Token ใบใหม่ให้
     const accessToken = jwt.sign(

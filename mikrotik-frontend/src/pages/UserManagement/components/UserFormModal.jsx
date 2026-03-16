@@ -75,15 +75,35 @@ const UserFormModal = ({
                 {!isEditing && <p className="text-[10px] text-slate-400 mt-1">* ระบบจะสร้างจากอีเมลอัตโนมัติ</p>}
               </div>
             </div>
-            <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">ระดับสิทธิ์ (Role) *</label>
-              <div className="relative">
-                <Shield size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                <select name="role" value={formData.role} onChange={handleInputChange} className="w-full border border-slate-200 rounded-lg pl-9 p-2.5 text-sm focus:ring-2 focus:ring-blue-100 bg-white">
-                  <option value="SUPER_ADMIN">Super Admin (จัดการได้ทุกอย่าง)</option>
-                  <option value="ADMIN">Admin (จัดการ Employee และอุปกรณ์ได้)</option>
-                  <option value="EMPLOYEE">Employee (ดูและตั้งค่าอุปกรณ์ของตัวเอง)</option>
-                </select>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">ระดับสิทธิ์ (Role) *</label>
+                <div className="relative">
+                  <Shield size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <select name="role" value={formData.role} onChange={handleInputChange} className="w-full border border-slate-200 rounded-lg pl-9 p-2.5 text-sm focus:ring-2 focus:ring-blue-100 bg-white font-medium text-slate-700">
+                    <option value="SUPER_ADMIN">Super Admin (จัดการได้ทุกอย่าง)</option>
+                    <option value="ADMIN">Admin (จัดการ Employee และอุปกรณ์ได้)</option>
+                    <option value="EMPLOYEE">Employee (ดูและตั้งค่าอุปกรณ์ของตัวเอง)</option>
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">สถานะการใช้งาน (Status)</label>
+                <div className="flex items-center h-[42px] px-3 border border-slate-200 rounded-lg bg-slate-50/50">
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input 
+                      type="checkbox" 
+                      name="isActive" 
+                      checked={formData.isActive} 
+                      onChange={handleInputChange} 
+                      className="sr-only peer" 
+                    />
+                    <div className="w-11 h-6 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-500"></div>
+                    <span className={`ml-3 text-sm font-bold ${formData.isActive ? 'text-green-600' : 'text-slate-500'}`}>
+                      {formData.isActive ? 'ACTIVE' : 'INACTIVE'}
+                    </span>
+                  </label>
+                </div>
               </div>
             </div>
             <div className="border-t border-slate-100 pt-4 sm:pt-5">

@@ -42,14 +42,14 @@ exports.getUsers = async (callerRole) => {
   const roleFilter = callerRole === 'ADMIN' ? { role: 'EMPLOYEE' } : {};
   return await prisma.user.findMany({
     where: roleFilter,
-    select: { id: true, firstName: true, lastName: true, email: true, username: true, role: true, createdAt: true }
+    select: { id: true, firstName: true, lastName: true, email: true, username: true, role: true, isActive: true, isArchived: true, createdAt: true }
   });
 };
 
 exports.getUserById = async (id, callerId, callerRole) => {
   const user = await prisma.user.findUnique({
     where: { id: parseInt(id) },
-    select: { id: true, username: true, firstName: true, lastName: true, email: true, role: true }
+    select: { id: true, username: true, firstName: true, lastName: true, email: true, role: true, isActive: true, isArchived: true }
   });
 
   if (!user) throw new Error("NOT_FOUND");
@@ -60,7 +60,7 @@ exports.getUserById = async (id, callerId, callerRole) => {
 };
 
 exports.updateUser = async (id, callerId, callerRole, updateDataInput) => {
-  const { firstName, lastName, currentPassword, newPassword, role, status } = updateDataInput;
+  const { firstName, lastName, currentPassword, newPassword, role, isActive, isArchived } = updateDataInput;
 
   const targetUser = await prisma.user.findUnique({ where: { id: parseInt(id) } });
   if (!targetUser) throw new Error("NOT_FOUND");
@@ -75,35 +75,73 @@ exports.updateUser = async (id, callerId, callerRole, updateDataInput) => {
 
   if (newPassword) {
     if (!validatePassword(newPassword)) throw new Error("BAD_REQUEST: Password must be at least 8 characters long and contain uppercase, lowercase, number, and special character.");
-    if (!currentPassword) throw new Error("BAD_REQUEST: Current password is required");
     
-    const isMatch = await bcrypt.compare(currentPassword, targetUser.password);
-    if (!isMatch) throw new Error("BAD_REQUEST: Incorrect current password");
+    // ถ้าแก้รหัสผ่านตัวเอง ต้องเช็ครหัสผ่านเก่า
+    if (isUpdatingSelf) {
+      if (!currentPassword) throw new Error("BAD_REQUEST: Current password is required");
+      const isMatch = await bcrypt.compare(currentPassword, targetUser.password);
+      if (!isMatch) throw new Error("BAD_REQUEST: Incorrect current password");
+    }
     
     const salt = await bcrypt.genSalt(10);
     updateData.password = await bcrypt.hash(newPassword, salt);
   }
 
-  if (role || status) {
+  if (role !== undefined || isActive !== undefined || isArchived !== undefined) {
     if (isUpdatingSelf && role && role !== targetUser.role) throw new Error("FORBIDDEN: You cannot change your own role.");
     if (role && role !== targetUser.role) {
       if (!canManageRole(callerRole, role)) throw new Error("FORBIDDEN: You don't have permission to assign this role.");
       updateData.role = role;
     }
-    if (status) updateData.status = status;
+    if (isActive !== undefined) {
+      if (isUpdatingSelf && isActive === false) throw new Error("FORBIDDEN: You cannot deactivate your own account.");
+      updateData.isActive = isActive;
+    }
+    if (isArchived !== undefined) {
+      if (isUpdatingSelf && isArchived === true) throw new Error("FORBIDDEN: You cannot archive your own account.");
+      updateData.isArchived = isArchived;
+    }
   }
 
   return await prisma.user.update({
     where: { id: parseInt(id) },
     data: updateData,
-    select: { id: true, username: true, firstName: true, lastName: true, email: true, role: true }
+    select: { id: true, username: true, firstName: true, lastName: true, email: true, role: true, isActive: true, isArchived: true }
   });
 };
 
 exports.deleteUser = async (id, callerRole) => {
-  const targetUser = await prisma.user.findUnique({ where: { id: parseInt(id) } });
+  const userId = parseInt(id);
+  const targetUser = await prisma.user.findUnique({ 
+    where: { id: userId },
+    include: {
+      _count: {
+        select: {
+          managedDevices: true,
+          configs: true,
+          logs: true
+        }
+      }
+    }
+  });
+
   if (!targetUser) throw new Error("NOT_FOUND");
   if (!canManageRole(callerRole, targetUser.role)) throw new Error("FORBIDDEN: You don't have permission to delete this user.");
 
-  await prisma.user.delete({ where: { id: parseInt(id) } });
+  const hasRelatedData = targetUser._count.managedDevices > 0 || 
+                         targetUser._count.configs > 0 || 
+                         targetUser._count.logs > 0;
+
+  if (hasRelatedData) {
+    // Soft Delete: ย้ายไปเก็บใน Archive (Archive จะบังคับ isActive: false ไปด้วยเพื่อความปลอดภัย)
+    await prisma.user.update({
+      where: { id: userId },
+      data: { isArchived: true, isActive: false }
+    });
+    return { message: "User has related data. Archived instead of deleted.", type: "SOFT_DELETE" };
+  } else {
+    // Hard Delete: ลบออกจากฐานข้อมูลจริงๆ
+    await prisma.user.delete({ where: { id: userId } });
+    return { message: "User deleted successfully.", type: "HARD_DELETE" };
+  }
 };
