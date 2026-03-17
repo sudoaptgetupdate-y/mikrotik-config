@@ -10,44 +10,56 @@ exports.getSettings = async (req, res) => {
 
 exports.testAIConnection = async (req, res) => {
   let { apiKey } = req.body;
-
   if (!apiKey) return res.status(400).json({ error: "API Key is required" });
-
-  // 🧹 Clean API Key
   apiKey = apiKey.trim().replace(/^"|"$/g, '');
 
-  console.log(`🤖 >>> TESTING GEMINI V1BETA <<< (Model: gemini-1.5-flash)`);
+  console.log(`🤖 >>> DIAGNOSING GEMINI API <<<`);
 
   try {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+    // 1. ลองดึงรายชื่อ Models ทั้งหมดที่ Key นี้เข้าถึงได้
+    const listUrl = `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`;
+    const listResponse = await axios.get(listUrl, { timeout: 10000 });
     
-    const response = await axios.post(url, {
-      contents: [{ parts: [{ text: "Hi, respond with 'OK'" }] }]
+    const availableModels = listResponse.data.models || [];
+    console.log("✅ Available Models for this Key:", availableModels.map(m => m.name).join(", "));
+
+    // 2. ตรวจสอบว่ามี gemini-1.5-flash หรือไม่
+    const hasFlash = availableModels.some(m => m.name.includes("gemini-1.5-flash"));
+    const modelToUse = hasFlash ? "models/gemini-1.5-flash" : availableModels[0]?.name;
+
+    if (!modelToUse) {
+      throw new Error("No models available for this API Key. Please enable Generative Language API in Google Cloud Console.");
+    }
+
+    // 3. ทดสอบยิงจริงด้วย Model ที่หาเจอ
+    const testUrl = `https://generativelanguage.googleapis.com/v1beta/${modelToUse}:generateContent?key=${apiKey}`;
+    const response = await axios.post(testUrl, {
+      contents: [{ parts: [{ text: "Hi" }] }]
     }, { 
-      timeout: 15000,
+      timeout: 10000,
       headers: { 'Content-Type': 'application/json' }
     });
     
-    if (response.status === 200 && response.data.candidates) {
+    if (response.status === 200) {
       return res.json({ 
         success: true, 
-        message: "เชื่อมต่อกับ Gemini API สำเร็จ! AI พร้อมใช้งานแล้วครับ" 
+        message: `เชื่อมต่อสำเร็จ! ใช้รุ่น: ${modelToUse.replace('models/', '')}` 
       });
     }
     
-    res.status(400).json({ error: "Gemini API returned unexpected response" });
+    res.status(400).json({ error: "Unexpected response from Gemini" });
   } catch (error) {
-    console.error("❌ Test Gemini Connection Error Details:");
+    console.error("❌ Diagnostic Error:");
     if (error.response) {
       console.error(` - Status: ${error.response.status}`);
-      console.error(` - Google Data:`, JSON.stringify(error.response.data));
+      console.error(` - Data:`, JSON.stringify(error.response.data));
     } else {
       console.error(` - Message: ${error.message}`);
     }
 
-    let errorMsg = "ไม่สามารถเชื่อมต่อกับ Google AI ได้";
-    if (error.response && error.response.status === 404) errorMsg = "ไม่พบ Model หรือ URL API ผิดพลาด (Google 404)";
-    if (error.response && error.response.status === 400) errorMsg = "API Key ไม่ถูกต้อง หรือพารามิเตอร์ผิดพลาด";
+    let errorMsg = error.message;
+    if (error.response && error.response.status === 403) errorMsg = "API Key นี้ยังไม่ได้เปิดสิทธิ์ Generative Language API หรือถูกระงับ";
+    if (error.response && error.response.status === 404) errorMsg = "ไม่พบ Model ที่ต้องการใช้งานบน Google Cloud โปรเจกต์นี้";
 
     res.status(500).json({ error: errorMsg });
   }
