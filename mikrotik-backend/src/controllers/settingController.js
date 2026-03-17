@@ -21,7 +21,7 @@ exports.testAIConnection = async (req, res) => {
   try {
     // 1. ทดสอบยิงไปที่ /api/tags
     const response = await axios.get(`${url}/api/tags`, { 
-      timeout: 8000
+      timeout: 15000, 
       // proxy: false ถูกเอาออกตามความต้องการของผู้ใช้ เพื่อให้ใช้งานผ่าน Proxy ระบบได้
     });
     

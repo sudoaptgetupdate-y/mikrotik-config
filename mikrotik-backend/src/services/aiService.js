@@ -71,7 +71,7 @@ exports.askAI = async (userMessage, systemContext = "") => {
     };
 
     const response = await axios.post(`${ollamaUrl}/api/generate`, payload, { 
-      timeout: 45000
+      timeout: 90000 // ขยายเป็น 90 วินาที สำหรับ CPU Inference
       // proxy: false ถูกเอาออกตามความต้องการของผู้ใช้ เพื่อให้ใช้งานผ่าน Proxy ระบบได้
     });
 
