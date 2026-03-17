@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Terminal, Smartphone, Copy, RefreshCw, Download } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { generateWireguardKeyPair } from '../../../utils/wireguardGenerator';
+import { logService } from '../../../services/logService';
 
 const ClientToSiteTab = () => {
   const [formData, setFormData] = useState({
@@ -69,6 +70,13 @@ AllowedIPs = ${allowedIPs}
 Endpoint = ${formData.serverPublicIp}:${port}`;
 
     setGeneratedConfig({ serverScript, clientConfig });
+    
+    // ✅ บันทึก Log การ Generate VPN
+    logService.createActivityLog(
+      'GENERATE_VPN', 
+      `Generate สคริปต์ WireGuard (Client-to-Site) สำหรับ Client: ${formData.clientName || 'N/A'}`
+    );
+
     toast.success('เจนสคริปต์สำเร็จ!');
   };
 

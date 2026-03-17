@@ -1,4 +1,5 @@
 const settingService = require('../services/settingService');
+const logService = require('../services/logService');
 const prisma = require('../config/prisma');
 
 exports.getSettings = async (req, res) => {
@@ -8,8 +9,18 @@ exports.getSettings = async (req, res) => {
 
 exports.updateSetting = async (req, res) => {
   const { value, description } = req.body;
-  const result = await settingService.updateSetting(req.params.key, value, description, req.user.id);
-  res.json({ message: `${req.params.key} updated successfully`, data: result });
+  const key = req.params.key;
+  
+  const result = await settingService.updateSetting(key, value, description, req.user.id);
+  
+  await logService.createActivityLog({
+    userId: req.user.id,
+    action: 'UPDATE_SETTING',
+    details: `แก้ไขการตั้งค่าส่วนกลาง: ${key}`,
+    ipAddress: req.ip
+  });
+
+  res.json({ message: `${key} updated successfully`, data: result });
 };
 
 // 🟢 เพิ่มฟังก์ชันใหม่ สำหรับบันทึกค่า Auto Cleanup (Upsert)
@@ -22,6 +33,13 @@ exports.upsertSetting = async (req, res) => {
       where: { key: key },
       update: { value: value, description: description || '' },
       create: { key: key, value: value, description: description || '' }
+    });
+
+    await logService.createActivityLog({
+      userId: req.user.id,
+      action: 'UPDATE_SETTING',
+      details: `แก้ไขการตั้งค่าส่วนกลาง (Upsert): ${key}`,
+      ipAddress: req.ip
     });
     
     res.json(updated);

@@ -1,5 +1,21 @@
 const prisma = require('../config/prisma');
 
+exports.createActivityLog = async ({ userId, action, details, ipAddress }) => {
+  try {
+    return await prisma.activityLog.create({
+      data: {
+        userId,
+        action,
+        details: typeof details === 'object' ? JSON.stringify(details) : details,
+        ipAddress
+      }
+    });
+  } catch (error) {
+    console.error('Failed to create activity log:', error);
+    // ไม่ throw error เพื่อไม่ให้ขัดจังหวะการทำงานหลักของระบบ
+  }
+};
+
 exports.getActivityLogs = async (page, limit, search, startDate, endDate) => {
   const skip = (page - 1) * limit;
   let whereClause = {};

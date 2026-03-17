@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Terminal, Copy, RefreshCw, Download, Network, PlusCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { generateWireguardKeyPair } from '../../../utils/wireguardGenerator';
+import { logService } from '../../../services/logService';
 
 const SiteToSiteTab = () => {
     const [setupMode, setSetupMode] = useState('new'); // 'new' or 'add-branch'
@@ -84,6 +85,13 @@ add dst-address=${sideA.lan || '192.168.1.0/24'} gateway=${(sideA.address || '10
 add action=accept chain=input dst-port=${listenPort} protocol=udp comment="Allow WireGuard VPN Incoming"`;
 
         setGeneratedResult({ scriptA, scriptB });
+
+        // ✅ บันทึก Log การ Generate VPN Site-to-Site
+        logService.createActivityLog(
+            'GENERATE_VPN', 
+            `Generate สคริปต์ WireGuard (Site-to-Site) ระหว่าง: ${formData.sideA.name || 'Side A'} และ ${formData.sideB.name || 'Side B'}`
+        );
+
         toast.success('เจนสคริปต์ Site-to-Site สำเร็จ!');
     };
 

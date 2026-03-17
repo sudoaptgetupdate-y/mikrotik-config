@@ -3,6 +3,7 @@ import { CheckCircle, ArrowRight, ArrowLeft } from 'lucide-react';
 import apiClient from '../../utils/apiClient';
 import toast from 'react-hot-toast';
 import { useQueryClient } from '@tanstack/react-query';
+import { logService } from '../../services/logService';
 
 // Import Modular Components
 import Step1_ModelSelect from './components/Step1_ModelSelect';
@@ -71,6 +72,16 @@ const ConfigWizard = ({ mode = 'create', initialData, onFinish }) => {
 
   const activeSteps = getActiveSteps();
   const currentStepData = activeSteps[currentStepIndex];
+
+  // ✅ บันทึก Log เมื่อถึงหน้าสุดท้าย (Summary) ในโหมด Standalone
+  useEffect(() => {
+    if (currentStepData?.id === 'summary' && mode === 'standalone') {
+      logService.createActivityLog(
+        'GENERATE_CONFIG', 
+        `Generate สคริปต์จาก Config Builder (Standalone) สำหรับโมเดล: ${selectedModel?.name || 'N/A'}`
+      );
+    }
+  }, [currentStepData?.id, mode, selectedModel]);
 
   useEffect(() => {
     const initWizard = async () => {

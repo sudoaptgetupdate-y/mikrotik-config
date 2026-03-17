@@ -1,5 +1,16 @@
 const logService = require('../services/logService');
 
+exports.createActivityLog = async (req, res) => {
+  const { action, details } = req.body;
+  const result = await logService.createActivityLog({
+    userId: req.user.id,
+    action: action || 'GENERATE_CONFIG',
+    details,
+    ipAddress: req.ip
+  });
+  res.status(201).json(result);
+};
+
 exports.getActivityLogs = async (req, res) => {
   const page = parseInt(req.query.page) || 1;
   const limit = parseInt(req.query.limit) || 10;

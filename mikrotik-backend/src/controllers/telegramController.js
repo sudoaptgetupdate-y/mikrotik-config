@@ -126,44 +126,49 @@ const generateGroupReportText = (group, isDaily = false, thresholds) => {
   const totalOnline = onlineHealthy.length + totalWarning;
   const totalOffline = offlineUnack.length + offlineAck.length;
 
-  const title = isDaily ? "🗓️ <b>รายงานสถานะระบบประจำวัน</b>" : "📊 <b>รายงานสถานะระบบ</b>";
-  let msg = `${title}\n(กลุ่ม: ${group.name})\n\n`;
+  const title = isDaily ? "🗓 <b>รายงานสถานะระบบประจำวัน</b>" : "📊 <b>รายงานสถานะระบบภาพรวม</b>";
+  const separator = "━━━━━━━━━━━━━━━━━━";
   
-  msg += `📦 <b>อุปกรณ์ทั้งหมด: ${devices.length} รายการ</b>\n`;
-  msg += `🟢 <b>Online: ${totalOnline} รายการ</b>\n`;
-  msg += `      ├─ ✅ ทำงานปกติ: ${onlineHealthy.length}\n`;
-  msg += `      └─ ⚠️ พบปัญหา: ${totalWarning} ${warningAck.length > 0 ? `<i>(Ack แล้ว ${warningAck.length})</i>` : ''}\n`;
+  let msg = `${title}\n<code>กลุ่ม: ${group.name}</code>\n${separator}\n\n`;
   
-  msg += `🔴 <b>Offline: ${totalOffline} รายการ</b>\n`;
+  msg += `📍 <b><u>สรุปสถานะอุปกรณ์</u></b>\n`;
+  msg += `📦 ทั้งหมด: <b>${devices.length}</b> รายการ\n`;
+  msg += `🟢 Online: <b>${totalOnline}</b> รายการ\n`;
+  msg += `      ├ ✅ ปกติ: <code>${onlineHealthy.length}</code>\n`;
+  msg += `      └ ⚠️ ปัญหา: <code>${totalWarning}</code> ${warningAck.length > 0 ? `<i>(Ack: ${warningAck.length})</i>` : ''}\n`;
+  
+  msg += `🔴 Offline: <b>${totalOffline}</b> รายการ\n`;
   if (totalOffline > 0) {
-    msg += `      ├─ 🚨 ยังไม่รับทราบ: ${offlineUnack.length}\n`;
-    msg += `      └─ ⌛ รับทราบแล้ว: ${offlineAck.length}\n`;
+    msg += `      ├ 🚨 ใหม่: <code>${offlineUnack.length}</code>\n`;
+    msg += `      └ ⌛ รับทราบ: <code>${offlineAck.length}</code>\n`;
   }
 
-  msg += `\n`;
+  msg += `\n${separator}\n`;
   
-  msg += `🚨 <b>อุปกรณ์ที่พบปัญหา (ต้องตรวจสอบด่วน):</b>\n`;
+  msg += `🚨 <b><u>ปัญหาที่ต้องตรวจสอบด่วน</u></b>\n`;
   if (warningUnack.length === 0 && offlineUnack.length === 0) {
-    msg += `✅ <i>ไม่พบอุปกรณ์ที่มีปัญหา (ที่ยังไม่ได้รับทราบ)</i>\n`;
+    msg += `✅ <i>ระบบทำงานปกติ ไม่พบปัญหาใหม่</i>\n`;
   } else {
     offlineUnack.forEach(o => {
-      msg += `🔻 <b>${o.name}</b> (${o.circuitId || '-'}): <i>[OFFLINE] ขาดการติดต่อ</i>\n`;
+      msg += `• <b>${o.name}</b>\n  └ <code>[OFFLINE] ขาดการติดต่อ</code>\n`;
     });
     warningUnack.forEach(p => {
-      msg += `🔻 <b>${p.name}</b> (${p.circuit || '-'}): <i>${p.issues}</i>\n`;
+      msg += `• <b>${p.name}</b>\n  └ <code>⚠️ ${p.issues}</code>\n`;
     });
   }
 
   if (warningAck.length > 0 || offlineAck.length > 0) {
-    msg += `\n⌛ <b>อุปกรณ์ที่รับทราบปัญหาแล้ว (กำลังดำเนินการ):</b>\n`;
+    msg += `\n⌛ <b><u>อยู่ระหว่างดำเนินการ (Ack)</u></b>\n`;
     offlineAck.forEach(o => {
-      msg += `🔸 <b>${o.name}</b> (${o.circuitId || '-'}): <i>[OFFLINE] ขาดการติดต่อ</i>\n`;
+      msg += `• <b>${o.name}</b>\n  └ <code>[OFFLINE] รับทราบแล้ว</code>\n`;
     });
     warningAck.forEach(a => {
-      msg += `🔸 <b>${a.name}</b> (${a.circuit || '-'}): <i>${a.issues}</i>\n`;
+      msg += `• <b>${a.name}</b>\n  └ <code>🔸 ${a.issues}</code>\n`;
     });
   }
-  msg += `\n\n🌐 <b>เข้าสู่ระบบ:</b> https://mikrotik.ntnakhon.com`;
+
+  msg += `\n${separator}\n`;
+  msg += `🌐 <b>Dashboard:</b> <a href="https://mikrotik.ntnakhon.com">คลิกเพื่อจัดการ</a>`;
 
   return msg;
 };
@@ -238,47 +243,45 @@ exports.handleWebhook = async (req, res) => {
     // --- คำสั่ง /offline ---
     if (command === '/offline' || command.startsWith('/offline@')) {
       const offlineDevices = devices.filter(d => getOfflineMinutes(d.lastSeen) > 3);
+      const separator = "━━━━━━━━━━━━━━━━━━";
 
       if (offlineDevices.length === 0) {
-        await sendTelegramAlert(group.telegramBotToken, chatId, "🟢 <b>สถานะปกติ:</b> ไม่มีอุปกรณ์ใด Offline ในขณะนี้ครับ");
+        await sendTelegramAlert(group.telegramBotToken, chatId, "🟢 <b>สถานะปกติ:</b>\nไม่มีอุปกรณ์ใด Offline ในขณะนี้ครับ");
         return;
       }
 
       offlineDevices.sort((a, b) => getOfflineMinutes(b.lastSeen) - getOfflineMinutes(a.lastSeen));
 
-      let msg = `🔴 <b>สรุปอุปกรณ์ที่ขาดการติดต่อ (Offline)</b>\n`;
-      msg += `พบจำนวน: <b>${offlineDevices.length}</b> อุปกรณ์\n\n`;
+      let msg = `🔴 <b><u>สรุปอุปกรณ์ที่ Offline</u></b>\n`;
+      msg += `พบทั้งหมด: <b>${offlineDevices.length}</b> รายการ\n${separator}\n\n`;
 
       offlineDevices.forEach((d, index) => {
         const mins = getOfflineMinutes(d.lastSeen);
         const timeStr = d.lastSeen ? formatTimeAgo(mins) : "ไม่เคยเชื่อมต่อ";
-        msg += `${index + 1}. <b>${d.name}</b>\n   ├ 🆔 วงจร: <b>${d.circuitId || '-'}</b>\n   └ ⏱️ หายไป: <i>${timeStr}</i>\n\n`;
+        msg += `${index + 1}. <b>${d.name}</b>\n   ├ 🆔 วงจร: <code>${d.circuitId || '-'}</code>\n   └ ⏱️ หายไป: <i>${timeStr}</i>\n\n`;
       });
-      msg += `\n🌐 <b>เข้าสู่ระบบ:</b> https://mikrotik.ntnakhon.com`;
+      msg += `${separator}\n🌐 <b>Dashboard:</b> <a href="https://mikrotik.ntnakhon.com">คลิกเพื่อจัดการ</a>`;
 
       await sendTelegramAlert(group.telegramBotToken, chatId, msg);
       return;
     }
 
-    // --- 🟢 คำสั่ง /status (อัปเกรดให้รองรับปุ่มกดแบบไม่วนลูป) ---
+    // --- 🟢 คำสั่ง /status ---
     if (command === '/status' || command.startsWith('/status@')) {
       const searchKeyword = args.slice(1).join(' ').trim().toLowerCase();
+      const separator = "━━━━━━━━━━━━━━━━━━";
       
       if (!searchKeyword) {
-        await sendTelegramAlert(group.telegramBotToken, chatId, "⚠️ <b>รูปแบบคำสั่งผิด:</b> กรุณาระบุชื่อ หรือ Circuit ID\nตัวอย่าง: /status โรงเรียน");
+        await sendTelegramAlert(group.telegramBotToken, chatId, "⚠️ <b>รูปแบบคำสั่งผิด:</b>\nกรุณาระบุชื่อ หรือ Circuit ID\nเช่น: <code>/status โรงเรียน</code>");
         return;
       }
 
       let matchedDevices = [];
-
-      // เช็คว่ามีสัญลักษณ์ลับจากปุ่มกดหรือไม่ (เช่น "_id_36")
       if (searchKeyword.startsWith('_id_')) {
         const targetId = searchKeyword.replace('_id_', '');
-        // ค้นหาแบบเจาะจง ID เท่านั้น
         const exactDevice = devices.find(d => d.id.toString() === targetId);
         if (exactDevice) matchedDevices.push(exactDevice);
       } else {
-        // ถ้าเป็นการพิมพ์ข้อความปกติ ให้ค้นหาจากชื่อ หรือ Circuit ID
         matchedDevices = devices.filter(d => {
           const matchCircuit = d.circuitId && d.circuitId.toLowerCase().includes(searchKeyword);
           const matchName = d.name && d.name.toLowerCase().includes(searchKeyword);
@@ -287,76 +290,63 @@ exports.handleWebhook = async (req, res) => {
       }
 
       if (matchedDevices.length === 0) {
-        await sendTelegramAlert(group.telegramBotToken, chatId, `❌ ไม่พบอุปกรณ์ที่ตรงกับ: <b>${searchKeyword.replace('_id_', '')}</b>`);
+        await sendTelegramAlert(group.telegramBotToken, chatId, `❌ <b>ไม่พบข้อมูล:</b>\nอุปกรณ์ที่ตรงกับ "<code>${searchKeyword.replace('_id_', '')}</code>"`);
         return;
       }
 
-      // กรณีค้นเจอหลายตัว -> สร้างปุ่มกดให้เลือก
       if (matchedDevices.length > 1) {
-        let msg = `⚠️ <b>พบอุปกรณ์หลายตัวที่ตรงกับ "${searchKeyword}"</b>\nกรุณาคลิกเลือกอุปกรณ์ที่ต้องการ:\n`;
-
+        let msg = `⚠️ <b>พบข้อมูลมากกว่า 1 รายการ</b>\nกรุณาเลือกอุปกรณ์ที่ต้องการตรวจสอบ:\n`;
         const inlineKeyboard = matchedDevices.slice(0, 10).map(d => {
-          return [{
-            text: `📱 ${d.name} (${d.circuitId || '-'})`,
-            callback_data: `/status _id_${d.id}` 
-          }];
+          return [{ text: `📱 ${d.name} (${d.circuitId || '-'})`, callback_data: `/status _id_${d.id}` }];
         });
-
         await sendTelegramAlert(group.telegramBotToken, chatId, msg, { inline_keyboard: inlineKeyboard });
         return;
       }
 
-      // กรณีเจอตัวเดียว (หรือคลิกเลือกมาจากปุ่มแล้ว) -> แสดงผลลัพธ์ทันที
       const device = matchedDevices[0];
       const isOffline = getOfflineMinutes(device.lastSeen) > 3;
       const statusIcon = isOffline ? '🔴 Offline' : '🟢 Online';
 
-      let msg = `📊 <b>สถานะอุปกรณ์แบบ Real-time</b>\n`;
-      msg += `<b>ชื่อ:</b> ${device.name}\n`;
-      msg += `<b>วงจร:</b> <b>${device.circuitId || '-'}</b>\n`;
-      msg += `<b>IP:</b> <b>${device.currentIp}</b>\n`;
-      // แสดง DDNS ถ้ามี
+      let msg = `📱 <b><u>ข้อมูลสถานะอุปกรณ์</u></b>\n`;
+      msg += `🖥 ชื่อ: <b>${device.name}</b>\n`;
+      msg += `✨ วงจร: <code>${device.circuitId || '-'}</code>\n${separator}\n\n`;
+      
+      msg += `📍 <b><u>การเชื่อมต่อ</u></b>\n`;
+      msg += `🌐 IP: <code>${device.currentIp}</code>\n`;
       if (device.ddnsName && device.ddnsName !== "N/A") {
-        msg += `☁️ <b>DDNS:</b> <b>${device.ddnsName}</b>\n`;
+        msg += `☁️ DDNS: <code>${device.ddnsName}</code>\n`;
       }
-      msg += `<b>สถานะ:</b> ${statusIcon}\n`;
+      msg += `📊 สถานะ: <b>${statusIcon}</b>\n\n`;
 
       if (isOffline) {
         const timeStr = device.lastSeen ? formatTimeAgo(getOfflineMinutes(device.lastSeen)) : "ไม่เคยเชื่อมต่อ";
-        msg += `⚠️ <i>ขาดการติดต่อไปตั้งแต่: ${timeStr} ที่แล้ว</i>`;
+        msg += `⚠️ <i>ขาดการติดต่อไปแล้ว: ${timeStr}</i>`;
       } else {
-        // 🟢 ดักเงื่อนไข "N/A" แยกออกมาเพื่อให้แสดงเป็นข้อความ N/A แทนการแปลงเป็น 0ms
         const latencyDisplay = device.latency === "N/A" ? "N/A" : (device.latency && device.latency !== "timeout" ? parseLatencyToMs(device.latency) + 'ms' : 'Timeout');
-
-        msg += `🎛️ <b>CPU:</b> ${device.cpuLoad || 0}% | 🧩 <b>RAM:</b> ${device.memoryUsage || 0}%\n`;
-        msg += `🌡️ <b>Temp:</b> ${device.temp || 'N/A'}\n`;
-        msg += `🌐 <b>Ping:</b> ${latencyDisplay}\n`; // 🟢 ใช้ตัวแปรใหม่ที่ดักเงื่อนไขแล้ว
-        msg += `⏱️ <b>Uptime:</b> ${device.uptime || '-'}`;
+        msg += `⚡ <b><u>ประสิทธิภาพระบบ</u></b>\n`;
+        msg += `🎛️ CPU: <code>${device.cpuLoad || 0}%</code> | 🧩 RAM: <code>${device.memoryUsage || 0}%</code>\n`;
+        msg += `🌡️ Temp: <code>${device.temp || 'N/A'}</code> | 🌐 Ping: <code>${latencyDisplay}</code>\n`;
+        msg += `⏱️ Uptime: <code>${device.uptime || '-'}</code>`;
       }
-      msg += `\n\n🌐 <b>เข้าสู่ระบบ:</b> https://mikrotik.ntnakhon.com`;
+      msg += `\n\n${separator}\n🌐 <b>จัดการ:</b> <a href="https://mikrotik.ntnakhon.com">คลิกเพื่อเปิดเว็บ</a>`;
 
       await sendTelegramAlert(group.telegramBotToken, chatId, msg);
       return;
     }
 
-    // --- 🟢 คำสั่ง /problem (อัปเดตให้เช็คครอบคลุมเหมือนหน้าเว็บ) ---
+    // --- 🟢 คำสั่ง /problem ---
     if (command === '/problem' || command.startsWith('/problem@')) {
       const problemDevices = [];
+      const separator = "━━━━━━━━━━━━━━━━━━";
 
       devices.forEach(d => {
-        if (d.isAcknowledged) return; // ข้ามตัวที่รับทราบแล้ว
-
+        if (d.isAcknowledged) return;
         const diffMinutes = getOfflineMinutes(d.lastSeen);
-        const isOffline = diffMinutes > 3;
-
-        // 1. ถ้าออฟไลน์ ให้ถือว่าเป็นปัญหาทันที
-        if (isOffline) {
+        if (diffMinutes > 3) {
           d.issue = "🔴 Offline";
           problemDevices.push(d);
           return;
         }
-
-        // 2. ถ้าไม่ออฟไลน์ ให้ตรวจเช็คค่า Resource ต่างๆ (เหมือนในหน้าเว็บ)
         const cpu = parseFloat(d.cpu || d.cpuLoad) || 0;
         const ram = parseFloat(d.ram || d.memoryUsage) || 0;
         const storage = parseFloat(d.storage) || 0;
@@ -370,28 +360,25 @@ exports.handleWebhook = async (req, res) => {
         if (temp > thresholds.temp) issues.push(`Temp ${temp}°C`);
         if (latencyMs > thresholds.latency) issues.push(`Ping ${latencyMs}ms`);
 
-        // ถ้าพบ Warning อย่างน้อย 1 อย่าง ให้เก็บใส่ List ที่มีปัญหา
         if (issues.length > 0) {
           d.issue = `🟠 ${issues.join(', ')}`;
           problemDevices.push(d);
         }
       });
 
-      // สรุปผลลัพธ์
       if (problemDevices.length === 0) {
-        await sendTelegramAlert(group.telegramBotToken, chatId, "✅ <b>ยอดเยี่ยม!</b> ไม่มีอุปกรณ์ที่มีปัญหาตกค้างในระบบครับ");
+        await sendTelegramAlert(group.telegramBotToken, chatId, "✅ <b>ยอดเยี่ยม!</b>\nไม่มีอุปกรณ์ที่มีปัญหาค้างในระบบครับ");
         return;
       }
 
-      let msg = `⚠️ <b>อุปกรณ์ที่มีปัญหา (ยังไม่มีผู้รับทราบ)</b>\n`;
-      msg += `พบจำนวน: <b>${problemDevices.length}</b> เคส\n\n`;
+      let msg = `⚠️ <b><u>อุปกรณ์ที่พบปัญหา</u></b>\n`;
+      msg += `พบทั้งหมด: <b>${problemDevices.length}</b> เคส\n${separator}\n\n`;
 
       problemDevices.forEach((d, index) => {
-        msg += `${index + 1}. <b>${d.name}</b> (<b>${d.circuitId || '-'}</b>)\n   └ ปัญหา: ${d.issue}\n`;
+        msg += `${index + 1}. <b>${d.name}</b>\n   └ 🆔 <code>${d.circuitId || '-'}</code>\n   └ ⚠️ ปัญหา: <i>${d.issue}</i>\n\n`;
       });
 
-      msg += `\n<i>(เข้าหน้าเว็บเพื่อกด Acknowledge และอัปเดตสถานะ)</i>`;
-      msg += `\n🌐 <b>เข้าสู่ระบบ:</b> https://mikrotik.ntnakhon.com`;
+      msg += `${separator}\n🌐 <b>จัดการ:</b> <a href="https://mikrotik.ntnakhon.com">คลิกเพื่อรับทราบปัญหา</a>`;
       await sendTelegramAlert(group.telegramBotToken, chatId, msg);
       return;
     }
@@ -399,34 +386,24 @@ exports.handleWebhook = async (req, res) => {
     // --- คำสั่ง /top ---
     if (command === '/top' || command.startsWith('/top@')) {
       const onlineDevices = devices.filter(d => getOfflineMinutes(d.lastSeen) <= 3);
+      const separator = "━━━━━━━━━━━━━━━━━━";
 
       if (onlineDevices.length === 0) {
-        await sendTelegramAlert(group.telegramBotToken, chatId, "⚠️ ไม่มีอุปกรณ์ที่ Online อยู่ในขณะนี้ให้จัดอันดับครับ");
+        await sendTelegramAlert(group.telegramBotToken, chatId, "⚠️ <b>ไม่มีข้อมูล:</b>\nไม่พบอุปกรณ์ที่ Online ในขณะนี้ครับ");
         return;
       }
 
-      // เรียงตาม CPU มากไปน้อย
-      onlineDevices.sort((a, b) => {
-        const cpuA = parseFloat(a.cpuLoad) || 0;
-        const cpuB = parseFloat(b.cpuLoad) || 0;
-        const ramA = parseFloat(a.memoryUsage) || 0;
-        const ramB = parseFloat(b.memoryUsage) || 0;
-        
-        if (cpuB === cpuA) return ramB - ramA;
-        return cpuB - cpuA;
-      });
-
+      onlineDevices.sort((a, b) => (parseFloat(b.cpuLoad) || 0) - (parseFloat(a.cpuLoad) || 0));
       const top5 = onlineDevices.slice(0, 5);
 
-      let msg = `🔥 <b>Top 5 อุปกรณ์กินทรัพยากรสูงสุด</b>\n\n`;
-      
+      let msg = `🔥 <b><u>Top 5 การใช้งานทรัพยากร</u></b>\n${separator}\n\n`;
       top5.forEach((d, index) => {
         const cpu = parseFloat(d.cpuLoad) || 0;
         const cpuIcon = (cpu > thresholds.cpu) ? '🔴' : (cpu > 60) ? '🟠' : '🟢';
         msg += `${index + 1}. <b>${d.name}</b>\n`;
-        msg += `   └ ${cpuIcon} CPU: <b>${cpu}%</b> | RAM: ${d.memoryUsage || 0}%\n`;
+        msg += `   └ ${cpuIcon} CPU: <code>${cpu}%</code> | RAM: <code>${d.memoryUsage || 0}%</code>\n\n`;
       });
-      msg += `\n🌐 <b>เข้าสู่ระบบ:</b> https://mikrotik.ntnakhon.com`;
+      msg += `${separator}\n🌐 <b>Dashboard:</b> <a href="https://mikrotik.ntnakhon.com">ดูทั้งหมด</a>`;
 
       await sendTelegramAlert(group.telegramBotToken, chatId, msg);
       return;
@@ -499,15 +476,21 @@ exports.initRealtimeMonitorCron = () => {
         });
 
         if (device.groups && device.groups.length > 0) {
+          const separator = "━━━━━━━━━━━━━━━━━━";
           for (const group of device.groups) {
-            const adminInfo = (group.adminName || group.adminContact) ? `\n\n👨‍🔧 <b>ผู้รับผิดชอบดูแล:</b> ${group.adminName || '-'}\n📞 <b>ติดต่อ:</b> ${group.adminContact || '-'}` : '';
+            const adminInfo = (group.adminName || group.adminContact) ? `\n\n👨‍🔧 <b><u>ผู้รับผิดชอบดูแล</u></b>\n👤 ชื่อ: ${group.adminName || '-'}\n📞 ติดต่อ: ${group.adminContact || '-'}` : '';
             
-            let msg = `🔴 <b>[DEVICE OFFLINE]</b>\nขาดการติดต่อจากอุปกรณ์เกิน 3 นาที!\n\n🖥 <b>อุปกรณ์:</b> <b>${device.name}</b>\n✨ <b>วงจร:</b> ${device.circuitId || '-'}`;
-            // แทรกลงตรงกลาง
+            let msg = `🚨 <b>[DEVICE OFFLINE]</b>\n${separator}\n`;
+            msg += `🖥 <b>อุปกรณ์:</b> <code>${device.name}</code>\n`;
+            msg += `✨ <b>วงจร:</b> <code>${device.circuitId || '-'}</code>`;
+            
             if (device.ddnsName && device.ddnsName !== "N/A") {
-                msg += `\n☁️ <b>DDNS:</b> <b>${device.ddnsName}</b>`;
+                msg += `\n☁️ <b>DDNS:</b> <code>${device.ddnsName}</code>`;
             }
-            msg += `\n⏳ <b>ติดต่อล่าสุด:</b> ${new Date(device.lastSeen).toLocaleDateString('th-TH')} ${new Date(device.lastSeen).toLocaleTimeString('th-TH')}${adminInfo}`;            msg += `\n\n🌐 <b>เข้าสู่ระบบ:</b> https://mikrotik.ntnakhon.com`;
+            
+            msg += `\n⏳ <b>ขาดการติดต่อ:</b> <code>${new Date(device.lastSeen).toLocaleDateString('th-TH')} ${new Date(device.lastSeen).toLocaleTimeString('th-TH')}</code>`;
+            msg += `${adminInfo}`;
+            msg += `\n\n${separator}\n🌐 <b>Dashboard:</b> <a href="https://mikrotik.ntnakhon.com">คลิกเพื่อตรวจสอบ</a>`;
 
             if (group.isNotifyEnabled && group.telegramBotToken && group.telegramChatId) {
               const msgId = await sendTelegramAlert(group.telegramBotToken, group.telegramChatId, msg);
