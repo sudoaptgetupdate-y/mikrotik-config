@@ -15,11 +15,19 @@ const getAIConfig = async () => {
 
   const config = {};
   settings.forEach(s => {
-    try {
-      config[s.key] = JSON.parse(s.value);
-    } catch (e) {
-      config[s.key] = s.value;
+    let parsed = s.value;
+    
+    // 🟢 Robust Parsing: แกะ String วนไปจนกว่าจะได้ Object หรือค่าจริง (แก้ปัญหา Double Stringify)
+    while (typeof parsed === 'string') {
+      try {
+        const next = JSON.parse(parsed);
+        if (next === parsed) break;
+        parsed = next;
+      } catch (e) {
+        break; 
+      }
     }
+    config[s.key] = parsed;
   });
 
   return config;

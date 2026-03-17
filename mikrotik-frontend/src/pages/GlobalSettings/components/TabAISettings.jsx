@@ -37,7 +37,7 @@ export default function TabAISettings({ initialData }) {
       // บันทึกทีละตัวตามโครงสร้างเดิมของระบบ
       const keys = Object.keys(settings);
       const promises = keys.map(key => 
-        apiClient.put(`/api/settings/${key}`, { value: JSON.stringify(settings[key]) })
+        apiClient.put(`/api/settings/${key}`, { value: settings[key] }) // 🚫 เอา JSON.stringify ออก
       );
 
       await Promise.all(promises);
