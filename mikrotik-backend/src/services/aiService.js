@@ -54,10 +54,10 @@ exports.askAI = async (userMessage, systemContext = "") => {
   // 🧹 Clean API Key
   apiKey = apiKey.trim().replace(/^"|"$/g, '');
 
-  // 🚩 FORCE V1BETA for Gemini 1.5 Flash compatibility
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+  // Gemini 2.0 Flash API URL (v1beta) - ใช้รุ่นที่มีอยู่ในลิสต์ของคุณ
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
 
-  console.log(`🤖 >>> GEMINI V1BETA ACTIVE <<< | Model: gemini-1.5-flash`);
+  console.log(`🤖 Gemini AI Request: Model=gemini-2.0-flash`);
 
   try {
     const payload = {

@@ -23,15 +23,23 @@ exports.testAIConnection = async (req, res) => {
     const availableModels = listResponse.data.models || [];
     console.log("✅ Available Models for this Key:", availableModels.map(m => m.name).join(", "));
 
-    // 2. ตรวจสอบว่ามี gemini-1.5-flash หรือไม่
-    const hasFlash = availableModels.some(m => m.name.includes("gemini-1.5-flash"));
-    const modelToUse = hasFlash ? "models/gemini-1.5-flash" : availableModels[0]?.name;
-
-    if (!modelToUse) {
-      throw new Error("No models available for this API Key. Please enable Generative Language API in Google Cloud Console.");
+    // 2. ตรวจสอบรุ่นที่แนะนำ (Gemini 2.0 Flash มีในลิสต์ปี 2026)
+    let modelToUse = "";
+    if (availableModels.some(m => m.name.includes("gemini-2.0-flash"))) {
+      modelToUse = "models/gemini-2.0-flash";
+    } else if (availableModels.some(m => m.name.includes("gemini-flash-latest"))) {
+      modelToUse = "models/gemini-flash-latest";
+    } else {
+      modelToUse = availableModels[0]?.name;
     }
 
-    // 3. ทดสอบยิงจริงด้วย Model ที่หาเจอ
+    if (!modelToUse) {
+      throw new Error("No models available for this API Key.");
+    }
+
+    console.log(`🤖 Using model for test: ${modelToUse}`);
+
+    // 3. ทดสอบยิงจริง
     const testUrl = `https://generativelanguage.googleapis.com/v1beta/${modelToUse}:generateContent?key=${apiKey}`;
     const response = await axios.post(testUrl, {
       contents: [{ parts: [{ text: "Hi" }] }]
