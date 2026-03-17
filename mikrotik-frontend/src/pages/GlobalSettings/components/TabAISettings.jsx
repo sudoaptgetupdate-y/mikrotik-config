@@ -54,23 +54,24 @@ export default function TabAISettings({ initialData }) {
   const testConnection = async () => {
     setIsTesting(true);
     try {
-      // ทดสอบดึง Tags จาก Ollama Server
-      const response = await fetch(`${settings.AI_OLLAMA_URL}/api/tags`);
-      if (response.ok) {
-        const data = await response.json();
-        const models = data.models || [];
-        const modelExists = models.some(m => m.name === settings.AI_OLLAMA_MODEL || m.name.startsWith(settings.AI_OLLAMA_MODEL));
-        
-        if (modelExists) {
-          toast.success(`เชื่อมต่อสำเร็จ! พบ Model: ${settings.AI_OLLAMA_MODEL}`);
+      // ยิงไปที่ Backend Proxy แทนการยิงตรงหา Ollama
+      const response = await apiClient.post('/api/settings/test-ai', { 
+        url: settings.AI_OLLAMA_URL, 
+        model: settings.AI_OLLAMA_MODEL 
+      });
+      
+      const data = response.data;
+      if (data.success) {
+        if (data.warning) {
+          toast.error(data.message, { duration: 5000 });
         } else {
-          toast.error(`เชื่อมต่อสำเร็จ แต่ไม่พบ Model: ${settings.AI_OLLAMA_MODEL}`);
+          toast.success(data.message);
         }
-      } else {
-        throw new Error('Server returned error');
       }
     } catch (error) {
-      toast.error('ไม่สามารถเชื่อมต่อกับ Ollama Server ได้');
+      const errorMsg = error.response?.data?.error || 'ไม่สามารถเชื่อมต่อกับ AI Server ผ่าน Backend ได้';
+      toast.error(errorMsg);
+      console.error(error);
     } finally {
       setIsTesting(false);
     }

@@ -1,10 +1,40 @@
 const settingService = require('../services/settingService');
 const logService = require('../services/logService');
 const prisma = require('../config/prisma');
+const axios = require('axios');
 
 exports.getSettings = async (req, res) => {
   const result = await settingService.getSettings(req.query.key);
   res.json(result);
+};
+
+exports.testAIConnection = async (req, res) => {
+  const { url, model } = req.body;
+
+  if (!url) return res.status(400).json({ error: "URL is required" });
+
+  try {
+    // 1. ทดสอบยิงไปที่ /api/tags เพื่อเช็คว่า Server อยู่จริงไหม
+    const response = await axios.get(`${url}/api/tags`, { timeout: 5000 });
+    
+    if (response.status === 200) {
+      const models = response.data.models || [];
+      const modelExists = models.some(m => m.name === model || m.name.startsWith(model));
+      
+      if (modelExists) {
+        return res.json({ success: true, message: `เชื่อมต่อสำเร็จ! พบ Model: ${model}` });
+      } else {
+        return res.json({ success: true, warning: true, message: `เชื่อมต่อ Server ได้ แต่ไม่พบ Model: ${model} ในระบบ` });
+      }
+    }
+    
+    res.status(400).json({ error: "Server returned unexpected status" });
+  } catch (error) {
+    console.error("❌ Test AI Connection Error:", error.message);
+    res.status(500).json({ 
+      error: error.code === 'ECONNREFUSED' ? "ไม่สามารถเชื่อมต่อกับ Server AI ได้ (Connection Refused)" : error.message 
+    });
+  }
 };
 
 exports.updateSetting = async (req, res) => {

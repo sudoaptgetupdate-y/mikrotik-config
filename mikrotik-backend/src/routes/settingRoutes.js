@@ -10,6 +10,9 @@ router.use(verifyToken);
 // GET /api/settings - ดึงข้อมูลทั้งหมด (อนุญาตทุก Role เพื่อให้การคำนวณ Thresholds ตรงกัน)
 router.get('/', requireRole(['SUPER_ADMIN', 'ADMIN', 'EMPLOYEE']), settingController.getSettings);
 
+// 🟢 เพิ่ม Route ใหม่ สำหรับทดสอบ AI (เฉพาะ SUPER_ADMIN)
+router.post('/test-ai', requireRole(['SUPER_ADMIN']), settingController.testAIConnection);
+
 // 🟢 เพิ่ม Route ใหม่ สำหรับรับข้อมูลจากหน้า Auto Cleanup (เฉพาะ SUPER_ADMIN)
 router.post('/update', requireRole(['SUPER_ADMIN']), settingController.upsertSetting);
 
