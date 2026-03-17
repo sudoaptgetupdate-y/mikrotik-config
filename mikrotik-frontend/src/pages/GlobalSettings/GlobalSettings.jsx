@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Shield, Network, Globe, Settings2, Database, Loader2, Bell, ChevronRight, Megaphone } from 'lucide-react';
+import { Shield, Network, Globe, Settings2, Database, Loader2, Bell, ChevronRight, Megaphone, Bot } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 
 import { settingService } from '../../services/settingService';
@@ -12,6 +12,7 @@ import TabVlanNetwork from './components/TabVlanNetwork';
 import TabMaintenance from './components/TabMaintenance';
 import TabAlertThresholds from './components/TabAlertThresholds';
 import TabDashboardAnnouncement from './components/TabDashboardAnnouncement';
+import TabAISettings from './components/TabAISettings';
 
 const GlobalSettings = () => {
   const [activeTab, setActiveTab] = useState(() => localStorage.getItem('activeGlobalSettingsTab') || 'ADMINS');
@@ -27,12 +28,36 @@ const GlobalSettings = () => {
   });
 
   const settingsData = useMemo(() => {
-    const parsed = { ROUTER_ADMINS: [], MANAGEMENT_IPS: [], MONITOR_IPS: [], DEFAULT_NETWORKS: [], ALERT_THRESHOLDS: null, DASHBOARD_ANNOUNCEMENT: '' };
+    const parsed = { 
+      ROUTER_ADMINS: [], 
+      MANAGEMENT_IPS: [], 
+      MONITOR_IPS: [], 
+      DEFAULT_NETWORKS: [], 
+      ALERT_THRESHOLDS: null, 
+      DASHBOARD_ANNOUNCEMENT: '',
+      AI_ENABLED: 'false',
+      AI_OLLAMA_URL: 'http://localhost:11434',
+      AI_OLLAMA_MODEL: 'qwen2.5:7b',
+      AI_SYSTEM_PROMPT: ''
+    };
     if (!rawSettings) return parsed;
 
     rawSettings.forEach(item => {
-      if (item.key === 'DEFAULT_NETWORKS' || item.key === 'ALERT_THRESHOLDS') {
-        try { parsed[item.key] = typeof item.value === 'string' ? JSON.parse(item.value) : item.value; } catch (e) {}
+      const complexKeys = [
+        'DEFAULT_NETWORKS', 
+        'ALERT_THRESHOLDS', 
+        'AI_ENABLED', 
+        'AI_OLLAMA_URL', 
+        'AI_OLLAMA_MODEL', 
+        'AI_SYSTEM_PROMPT'
+      ];
+
+      if (complexKeys.includes(item.key)) {
+        try { 
+          parsed[item.key] = typeof item.value === 'string' ? JSON.parse(item.value) : item.value; 
+        } catch (e) {
+          parsed[item.key] = item.value;
+        }
       } else {
         parsed[item.key] = item.value;
       }
@@ -48,6 +73,7 @@ const GlobalSettings = () => {
     { id: 'MAINTENANCE', label: 'Maintenance', icon: Database, color: 'text-rose-600', border: 'border-rose-600', bg: 'bg-rose-50' },
     { id: 'ALERTS', label: 'Alert Thresholds', icon: Bell, color: 'text-rose-500', border: 'border-rose-500', bg: 'bg-rose-50' },
     { id: 'ANNOUNCEMENT', label: 'Announcement', icon: Megaphone, color: 'text-blue-500', border: 'border-blue-500', bg: 'bg-blue-50' },
+    { id: 'AI', label: 'AI Assistant', icon: Bot, color: 'text-indigo-600', border: 'border-indigo-600', bg: 'bg-indigo-50' },
   ];
 
   return (
@@ -132,6 +158,16 @@ const GlobalSettings = () => {
               {activeTab === 'MAINTENANCE' && <TabMaintenance />}
               {activeTab === 'ALERTS' && <TabAlertThresholds initialData={settingsData.ALERT_THRESHOLDS} />}
               {activeTab === 'ANNOUNCEMENT' && <TabDashboardAnnouncement initialData={settingsData.DASHBOARD_ANNOUNCEMENT} />}
+              {activeTab === 'AI' && (
+                <TabAISettings 
+                  initialData={{
+                    AI_ENABLED: settingsData.AI_ENABLED,
+                    AI_OLLAMA_URL: settingsData.AI_OLLAMA_URL,
+                    AI_OLLAMA_MODEL: settingsData.AI_OLLAMA_MODEL,
+                    AI_SYSTEM_PROMPT: settingsData.AI_SYSTEM_PROMPT
+                  }} 
+                />
+              )}
             </div>
           </div>
         </div>

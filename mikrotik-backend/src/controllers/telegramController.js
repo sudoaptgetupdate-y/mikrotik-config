@@ -1,6 +1,8 @@
 const prisma = require('../config/prisma');
 const { sendTelegramAlert } = require('../utils/telegramUtil');
 const cron = require('node-cron'); 
+const aiService = require('../services/aiService');
+const deviceService = require('../services/deviceService');
 
 // ==========================================
 // 🛠 Helper Functions
@@ -407,6 +409,26 @@ exports.handleWebhook = async (req, res) => {
 
       await sendTelegramAlert(group.telegramBotToken, chatId, msg);
       return;
+    }
+
+    // --- 🤖 AI Fallback (สำหรับข้อความที่ไม่มีคำสั่ง) ---
+    // ถ้ามาถึงตรงนี้ แสดงว่าไม่ตรงกับคำสั่งใดๆ ด้านบน
+    // เราจะส่งข้อความไปให้ AI ประมวลผล
+    const aiContext = await deviceService.getAISummary(group.id);
+    
+    // ส่งข้อความว่า "กำลังคิด..." เพื่อให้ User รู้ว่าระบบกำลังทำงาน (เนื่องจาก AI อาจใช้เวลา)
+    // หมายเหตุ: sendTelegramAlert คืนค่า messageId กลับมาด้วย
+    const thinkingMsgId = await sendTelegramAlert(group.telegramBotToken, chatId, "🤖 <i>กำลังประมวลผลคำตอบ...</i>");
+
+    const aiReply = await aiService.askAI(text, aiContext);
+
+    if (aiReply) {
+      await sendTelegramAlert(group.telegramBotToken, chatId, aiReply);
+    } else {
+      // ถ้า AI ปิดอยู่ หรือ Error ให้ตอบเมนู Help ปกติ
+      let msg = `❓ <b>ไม่พบคำสั่งที่คุณระบุครับ</b>\n`;
+      msg += `กรุณาเลือกเมนูจากด้านล่าง หรือพิมพ์ /help เพื่อดูคำแนะนำครับ`;
+      await sendTelegramAlert(group.telegramBotToken, chatId, msg);
     }
 
   } catch (error) {

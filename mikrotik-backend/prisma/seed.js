@@ -36,7 +36,11 @@ const mikrotikModels = [
 const defaultSettings = [
   { key: 'MANAGEMENT_IPS', value: JSON.stringify(['10.234.56.0/24']), description: 'Networks allowed to access Router Management (Winbox/SSH)' },
   { key: 'MONITOR_IPS', value: JSON.stringify(['1.1.1.1', '8.8.8.8', '208.67.222.222', '9.9.9.9', '8.26.56.26']), description: 'Target IPs for PBR & Failover check-gateway (DO NOT remove any slots)' },
-  { key: 'ROUTER_ADMINS', value: JSON.stringify([{ username: 'ntadmin', password: 'ntadmin_secure_password', group: 'full' }]), description: 'Default admin accounts created in MikroTik routers' }
+  { key: 'ROUTER_ADMINS', value: JSON.stringify([{ username: 'ntadmin', password: 'ntadmin_secure_password', group: 'full' }]), description: 'Default admin accounts created in MikroTik routers' },
+  { key: 'AI_ENABLED', value: JSON.stringify('false'), description: 'Enable or disable AI Assistant (Ollama)' },
+  { key: 'AI_OLLAMA_URL', value: JSON.stringify('http://192.168.191.241:11434'), description: 'Ollama Server URL' },
+  { key: 'AI_OLLAMA_MODEL', value: JSON.stringify('qwen2.5:7b'), description: 'Ollama Model Name' },
+  { key: 'AI_SYSTEM_PROMPT', value: JSON.stringify('คุณคือผู้เชี่ยวชาญด้าน Mikrotik และ Network Monitoring ของ NT (National Telecom) หน้าที่ของคุณคือตอบคำถามเกี่ยวกับสถานะอุปกรณ์ในเครือข่าย โดยใช้ข้อมูลที่ได้รับให้เกิดประโยชน์สูงสุด ตอบเป็นภาษาไทยที่กระชับ สุภาพ และเป็นกันเอง'), description: 'System Prompt for AI Assistant' }
 ];
 
 async function main() {

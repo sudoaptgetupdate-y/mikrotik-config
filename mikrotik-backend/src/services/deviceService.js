@@ -260,3 +260,68 @@ exports.logDownload = async (id, configId, actionUserId) => {
     data: { userId: actionUserId, action: "GENERATE_CONFIG", details: `Downloaded config for: ${device.name} ${configId ? `(History Version #${configId})` : '(Latest Version)'}` }
   });
 };
+
+/**
+ * 🤖 สรุปสถานะภาพรวมของระบบสำหรับ AI
+ * ดึงเฉพาะข้อมูลที่สำคัญเพื่อให้ AI เข้าใจบริบท
+ */
+exports.getAISummary = async (groupId = null) => {
+  const where = { status: { not: 'DELETED' } };
+  if (groupId) {
+    where.groups = { some: { id: parseInt(groupId) } };
+  }
+
+  const devices = await prisma.managedDevice.findMany({
+    where,
+    select: {
+      name: true,
+      circuitId: true,
+      lastSeen: true,
+      cpuLoad: true,
+      memoryUsage: true,
+      uptime: true,
+      latency: true,
+      isAcknowledged: true,
+      groups: { select: { name: true } }
+    }
+  });
+
+  const now = new Date();
+  const offlineLimit = 3 * 60 * 1000; // 3 นาที
+
+  let summary = `📍 ข้อมูลกลุ่ม: ${groupId ? 'ระบุกลุ่ม' : 'ทั้งหมด'}\n`;
+  summary += `📊 จำนวนอุปกรณ์ทั้งหมด: ${devices.length} รายการ\n`;
+
+  const offlineDevices = devices.filter(d => !d.lastSeen || (now - new Date(d.lastSeen) > offlineLimit));
+  const onlineDevices = devices.filter(d => d.lastSeen && (now - new Date(d.lastSeen) <= offlineLimit));
+
+  summary += `🟢 Online: ${onlineDevices.length}\n`;
+  summary += `🔴 Offline: ${offlineDevices.length}\n`;
+
+  if (offlineDevices.length > 0) {
+    summary += `\n❌ รายชื่อเครื่องที่ Offline:\n`;
+    offlineDevices.forEach(d => {
+      summary += `- ${d.name} (${d.circuitId || 'N/A'})\n`;
+    });
+  }
+
+  // ดึง Log เหตุการณ์ล่าสุดของวันนี้
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const recentLogs = await prisma.deviceEventLog.findMany({
+    where: { createdAt: { gte: today } },
+    orderBy: { createdAt: 'desc' },
+    take: 10,
+    include: { device: { select: { name: true } } }
+  });
+
+  if (recentLogs.length > 0) {
+    summary += `\n📜 เหตุการณ์สำคัญวันนี้:\n`;
+    recentLogs.forEach(l => {
+      summary += `- [${l.eventType}] ${l.device.name}: ${l.details} (${new Date(l.createdAt).toLocaleTimeString('th-TH')})\n`;
+    });
+  }
+
+  return summary;
+};
