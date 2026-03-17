@@ -54,10 +54,10 @@ exports.askAI = async (userMessage, systemContext = "") => {
   // 🧹 Clean API Key
   apiKey = apiKey.trim().replace(/^"|"$/g, '');
 
-  // Gemini 1.5 Flash API URL (ใช้ v1beta เพื่อความเสถียรกับ Flash model)
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+  // Gemini 1.5 Flash API URL (v1beta)
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`;
 
-  console.log(`🤖 Gemini AI Request: Model=gemini-1.5-flash (Key starts with ${apiKey.substring(0,5)})`);
+  console.log(`🤖 Gemini AI Request: Model=gemini-1.5-flash-latest`);
 
   try {
     const payload = {
@@ -65,11 +65,7 @@ exports.askAI = async (userMessage, systemContext = "") => {
         parts: [{
           text: `System Instruction: ${systemPrompt}\n\nCurrent System Context:\n${systemContext}\n\nUser Question: ${userMessage}`
         }]
-      }],
-      generationConfig: {
-        maxOutputTokens: 1024,
-        temperature: 0.7,
-      }
+      }]
     };
 
     const response = await axios.post(url, payload, { 
@@ -86,10 +82,11 @@ exports.askAI = async (userMessage, systemContext = "") => {
     return null;
   } catch (error) {
     console.error("❌ Gemini AI Service Error:");
-    console.error(` - Message: ${error.message}`);
     if (error.response) {
       console.error(` - Status: ${error.response.status}`);
-      console.error(` - Data:`, JSON.stringify(error.response.data));
+      console.error(` - Google Error Body:`, JSON.stringify(error.response.data)); // 🔍 ดู Error จริงจาก Google
+    } else {
+      console.error(` - Message: ${error.message}`);
     }
     
     if (error.code === 'ECONNREFUSED') {

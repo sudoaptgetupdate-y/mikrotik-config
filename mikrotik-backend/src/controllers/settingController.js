@@ -16,11 +16,10 @@ exports.testAIConnection = async (req, res) => {
   // 🧹 Clean API Key
   apiKey = apiKey.trim().replace(/^"|"$/g, '');
 
-  console.log(`🤖 Testing Gemini AI Connection (Key starts with: ${apiKey.substring(0, 5)}...)`);
+  console.log(`🤖 Testing Gemini AI Connection (Model: gemini-1.5-flash-latest)`);
 
   try {
-    // ใช้ v1beta API ซึ่งรองรับ Flash model ได้ดีกว่าในหลายภูมิภาค
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`;
     
     const response = await axios.post(url, {
       contents: [{ parts: [{ text: "Hi, respond with 'OK'" }] }]
@@ -36,16 +35,16 @@ exports.testAIConnection = async (req, res) => {
     res.status(400).json({ error: "Gemini API returned unexpected response" });
   } catch (error) {
     console.error("❌ Test Gemini Connection Error Details:");
-    console.error(` - Message: ${error.message}`);
-    
-    let errorMsg = "ไม่สามารถเชื่อมต่อกับ Google AI ได้ (404 Not Found หรือปัญหาอื่นๆ)";
-    
     if (error.response) {
       console.error(` - Status: ${error.response.status}`);
-      console.error(` - Data:`, JSON.stringify(error.response.data));
-      if (error.response.status === 404) errorMsg = "ไม่พบ Model gemini-1.5-flash หรือ URL API ผิดพลาด";
-      if (error.response.status === 400) errorMsg = "API Key ไม่ถูกต้อง หรือพารามิเตอร์ผิดพลาด";
+      console.error(` - Google Data:`, JSON.stringify(error.response.data));
+    } else {
+      console.error(` - Message: ${error.message}`);
     }
+
+    let errorMsg = "ไม่สามารถเชื่อมต่อกับ Google AI ได้";
+    if (error.response && error.response.status === 404) errorMsg = "ไม่พบ Model หรือ URL API ผิดพลาด (Google 404)";
+    if (error.response && error.response.status === 400) errorMsg = "API Key ไม่ถูกต้อง หรือพารามิเตอร์ผิดพลาด";
 
     res.status(500).json({ error: errorMsg });
   }
