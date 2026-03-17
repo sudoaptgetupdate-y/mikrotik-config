@@ -412,24 +412,27 @@ exports.handleWebhook = async (req, res) => {
     }
 
     // --- 🤖 AI Fallback (สำหรับข้อความที่ไม่มีคำสั่ง) ---
-    // ถ้ามาถึงตรงนี้ แสดงว่าไม่ตรงกับคำสั่งใดๆ ด้านบน
-    // เราจะส่งข้อความไปให้ AI ประมวลผล
-    const aiContext = await deviceService.getAISummary(group.id);
-    
-    // ส่งข้อความว่า "กำลังคิด..." เพื่อให้ User รู้ว่าระบบกำลังทำงาน (เนื่องจาก AI อาจใช้เวลา)
-    // หมายเหตุ: sendTelegramAlert คืนค่า messageId กลับมาด้วย
-    const thinkingMsgId = await sendTelegramAlert(group.telegramBotToken, chatId, "🤖 <i>กำลังประมวลผลคำตอบ...</i>");
+    const isAIEnabled = await aiService.isAIEnabled();
 
-    const aiReply = await aiService.askAI(text, aiContext);
+    if (isAIEnabled) {
+      // ดึงบริบทระบบเพื่อส่งให้ AI
+      const aiContext = await deviceService.getAISummary(group.id);
+      
+      // ส่งข้อความแจ้งให้ผู้ใช้ทราบว่าระบบกำลังทำงาน
+      await sendTelegramAlert(group.telegramBotToken, chatId, "🤖 <i>กำลังประมวลผลคำตอบ...</i>");
 
-    if (aiReply) {
-      await sendTelegramAlert(group.telegramBotToken, chatId, aiReply);
-    } else {
-      // ถ้า AI ปิดอยู่ หรือ Error ให้ตอบเมนู Help ปกติ
-      let msg = `❓ <b>ไม่พบคำสั่งที่คุณระบุครับ</b>\n`;
-      msg += `กรุณาเลือกเมนูจากด้านล่าง หรือพิมพ์ /help เพื่อดูคำแนะนำครับ`;
-      await sendTelegramAlert(group.telegramBotToken, chatId, msg);
+      const aiReply = await aiService.askAI(text, aiContext);
+
+      if (aiReply) {
+        await sendTelegramAlert(group.telegramBotToken, chatId, aiReply);
+        return;
+      }
     }
+
+    // --- ❓ Fallback สุดท้าย: ถ้า AI ปิดอยู่ หรือ AI ไม่ตอบ/Error ---
+    let msg = `❓ <b>ไม่พบคำสั่งที่คุณระบุครับ</b>\n`;
+    msg += `กรุณาเลือกเมนูจากด้านล่าง หรือพิมพ์ /help เพื่อดูคำแนะนำครับ`;
+    await sendTelegramAlert(group.telegramBotToken, chatId, msg);
 
   } catch (error) {
     console.error("Telegram Webhook Error:", error);

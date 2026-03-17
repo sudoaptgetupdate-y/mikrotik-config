@@ -26,6 +26,14 @@ const getAIConfig = async () => {
 };
 
 /**
+ * ตรวจสอบว่าระบบ AI เปิดใช้งานอยู่หรือไม่
+ */
+exports.isAIEnabled = async () => {
+  const config = await getAIConfig();
+  return String(config.AI_ENABLED) === 'true';
+};
+
+/**
  * ส่งคำถามไปยัง Ollama AI
  * @param {string} userMessage - ข้อความจากผู้ใช้
  * @param {string} systemContext - ข้อมูลสรุปสถานะระบบเพื่อประกอบการตอบ
