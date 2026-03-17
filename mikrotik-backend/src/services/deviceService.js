@@ -301,9 +301,9 @@ exports.getAISummary = async (groupId = null) => {
   summary += `### [NETWORK_STATS]\n`;
   summary += `- TOTAL: ${devices.length} | ONLINE: ${onlineDevices.length} | OFFLINE: ${offlineDevices.length} | WARNING: ${warningDevices.length}\n\n`;
 
-  // 🔴 ส่งรายละเอียดเฉพาะเครื่องที่มีปัญหา (ช่วยลดความยาวของข้อความได้มหาศาล)
+  // 🔴 ส่งรายละเอียดเฉพาะเครื่องที่มีปัญหาเท่านั้น (ห้ามส่งเครื่องปกติเด็ดขาดเพื่อความเร็วสูงสุด)
   if (offlineDevices.length > 0) {
-    summary += `### [CRITICAL_OFFLINE]\n`;
+    summary += `### [OFFLINE_DEVICES]\n`;
     offlineDevices.forEach(d => {
       summary += `- ${d.name} (${d.circuitId || 'N/A'})\n`;
     });
@@ -311,28 +311,23 @@ exports.getAISummary = async (groupId = null) => {
   }
 
   if (warningDevices.length > 0) {
-    summary += `### [HIGH_LOAD_WARNING]\n`;
+    summary += `### [LOAD_WARNING]\n`;
     warningDevices.forEach(d => {
       summary += `- ${d.name}: CPU ${d.cpuLoad}% | RAM ${d.memoryUsage}% | PING ${d.latency}\n`;
     });
     summary += `\n`;
   }
 
-  // 🟢 เครื่องที่ปกติ ส่งแค่รายชื่อสั้นๆ แบบบรรทัดเดียว (ถ้ามีไม่เกิน 20 เครื่อง) หรือไม่ส่งเลย
-  const healthyDevices = onlineDevices.filter(d => !warningDevices.some(w => w.name === d.name));
-  if (healthyDevices.length > 0) {
-    summary += `### [HEALTHY_DEVICES_NAMES]\n`;
-    summary += healthyDevices.map(d => d.name).join(', ') + '\n\n';
-  }
+  // 🟢 ไม่ส่งรายชื่อเครื่องปกติแล้ว (Healthy Devices Names ถูกนำออก)
 
-  // ดึง Log เฉพาะรายการที่ "สำคัญ" 5 รายการล่าสุดของวันนี้
+  // ดึง Log เฉพาะรายการที่ "สำคัญ" 3 รายการล่าสุด
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
   const recentLogs = await prisma.deviceEventLog.findMany({
     where: { createdAt: { gte: today } },
     orderBy: { createdAt: 'desc' },
-    take: 5, // ลดเหลือ 5 รายการ
+    take: 3, // ลดเหลือ 3 รายการ
     include: { device: { select: { name: true } } }
   });
 
