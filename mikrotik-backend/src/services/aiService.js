@@ -45,9 +45,12 @@ exports.askAI = async (userMessage, systemContext = "") => {
     return null;
   }
 
-  const ollamaUrl = config.AI_OLLAMA_URL || 'http://localhost:11434';
+  let ollamaUrl = config.AI_OLLAMA_URL || 'http://localhost:11434';
   const model = config.AI_OLLAMA_MODEL || 'qwen2.5:7b';
   const systemPrompt = config.AI_SYSTEM_PROMPT || 'คุณคือผู้ช่วยดูแลระบบ Network';
+
+  // 🧹 Clean URL: ตัดช่องว่างและฟันหนูออก
+  ollamaUrl = ollamaUrl.trim().replace(/^"|"$/g, '');
 
   console.log(`🤖 AI Request: URL=${ollamaUrl}, Model=${model}`);
   
@@ -60,7 +63,8 @@ exports.askAI = async (userMessage, systemContext = "") => {
     };
 
     const response = await axios.post(`${ollamaUrl}/api/generate`, payload, { 
-      timeout: 45000 // ตั้งเผื่อไว้สำหรับ CPU Inference
+      timeout: 45000
+      // proxy: false ถูกเอาออกตามความต้องการของผู้ใช้ เพื่อให้ใช้งานผ่าน Proxy ระบบได้
     });
 
     if (response.data && response.data.response) {

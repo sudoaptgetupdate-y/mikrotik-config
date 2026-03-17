@@ -9,13 +9,21 @@ exports.getSettings = async (req, res) => {
 };
 
 exports.testAIConnection = async (req, res) => {
-  const { url, model } = req.body;
+  let { url, model } = req.body;
 
   if (!url) return res.status(400).json({ error: "URL is required" });
 
+  // 🧹 Clean URL: ตัดฟันหนูและช่องว่าง
+  url = url.trim().replace(/^"|"$/g, '');
+
+  console.log(`🤖 Testing AI Connection: ${url} (Model: ${model})`);
+
   try {
-    // 1. ทดสอบยิงไปที่ /api/tags เพื่อเช็คว่า Server อยู่จริงไหม
-    const response = await axios.get(`${url}/api/tags`, { timeout: 5000 });
+    // 1. ทดสอบยิงไปที่ /api/tags
+    const response = await axios.get(`${url}/api/tags`, { 
+      timeout: 8000
+      // proxy: false ถูกเอาออกตามความต้องการของผู้ใช้ เพื่อให้ใช้งานผ่าน Proxy ระบบได้
+    });
     
     if (response.status === 200) {
       const models = response.data.models || [];
@@ -30,10 +38,15 @@ exports.testAIConnection = async (req, res) => {
     
     res.status(400).json({ error: "Server returned unexpected status" });
   } catch (error) {
-    console.error("❌ Test AI Connection Error:", error.message);
-    res.status(500).json({ 
-      error: error.code === 'ECONNREFUSED' ? "ไม่สามารถเชื่อมต่อกับ Server AI ได้ (Connection Refused)" : error.message 
-    });
+    console.error("❌ Test AI Connection Error Details:");
+    console.error(` - Message: ${error.message}`);
+    console.error(` - Target URL: ${url}`);
+    
+    let errorMsg = error.message;
+    if (error.code === 'ECONNREFUSED') errorMsg = "ไม่สามารถเชื่อมต่อกับ Server AI ได้ (Connection Refused)";
+    if (error.code === 'EPROTO') errorMsg = "เกิดข้อผิดพลาดด้าน Protocol (อาจเป็นเพราะพยายามใช้ HTTPS บนพอร์ต HTTP)";
+
+    res.status(500).json({ error: errorMsg });
   }
 };
 
