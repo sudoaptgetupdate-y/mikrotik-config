@@ -9,18 +9,22 @@ exports.getSettings = async (req, res) => {
 };
 
 exports.testAIConnection = async (req, res) => {
-  const { apiKey } = req.body;
+  let { apiKey } = req.body;
 
   if (!apiKey) return res.status(400).json({ error: "API Key is required" });
 
-  console.log(`🤖 Testing Gemini AI Connection...`);
+  // 🧹 Clean API Key
+  apiKey = apiKey.trim().replace(/^"|"$/g, '');
+
+  console.log(`🤖 Testing Gemini AI Connection (Key starts with: ${apiKey.substring(0, 5)}...)`);
 
   try {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+    // ใช้ v1 API และระบุโมเดลให้ชัดเจน
+    const url = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
     
     const response = await axios.post(url, {
-      contents: [{ parts: [{ text: "Hi, say 'Connection Successful'" }] }]
-    }, { timeout: 10000 });
+      contents: [{ parts: [{ text: "Hi, respond with 'OK'" }] }]
+    }, { timeout: 15000 });
     
     if (response.status === 200 && response.data.candidates) {
       return res.json({ 
@@ -31,12 +35,16 @@ exports.testAIConnection = async (req, res) => {
     
     res.status(400).json({ error: "Gemini API returned unexpected response" });
   } catch (error) {
-    console.error("❌ Test Gemini Connection Error:", error.message);
-    let errorMsg = "ไม่สามารถเชื่อมต่อกับ Google AI ได้";
+    console.error("❌ Test Gemini Connection Error Details:");
+    console.error(` - Message: ${error.message}`);
+    
+    let errorMsg = "ไม่สามารถเชื่อมต่อกับ Google AI ได้ (404 Not Found หรือปัญหาอื่นๆ)";
     
     if (error.response) {
-      if (error.response.status === 400) errorMsg = "API Key ไม่ถูกต้อง หรือ Model ไม่พร้อมใช้งาน";
-      if (error.response.status === 403) errorMsg = "สิทธิ์การใช้งาน API Key ถูกปฏิเสธ (Check API Key restriction)";
+      console.error(` - Status: ${error.response.status}`);
+      console.error(` - Data:`, JSON.stringify(error.response.data));
+      if (error.response.status === 404) errorMsg = "ไม่พบ Model gemini-1.5-flash หรือ URL API ผิดพลาด";
+      if (error.response.status === 400) errorMsg = "API Key ไม่ถูกต้อง หรือพารามิเตอร์ผิดพลาด";
     }
 
     res.status(500).json({ error: errorMsg });

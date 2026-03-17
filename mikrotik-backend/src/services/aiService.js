@@ -48,13 +48,16 @@ exports.askAI = async (userMessage, systemContext = "") => {
     return null;
   }
 
-  const apiKey = config.AI_GEMINI_KEY;
+  let apiKey = config.AI_GEMINI_KEY;
   const systemPrompt = config.AI_SYSTEM_PROMPT || 'คุณคือผู้ช่วยดูแลระบบ Network';
   
-  // Gemini 1.5 Flash API URL
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+  // 🧹 Clean API Key
+  apiKey = apiKey.trim().replace(/^"|"$/g, '');
 
-  console.log(`🤖 Gemini AI Request: Model=gemini-1.5-flash`);
+  // Gemini 1.5 Flash API URL (v1)
+  const url = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+
+  console.log(`🤖 Gemini AI Request: Model=gemini-1.5-flash (Key starts with ${apiKey.substring(0,5)})`);
 
   try {
     const payload = {
@@ -64,17 +67,16 @@ exports.askAI = async (userMessage, systemContext = "") => {
         }]
       }],
       generationConfig: {
-        maxOutputTokens: 512,
+        maxOutputTokens: 1024,
         temperature: 0.7,
       }
     };
 
     const response = await axios.post(url, payload, { 
-      timeout: 30000 // Gemini ปกติจะเร็วมาก
-      // หมายเหตุ: ไม่ใส่ proxy: false เพราะต้องออกอินเทอร์เน็ตผ่าน Proxy ของระบบ
+      timeout: 30000 
     });
 
-    if (response.data && response.data.candidates && response.data.contents === undefined) {
+    if (response.data && response.data.candidates && response.data.candidates.length > 0) {
       const reply = response.data.candidates[0].content.parts[0].text;
       console.log(`✅ Gemini Response Received (${reply.length} chars)`);
       return reply;
