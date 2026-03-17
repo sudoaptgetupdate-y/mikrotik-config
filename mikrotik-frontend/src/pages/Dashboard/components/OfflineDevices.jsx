@@ -31,7 +31,7 @@ const OfflineDevices = ({ devices }) => {
               return (
                 <div 
                   key={device.id} 
-                  onClick={() => navigate(`/devices`, { state: { filter: 'OFFLINE' } })}
+                  onClick={() => navigate(`/devices?search=${encodeURIComponent(device.name)}&filter=OFFLINE`)}
                   className="p-4 hover:bg-slate-50 transition-colors flex items-center justify-between cursor-pointer group"
                 >
                   <div className="flex items-center gap-3 min-w-0 pr-2">

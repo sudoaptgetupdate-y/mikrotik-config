@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { logService } from '../../../services/logService';
 import { BarChart3, Clock, ArrowUpCircle, ArrowDownCircle, AlertTriangle, Loader2 } from 'lucide-react';
 
 const EventSummaryCard = () => {
+  const navigate = useNavigate();
   const [days, setDays] = useState(1); // Default to 24h
 
   const { data, isLoading } = useQuery({
@@ -13,6 +15,10 @@ const EventSummaryCard = () => {
   });
 
   const summary = data || { ONLINE: 0, OFFLINE: 0, WARNING: 0, ACK: 0, TOTAL: 0 };
+
+  const handleStatusClick = (filter) => {
+    navigate(`/devices?filter=${filter}`);
+  };
 
   // Calculate percentages for the bar
   const getPercent = (value) => {
@@ -86,8 +92,11 @@ const EventSummaryCard = () => {
 
             {/* Stats List */}
             <div className="grid grid-cols-3 gap-3">
-              <div className="flex flex-col gap-1">
-                <div className="flex items-center gap-1.5 text-emerald-600 mb-1">
+              <div 
+                onClick={() => handleStatusClick('ONLINE')}
+                className="flex flex-col gap-1 cursor-pointer hover:bg-slate-50 p-2 rounded-xl transition-colors group"
+              >
+                <div className="flex items-center gap-1.5 text-emerald-600 mb-1 group-hover:scale-105 transition-transform">
                   <ArrowUpCircle size={14} />
                   <span className="text-[10px] font-black uppercase">Online</span>
                 </div>
@@ -97,8 +106,11 @@ const EventSummaryCard = () => {
                 </div>
               </div>
 
-              <div className="flex flex-col gap-1 border-x border-slate-50 px-3">
-                <div className="flex items-center gap-1.5 text-orange-500 mb-1">
+              <div 
+                onClick={() => handleStatusClick('WARNING')}
+                className="flex flex-col gap-1 border-x border-slate-50 px-3 cursor-pointer hover:bg-slate-50 p-2 rounded-xl transition-colors group"
+              >
+                <div className="flex items-center gap-1.5 text-orange-500 mb-1 group-hover:scale-105 transition-transform">
                   <AlertTriangle size={14} />
                   <span className="text-[10px] font-black uppercase">Warning</span>
                 </div>
@@ -108,13 +120,16 @@ const EventSummaryCard = () => {
                 </div>
               </div>
 
-              <div className="flex flex-col gap-1 pl-3">
-                <div className="flex items-center gap-1.5 text-rose-500 mb-1">
+              <div 
+                onClick={() => handleStatusClick('OFFLINE')}
+                className="flex flex-col gap-1 pl-3 cursor-pointer hover:bg-slate-50 p-2 rounded-xl transition-colors group"
+              >
+                <div className="flex items-center gap-1.5 text-rose-500 mb-1 group-hover:scale-105 transition-transform">
                   <ArrowDownCircle size={14} />
                   <span className="text-[10px] font-black uppercase">Offline</span>
                 </div>
                 <span className="text-xl font-black text-slate-800">{summary.OFFLINE}</span>
-                <div className="w-full h-1 bg-rose-50 rounded-full overflow-hidden">
+                <div className="initial-w-full h-1 bg-rose-50 rounded-full overflow-hidden">
                     <div className="h-full bg-rose-200" style={{ width: `${getPercent(summary.OFFLINE)}%` }} />
                 </div>
               </div>

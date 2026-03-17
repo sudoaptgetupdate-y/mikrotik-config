@@ -43,7 +43,7 @@ const TopUptimeDevices = ({ devices }) => {
             {devices.map((device, index) => (
               <div 
                 key={device.id} 
-                onClick={() => navigate(`/devices`)}
+                onClick={() => navigate(`/devices?search=${encodeURIComponent(device.name)}`)}
                 className="p-4 hover:bg-slate-50 transition-colors flex items-center justify-between cursor-pointer group"
               >
                 <div className="flex items-center gap-3 min-w-0 pr-2">

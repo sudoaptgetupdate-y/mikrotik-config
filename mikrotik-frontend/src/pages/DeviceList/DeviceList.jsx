@@ -33,8 +33,25 @@ const DeviceList = () => {
   // ==========================================
   // States
   // ==========================================
-  const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState(location.state?.filter || 'ACTIVE_ONLY');
+  const [searchTerm, setSearchTerm] = useState(() => {
+    const params = new URLSearchParams(location.search);
+    return params.get('search') || '';
+  });
+  
+  const [statusFilter, setStatusFilter] = useState(() => {
+    const params = new URLSearchParams(location.search);
+    return params.get('filter') || location.state?.filter || 'ACTIVE_ONLY';
+  });
+
+  // อัปเดต State เมื่อ URL เปลี่ยน (กรณีลิงก์จากหน้าเดิมไปหน้าเดิมแต่เปลี่ยน Parameter)
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const urlSearch = params.get('search');
+    const urlFilter = params.get('filter');
+    
+    if (urlSearch !== null) setSearchTerm(urlSearch);
+    if (urlFilter !== null) setStatusFilter(urlFilter);
+  }, [location.search]);
   
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
