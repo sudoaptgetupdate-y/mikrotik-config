@@ -69,11 +69,9 @@ exports.askAI = async (userMessage, systemContext = "") => {
       prompt: userMessage,
       stream: false,
       options: {
-        num_thread: 8,      // 🟢 จำกัดไว้ที่ 8 Core สำหรับ Xeon เพื่อลด Overhead
-        num_predict: 256,   // 🟢 จำกัดความยาวคำตอบให้สั้นลงเพื่อความเร็ว
         temperature: 0.7,
-        top_p: 0.9,
-        num_ctx: 2048       // 🟢 จำกัด Context Window ให้เล็กลง
+        top_p: 0.9
+        // num_thread, num_predict, num_ctx ถูกถอนออกเพื่อให้ใช้ประสิทธิภาพสูงสุดของเครื่อง
       }
     };
 
