@@ -54,8 +54,8 @@ exports.askAI = async (userMessage, systemContext = "") => {
   // 🧹 Clean API Key
   apiKey = apiKey.trim().replace(/^"|"$/g, '');
 
-  // Gemini 1.5 Flash API URL (v1)
-  const url = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+  // Gemini 1.5 Flash API URL (ใช้ v1beta เพื่อความเสถียรกับ Flash model)
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
 
   console.log(`🤖 Gemini AI Request: Model=gemini-1.5-flash (Key starts with ${apiKey.substring(0,5)})`);
 

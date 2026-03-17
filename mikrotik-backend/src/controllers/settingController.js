@@ -19,8 +19,8 @@ exports.testAIConnection = async (req, res) => {
   console.log(`🤖 Testing Gemini AI Connection (Key starts with: ${apiKey.substring(0, 5)}...)`);
 
   try {
-    // ใช้ v1 API และระบุโมเดลให้ชัดเจน
-    const url = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+    // ใช้ v1beta API ซึ่งรองรับ Flash model ได้ดีกว่าในหลายภูมิภาค
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
     
     const response = await axios.post(url, {
       contents: [{ parts: [{ text: "Hi, respond with 'OK'" }] }]
