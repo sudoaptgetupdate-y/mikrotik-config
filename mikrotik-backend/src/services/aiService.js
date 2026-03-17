@@ -49,19 +49,35 @@ exports.askAI = async (userMessage, systemContext = "") => {
   const model = config.AI_OLLAMA_MODEL || 'qwen2.5:7b';
   const systemPrompt = config.AI_SYSTEM_PROMPT || 'คุณคือผู้ช่วยดูแลระบบ Network';
 
+  console.log(`🤖 AI Request: URL=${ollamaUrl}, Model=${model}`);
+  
   try {
-    const response = await axios.post(`${ollamaUrl}/api/generate`, {
+    const payload = {
       model: model,
       system: `${systemPrompt}\n\n[ข้อมูลสถานะระบบปัจจุบัน]\n${systemContext}`,
       prompt: userMessage,
       stream: false
-    }, { 
+    };
+
+    const response = await axios.post(`${ollamaUrl}/api/generate`, payload, { 
       timeout: 45000 // ตั้งเผื่อไว้สำหรับ CPU Inference
     });
 
-    return response.data.response;
+    if (response.data && response.data.response) {
+      console.log(`✅ AI Response Received (${response.data.response.length} chars)`);
+      return response.data.response;
+    }
+
+    console.warn("⚠️ AI Response format unexpected:", response.data);
+    return null;
   } catch (error) {
-    console.error("❌ AI Service Error:", error.message);
+    console.error("❌ AI Service Error Details:");
+    console.error(` - Message: ${error.message}`);
+    if (error.response) {
+      console.error(` - Status: ${error.response.status}`);
+      console.error(` - Data:`, error.response.data);
+    }
+    
     if (error.code === 'ECONNREFUSED') {
       return "ไม่สามารถเชื่อมต่อกับ Server AI ได้ครับ (Connection Refused)";
     }
