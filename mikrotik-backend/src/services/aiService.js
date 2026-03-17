@@ -5,19 +5,14 @@ const prisma = require('../config/prisma');
  * ดึงการตั้งค่า AI จากฐานข้อมูล
  */
 const getAIConfig = async () => {
+  const keys = ['AI_ENABLED', 'AI_GEMINI_KEY', 'AI_SYSTEM_PROMPT'];
   const settings = await prisma.systemSetting.findMany({
-    where: {
-      key: {
-        in: ['AI_ENABLED', 'AI_OLLAMA_URL', 'AI_OLLAMA_MODEL', 'AI_SYSTEM_PROMPT']
-      }
-    }
+    where: { key: { in: keys } }
   });
 
   const config = {};
   settings.forEach(s => {
     let parsed = s.value;
-    
-    // 🟢 Robust Parsing: แกะ String วนไปจนกว่าจะได้ Object หรือค่าจริง (แก้ปัญหา Double Stringify)
     while (typeof parsed === 'string') {
       try {
         const next = JSON.parse(parsed);
@@ -38,69 +33,66 @@ const getAIConfig = async () => {
  */
 exports.isAIEnabled = async () => {
   const config = await getAIConfig();
-  return String(config.AI_ENABLED) === 'true';
+  return String(config.AI_ENABLED) === 'true' && !!config.AI_GEMINI_KEY;
 };
 
 /**
- * ส่งคำถามไปยัง Ollama AI
+ * ส่งคำถามไปยัง Google Gemini AI
  * @param {string} userMessage - ข้อความจากผู้ใช้
- * @param {string} systemContext - ข้อมูลสรุปสถานะระบบเพื่อประกอบการตอบ
+ * @param {string} systemContext - ข้อมูลสรุปสถานะระบบ
  */
 exports.askAI = async (userMessage, systemContext = "") => {
   const config = await getAIConfig();
 
-  if (String(config.AI_ENABLED) !== 'true') {
+  if (String(config.AI_ENABLED) !== 'true' || !config.AI_GEMINI_KEY) {
     return null;
   }
 
-  let ollamaUrl = config.AI_OLLAMA_URL || 'http://localhost:11434';
-  const model = config.AI_OLLAMA_MODEL || 'qwen2.5:7b';
+  const apiKey = config.AI_GEMINI_KEY;
   const systemPrompt = config.AI_SYSTEM_PROMPT || 'คุณคือผู้ช่วยดูแลระบบ Network';
-
-  // 🧹 Clean URL: ตัดช่องว่างและฟันหนูออก
-  ollamaUrl = ollamaUrl.trim().replace(/^"|"$/g, '');
-
-  console.log(`🤖 AI Request: URL=${ollamaUrl}, Model=${model}`);
   
+  // Gemini 1.5 Flash API URL
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+
+  console.log(`🤖 Gemini AI Request: Model=gemini-1.5-flash`);
+
   try {
     const payload = {
-      model: model,
-      system: `${systemPrompt}\n\n[ข้อมูลสถานะระบบปัจจุบัน]\n${systemContext}`,
-      prompt: userMessage,
-      stream: false,
-      options: {
+      contents: [{
+        parts: [{
+          text: `System Instruction: ${systemPrompt}\n\nCurrent System Context:\n${systemContext}\n\nUser Question: ${userMessage}`
+        }]
+      }],
+      generationConfig: {
+        maxOutputTokens: 512,
         temperature: 0.7,
-        top_p: 0.9
-        // num_thread, num_predict, num_ctx ถูกถอนออกเพื่อให้ใช้ประสิทธิภาพสูงสุดของเครื่อง
       }
     };
 
-    const response = await axios.post(`${ollamaUrl}/api/generate`, payload, { 
-      timeout: 90000,
-      proxy: false // 🚫 ทดสอบปิด Proxy เฉพาะกิจเพื่อดูความเร็วที่แท้จริง
+    const response = await axios.post(url, payload, { 
+      timeout: 30000 // Gemini ปกติจะเร็วมาก
+      // หมายเหตุ: ไม่ใส่ proxy: false เพราะต้องออกอินเทอร์เน็ตผ่าน Proxy ของระบบ
     });
 
-    if (response.data && response.data.response) {
-      console.log(`✅ AI Response Received (${response.data.response.length} chars)`);
-      return response.data.response;
+    if (response.data && response.data.candidates && response.data.contents === undefined) {
+      const reply = response.data.candidates[0].content.parts[0].text;
+      console.log(`✅ Gemini Response Received (${reply.length} chars)`);
+      return reply;
     }
 
-    console.warn("⚠️ AI Response format unexpected:", response.data);
+    console.warn("⚠️ Gemini Response format unexpected:", JSON.stringify(response.data));
     return null;
   } catch (error) {
-    console.error("❌ AI Service Error Details:");
+    console.error("❌ Gemini AI Service Error:");
     console.error(` - Message: ${error.message}`);
     if (error.response) {
       console.error(` - Status: ${error.response.status}`);
-      console.error(` - Data:`, error.response.data);
+      console.error(` - Data:`, JSON.stringify(error.response.data));
     }
     
     if (error.code === 'ECONNREFUSED') {
-      return "ไม่สามารถเชื่อมต่อกับ Server AI ได้ครับ (Connection Refused)";
+      return "ไม่สามารถเชื่อมต่อกับ Google AI ได้ครับ (Connection Refused)";
     }
-    if (error.code === 'ETIMEDOUT' || error.code === 'ECONNABORTED') {
-      return "AI ใช้เวลาประมวลผลนานเกินไป กรุณาลองใหม่อีกครั้งครับ";
-    }
-    return null;
+    return "ขออภัยครับ ระบบ AI ขัดข้องชั่วคราว (Gemini API Error)";
   }
 };

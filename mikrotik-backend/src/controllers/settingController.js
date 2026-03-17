@@ -9,42 +9,35 @@ exports.getSettings = async (req, res) => {
 };
 
 exports.testAIConnection = async (req, res) => {
-  let { url, model } = req.body;
+  const { apiKey } = req.body;
 
-  if (!url) return res.status(400).json({ error: "URL is required" });
+  if (!apiKey) return res.status(400).json({ error: "API Key is required" });
 
-  // 🧹 Clean URL: ตัดฟันหนูและช่องว่าง
-  url = url.trim().replace(/^"|"$/g, '');
-
-  console.log(`🤖 Testing AI Connection: ${url} (Model: ${model})`);
+  console.log(`🤖 Testing Gemini AI Connection...`);
 
   try {
-    // 1. ทดสอบยิงไปที่ /api/tags
-    const response = await axios.get(`${url}/api/tags`, { 
-      timeout: 15000, 
-      // proxy: false ถูกเอาออกตามความต้องการของผู้ใช้ เพื่อให้ใช้งานผ่าน Proxy ระบบได้
-    });
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
     
-    if (response.status === 200) {
-      const models = response.data.models || [];
-      const modelExists = models.some(m => m.name === model || m.name.startsWith(model));
-      
-      if (modelExists) {
-        return res.json({ success: true, message: `เชื่อมต่อสำเร็จ! พบ Model: ${model}` });
-      } else {
-        return res.json({ success: true, warning: true, message: `เชื่อมต่อ Server ได้ แต่ไม่พบ Model: ${model} ในระบบ` });
-      }
+    const response = await axios.post(url, {
+      contents: [{ parts: [{ text: "Hi, say 'Connection Successful'" }] }]
+    }, { timeout: 10000 });
+    
+    if (response.status === 200 && response.data.candidates) {
+      return res.json({ 
+        success: true, 
+        message: "เชื่อมต่อกับ Gemini API สำเร็จ! AI พร้อมใช้งานแล้วครับ" 
+      });
     }
     
-    res.status(400).json({ error: "Server returned unexpected status" });
+    res.status(400).json({ error: "Gemini API returned unexpected response" });
   } catch (error) {
-    console.error("❌ Test AI Connection Error Details:");
-    console.error(` - Message: ${error.message}`);
-    console.error(` - Target URL: ${url}`);
+    console.error("❌ Test Gemini Connection Error:", error.message);
+    let errorMsg = "ไม่สามารถเชื่อมต่อกับ Google AI ได้";
     
-    let errorMsg = error.message;
-    if (error.code === 'ECONNREFUSED') errorMsg = "ไม่สามารถเชื่อมต่อกับ Server AI ได้ (Connection Refused)";
-    if (error.code === 'EPROTO') errorMsg = "เกิดข้อผิดพลาดด้าน Protocol (อาจเป็นเพราะพยายามใช้ HTTPS บนพอร์ต HTTP)";
+    if (error.response) {
+      if (error.response.status === 400) errorMsg = "API Key ไม่ถูกต้อง หรือ Model ไม่พร้อมใช้งาน";
+      if (error.response.status === 403) errorMsg = "สิทธิ์การใช้งาน API Key ถูกปฏิเสธ (Check API Key restriction)";
+    }
 
     res.status(500).json({ error: errorMsg });
   }

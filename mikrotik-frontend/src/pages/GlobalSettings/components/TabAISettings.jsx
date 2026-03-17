@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Save, Bot, Loader2, Server, Cpu, MessageSquare, Power, RefreshCw } from 'lucide-react';
+import { Save, Bot, Loader2, Key, MessageSquare, Power, RefreshCw, ExternalLink } from 'lucide-react';
 import apiClient from '../../../utils/apiClient';
 import toast from 'react-hot-toast';
 import { useQueryClient } from '@tanstack/react-query';
@@ -11,8 +11,7 @@ export default function TabAISettings({ initialData }) {
   
   const [settings, setSettings] = useState({
     AI_ENABLED: 'false',
-    AI_OLLAMA_URL: 'http://localhost:11434',
-    AI_OLLAMA_MODEL: 'qwen2.5:7b',
+    AI_GEMINI_KEY: '',
     AI_SYSTEM_PROMPT: ''
   });
 
@@ -20,8 +19,7 @@ export default function TabAISettings({ initialData }) {
     if (initialData) {
       setSettings({
         AI_ENABLED: String(initialData.AI_ENABLED || 'false'),
-        AI_OLLAMA_URL: initialData.AI_OLLAMA_URL || 'http://localhost:11434',
-        AI_OLLAMA_MODEL: initialData.AI_OLLAMA_MODEL || 'qwen2.5:7b',
+        AI_GEMINI_KEY: initialData.AI_GEMINI_KEY || '',
         AI_SYSTEM_PROMPT: initialData.AI_SYSTEM_PROMPT || ''
       });
     }
@@ -34,14 +32,13 @@ export default function TabAISettings({ initialData }) {
   const handleSave = async () => {
     setIsSaving(true);
     try {
-      // บันทึกทีละตัวตามโครงสร้างเดิมของระบบ
       const keys = Object.keys(settings);
       const promises = keys.map(key => 
-        apiClient.put(`/api/settings/${key}`, { value: settings[key] }) // 🚫 เอา JSON.stringify ออก
+        apiClient.put(`/api/settings/${key}`, { value: settings[key] })
       );
 
       await Promise.all(promises);
-      toast.success('อัปเดตการตั้งค่า AI สำเร็จ!');
+      toast.success('อัปเดตการตั้งค่า Gemini AI สำเร็จ!');
       queryClient.invalidateQueries({ queryKey: ['settings'] });
     } catch (error) {
       toast.error('เกิดข้อผิดพลาดในการบันทึกข้อมูล');
@@ -54,22 +51,15 @@ export default function TabAISettings({ initialData }) {
   const testConnection = async () => {
     setIsTesting(true);
     try {
-      // ยิงไปที่ Backend Proxy แทนการยิงตรงหา Ollama
       const response = await apiClient.post('/api/settings/test-ai', { 
-        url: settings.AI_OLLAMA_URL, 
-        model: settings.AI_OLLAMA_MODEL 
+        apiKey: settings.AI_GEMINI_KEY 
       });
       
-      const data = response.data;
-      if (data.success) {
-        if (data.warning) {
-          toast.error(data.message, { duration: 5000 });
-        } else {
-          toast.success(data.message);
-        }
+      if (response.data.success) {
+        toast.success(response.data.message);
       }
     } catch (error) {
-      const errorMsg = error.response?.data?.error || 'ไม่สามารถเชื่อมต่อกับ AI Server ผ่าน Backend ได้';
+      const errorMsg = error.response?.data?.error || 'ไม่สามารถเชื่อมต่อกับ Gemini AI ได้';
       toast.error(errorMsg);
       console.error(error);
     } finally {
@@ -82,17 +72,17 @@ export default function TabAISettings({ initialData }) {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 pb-4 border-b border-slate-100 gap-4">
         <div>
           <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-            <Bot size={20} className="text-blue-500" /> AI Assistant Settings
+            <Bot size={20} className="text-emerald-500" /> Google Gemini AI Assistant
           </h3>
-          <p className="text-sm text-slate-500 mt-1">ตั้งค่าการเชื่อมต่อ Ollama เพื่อใช้งานระบบช่วยเหลืออัจฉริยะใน Telegram</p>
+          <p className="text-sm text-slate-500 mt-1">ใช้พลังของ Gemini 1.5 Flash เพื่อช่วยสรุปและวิเคราะห์สถานะเครือข่าย</p>
         </div>
         <div className="flex gap-2">
           <button 
             onClick={testConnection} 
-            disabled={isTesting || !settings.AI_OLLAMA_URL}
+            disabled={isTesting || !settings.AI_GEMINI_KEY}
             className="bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 px-4 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 transition-all shadow-sm"
           >
-            {isTesting ? <RefreshCw size={16} className="animate-spin"/> : <RefreshCw size={16} />} Test Connection
+            {isTesting ? <RefreshCw size={16} className="animate-spin"/> : <RefreshCw size={16} />} Test API Key
           </button>
           <button 
             onClick={handleSave} 
@@ -112,8 +102,8 @@ export default function TabAISettings({ initialData }) {
               <Power size={24} />
             </div>
             <div>
-              <h4 className="font-bold text-slate-800">Enable AI Assistant</h4>
-              <p className="text-sm text-slate-500">เปิดใช้งานระบบตอบโต้อัตโนมัติด้วย AI ใน Telegram Bot</p>
+              <h4 className="font-bold text-slate-800">Enable Gemini AI</h4>
+              <p className="text-sm text-slate-500">เปิดใช้งานระบบตอบโต้อัตโนมัติด้วย Gemini 1.5 Flash ใน Telegram</p>
             </div>
           </div>
           <button
@@ -124,61 +114,51 @@ export default function TabAISettings({ initialData }) {
           </button>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Server URL */}
-          <div className="space-y-2">
+        {/* API Key */}
+        <div className="space-y-2">
+          <div className="flex justify-between items-center">
             <label className="text-sm font-bold text-slate-700 flex items-center gap-2">
-              <Server size={16} className="text-slate-400" /> Ollama Server URL
+              <Key size={16} className="text-slate-400" /> Google AI Studio API Key
             </label>
-            <input
-              type="text"
-              placeholder="http://192.168.x.x:11434"
-              value={settings.AI_OLLAMA_URL}
-              onChange={(e) => handleChange('AI_OLLAMA_URL', e.target.value)}
-              className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all shadow-sm font-mono text-sm"
-            />
-            <p className="text-[11px] text-slate-400 italic">* โปรดตรวจสอบว่าได้ตั้งค่า OLLAMA_HOST=0.0.0.0 แล้ว</p>
+            <a 
+              href="https://aistudio.google.com/app/apikey" 
+              target="_blank" 
+              rel="noreferrer"
+              className="text-xs text-blue-600 hover:underline flex items-center gap-1"
+            >
+              รับ API Key ฟรี <ExternalLink size={12} />
+            </a>
           </div>
-
-          {/* Model Name */}
-          <div className="space-y-2">
-            <label className="text-sm font-bold text-slate-700 flex items-center gap-2">
-              <Cpu size={16} className="text-slate-400" /> Ollama Model Name
-            </label>
-            <input
-              type="text"
-              placeholder="e.g. qwen2.5:7b, llama3.1"
-              value={settings.AI_OLLAMA_MODEL}
-              onChange={(e) => handleChange('AI_OLLAMA_MODEL', e.target.value)}
-              className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all shadow-sm font-mono text-sm"
-            />
-          </div>
+          <input
+            type="password"
+            placeholder="AIzaSy..."
+            value={settings.AI_GEMINI_KEY}
+            onChange={(e) => handleChange('AI_GEMINI_KEY', e.target.value)}
+            className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all shadow-sm font-mono text-sm"
+          />
         </div>
 
         {/* System Prompt */}
         <div className="space-y-2">
           <label className="text-sm font-bold text-slate-700 flex items-center gap-2">
-            <MessageSquare size={16} className="text-slate-400" /> AI System Prompt (Instruction)
+            <MessageSquare size={16} className="text-slate-400" /> AI System Instruction (Role)
           </label>
           <textarea
             rows={5}
             value={settings.AI_SYSTEM_PROMPT}
             onChange={(e) => handleChange('AI_SYSTEM_PROMPT', e.target.value)}
             className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all shadow-sm text-sm resize-none"
-            placeholder="ตั้งค่าบุคลิกภาพและคำสั่งเริ่มต้นให้ AI..."
+            placeholder="เช่น: คุณคือผู้ช่วยดูแลระบบ Network ของ NT ตอบสั้นๆ..."
           />
-          <p className="text-xs text-slate-400 leading-relaxed">
-            <b>Tip:</b> ควรกำหนดให้ AI ตอบสั้นๆ และเน้นภาษาไทย เพื่อลดภาระการประมวลผลของ CPU
-          </p>
         </div>
 
-        {/* Status Info */}
-        <div className="p-4 bg-blue-50 border border-blue-100 rounded-2xl">
+        {/* Gemini Info */}
+        <div className="p-4 bg-emerald-50 border border-emerald-100 rounded-2xl">
           <div className="flex gap-3">
-            <div className="mt-0.5"><Bot size={18} className="text-blue-600" /></div>
-            <div className="text-xs text-blue-700 leading-relaxed">
-              <p className="font-bold mb-1">เกี่ยวกับ AI Assistant:</p>
-              ระบบนี้จะใช้ Ollama เป็นสมองในการประมวลผล เมื่อผู้ใช้งานพิมพ์ข้อความที่ไม่มีคำสั่งใน Telegram ระบบจะส่งสถานะอุปกรณ์ทั้งหมดไปให้ AI ช่วยสรุปและตอบคำถามแบบธรรมชาติ (Natural Language)
+            <div className="mt-0.5"><Bot size={18} className="text-emerald-600" /></div>
+            <div className="text-xs text-emerald-700 leading-relaxed">
+              <p className="font-bold mb-1">ทำไมต้อง Gemini 1.5 Flash?</p>
+              Gemini 1.5 Flash มีความฉลาดสูง เข้าใจภาษาไทยได้ดีเยี่ยม และประมวลผลได้รวดเร็วผ่าน Cloud ของ Google ช่วยให้บอทของคุณสามารถวิเคราะห์สถานะอุปกรณ์ที่ซับซ้อนได้แม่นยำกว่าการรัน Model ขนาดเล็กในเครื่อง
             </div>
           </div>
         </div>

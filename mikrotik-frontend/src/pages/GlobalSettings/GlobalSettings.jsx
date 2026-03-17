@@ -36,8 +36,7 @@ const GlobalSettings = () => {
       ALERT_THRESHOLDS: null, 
       DASHBOARD_ANNOUNCEMENT: '',
       AI_ENABLED: 'false',
-      AI_OLLAMA_URL: 'http://localhost:11434',
-      AI_OLLAMA_MODEL: 'qwen2.5:7b',
+      AI_GEMINI_KEY: '',
       AI_SYSTEM_PROMPT: ''
     };
     if (!rawSettings) return parsed;
@@ -47,8 +46,7 @@ const GlobalSettings = () => {
         'DEFAULT_NETWORKS', 
         'ALERT_THRESHOLDS', 
         'AI_ENABLED', 
-        'AI_OLLAMA_URL', 
-        'AI_OLLAMA_MODEL', 
+        'AI_GEMINI_KEY', 
         'AI_SYSTEM_PROMPT'
       ];
 
@@ -73,7 +71,7 @@ const GlobalSettings = () => {
     { id: 'MAINTENANCE', label: 'Maintenance', icon: Database, color: 'text-rose-600', border: 'border-rose-600', bg: 'bg-rose-50' },
     { id: 'ALERTS', label: 'Alert Thresholds', icon: Bell, color: 'text-rose-500', border: 'border-rose-500', bg: 'bg-rose-50' },
     { id: 'ANNOUNCEMENT', label: 'Announcement', icon: Megaphone, color: 'text-blue-500', border: 'border-blue-500', bg: 'bg-blue-50' },
-    { id: 'AI', label: 'AI Assistant', icon: Bot, color: 'text-indigo-600', border: 'border-indigo-600', bg: 'bg-indigo-50' },
+    { id: 'AI', label: 'Gemini AI', icon: Bot, color: 'text-emerald-600', border: 'border-emerald-600', bg: 'bg-emerald-50' },
   ];
 
   return (
@@ -162,8 +160,7 @@ const GlobalSettings = () => {
                 <TabAISettings 
                   initialData={{
                     AI_ENABLED: settingsData.AI_ENABLED,
-                    AI_OLLAMA_URL: settingsData.AI_OLLAMA_URL,
-                    AI_OLLAMA_MODEL: settingsData.AI_OLLAMA_MODEL,
+                    AI_GEMINI_KEY: settingsData.AI_GEMINI_KEY,
                     AI_SYSTEM_PROMPT: settingsData.AI_SYSTEM_PROMPT
                   }} 
                 />
