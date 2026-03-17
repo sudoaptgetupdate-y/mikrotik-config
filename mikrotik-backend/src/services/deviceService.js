@@ -262,8 +262,8 @@ exports.logDownload = async (id, configId, actionUserId) => {
 };
 
 /**
- * 🤖 สรุปสถานะภาพรวมของระบบสำหรับ AI
- * ดึงเฉพาะข้อมูลที่สำคัญเพื่อให้ AI เข้าใจบริบท
+ * 🤖 สรุปสถานะภาพรวมของระบบสำหรับ AI (Structured Context Builder)
+ * ออกแบบมาเพื่อส่งให้ LLM (RAG) ประมวลผลโดยเฉพาะ
  */
 exports.getAISummary = async (groupId = null) => {
   const where = { status: { not: 'DELETED' } };
@@ -289,38 +289,56 @@ exports.getAISummary = async (groupId = null) => {
   const now = new Date();
   const offlineLimit = 3 * 60 * 1000; // 3 นาที
 
-  let summary = `📍 ข้อมูลกลุ่ม: ${groupId ? 'ระบุกลุ่ม' : 'ทั้งหมด'}\n`;
-  summary += `📊 จำนวนอุปกรณ์ทั้งหมด: ${devices.length} รายการ\n`;
-
   const offlineDevices = devices.filter(d => !d.lastSeen || (now - new Date(d.lastSeen) > offlineLimit));
   const onlineDevices = devices.filter(d => d.lastSeen && (now - new Date(d.lastSeen) <= offlineLimit));
+  
+  // แยกเครื่องที่มีปัญหาโหลดสูง (Warning)
+  const warningDevices = onlineDevices.filter(d => 
+    (d.cpuLoad > 80) || (d.memoryUsage > 80) || (d.latency === 'timeout' || parseInt(d.latency) > 100)
+  );
 
-  summary += `🟢 Online: ${onlineDevices.length}\n`;
-  summary += `🔴 Offline: ${offlineDevices.length}\n`;
+  let summary = `### [SYSTEM_DATETIME]: ${now.toLocaleString('th-TH')}\n`;
+  summary += `### [NETWORK_OVERVIEW]\n`;
+  summary += `- Total_Devices: ${devices.length}\n`;
+  summary += `- Status_Online: ${onlineDevices.length}\n`;
+  summary += `- Status_Offline: ${offlineDevices.length}\n`;
+  summary += `- Status_Warning: ${warningDevices.length}\n\n`;
 
   if (offlineDevices.length > 0) {
-    summary += `\n❌ รายชื่อเครื่องที่ Offline:\n`;
+    summary += `### [CRITICAL_OFFLINE_DEVICES]\n`;
     offlineDevices.forEach(d => {
-      summary += `- ${d.name} (${d.circuitId || 'N/A'})\n`;
+      const lastSeenStr = d.lastSeen ? new Date(d.lastSeen).toLocaleString('th-TH') : 'Never';
+      summary += `- NAME: ${d.name} | CIRCUIT: ${d.circuitId || 'N/A'} | LAST_SEEN: ${lastSeenStr} | STATUS: OFFLINE\n`;
     });
+    summary += `\n`;
   }
 
-  // ดึง Log เหตุการณ์ล่าสุดของวันนี้
+  if (warningDevices.length > 0) {
+    summary += `### [DEVICES_WITH_ISSUES_OR_HIGH_LOAD]\n`;
+    warningDevices.forEach(d => {
+      summary += `- NAME: ${d.name} | CPU: ${d.cpuLoad}% | RAM: ${d.memoryUsage}% | PING: ${d.latency} | ACK: ${d.isAcknowledged ? 'YES' : 'NO'}\n`;
+    });
+    summary += `\n`;
+  }
+
+  // ดึง Log เหตุการณ์ล่าสุดของวันนี้ (20 รายการ)
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
   const recentLogs = await prisma.deviceEventLog.findMany({
     where: { createdAt: { gte: today } },
     orderBy: { createdAt: 'desc' },
-    take: 10,
+    take: 20,
     include: { device: { select: { name: true } } }
   });
 
   if (recentLogs.length > 0) {
-    summary += `\n📜 เหตุการณ์สำคัญวันนี้:\n`;
+    summary += `### [RECENT_EVENT_LOGS_TODAY]\n`;
     recentLogs.forEach(l => {
-      summary += `- [${l.eventType}] ${l.device.name}: ${l.details} (${new Date(l.createdAt).toLocaleTimeString('th-TH')})\n`;
+      summary += `- TIME: ${new Date(l.createdAt).toLocaleTimeString('th-TH')} | DEVICE: ${l.device.name} | EVENT: ${l.eventType} | DETAILS: ${l.details}\n`;
     });
+  } else {
+    summary += `### [RECENT_EVENT_LOGS_TODAY]\n- No significant events logged today.\n`;
   }
 
   return summary;
