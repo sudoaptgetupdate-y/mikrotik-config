@@ -40,6 +40,16 @@ const GlobalSettings = () => {
     return parsed;
   }, [rawSettings]);
 
+  const tabs = [
+    { id: 'ADMINS', label: 'Router Admins', icon: Shield, color: 'text-blue-600', border: 'border-blue-600', bg: 'bg-blue-50' },
+    { id: 'NETWORKS', label: 'Management IPs', icon: Network, color: 'text-emerald-600', border: 'border-emerald-600', bg: 'bg-emerald-50' },
+    { id: 'PBR', label: 'PBR Targets', icon: Globe, color: 'text-orange-600', border: 'border-orange-600', bg: 'bg-orange-50' },
+    { id: 'DEFAULTS', label: 'Default LAN/VLAN', icon: Settings2, color: 'text-purple-600', border: 'border-purple-600', bg: 'bg-purple-50' },
+    { id: 'MAINTENANCE', label: 'Maintenance', icon: Database, color: 'text-rose-600', border: 'border-rose-600', bg: 'bg-rose-50' },
+    { id: 'ALERTS', label: 'Alert Thresholds', icon: Bell, color: 'text-rose-500', border: 'border-rose-500', bg: 'bg-rose-50' },
+    { id: 'ANNOUNCEMENT', label: 'Announcement', icon: Megaphone, color: 'text-blue-500', border: 'border-blue-500', bg: 'bg-blue-50' },
+  ];
+
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
       
@@ -74,29 +84,57 @@ const GlobalSettings = () => {
           <p className="text-slate-500 font-medium animate-pulse">กำลังโหลดข้อมูลการตั้งค่า...</p>
         </div>
       ) : (
-        <>
-          {/* Tabs Menu */}
-          <div className="flex border-b border-slate-200 overflow-x-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-            <button onClick={() => setActiveTab('ADMINS')} className={`flex items-center gap-2 px-4 sm:px-6 py-3 font-bold border-b-2 transition-colors whitespace-nowrap ${activeTab === 'ADMINS' ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}><Shield size={18} /> Router Admins</button>
-            <button onClick={() => setActiveTab('NETWORKS')} className={`flex items-center gap-2 px-4 sm:px-6 py-3 font-bold border-b-2 transition-colors whitespace-nowrap ${activeTab === 'NETWORKS' ? 'border-emerald-600 text-emerald-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}><Network size={18} /> Management IPs</button>
-            <button onClick={() => setActiveTab('PBR')} className={`flex items-center gap-2 px-4 sm:px-6 py-3 font-bold border-b-2 transition-colors whitespace-nowrap ${activeTab === 'PBR' ? 'border-orange-500 text-orange-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}><Globe size={18} /> PBR Targets</button>
-            <button onClick={() => setActiveTab('DEFAULTS')} className={`flex items-center gap-2 px-4 sm:px-6 py-3 font-bold border-b-2 transition-colors whitespace-nowrap ${activeTab === 'DEFAULTS' ? 'border-purple-600 text-purple-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}><Settings2 size={18} /> Default LAN/VLAN</button>
-            <button onClick={() => setActiveTab('MAINTENANCE')} className={`flex items-center gap-2 px-4 sm:px-6 py-3 font-bold border-b-2 transition-colors whitespace-nowrap ${activeTab === 'MAINTENANCE' ? 'border-rose-600 text-rose-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}><Database size={18} /> Maintenance</button>
-            <button onClick={() => setActiveTab('ALERTS')} className={`flex items-center gap-2 px-4 sm:px-6 py-3 font-bold border-b-2 transition-colors whitespace-nowrap ${activeTab === 'ALERTS' ? 'border-rose-500 text-rose-500' : 'border-transparent text-slate-500 hover:text-slate-700'}`}><Bell size={18} /> Alert Thresholds</button>
-            <button onClick={() => setActiveTab('ANNOUNCEMENT')} className={`flex items-center gap-2 px-4 sm:px-6 py-3 font-bold border-b-2 transition-colors whitespace-nowrap ${activeTab === 'ANNOUNCEMENT' ? 'border-blue-500 text-blue-500' : 'border-transparent text-slate-500 hover:text-slate-700'}`}><Megaphone size={18} /> Announcement</button>
+        <div className="flex flex-col lg:flex-row gap-8">
+          {/* Sidebar Tabs - Left Side */}
+          <div className="lg:w-72 flex-shrink-0">
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden p-2 flex flex-row lg:flex-col gap-1 overflow-x-auto lg:overflow-x-visible [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+              {tabs.map((tab) => {
+                const Icon = tab.icon;
+                const isActive = activeTab === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveTab(tab.id)}
+                    className={`
+                      flex items-center gap-3 px-4 py-3 text-sm font-bold rounded-xl transition-all whitespace-nowrap lg:whitespace-normal
+                      ${isActive 
+                        ? `${tab.bg} ${tab.color} ring-1 ring-inset ring-slate-100 shadow-sm` 
+                        : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700'}
+                    `}
+                  >
+                    <Icon size={20} className={isActive ? tab.color : 'text-slate-400'} />
+                    <span className="flex-1 text-left">{tab.label}</span>
+                    {isActive && <div className={`hidden lg:block w-1.5 h-1.5 rounded-full ${tab.color.replace('text-', 'bg-')}`} />}
+                  </button>
+                );
+              })}
+            </div>
+            
+            {/* Help/Status Card in Sidebar (Optional) */}
+            <div className="hidden lg:block mt-6 p-5 bg-gradient-to-br from-slate-50 to-white rounded-2xl border border-slate-200 shadow-sm">
+              <h3 className="text-sm font-bold text-slate-800 mb-2 flex items-center gap-2">
+                <Settings2 size={16} className="text-blue-500" />
+                Setting Tip
+              </h3>
+              <p className="text-xs text-slate-500 leading-relaxed">
+                การตั้งค่าในหน้านี้จะมีผลกับอุปกรณ์ทุกเครื่องในระบบ โปรดตรวจสอบความถูกต้องก่อนบันทึกข้อมูล
+              </p>
+            </div>
           </div>
 
-          {/* 🟢 กล่องแม่: เอา min-h ออกแล้ว กล่องจะยืดหดตามเนื้อหา Tab อัตโนมัติ */}
-          <div className="bg-white p-4 sm:p-6 md:p-8 rounded-b-2xl rounded-tr-2xl border border-t-0 border-slate-200 shadow-sm flex flex-col transition-all">
-            {activeTab === 'ADMINS' && <TabAdmins initialData={settingsData.ROUTER_ADMINS} />}
-            {activeTab === 'NETWORKS' && <TabManagementIps initialData={settingsData.MANAGEMENT_IPS} />}
-            {activeTab === 'PBR' && <TabPbrTargets initialData={settingsData.MONITOR_IPS} />}
-            {activeTab === 'DEFAULTS' && <TabVlanNetwork initialData={settingsData.DEFAULT_NETWORKS} />}
-            {activeTab === 'MAINTENANCE' && <TabMaintenance />}
-            {activeTab === 'ALERTS' && <TabAlertThresholds initialData={settingsData.ALERT_THRESHOLDS} />}
-            {activeTab === 'ANNOUNCEMENT' && <TabDashboardAnnouncement initialData={settingsData.DASHBOARD_ANNOUNCEMENT} />}
+          {/* Content Area - Right Side */}
+          <div className="flex-1 min-w-0">
+            <div className="bg-white p-6 sm:p-8 rounded-2xl border border-slate-200 shadow-sm flex flex-col transition-all min-h-[600px]">
+              {activeTab === 'ADMINS' && <TabAdmins initialData={settingsData.ROUTER_ADMINS} />}
+              {activeTab === 'NETWORKS' && <TabManagementIps initialData={settingsData.MANAGEMENT_IPS} />}
+              {activeTab === 'PBR' && <TabPbrTargets initialData={settingsData.MONITOR_IPS} />}
+              {activeTab === 'DEFAULTS' && <TabVlanNetwork initialData={settingsData.DEFAULT_NETWORKS} />}
+              {activeTab === 'MAINTENANCE' && <TabMaintenance />}
+              {activeTab === 'ALERTS' && <TabAlertThresholds initialData={settingsData.ALERT_THRESHOLDS} />}
+              {activeTab === 'ANNOUNCEMENT' && <TabDashboardAnnouncement initialData={settingsData.DASHBOARD_ANNOUNCEMENT} />}
+            </div>
           </div>
-        </>
+        </div>
       )}
     </div>
   );
