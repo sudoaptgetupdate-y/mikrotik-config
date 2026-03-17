@@ -54,10 +54,10 @@ exports.askAI = async (userMessage, systemContext = "") => {
   // 🧹 Clean API Key
   apiKey = apiKey.trim().replace(/^"|"$/g, '');
 
-  // Gemini 1.5 Flash API URL (v1beta) - ใช้ชื่อรุ่นมาตรฐาน gemini-1.5-flash
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+  // Gemini 1.5 Flash API URL (v1 - Stable)
+  const url = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
 
-  console.log(`🤖 Gemini AI Request: Model=gemini-1.5-flash`);
+  console.log(`🤖 Gemini AI Request: Model=gemini-1.5-flash (v1 API)`);
 
   try {
     const payload = {
@@ -69,7 +69,8 @@ exports.askAI = async (userMessage, systemContext = "") => {
     };
 
     const response = await axios.post(url, payload, { 
-      timeout: 30000 
+      timeout: 30000,
+      headers: { 'Content-Type': 'application/json' }
     });
 
     if (response.data && response.data.candidates && response.data.candidates.length > 0) {

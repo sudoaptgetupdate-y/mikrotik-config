@@ -19,11 +19,15 @@ exports.testAIConnection = async (req, res) => {
   console.log(`🤖 Testing Gemini AI Connection (Model: gemini-1.5-flash)`);
 
   try {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+    // ใช้ v1 API (Stable) และระบุ Headers ให้ชัดเจน
+    const url = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
     
     const response = await axios.post(url, {
       contents: [{ parts: [{ text: "Hi, respond with 'OK'" }] }]
-    }, { timeout: 15000 });
+    }, { 
+      timeout: 15000,
+      headers: { 'Content-Type': 'application/json' }
+    });
     
     if (response.status === 200 && response.data.candidates) {
       return res.json({ 
