@@ -16,10 +16,10 @@ exports.testAIConnection = async (req, res) => {
   // 🧹 Clean API Key
   apiKey = apiKey.trim().replace(/^"|"$/g, '');
 
-  console.log(`🤖 Testing Gemini AI Connection (Model: gemini-1.5-flash-latest)`);
+  console.log(`🤖 Testing Gemini AI Connection (Model: gemini-1.5-flash)`);
 
   try {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
     
     const response = await axios.post(url, {
       contents: [{ parts: [{ text: "Hi, respond with 'OK'" }] }]

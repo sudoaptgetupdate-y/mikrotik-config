@@ -54,10 +54,10 @@ exports.askAI = async (userMessage, systemContext = "") => {
   // 🧹 Clean API Key
   apiKey = apiKey.trim().replace(/^"|"$/g, '');
 
-  // Gemini 1.5 Flash API URL (v1beta)
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`;
+  // Gemini 1.5 Flash API URL (v1beta) - ใช้ชื่อรุ่นมาตรฐาน gemini-1.5-flash
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
 
-  console.log(`🤖 Gemini AI Request: Model=gemini-1.5-flash-latest`);
+  console.log(`🤖 Gemini AI Request: Model=gemini-1.5-flash`);
 
   try {
     const payload = {
