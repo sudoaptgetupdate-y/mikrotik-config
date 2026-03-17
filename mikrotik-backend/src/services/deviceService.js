@@ -304,6 +304,16 @@ exports.getAISummary = async (groupId = null) => {
   summary += `- Status_Offline: ${offlineDevices.length}\n`;
   summary += `- Status_Warning: ${warningDevices.length}\n\n`;
 
+  summary += `### [FULL_DEVICE_INVENTORY]\n`;
+  summary += `(List of all devices in this group and their current status)\n`;
+  devices.forEach(d => {
+    const isOff = !d.lastSeen || (now - new Date(d.lastSeen) > offlineLimit);
+    const isWarn = warningDevices.some(w => w.name === d.name);
+    const statusLabel = isOff ? 'OFFLINE' : (isWarn ? 'WARNING' : 'ONLINE');
+    summary += `- ${d.name} [${d.circuitId || 'N/A'}] | STATUS: ${statusLabel}\n`;
+  });
+  summary += `\n`;
+
   if (offlineDevices.length > 0) {
     summary += `### [CRITICAL_OFFLINE_DEVICES]\n`;
     offlineDevices.forEach(d => {
