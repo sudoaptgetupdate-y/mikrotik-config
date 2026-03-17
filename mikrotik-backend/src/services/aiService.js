@@ -67,11 +67,18 @@ exports.askAI = async (userMessage, systemContext = "") => {
       model: model,
       system: `${systemPrompt}\n\n[ข้อมูลสถานะระบบปัจจุบัน]\n${systemContext}`,
       prompt: userMessage,
-      stream: false
+      stream: false,
+      options: {
+        num_thread: 8,      // 🟢 จำกัดไว้ที่ 8 Core สำหรับ Xeon เพื่อลด Overhead
+        num_predict: 256,   // 🟢 จำกัดความยาวคำตอบให้สั้นลงเพื่อความเร็ว
+        temperature: 0.7,
+        top_p: 0.9,
+        num_ctx: 2048       // 🟢 จำกัด Context Window ให้เล็กลง
+      }
     };
 
     const response = await axios.post(`${ollamaUrl}/api/generate`, payload, { 
-      timeout: 90000 // ขยายเป็น 90 วินาที สำหรับ CPU Inference
+      timeout: 90000 // 90 วินาที
       // proxy: false ถูกเอาออกตามความต้องการของผู้ใช้ เพื่อให้ใช้งานผ่าน Proxy ระบบได้
     });
 
