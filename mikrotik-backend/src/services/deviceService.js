@@ -298,57 +298,49 @@ exports.getAISummary = async (groupId = null) => {
   );
 
   let summary = `### [SYSTEM_DATETIME]: ${now.toLocaleString('th-TH')}\n`;
-  summary += `### [NETWORK_OVERVIEW]\n`;
-  summary += `- Total_Devices: ${devices.length}\n`;
-  summary += `- Status_Online: ${onlineDevices.length}\n`;
-  summary += `- Status_Offline: ${offlineDevices.length}\n`;
-  summary += `- Status_Warning: ${warningDevices.length}\n\n`;
+  summary += `### [NETWORK_STATS]\n`;
+  summary += `- TOTAL: ${devices.length} | ONLINE: ${onlineDevices.length} | OFFLINE: ${offlineDevices.length} | WARNING: ${warningDevices.length}\n\n`;
 
-  summary += `### [FULL_DEVICE_INVENTORY]\n`;
-  summary += `(List of all devices in this group and their current status)\n`;
-  devices.forEach(d => {
-    const isOff = !d.lastSeen || (now - new Date(d.lastSeen) > offlineLimit);
-    const isWarn = warningDevices.some(w => w.name === d.name);
-    const statusLabel = isOff ? 'OFFLINE' : (isWarn ? 'WARNING' : 'ONLINE');
-    summary += `- ${d.name} [${d.circuitId || 'N/A'}] | STATUS: ${statusLabel}\n`;
-  });
-  summary += `\n`;
-
+  // 🔴 ส่งรายละเอียดเฉพาะเครื่องที่มีปัญหา (ช่วยลดความยาวของข้อความได้มหาศาล)
   if (offlineDevices.length > 0) {
-    summary += `### [CRITICAL_OFFLINE_DEVICES]\n`;
+    summary += `### [CRITICAL_OFFLINE]\n`;
     offlineDevices.forEach(d => {
-      const lastSeenStr = d.lastSeen ? new Date(d.lastSeen).toLocaleString('th-TH') : 'Never';
-      summary += `- NAME: ${d.name} | CIRCUIT: ${d.circuitId || 'N/A'} | LAST_SEEN: ${lastSeenStr} | STATUS: OFFLINE\n`;
+      summary += `- ${d.name} (${d.circuitId || 'N/A'})\n`;
     });
     summary += `\n`;
   }
 
   if (warningDevices.length > 0) {
-    summary += `### [DEVICES_WITH_ISSUES_OR_HIGH_LOAD]\n`;
+    summary += `### [HIGH_LOAD_WARNING]\n`;
     warningDevices.forEach(d => {
-      summary += `- NAME: ${d.name} | CPU: ${d.cpuLoad}% | RAM: ${d.memoryUsage}% | PING: ${d.latency} | ACK: ${d.isAcknowledged ? 'YES' : 'NO'}\n`;
+      summary += `- ${d.name}: CPU ${d.cpuLoad}% | RAM ${d.memoryUsage}% | PING ${d.latency}\n`;
     });
     summary += `\n`;
   }
 
-  // ดึง Log เหตุการณ์ล่าสุดของวันนี้ (20 รายการ)
+  // 🟢 เครื่องที่ปกติ ส่งแค่รายชื่อสั้นๆ แบบบรรทัดเดียว (ถ้ามีไม่เกิน 20 เครื่อง) หรือไม่ส่งเลย
+  const healthyDevices = onlineDevices.filter(d => !warningDevices.some(w => w.name === d.name));
+  if (healthyDevices.length > 0) {
+    summary += `### [HEALTHY_DEVICES_NAMES]\n`;
+    summary += healthyDevices.map(d => d.name).join(', ') + '\n\n';
+  }
+
+  // ดึง Log เฉพาะรายการที่ "สำคัญ" 5 รายการล่าสุดของวันนี้
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
   const recentLogs = await prisma.deviceEventLog.findMany({
     where: { createdAt: { gte: today } },
     orderBy: { createdAt: 'desc' },
-    take: 20,
+    take: 5, // ลดเหลือ 5 รายการ
     include: { device: { select: { name: true } } }
   });
 
   if (recentLogs.length > 0) {
-    summary += `### [RECENT_EVENT_LOGS_TODAY]\n`;
+    summary += `### [LATEST_EVENTS]\n`;
     recentLogs.forEach(l => {
-      summary += `- TIME: ${new Date(l.createdAt).toLocaleTimeString('th-TH')} | DEVICE: ${l.device.name} | EVENT: ${l.eventType} | DETAILS: ${l.details}\n`;
+      summary += `- ${new Date(l.createdAt).toLocaleTimeString('th-TH')} | ${l.device.name} | ${l.eventType}\n`;
     });
-  } else {
-    summary += `### [RECENT_EVENT_LOGS_TODAY]\n- No significant events logged today.\n`;
   }
 
   return summary;
