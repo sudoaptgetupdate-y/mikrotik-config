@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Terminal, Smartphone, Copy, RefreshCw, Download } from 'lucide-react';
+import { Terminal, Smartphone, Copy, RefreshCw, Download, Network } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { generateWireguardKeyPair } from '../../../utils/wireguardGenerator';
 import { logService } from '../../../services/logService';
@@ -92,161 +92,190 @@ Endpoint = ${formData.serverPublicIp}:${port}`;
   };
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-6">
-        <h3 className="font-bold text-slate-800 flex items-center gap-2 border-b border-slate-50 pb-4">
-          <Terminal size={20} className="text-blue-500" /> VPN Client Setup
-        </h3>
+    <div className="space-y-8">
+      {/* Top Section: Config Cards */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         
-        <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="col-span-2 md:col-span-1">
-              <label className="block text-xs font-black text-slate-400 uppercase mb-1.5">Public IP / DDNS</label>
-              <input type="text" value={formData.serverPublicIp} onChange={e => setFormData({...formData, serverPublicIp: e.target.value})} className="w-full border border-slate-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-blue-500 outline-none transition" placeholder="my.ddns.com หรือ 1.2.3.4" />
-            </div>
-            <div className="col-span-2 md:col-span-1">
-              <label className="block text-xs font-black text-slate-400 uppercase mb-1.5">Listen Port</label>
-              <div className="flex gap-2">
-                <input 
-                    type="text" 
-                    value={formData.listenPort} 
-                    onChange={e => setFormData({...formData, listenPort: e.target.value.replace(/[^0-9]/g, '')})} 
-                    className="w-full border border-slate-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-blue-500 outline-none transition" 
-                    placeholder="51820" 
-                />
-                <button onClick={handleGeneratePort} className="px-4 py-2 bg-slate-800 text-white rounded-xl text-xs font-bold hover:bg-slate-900 transition flex items-center gap-2 shadow-sm">Gen</button>
+        {/* Left Card: Server & Network */}
+        <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-6 flex flex-col h-full">
+          <h3 className="font-bold text-slate-800 flex items-center gap-2 border-b border-slate-50 pb-4">
+            <Network size={20} className="text-blue-500" /> Server & Network Info
+          </h3>
+          
+          <div className="space-y-5 flex-1">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="col-span-2 md:col-span-1">
+                <label className="block text-xs font-black text-slate-400 uppercase mb-1.5">Public IP / DDNS</label>
+                <input type="text" value={formData.serverPublicIp} onChange={e => setFormData({...formData, serverPublicIp: e.target.value})} className="w-full border border-slate-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-blue-500 outline-none transition shadow-sm" placeholder="my.ddns.com หรือ 1.2.3.4" />
+              </div>
+              <div className="col-span-2 md:col-span-1">
+                <label className="block text-xs font-black text-slate-400 uppercase mb-1.5">Listen Port</label>
+                <div className="flex gap-2">
+                  <input 
+                      type="text" 
+                      value={formData.listenPort} 
+                      onChange={e => setFormData({...formData, listenPort: e.target.value.replace(/[^0-9]/g, '')})} 
+                      className="w-full border border-slate-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-blue-500 outline-none transition shadow-sm" 
+                      placeholder="51820" 
+                  />
+                  <button onClick={handleGeneratePort} className="px-4 py-2 bg-slate-800 text-white rounded-xl text-xs font-bold hover:bg-slate-900 transition flex items-center gap-2 shadow-sm">Gen</button>
+                </div>
               </div>
             </div>
-          </div>
 
-          <div className="p-4 bg-slate-50 rounded-2xl space-y-3">
-             <label className="block text-xs font-black text-slate-600 uppercase">Existing Server Info (From MikroTik)</label>
-             <div className="grid grid-cols-2 gap-3">
-                <div>
-                   <label className="block text-[10px] font-bold text-slate-500 mb-1">Interface Name</label>
-                   <input type="text" value={formData.serverName} onChange={e => setFormData({...formData, serverName: e.target.value})} className="w-full border border-slate-200 rounded-xl p-2.5 text-xs bg-white" placeholder="เช่น wireguard1" />
-                </div>
-                <div>
-                   <label className="block text-[10px] font-bold text-slate-500 mb-1">Server Public Key</label>
-                   <input type="text" value={formData.serverPublicKey} onChange={e => setFormData({...formData, serverPublicKey: e.target.value})} className="w-full border border-slate-200 rounded-xl p-2.5 text-xs font-mono bg-white" placeholder="Public Key ของ Server" />
-                </div>
-             </div>
-          </div>
+            <div className="p-5 bg-slate-50 rounded-2xl space-y-4 border border-slate-100">
+               <label className="block text-xs font-black text-slate-600 uppercase">Existing Interface (MikroTik)</label>
+               <div className="grid grid-cols-1 gap-4">
+                  <div>
+                     <label className="block text-[10px] font-bold text-slate-500 mb-1.5">WireGuard Interface Name</label>
+                     <input type="text" value={formData.serverName} onChange={e => setFormData({...formData, serverName: e.target.value})} className="w-full border border-slate-200 rounded-xl p-3 text-xs bg-white shadow-sm" placeholder="เช่น wireguard1" />
+                  </div>
+                  <div>
+                     <label className="block text-[10px] font-bold text-slate-500 mb-1.5">Server Public Key</label>
+                     <input type="text" value={formData.serverPublicKey} onChange={e => setFormData({...formData, serverPublicKey: e.target.value})} className="w-full border border-slate-200 rounded-xl p-3 text-xs font-mono bg-white shadow-sm" placeholder="คัดลอก Public Key จาก Server มาวาง" />
+                  </div>
+               </div>
+            </div>
 
-          <div className="pt-4 border-t border-slate-100">
-             <label className="block text-xs font-black text-slate-400 uppercase mb-3">Traffic Routing (Allowed IPs)</label>
-             <div className="grid grid-cols-3 gap-2 mb-4">
-                {['full', 'split', 'custom'].map((mode) => (
-                  <button 
-                    key={mode}
-                    onClick={() => setFormData({...formData, routingMode: mode})}
-                    className={`p-2.5 rounded-xl border text-[10px] font-bold transition-all capitalize ${formData.routingMode === mode ? 'bg-blue-600 text-white border-blue-600 shadow-md' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}
-                  >
-                    {mode === 'full' ? 'Full Tunnel' : mode === 'split' ? 'Split Tunnel' : 'Custom'}
-                  </button>
-                ))}
-             </div>
-             
-             {formData.routingMode === 'custom' && (
-                <div className="mb-4 animate-in slide-in-from-top-2 duration-200">
-                   <input 
-                     type="text" 
-                     value={formData.customAllowedIPs} 
-                     onChange={e => setFormData({...formData, customAllowedIPs: e.target.value})} 
-                     className="w-full border border-blue-200 rounded-xl p-3 text-sm font-mono focus:ring-2 focus:ring-blue-500 outline-none transition bg-blue-50/30" 
-                     placeholder="เช่น 192.168.1.0/24, 10.0.88.0/24" 
-                   />
-                </div>
-             )}
+            <div className="pt-2">
+               <label className="block text-xs font-black text-slate-400 uppercase mb-3">Traffic Routing (Allowed IPs)</label>
+               <div className="grid grid-cols-3 gap-2 mb-4">
+                  {['full', 'split', 'custom'].map((mode) => (
+                    <button 
+                      key={mode}
+                      onClick={() => setFormData({...formData, routingMode: mode})}
+                      className={`p-3 rounded-xl border text-[10px] font-bold transition-all capitalize ${formData.routingMode === mode ? 'bg-blue-600 text-white border-blue-600 shadow-md' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}
+                    >
+                      {mode === 'full' ? 'Full Tunnel' : mode === 'split' ? 'Split Tunnel' : 'Custom'}
+                    </button>
+                  ))}
+               </div>
+               
+               {formData.routingMode === 'custom' && (
+                  <div className="animate-in slide-in-from-top-2 duration-200">
+                     <input 
+                       type="text" 
+                       value={formData.customAllowedIPs} 
+                       onChange={e => setFormData({...formData, customAllowedIPs: e.target.value})} 
+                       className="w-full border border-blue-200 rounded-xl p-3 text-sm font-mono focus:ring-2 focus:ring-blue-500 outline-none transition bg-blue-50/30" 
+                       placeholder="เช่น 192.168.1.0/24, 10.0.88.0/24" 
+                     />
+                  </div>
+               )}
+            </div>
           </div>
+        </div>
 
-          <div className="pt-4 border-t border-slate-100 space-y-4">
-             <label className="block text-xs font-black text-slate-400 uppercase mb-1">Client Information</label>
+        {/* Right Card: Client Settings */}
+        <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-6 flex flex-col h-full">
+          <h3 className="font-bold text-slate-800 flex items-center gap-2 border-b border-slate-50 pb-4">
+            <Smartphone size={20} className="text-blue-500" /> Client Device Setup
+          </h3>
+
+          <div className="space-y-5 flex-1">
              <div className="grid grid-cols-2 gap-4">
                 <div>
-                   <label className="block text-[11px] font-bold text-slate-500 mb-1.5">Client Name</label>
-                   <input type="text" value={formData.clientName} onChange={e => setFormData({...formData, clientName: e.target.value})} className="w-full border border-slate-200 rounded-xl p-2.5 text-sm" placeholder="User-1" />
+                   <label className="block text-xs font-black text-slate-400 uppercase mb-1.5">Client Name (Comment)</label>
+                   <input type="text" value={formData.clientName} onChange={e => setFormData({...formData, clientName: e.target.value})} className="w-full border border-slate-200 rounded-xl p-3 text-sm shadow-sm" placeholder="เช่น User-PC" />
                 </div>
                 <div>
-                   <label className="block text-[11px] font-bold text-slate-500 mb-1.5">VPN Subnet</label>
+                   <label className="block text-xs font-black text-slate-400 uppercase mb-1.5">VPN Subnet</label>
                    <input 
                      type="text" 
                      value={formData.vpnSubnet} 
                      onChange={e => setFormData({...formData, vpnSubnet: e.target.value.replace(/\//g, '')})} 
-                     className="w-full border border-slate-200 rounded-xl p-2.5 text-sm font-mono" 
+                     className="w-full border border-slate-200 rounded-xl p-3 text-sm font-mono shadow-sm" 
                      placeholder="เช่น 10.0.88.0" 
                    />
                 </div>
              </div>
+             
              <div>
-                <label className="block text-[11px] font-bold text-slate-500 mb-1.5">DNS Server(s)</label>
-                <input type="text" value={formData.dns} onChange={e => setFormData({...formData, dns: e.target.value})} className="w-full border border-slate-200 rounded-xl p-2.5 text-sm font-mono" placeholder="เช่น 8.8.8.8, 1.1.1.1" />
+                <label className="block text-xs font-black text-slate-400 uppercase mb-1.5">DNS Server(s)</label>
+                <input type="text" value={formData.dns} onChange={e => setFormData({...formData, dns: e.target.value})} className="w-full border border-slate-200 rounded-xl p-3 text-sm font-mono shadow-sm" placeholder="8.8.8.8, 1.1.1.1" />
              </div>
-             <div className="p-4 bg-blue-50/50 rounded-2xl border border-blue-100/50 space-y-3">
-                <label className="block text-xs font-black text-blue-600 uppercase">Client Keys (Generate for Client)</label>
+
+             <div className="p-5 bg-blue-50/50 rounded-2xl border border-blue-100/50 space-y-4">
+                <label className="block text-xs font-black text-blue-600 uppercase flex items-center gap-2">
+                   Client Keys <span className="text-[10px] font-medium lowercase text-blue-400">(Generate for New Client)</span>
+                </label>
                 <div className="space-y-3">
                     <div className="flex gap-2">
-                        <input type="text" value={formData.clientPrivateKey} onChange={e => setFormData({...formData, clientPrivateKey: e.target.value})} className="flex-1 border border-blue-200 rounded-xl p-3 text-sm font-mono focus:ring-2 focus:ring-blue-500 outline-none transition bg-white" placeholder="Client Private Key" />
-                        <button onClick={() => handleGenerateKeys('client')} className="px-4 py-2 bg-blue-600 text-white rounded-xl text-xs font-bold hover:bg-blue-700 transition shadow-sm flex items-center gap-1"><RefreshCw size={14} /> Gen Keys</button>
+                        <input type="text" value={formData.clientPrivateKey} onChange={e => setFormData({...formData, clientPrivateKey: e.target.value})} className="flex-1 border border-blue-200 rounded-xl p-3 text-xs font-mono focus:ring-2 focus:ring-blue-500 outline-none transition bg-white shadow-sm" placeholder="Client Private Key" />
+                        <button onClick={() => handleGenerateKeys('client')} className="px-4 py-2 bg-blue-600 text-white rounded-xl text-xs font-bold hover:bg-blue-700 transition shadow-sm flex items-center gap-1"><RefreshCw size={14} /> Gen</button>
                     </div>
-                    <input type="text" value={formData.clientPublicKey} onChange={e => setFormData({...formData, clientPublicKey: e.target.value})} className="w-full border border-blue-200 rounded-xl p-3 text-sm font-mono focus:ring-2 focus:ring-blue-500 outline-none transition bg-white" placeholder="Client Public Key" />
+                    <div className="space-y-1.5">
+                       <label className="block text-[10px] font-bold text-slate-500">Client Public Key (Copy to MikroTik Peer)</label>
+                       <input type="text" value={formData.clientPublicKey} onChange={e => setFormData({...formData, clientPublicKey: e.target.value})} className="w-full border border-blue-200 rounded-xl p-3 text-xs font-mono focus:ring-2 focus:ring-blue-500 outline-none transition bg-white shadow-sm" placeholder="Client Public Key" />
+                    </div>
                 </div>
              </div>
           </div>
 
-          <button onClick={handleGenerateConfig} className="w-full py-4 bg-blue-600 text-white rounded-2xl font-black text-lg shadow-xl shadow-blue-500/20 hover:bg-blue-500 hover:-translate-y-0.5 transition-all">
-             Generate WireGuard Script
-          </button>
+          <div className="pt-4">
+             <button onClick={handleGenerateConfig} className="w-full py-4 bg-slate-900 text-white rounded-2xl font-black text-lg shadow-xl shadow-slate-900/10 hover:bg-slate-800 hover:-translate-y-0.5 transition-all">
+                Generate VPN Script
+             </button>
+          </div>
         </div>
       </div>
 
+      {/* Bottom Section: Results */}
       <div className="space-y-6">
         {generatedConfig ? (
-          <>
-            <div className="bg-slate-900 rounded-3xl p-6 shadow-xl space-y-4">
-               <div className="flex justify-between items-center">
-                  <h4 className="text-white font-bold flex items-center gap-2"><Terminal size={18} className="text-emerald-400" /> RouterOS Script</h4>
-                  <button onClick={() => { navigator.clipboard.writeText(generatedConfig.serverScript); toast.success('Copied!'); }} className="text-slate-400 hover:text-white transition"><Copy size={18} /></button>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 animate-in slide-in-from-bottom-4 duration-500">
+            {/* RouterOS Result */}
+            <div className="bg-slate-900 rounded-3xl p-6 shadow-xl space-y-4 h-full">
+               <div className="flex justify-between items-center border-b border-slate-800 pb-4">
+                  <h4 className="text-white font-bold flex items-center gap-2"><Terminal size={18} className="text-emerald-400" /> MikroTik Script</h4>
+                  <button onClick={() => { navigator.clipboard.writeText(generatedConfig.serverScript); toast.success('Copied!'); }} className="p-2 bg-slate-800 text-slate-400 hover:text-white rounded-xl transition shadow-sm"><Copy size={18} /></button>
                </div>
-               <pre className="text-emerald-400 text-xs font-mono bg-slate-800/50 p-4 rounded-xl overflow-x-auto max-h-[300px]">
-                  {generatedConfig.serverScript}
-               </pre>
+               <div className="relative">
+                  <pre className="text-emerald-400 text-[11px] font-mono bg-slate-950/50 p-5 rounded-2xl overflow-x-auto min-h-[250px] max-h-[400px] border border-slate-800">
+                     {generatedConfig.serverScript}
+                  </pre>
+               </div>
+               <p className="text-[10px] text-slate-500 italic">คัดลอกสคริปต์นี้ไปวางใน Terminal ของ Winbox หรือ WebFig</p>
             </div>
 
-            <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-6">
+            {/* Client Config Result */}
+            <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-6 h-full flex flex-col">
                <div className="flex justify-between items-center border-b border-slate-50 pb-4">
-                  <h4 className="font-bold text-slate-800 flex items-center gap-2"><div className="w-5 h-5 bg-blue-500 text-white rounded flex items-center justify-center"><Smartphone size={14} /></div> Client Config (.conf)</h4>
+                  <h4 className="font-bold text-slate-800 flex items-center gap-2"><div className="w-6 h-6 bg-blue-600 text-white rounded-lg flex items-center justify-center shadow-sm"><Smartphone size={14} /></div> Client (.conf)</h4>
                   <div className="flex gap-2">
-                    <button onClick={handleDownloadClientConfig} title="Download .conf" className="p-2 hover:bg-slate-50 rounded-lg transition text-slate-400 hover:text-blue-600"><Download size={18} /></button>
-                    <button onClick={() => { navigator.clipboard.writeText(generatedConfig.clientConfig); toast.success('Copied!'); }} className="p-2 hover:bg-slate-50 rounded-lg transition text-slate-400 hover:text-slate-600"><Copy size={18} /></button>
+                    <button onClick={handleDownloadClientConfig} title="Download .conf" className="p-2 bg-slate-50 hover:bg-blue-50 rounded-xl transition text-slate-400 hover:text-blue-600 shadow-sm"><Download size={18} /></button>
+                    <button onClick={() => { navigator.clipboard.writeText(generatedConfig.clientConfig); toast.success('Copied!'); }} className="p-2 bg-slate-50 hover:bg-slate-100 rounded-xl transition text-slate-400 hover:text-slate-600 shadow-sm"><Copy size={18} /></button>
                   </div>
                </div>
-               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
-                  <div className="space-y-4">
-                    <pre className="text-[10px] text-slate-600 bg-slate-50 p-3 rounded-xl border border-slate-100 font-mono overflow-x-auto">
+               
+               <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
+                  <div className="h-full">
+                    <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Config Preview</label>
+                    <pre className="text-[10px] text-slate-600 bg-slate-50 p-4 rounded-2xl border border-slate-100 font-mono overflow-x-auto h-[200px]">
                         {generatedConfig.clientConfig}
                     </pre>
                   </div>
-                  <div className="flex flex-col items-center justify-center p-4 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
-                     <div className="w-32 h-32 bg-white rounded-lg flex items-center justify-center mb-3 shadow-inner">
+                  <div className="flex flex-col items-center justify-center p-6 bg-slate-50 rounded-2xl border border-dashed border-slate-200 h-full">
+                     <div className="w-36 h-36 bg-white rounded-2xl flex items-center justify-center mb-4 shadow-sm border border-slate-100 p-2">
                         <img 
                           src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(generatedConfig.clientConfig)}`} 
                           alt="QR Code" 
-                          className="w-28 h-28"
+                          className="w-full h-full object-contain"
                         />
                      </div>
-                     <span className="text-[10px] font-bold text-slate-500">Scan via WireGuard App</span>
+                     <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Scan with WireGuard App</span>
+                     <p className="text-[9px] text-slate-400 mt-1">iOS / Android / Desktop</p>
                   </div>
                </div>
             </div>
-          </>
+          </div>
         ) : (
-          <div className="h-full min-h-[400px] flex flex-col items-center justify-center text-center p-10 bg-slate-50 rounded-3xl border-2 border-dashed border-slate-200 opacity-60">
-             <div className="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center mb-4 text-slate-300">
-                <Smartphone size={40} />
+          <div className="flex flex-col items-center justify-center text-center p-16 bg-slate-50 rounded-[2.5rem] border-2 border-dashed border-slate-200 opacity-60">
+             <div className="w-24 h-24 bg-white rounded-full flex items-center justify-center mb-6 text-slate-200 shadow-sm border border-slate-100">
+                <Smartphone size={48} />
              </div>
-             <h4 className="font-bold text-slate-400">ยังไม่มีข้อมูล Config</h4>
-             <p className="text-xs text-slate-400 mt-2 max-w-xs">กรอกข้อมูลฝั่งซ้ายและกดปุ่ม Generate เพื่อสร้างสคริปต์สำหรับ MikroTik และ Client</p>
+             <h4 className="font-bold text-slate-500 text-lg">ยังไม่มีข้อมูล Config</h4>
+             <p className="text-sm text-slate-400 mt-2 max-w-sm leading-relaxed">กรอกข้อมูลการตั้งค่า Server และ Client ด้านบน <br/> จากนั้นกดปุ่ม Generate เพื่อดูสคริปต์และ QR Code</p>
           </div>
         )}
       </div>
