@@ -118,8 +118,8 @@ ${basePrompt}
     settingsContext += `- ${s.key}: ${s.value}\n`;
   });
 
-  // ลำดับรุ่นที่ต้องการใช้งาน (Priority List - อ้างอิงจากรุ่นที่ Key นี้ใช้งานได้จริง)
-  const models = ["gemini-2.5-flash", "gemini-flash-latest", "gemini-2.0-flash"];
+  // ลำดับรุ่นที่ต้องการใช้งาน (Priority List - เน้นความเสถียรของโควต้าเป็นหลัก)
+  const models = ["gemini-flash-latest", "gemini-2.5-flash", "gemini-2.0-flash"];
   
   let lastError = null;
   for (const model of models) {
@@ -149,6 +149,12 @@ ${basePrompt}
       lastError = err;
       const status = err.response?.status;
       console.warn(`⚠️ Gemini Model ${model} failed (Status: ${status}). Trying next candidate...`);
+      
+      if (status === 429) {
+        // ถ้าติด Rate Limit ให้รอ 2 วินาทีก่อนลองรุ่นถัดไป
+        await new Promise(resolve => setTimeout(resolve, 2000));
+      }
+
       if (status !== 429 && status !== 404) break;
       continue;
     }
