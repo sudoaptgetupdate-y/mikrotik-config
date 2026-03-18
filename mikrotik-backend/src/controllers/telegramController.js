@@ -265,25 +265,8 @@ exports.handleWebhook = async (req, res) => {
       // 🎯 [NEW] Keyword Matching เพื่อประหยัด Token AI
       const low = text.toLowerCase();
       
-      // 1. เช็คว่าเป็นชื่ออุปกรณ์ตรงๆ หรือมีชื่ออุปกรณ์อยู่ในประโยค (สำหรับ /status)
-      // สร้าง Keyword สำหรับการ "ขอดูสถานะ"
-      const statusKeywords = ['ข้อมูล', 'สถานะ', 'เช็ค', 'check', 'ดู', 'ขอดู', 'ขอข้อมูล'];
-      const isStatusIntent = statusKeywords.some(k => low.includes(k));
-
-      // ค้นหาอุปกรณ์ที่ชื่อปรากฏในข้อความ (เรียงตามความยาวชื่อจากมากไปน้อย เพื่อป้องกันชื่อสั้นซ้อนในชื่อยาว)
-      const matchedDevice = devices
-        .sort((a, b) => b.name.length - a.name.length)
-        .find(d => 
-          (d.name && low.includes(d.name.toLowerCase())) || 
-          (d.circuitId && low.includes(d.circuitId.toLowerCase()))
-        );
-
-      // ถ้าตรงเงื่อนไข (เป็นชื่อตรงๆ) หรือ (มี Intent จะดูข้อมูล + มีชื่ออุปกรณ์)
-      if (matchedDevice && (low === matchedDevice.name.toLowerCase() || isStatusIntent)) {
-        handled = await dispatchCommand(group, chatId, devices, thresholds, '/status', ['/status', `_id_${matchedDevice.id}`]);
-      } 
-      // 2. เช็ค Keyword อื่นๆ
-      else if (['รายงาน', 'สรุป', 'report', 'ดูรายงาน'].some(k => low.includes(k))) {
+      // --- หมวดที่ 1: คำสั่งเฉพาะทาง (ตรวจสอบก่อนเพื่อความแม่นยำ) ---
+      if (['รายงาน', 'สรุป', 'report', 'ดูรายงาน'].some(k => low.includes(k))) {
         handled = await dispatchCommand(group, chatId, devices, thresholds, '/report', []);
       }
       else if (['offline', 'ออฟไลน์', 'เครื่องดับ', 'ติดต่อไม่ได้'].some(k => low.includes(k))) {
@@ -297,6 +280,32 @@ exports.handleWebhook = async (req, res) => {
       }
       else if (['ช่วยเหลือ', 'ช่วยด้วย', 'help', 'ทำอะไรได้บ้าง'].some(k => low.includes(k))) {
         handled = await dispatchCommand(group, chatId, devices, thresholds, '/help', []);
+      }
+      
+      // --- หมวดที่ 2: ตรวจสอบการดูสถานะรายเครื่อง (Status) ---
+      if (!handled) {
+        const statusKeywords = ['ขอข้อมูล', 'ข้อมูล', 'สถานะ', 'เช็ค', 'check', 'ดู', 'ขอดู', 'ของ'];
+        const isStatusIntent = statusKeywords.some(k => low.includes(k));
+        
+        // 🧼 ทำความสะอาดประโยคเพื่อหา "คำค้นหา" (Search Term)
+        let searchTerm = low;
+        statusKeywords.forEach(k => {
+          searchTerm = searchTerm.replace(k, '');
+        });
+        searchTerm = searchTerm.trim();
+
+        if (searchTerm || isStatusIntent) {
+          // ค้นหาอุปกรณ์ (ใช้ Partial Match เหมือนคำสั่ง /status)
+          const matched = devices.filter(d => 
+            (d.name && d.name.toLowerCase().includes(searchTerm)) || 
+            (d.circuitId && d.circuitId.toLowerCase().includes(searchTerm))
+          );
+
+          // เงื่อนไข: เจอเครื่อง และ (มีคำว่าข้อมูลปนอยู่ หรือ ชื่อที่พิมพ์มายาวกว่า 2 ตัวอักษรเพื่อป้องกันการพิมพ์มั่ว)
+          if (matched.length > 0 && (isStatusIntent || searchTerm.length >= 2)) {
+            handled = await dispatchCommand(group, chatId, devices, thresholds, '/status', ['/status', searchTerm]);
+          }
+        }
       }
     }
 
