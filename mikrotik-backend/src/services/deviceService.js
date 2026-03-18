@@ -279,8 +279,13 @@ exports.getAISummary = async (groupId = null) => {
       lastSeen: true,
       cpuLoad: true,
       memoryUsage: true,
+      storage: true,
+      temp: true,
       uptime: true,
       latency: true,
+      currentIp: true,
+      boardName: true,
+      version: true,
       isAcknowledged: true,
       groups: { select: { name: true } }
     }
@@ -301,28 +306,27 @@ exports.getAISummary = async (groupId = null) => {
   summary += `### [NETWORK_STATS]\n`;
   summary += `- TOTAL: ${devices.length} | ONLINE: ${onlineDevices.length} | OFFLINE: ${offlineDevices.length} | WARNING: ${warningDevices.length}\n\n`;
 
-  // 🔴 ส่งรายละเอียดเฉพาะเครื่องที่มีปัญหา (Detailed)
-  if (offlineDevices.length > 0) {
-    summary += `### [OFFLINE_DEVICES]\n`;
+  // 🔴 ส่งรายละเอียดเฉพาะเครื่องที่มีปัญหา (Detailed Alert)
+  if (offlineDevices.length > 0 || warningDevices.length > 0) {
+    summary += `### [ACTIVE_ISSUES_REPORT]\n`;
     offlineDevices.forEach(d => {
-      summary += `- ${d.name} (${d.circuitId || 'N/A'})\n`;
+      summary += `- 🚨 OFFLINE: ${d.name} (${d.circuitId || 'N/A'}) | LastSeen: ${d.lastSeen ? new Date(d.lastSeen).toLocaleString('th-TH') : 'Never'}\n`;
     });
-    summary += `\n`;
-  }
-
-  if (warningDevices.length > 0) {
-    summary += `### [LOAD_WARNING]\n`;
     warningDevices.forEach(d => {
-      summary += `- ${d.name}: CPU ${d.cpuLoad}% | RAM ${d.memoryUsage}% | PING ${d.latency}\n`;
+      summary += `- ⚠️ WARNING: ${d.name} | CPU: ${d.cpuLoad}% | RAM: ${d.memoryUsage}% | PING: ${d.latency} | TEMP: ${d.temp}°C\n`;
     });
     summary += `\n`;
   }
 
-  // 🔵 ส่งรายชื่ออุปกรณ์ทั้งหมดแบบสรุป (Compact List for Search/Count)
-  summary += `### [ALL_DEVICES_LIST]\n`;
+  // 🔵 ข้อมูลสุขภาพและทรัพยากรของอุปกรณ์ทั้งหมด (All Devices Health & Resources)
+  summary += `### [ALL_DEVICES_HEALTH_DATA]\n`;
+  summary += `Format: Name | ID | Status | IP | Model/Ver | CPU | RAM | Disk | Temp | Ping | Uptime\n`;
   devices.forEach(d => {
     const isOff = !d.lastSeen || (now - new Date(d.lastSeen) > offlineLimit);
-    summary += `- ${d.name} | ID: ${d.circuitId || 'N/A'} | STATUS: ${isOff ? 'OFFLINE' : 'ONLINE'}\n`;
+    const status = isOff ? 'OFFLINE' : 'ONLINE';
+    const health = `${d.cpuLoad}%|${d.memoryUsage}%|${d.storage}%|${d.temp || 'N/A'}°C`;
+    const net = `${d.currentIp}|${d.latency}|${d.uptime || '-'}`;
+    summary += `- ${d.name} | ${d.circuitId || '-'} | ${status} | ${net} | ${d.boardName}/${d.version} | ${health}\n`;
   });
   summary += `\n`;
 
