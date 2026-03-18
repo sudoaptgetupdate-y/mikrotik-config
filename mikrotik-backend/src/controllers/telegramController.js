@@ -265,16 +265,24 @@ exports.handleWebhook = async (req, res) => {
       // 🎯 [NEW] Keyword Matching เพื่อประหยัด Token AI
       const low = text.toLowerCase();
       
-      // เช็คว่าเป็นชื่ออุปกรณ์ตรงๆ ไหม (Exact Name or Circuit ID)
-      const exactDevice = devices.find(d => 
-        (d.name && d.name.toLowerCase() === low) || 
-        (d.circuitId && d.circuitId.toLowerCase() === low)
-      );
+      // 1. เช็คว่าเป็นชื่ออุปกรณ์ตรงๆ หรือมีชื่ออุปกรณ์อยู่ในประโยค (สำหรับ /status)
+      // สร้าง Keyword สำหรับการ "ขอดูสถานะ"
+      const statusKeywords = ['ข้อมูล', 'สถานะ', 'เช็ค', 'check', 'ดู', 'ขอดู', 'ขอข้อมูล'];
+      const isStatusIntent = statusKeywords.some(k => low.includes(k));
 
-      if (exactDevice) {
-        handled = await dispatchCommand(group, chatId, devices, thresholds, '/status', ['/status', `_id_${exactDevice.id}`]);
+      // ค้นหาอุปกรณ์ที่ชื่อปรากฏในข้อความ (เรียงตามความยาวชื่อจากมากไปน้อย เพื่อป้องกันชื่อสั้นซ้อนในชื่อยาว)
+      const matchedDevice = devices
+        .sort((a, b) => b.name.length - a.name.length)
+        .find(d => 
+          (d.name && low.includes(d.name.toLowerCase())) || 
+          (d.circuitId && low.includes(d.circuitId.toLowerCase()))
+        );
+
+      // ถ้าตรงเงื่อนไข (เป็นชื่อตรงๆ) หรือ (มี Intent จะดูข้อมูล + มีชื่ออุปกรณ์)
+      if (matchedDevice && (low === matchedDevice.name.toLowerCase() || isStatusIntent)) {
+        handled = await dispatchCommand(group, chatId, devices, thresholds, '/status', ['/status', `_id_${matchedDevice.id}`]);
       } 
-      // เช็ค Keyword อื่นๆ
+      // 2. เช็ค Keyword อื่นๆ
       else if (['รายงาน', 'สรุป', 'report', 'ดูรายงาน'].some(k => low.includes(k))) {
         handled = await dispatchCommand(group, chatId, devices, thresholds, '/report', []);
       }
