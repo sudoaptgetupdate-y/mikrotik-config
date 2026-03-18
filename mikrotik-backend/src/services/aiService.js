@@ -88,6 +88,14 @@ ${basePrompt}
 5. **การส่งต่อคำสั่ง (Intent Handover)**: 
    - ตอบด้วยรูปแบบ \`COMMAND: /command_name\` เมื่อผู้ใช้ต้องการดูข้อมูลที่มีคำสั่งรองรับ
 
+### กฎการจัดรูปแบบข้อความ (สำคัญมาก):
+- ห้ามใช้ Markdown (เช่น ** หรือ __)
+- ให้ใช้ HTML Tags ของ Telegram เท่านั้น:
+  - <b>ข้อความตัวหนา</b> สำหรับชื่ออุปกรณ์ หรือข้อมูลสำคัญ
+  - <code>ข้อความโค้ด</code> สำหรับ Circuit ID, IP หรือค่าตัวเลข
+  - <i>ข้อความตัวเอียง</i> สำหรับหมายเหตุ
+- ห้ามใส่ Tag HTML อื่นๆ นอกเหนือจาก 3 อย่างนี้เด็ดขาด
+
 ### [AVAILABLE_BOT_COMMANDS]
 - /status [ชื่อหรือ ID] : ดูรายละเอียดเชิงลึกของอุปกรณ์
 - /report : ดูรายงานสรุปสถานะของกลุ่มนี้
@@ -110,8 +118,8 @@ ${basePrompt}
     settingsContext += `- ${s.key}: ${s.value}\n`;
   });
 
-  // ลำดับรุ่นที่ต้องการใช้งาน (Priority List)
-  const models = ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-flash-latest"];
+  // ลำดับรุ่นที่ต้องการใช้งาน (Priority List - เน้นรุ่นที่เสถียรก่อน)
+  const models = ["gemini-1.5-flash-latest", "gemini-1.5-flash", "gemini-2.0-flash-exp", "gemini-2.0-flash"];
   
   let lastError = null;
   for (const model of models) {

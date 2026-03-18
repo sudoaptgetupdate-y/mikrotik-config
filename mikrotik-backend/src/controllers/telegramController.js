@@ -7,6 +7,34 @@ const deviceService = require('../services/deviceService');
 // ==========================================
 // 🛠 Helper Functions
 // ==========================================
+
+/**
+ * 🧹 ฟังก์ชันสำหรับล้างเครื่องหมาย HTML ที่ Telegram ไม่รองรับ
+ * ป้องกัน Error: Bad Request: can't parse entities
+ */
+const sanitizeHTML = (text) => {
+  if (!text) return "";
+  // 1. เปลี่ยน & เป็น &amp; ก่อน (ต้องทำเป็นอันดับแรก)
+  let cleaned = text.replace(/&/g, '&amp;');
+  
+  // 2. เก็บ Tag ที่อนุญาตไว้ชั่วคราว (<b>, <i>, <code>)
+  const allowedTags = [
+    { open: /&lt;b&gt;/gi, close: /&lt;\/b&gt;/gi, repOpen: '<b>', repClose: '</b>' },
+    { open: /&lt;i&gt;/gi, close: /&lt;\/i&gt;/gi, repOpen: '<i>', repClose: '</i>' },
+    { open: /&lt;code&gt;/gi, close: /&lt;\/code&gt;/gi, repOpen: '<code>', repClose: '</code>' }
+  ];
+
+  // 3. เปลี่ยน < และ > ทั้งหมดเป็น Entity เพื่อความปลอดภัย
+  cleaned = cleaned.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+  // 4. นำ Tag ที่อนุญาตกลับคืนมา
+  allowedTags.forEach(tag => {
+    cleaned = cleaned.replace(tag.open, tag.repOpen).replace(tag.close, tag.repClose);
+  });
+
+  return cleaned;
+};
+
 const parseLatencyToMs = (latencyStr) => {
   if (!latencyStr || latencyStr === "timeout") return 999;
   if (latencyStr === "N/A") return 0;
@@ -319,13 +347,13 @@ exports.handleWebhook = async (req, res) => {
         if (aiReply) {
           if (aiReply.includes('COMMAND:')) {
             const parts = aiReply.split('COMMAND:');
-            const replyText = parts[0].trim();
+            const replyText = sanitizeHTML(parts[0].trim());
             const fullCmd = parts[1].trim();
             const cmdArgs = fullCmd.split(' ');
             if (replyText) await sendTelegramAlert(group.telegramBotToken, chatId, replyText);
             const cmdHandled = await dispatchCommand(group, chatId, devices, thresholds, cmdArgs[0], cmdArgs);
-            if (!cmdHandled && !replyText) await sendTelegramAlert(group.telegramBotToken, chatId, aiReply.replace('COMMAND:', ''));
-          } else await sendTelegramAlert(group.telegramBotToken, chatId, aiReply);
+            if (!cmdHandled && !replyText) await sendTelegramAlert(group.telegramBotToken, chatId, sanitizeHTML(aiReply.replace('COMMAND:', '')));
+          } else await sendTelegramAlert(group.telegramBotToken, chatId, sanitizeHTML(aiReply));
           return;
         }
       }
