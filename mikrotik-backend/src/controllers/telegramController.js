@@ -229,7 +229,6 @@ const dispatchCommand = async (group, chatId, devices, thresholds, cmd, args) =>
 };
 
 exports.handleWebhook = async (req, res) => {
-  console.log("📥 Incoming Telegram Webhook:", JSON.stringify(req.body, null, 2));
   res.sendStatus(200);
   let chatId, text;
   if (req.body.message && req.body.message.text) {
