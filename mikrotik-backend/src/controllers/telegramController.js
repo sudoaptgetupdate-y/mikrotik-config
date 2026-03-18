@@ -177,7 +177,7 @@ const dispatchCommand = async (group, chatId, devices, thresholds, cmd, args) =>
     }
     const device = matched[0];
     const isOffline = getOfflineMinutes(device.lastSeen) > 3;
-    let msg = `📱 <b><u>ข้อมูลสถานะอุปกรณ์</u></b>\n🖥 ชื่อ: <b>${device.name}</b>\n✨ วงจร: <code>${device.circuitId || '-'}</code>\n${separator}\n\n📍 <b><u>การเชื่อมต่อ</u></b>\n🌐 IP: <code>${device.currentIp}</code>\n`;
+    let msg = `📱 <b><u>ข้อมูลสถานะอุปกรณ์</u></b>\n🖥 ชื่อ: <b>${device.name}</b>\n✨ วงจร: <code>${device.circuitId || '-'}</code>\n🏷️ รุ่น: <code>${device.boardName || '-'}</code>\n${separator}\n\n📍 <b><u>การเชื่อมต่อ</u></b>\n🌐 IP: <code>${device.currentIp}</code>\n`;
     if (device.ddnsName && device.ddnsName !== "N/A") msg += `☁️ DDNS: <code>${device.ddnsName}</code>\n`;
     msg += `📊 สถานะ: <b>${isOffline ? '🔴 Offline' : '🟢 Online'}</b>\n\n`;
     if (isOffline) msg += `⚠️ <i>ขาดการติดต่อไปแล้ว: ${device.lastSeen ? formatTimeAgo(getOfflineMinutes(device.lastSeen)) : "ไม่เคยเชื่อมต่อ"}</i>`;
@@ -342,7 +342,7 @@ exports.initRealtimeMonitorCron = () => {
           for (const group of device.groups) {
             if (group.isNotifyEnabled && group.telegramBotToken && group.telegramChatId) {
               const adminInfo = (group.adminName || group.adminContact) ? `\n\n👨‍🔧 <b><u>ผู้รับผิดชอบดูแล</u></b>\n👤 ชื่อ: ${group.adminName || '-'}\n📞 ติดต่อ: ${group.adminContact || '-'}` : '';
-              let msg = `🚨 <b>[DEVICE OFFLINE]</b>\n━━━━━━━━━━━━━━━━━━\n🖥 <b>อุปกรณ์:</b> <code>${device.name}</code>\n✨ <b>วงจร:</b> <code>${device.circuitId || '-'}</code>`;
+              let msg = `🚨 <b>[DEVICE OFFLINE]</b>\n━━━━━━━━━━━━━━━━━━\n🖥 <b>อุปกรณ์:</b> <code>${device.name}</code>\n✨ <b>วงจร:</b> <code>${device.circuitId || '-'}</code>\n🏷️ <b>รุ่น:</b> <code>${device.boardName || '-'}</code>`;
               if (device.ddnsName && device.ddnsName !== "N/A") msg += `\n☁️ <b>DDNS:</b> <code>${device.ddnsName}</code>`;
               msg += `\n⏳ <b>ขาดการติดต่อ:</b> <code>${new Date(device.lastSeen).toLocaleDateString('th-TH')} ${new Date(device.lastSeen).toLocaleTimeString('th-TH')}</code>${adminInfo}\n\n━━━━━━━━━━━━━━━━━━\n🌐 <b>Dashboard:</b> <a href="https://mikrotik.ntnakhon.com">คลิกเพื่อตรวจสอบ</a>`;
               const msgId = await sendTelegramAlert(group.telegramBotToken, group.telegramChatId, msg);
