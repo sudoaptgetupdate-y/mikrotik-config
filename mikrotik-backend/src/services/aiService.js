@@ -103,7 +103,7 @@ ${basePrompt}
 - /report : ดูรายงานสรุปสถานะของกลุ่มนี้
 - /offline : ดูอุปกรณ์ในกลุ่มที่ขาดการติดต่อ
 - /problem : ดูอุปกรณ์ที่มีปัญหาในกลุ่ม
-- /top : ดูอันดับการใช้งานสูงสุดในกลุ่ม
+- /top [metric] [count] : ดูอันดับสูงสุดตามหัวข้อ (metric: cpu, ram, temp, ping, hdd, uptime | default count: 5) เช่น COMMAND: /top temp 10
 - /menu : เปิดเมนูหลัก
   `.trim();
   

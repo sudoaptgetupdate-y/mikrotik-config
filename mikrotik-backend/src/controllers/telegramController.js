@@ -92,6 +92,25 @@ const getOfflineMinutes = (lastSeen) => {
   return (new Date() - new Date(lastSeen)) / 1000 / 60;
 };
 
+/**
+ * ⏱️ แปลง Mikrotik Uptime (1w2d03:04:05) ให้เป็นวินาทีเพื่อใช้เรียงลำดับ
+ */
+const parseUptimeToSeconds = (uptimeStr) => {
+  if (!uptimeStr || uptimeStr === "N/A" || uptimeStr === "-") return 0;
+  let totalSeconds = 0;
+  const regex = /(?:(\d+)w)?(?:(\d+)d)?(?:(\d+):(\d+):(\d+))?/;
+  const match = uptimeStr.match(regex);
+  if (match) {
+    const weeks = parseInt(match[1] || 0, 10);
+    const days = parseInt(match[2] || 0, 10);
+    const hours = parseInt(match[3] || 0, 10);
+    const minutes = parseInt(match[4] || 0, 10);
+    const seconds = parseInt(match[5] || 0, 10);
+    totalSeconds = (weeks * 604800) + (days * 86400) + (hours * 3600) + (minutes * 60) + seconds;
+  }
+  return totalSeconds;
+};
+
 const formatTimeAgo = (minutes) => {
   if (minutes > 1440) return `${Math.floor(minutes / 1440)} วัน`;
   if (minutes > 60) return `${Math.floor(minutes / 60)} ชม. ${Math.floor(minutes % 60)} นาที`;
@@ -241,14 +260,88 @@ const dispatchCommand = async (group, chatId, devices, thresholds, cmd, args) =>
   // --- คำสั่ง /top ---
   if (command === '/top' || command.startsWith('/top@')) {
     const online = devices.filter(d => getOfflineMinutes(d.lastSeen) <= 3);
-    if (online.length === 0) { await sendTelegramAlert(group.telegramBotToken, chatId, "⚠️ <b>ไม่มีข้อมูล:</b>\nไม่พบอุปกรณ์ที่ Online ในขณะนี้ครับ"); return true; }
-    online.sort((a, b) => (parseFloat(b.cpuLoad) || 0) - (parseFloat(a.cpuLoad) || 0));
-    const top5 = online.slice(0, 5);
-    let msg = `🔥 <b><u>Top 5 การใช้งานทรัพยากร</u></b>\n${separator}\n\n`;
-    top5.forEach((d, i) => {
-      const cpu = parseFloat(d.cpuLoad) || 0;
-      msg += `${i + 1}. <b>${d.name}</b>\n   └ ${cpu > thresholds.cpu ? '🔴' : cpu > 60 ? '🟠' : '🟢'} CPU: <code>${cpu}%</code> | RAM: <code>${d.memoryUsage || 0}%</code>\n\n`;
+    if (online.length === 0) { 
+      await sendTelegramAlert(group.telegramBotToken, chatId, "⚠️ <b>ไม่มีข้อมูล:</b>\nไม่พบอุปกรณ์ที่ Online ในขณะนี้ครับ"); 
+      return true; 
+    }
+
+    // วิเคราะห์ Arguments: /top [metric] [count]
+    let metric = (args[1] || 'cpu').toLowerCase();
+    let count = parseInt(args[2] || (isNaN(parseInt(args[1])) ? 5 : args[1]), 10);
+    if (isNaN(count)) count = 5;
+
+    // แก้ไขกรณีผู้ใช้พิมพ์แค่ /top 10 (ให้ metric เป็น cpu)
+    if (!isNaN(parseInt(args[1]))) {
+      metric = 'cpu';
+      count = parseInt(args[1]);
+    }
+
+    let title = "";
+    let emoji = "🔥";
+    
+    // เลือกการเรียงลำดับตาม Metric
+    switch (metric) {
+      case 'ram': case 'memory':
+        metric = 'ram';
+        online.sort((a, b) => (parseFloat(b.memoryUsage) || 0) - (parseFloat(a.memoryUsage) || 0));
+        title = `Top ${count} การใช้งาน RAM สูงสุด`;
+        emoji = "🧩";
+        break;
+      case 'temp': case 'temperature':
+        metric = 'temp';
+        online.sort((a, b) => (parseFloat(b.temp) || 0) - (parseFloat(a.temp) || 0));
+        title = `Top ${count} อุณหภูมิสูงสุด`;
+        emoji = "🌡️";
+        break;
+      case 'ping': case 'latency':
+        metric = 'ping';
+        online.sort((a, b) => parseLatencyToMs(b.latency) - parseLatencyToMs(a.latency));
+        title = `Top ${count} Latency สูงสุด (ช้าสุด)`;
+        emoji = "🌐";
+        break;
+      case 'hdd': case 'disk': case 'storage':
+        metric = 'hdd';
+        online.sort((a, b) => (parseFloat(b.storage) || 0) - (parseFloat(a.storage) || 0));
+        title = `Top ${count} การใช้งาน Disk สูงสุด`;
+        emoji = "💾";
+        break;
+      case 'uptime':
+        online.sort((a, b) => parseUptimeToSeconds(b.uptime) - parseUptimeToSeconds(a.uptime));
+        title = `Top ${count} อุปกรณ์ที่ Uptime นานที่สุด`;
+        emoji = "⏱️";
+        break;
+      default: // cpu
+        metric = 'cpu';
+        online.sort((a, b) => (parseFloat(b.cpuLoad) || 0) - (parseFloat(a.cpuLoad) || 0));
+        title = `Top ${count} การใช้งาน CPU สูงสุด`;
+        emoji = "🎛️";
+    }
+
+    const topList = online.slice(0, count);
+    let msg = `${emoji} <b><u>${title}</u></b>\n${separator}\n\n`;
+    
+    topList.forEach((d, i) => {
+      let valueStr = "";
+      if (metric === 'cpu') {
+        const val = parseFloat(d.cpuLoad) || 0;
+        valueStr = `CPU: <code>${val}%</code> | RAM: <code>${d.memoryUsage || 0}%</code>`;
+      } else if (metric === 'ram') {
+        const val = parseFloat(d.memoryUsage) || 0;
+        valueStr = `RAM: <code>${val}%</code> | CPU: <code>${d.cpuLoad || 0}%</code>`;
+      } else if (metric === 'temp') {
+        valueStr = `Temp: <code>${d.temp || 'N/A'}°C</code>`;
+      } else if (metric === 'ping') {
+        valueStr = `Ping: <code>${d.latency || 'N/A'}</code>`;
+      } else if (metric === 'hdd') {
+        valueStr = `Disk: <code>${d.storage || 0}%</code>`;
+      } else if (metric === 'uptime') {
+        valueStr = `Uptime: <code>${d.uptime || '-'}</code>`;
+      }
+      
+      msg += `${i + 1}. <b>${d.name}</b>\n   └ ${valueStr}\n\n`;
     });
+
+    msg += `${separator}\n🌐 <b>Dashboard:</b> <a href="https://mikrotik.ntnakhon.com">คลิกเพื่อจัดการ</a>`;
     await sendTelegramAlert(group.telegramBotToken, chatId, msg);
     return true;
   }
