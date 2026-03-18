@@ -257,23 +257,42 @@ exports.handleWebhook = async (req, res) => {
     // 1. ตรวจสอบคำสั่ง Slash หรือ Keyword ก่อน
     if (command.startsWith('/')) {
       handled = await dispatchCommand(group, chatId, devices, thresholds, command, args);
-      // ถ้าเป็น slash command แต่ไม่เจอเครื่อง หรือคำสั่งผิด ให้ส่ง fallback สั้นๆ (กรณีไม่เข้า AI)
       if (!handled && !await aiService.isAIEnabled(group.id)) {
         await sendTelegramAlert(group.telegramBotToken, chatId, `❌ ไม่พบข้อมูลอุปกรณ์หรือคำสั่งที่ระบุครับ`);
         return;
       }
     } else {
+      // 🎯 [NEW] Keyword Matching เพื่อประหยัด Token AI
       const low = text.toLowerCase();
-      if (['รายงาน', 'สรุป', 'report'].some(k => low === k)) handled = await dispatchCommand(group, chatId, devices, thresholds, '/report', []);
-      else if (['offline', 'ออฟไลน์'].some(k => low.includes(k))) handled = await dispatchCommand(group, chatId, devices, thresholds, '/offline', []);
-      else if (['ปัญหา', 'problem'].some(k => low.includes(k))) handled = await dispatchCommand(group, chatId, devices, thresholds, '/problem', []);
-      else {
-        const exact = devices.find(d => (d.name && d.name.toLowerCase() === low) || (d.circuitId && d.circuitId.toLowerCase() === low));
-        if (exact) handled = await dispatchCommand(group, chatId, devices, thresholds, '/status', ['/status', `_id_${exact.id}`]);
+      
+      // เช็คว่าเป็นชื่ออุปกรณ์ตรงๆ ไหม (Exact Name or Circuit ID)
+      const exactDevice = devices.find(d => 
+        (d.name && d.name.toLowerCase() === low) || 
+        (d.circuitId && d.circuitId.toLowerCase() === low)
+      );
+
+      if (exactDevice) {
+        handled = await dispatchCommand(group, chatId, devices, thresholds, '/status', ['/status', `_id_${exactDevice.id}`]);
+      } 
+      // เช็ค Keyword อื่นๆ
+      else if (['รายงาน', 'สรุป', 'report', 'ดูรายงาน'].some(k => low.includes(k))) {
+        handled = await dispatchCommand(group, chatId, devices, thresholds, '/report', []);
+      }
+      else if (['offline', 'ออฟไลน์', 'เครื่องดับ', 'ติดต่อไม่ได้'].some(k => low.includes(k))) {
+        handled = await dispatchCommand(group, chatId, devices, thresholds, '/offline', []);
+      }
+      else if (['ปัญหา', 'problem', 'เสีย'].some(k => low.includes(k))) {
+        handled = await dispatchCommand(group, chatId, devices, thresholds, '/problem', []);
+      }
+      else if (['อันดับ', 'top', 'โหลดหนัก', 'ช้า'].some(k => low.includes(k))) {
+        handled = await dispatchCommand(group, chatId, devices, thresholds, '/top', []);
+      }
+      else if (['ช่วยเหลือ', 'ช่วยด้วย', 'help', 'ทำอะไรได้บ้าง'].some(k => low.includes(k))) {
+        handled = await dispatchCommand(group, chatId, devices, thresholds, '/help', []);
       }
     }
 
-    // 2. ถ้ายังไม่ถูกจัดการ -> ส่งให้ AI
+    // 2. ถ้ายังไม่ถูกจัดการ (ไม่มี Keyword ตรง) -> ส่งให้ AI ประมวลผลความหมายเชิงลึก
     if (!handled) {
       const aiEnabled = await aiService.isAIEnabled(group.id);
       if (aiEnabled) {
