@@ -301,7 +301,7 @@ exports.getAISummary = async (groupId = null) => {
   summary += `### [NETWORK_STATS]\n`;
   summary += `- TOTAL: ${devices.length} | ONLINE: ${onlineDevices.length} | OFFLINE: ${offlineDevices.length} | WARNING: ${warningDevices.length}\n\n`;
 
-  // 🔴 ส่งรายละเอียดเฉพาะเครื่องที่มีปัญหาเท่านั้น (ห้ามส่งเครื่องปกติเด็ดขาดเพื่อความเร็วสูงสุด)
+  // 🔴 ส่งรายละเอียดเฉพาะเครื่องที่มีปัญหา (Detailed)
   if (offlineDevices.length > 0) {
     summary += `### [OFFLINE_DEVICES]\n`;
     offlineDevices.forEach(d => {
@@ -318,7 +318,13 @@ exports.getAISummary = async (groupId = null) => {
     summary += `\n`;
   }
 
-  // 🟢 ไม่ส่งรายชื่อเครื่องปกติแล้ว (Healthy Devices Names ถูกนำออก)
+  // 🔵 ส่งรายชื่ออุปกรณ์ทั้งหมดแบบสรุป (Compact List for Search/Count)
+  summary += `### [ALL_DEVICES_LIST]\n`;
+  devices.forEach(d => {
+    const isOff = !d.lastSeen || (now - new Date(d.lastSeen) > offlineLimit);
+    summary += `- ${d.name} | ID: ${d.circuitId || 'N/A'} | STATUS: ${isOff ? 'OFFLINE' : 'ONLINE'}\n`;
+  });
+  summary += `\n`;
 
   // ดึง Log เฉพาะรายการที่ "สำคัญ" 3 รายการล่าสุด
   const today = new Date();

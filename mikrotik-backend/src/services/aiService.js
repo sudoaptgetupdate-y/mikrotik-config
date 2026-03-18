@@ -54,6 +54,17 @@ exports.askAI = async (userMessage, systemContext = "") => {
   // 🧹 Clean API Key
   apiKey = apiKey.trim().replace(/^"|"$/g, '');
 
+  // 🔑 ดึงข้อมูลการตั้งค่า Global Settings ทั้งหมด (ยกเว้นเรื่องที่ Sensitive)
+  const allSettings = await prisma.systemSetting.findMany();
+  let settingsContext = "\n### [GLOBAL_SETTINGS]\n";
+  allSettings.forEach(s => {
+    // กรองออก: AI Keys และอะไรก็ตามที่มีคำว่า ADMIN
+    if (s.key.includes('AI_GEMINI_KEY') || s.key.includes('ADMIN') || s.key.includes('TOKEN') || s.key.includes('PASSWORD')) {
+      return;
+    }
+    settingsContext += `- ${s.key}: ${s.value}\n`;
+  });
+
   // ลำดับรุ่นที่ต้องการใช้งาน (Priority List)
   const models = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash", "gemini-flash-latest"];
   
@@ -66,7 +77,7 @@ exports.askAI = async (userMessage, systemContext = "") => {
       const payload = {
         contents: [{
           parts: [{
-            text: `System Instruction: ${systemPrompt}\n\nCurrent System Context:\n${systemContext}\n\nUser Question: ${userMessage}`
+            text: `System Instruction: ${systemPrompt}\n\nCurrent System Context:\n${systemContext}${settingsContext}\n\nUser Question: ${userMessage}`
           }]
         }]
       };
