@@ -54,45 +54,61 @@ exports.askAI = async (userMessage, systemContext = "") => {
   // 🧹 Clean API Key
   apiKey = apiKey.trim().replace(/^"|"$/g, '');
 
-  // Gemini 2.0 Flash API URL (v1beta) - ใช้รุ่นที่มีอยู่ในลิสต์ของคุณ
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+  // ลำดับรุ่นที่ต้องการใช้งาน (Priority List)
+  const models = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash", "gemini-flash-latest"];
+  
+  let lastError = null;
+  for (const model of models) {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+    console.log(`🤖 Gemini AI Request: Model=${model}`);
 
-  console.log(`🤖 Gemini AI Request: Model=gemini-2.0-flash`);
-
-  try {
-    const payload = {
-      contents: [{
-        parts: [{
-          text: `System Instruction: ${systemPrompt}\n\nCurrent System Context:\n${systemContext}\n\nUser Question: ${userMessage}`
+    try {
+      const payload = {
+        contents: [{
+          parts: [{
+            text: `System Instruction: ${systemPrompt}\n\nCurrent System Context:\n${systemContext}\n\nUser Question: ${userMessage}`
+          }]
         }]
-      }]
-    };
+      };
 
-    const response = await axios.post(url, payload, { 
-      timeout: 30000,
-      headers: { 'Content-Type': 'application/json' }
-    });
+      const response = await axios.post(url, payload, { 
+        timeout: 30000,
+        headers: { 'Content-Type': 'application/json' }
+      });
 
-    if (response.data && response.data.candidates && response.data.candidates.length > 0) {
-      const reply = response.data.candidates[0].content.parts[0].text;
-      console.log(`✅ Gemini Response Received (${reply.length} chars)`);
-      return reply;
+      if (response.data && response.data.candidates && response.data.candidates.length > 0) {
+        const reply = response.data.candidates[0].content.parts[0].text;
+        console.log(`✅ Gemini Response Received via ${model} (${reply.length} chars)`);
+        return reply;
+      }
+    } catch (err) {
+      lastError = err;
+      const status = err.response?.status;
+      console.warn(`⚠️ Gemini Model ${model} failed (Status: ${status}). Trying next candidate...`);
+      
+      // ถ้า Error ไม่ใช่เรื่อง Quota หรือ Model Not Found (เช่น Key ผิด) ให้หยุดทันที
+      if (status !== 429 && status !== 404) break;
+      continue;
     }
+  }
 
-    console.warn("⚠️ Gemini Response format unexpected:", JSON.stringify(response.data));
-    return null;
-  } catch (error) {
-    console.error("❌ Gemini AI Service Error:");
-    if (error.response) {
-      console.error(` - Status: ${error.response.status}`);
-      console.error(` - Google Error Body:`, JSON.stringify(error.response.data)); // 🔍 ดู Error จริงจาก Google
-    } else {
-      console.error(` - Message: ${error.message}`);
-    }
+  // ถ้าวนจนครบแล้วยังไม่ได้
+  const error = lastError;
+  console.error("❌ Gemini AI Service All Models Failed:");
+  
+  if (error && error.response) {
+    console.error(` - Status: ${error.response.status}`);
+    console.error(` - Google Error Body:`, JSON.stringify(error.response.data));
     
+    if (error.response.status === 429) {
+      return "ขออภัยครับ ตอนนี้โควต้า Gemini API (Free Tier) ของคุณเต็มแล้ว กรุณารอสักครู่หรือเปลี่ยนไปใช้ API Key อื่นนะครับ";
+    }
+  } else if (error) {
+    console.error(` - Message: ${error.message}`);
     if (error.code === 'ECONNREFUSED') {
       return "ไม่สามารถเชื่อมต่อกับ Google AI ได้ครับ (Connection Refused)";
     }
-    return "ขออภัยครับ ระบบ AI ขัดข้องชั่วคราว (Gemini API Error)";
   }
+  
+  return "ขออภัยครับ ระบบ AI ขัดข้องชั่วคราว (Gemini API Error)";
 };

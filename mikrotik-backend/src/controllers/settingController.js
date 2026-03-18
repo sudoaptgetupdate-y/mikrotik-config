@@ -23,39 +23,66 @@ exports.testAIConnection = async (req, res) => {
     const availableModels = listResponse.data.models || [];
     console.log("✅ Available Models for this Key:", availableModels.map(m => m.name).join(", "));
 
-    // 2. ตรวจสอบรุ่นที่แนะนำ (Gemini 2.0 Flash มีในลิสต์ปี 2026)
+    // 2. ลำดับความสำคัญของ Model ที่จะทดสอบ
+    const candidateModels = [
+      "models/gemini-2.5-flash",
+      "models/gemini-2.0-flash",
+      "models/gemini-1.5-flash",
+      "models/gemini-flash-latest"
+    ];
+
     let modelToUse = "";
-    if (availableModels.some(m => m.name.includes("gemini-2.0-flash"))) {
-      modelToUse = "models/gemini-2.0-flash";
-    } else if (availableModels.some(m => m.name.includes("gemini-flash-latest"))) {
-      modelToUse = "models/gemini-flash-latest";
-    } else {
-      modelToUse = availableModels[0]?.name;
+    // กรองเอาเฉพาะที่มีอยู่ใน Available Models
+    const validCandidates = candidateModels.filter(m => availableModels.some(am => am.name === m));
+    
+    // ถ้าไม่มีใน List เลย ให้เอาตัวแรกที่มีคำว่า flash
+    if (validCandidates.length === 0) {
+      const anyFlash = availableModels.find(m => m.name.includes("flash"));
+      if (anyFlash) validCandidates.push(anyFlash.name);
+      else if (availableModels.length > 0) validCandidates.push(availableModels[0].name);
     }
 
-    if (!modelToUse) {
+    if (validCandidates.length === 0) {
       throw new Error("No models available for this API Key.");
     }
 
-    console.log(`🤖 Using model for test: ${modelToUse}`);
-
-    // 3. ทดสอบยิงจริง
-    const testUrl = `https://generativelanguage.googleapis.com/v1beta/${modelToUse}:generateContent?key=${apiKey}`;
-    const response = await axios.post(testUrl, {
-      contents: [{ parts: [{ text: "Hi" }] }]
-    }, { 
-      timeout: 10000,
-      headers: { 'Content-Type': 'application/json' }
-    });
-    
-    if (response.status === 200) {
-      return res.json({ 
-        success: true, 
-        message: `เชื่อมต่อสำเร็จ! ใช้รุ่น: ${modelToUse.replace('models/', '')}` 
-      });
+    // 3. ทดสอบยิงจริง (ลองวน Loop ตัวที่มีสิทธิ์)
+    let lastError = null;
+    for (const model of validCandidates) {
+      console.log(`🤖 Testing model: ${model}...`);
+      try {
+        const testUrl = `https://generativelanguage.googleapis.com/v1beta/${model}:generateContent?key=${apiKey}`;
+        const response = await axios.post(testUrl, {
+          contents: [{ parts: [{ text: "Hi" }] }]
+        }, { 
+          timeout: 10000,
+          headers: { 'Content-Type': 'application/json' }
+        });
+        
+        if (response.status === 200) {
+          return res.json({ 
+            success: true, 
+            message: `เชื่อมต่อสำเร็จ! ระบบเลือกใช้รุ่น: ${model.replace('models/', '')} (พบว่ารุ่นนี้มีโควต้าใช้งานได้)` 
+          });
+        }
+      } catch (error) {
+        lastError = error;
+        const status = error.response?.status;
+        const errMsg = error.response?.data?.error?.message || "";
+        
+        console.warn(`⚠️ Model ${model} failed (Status: ${status}): ${errMsg.substring(0, 100)}...`);
+        
+        // ถ้าไม่ใช่ Error เรื่อง Quota (เช่น Key ผิด) ให้หยุดลองตัวอื่นแล้วแจ้ง Error เลย
+        if (status !== 429 && status !== 404) break;
+        
+        // ถ้าเป็น 429 แต่ในเนื้อหาบอกว่า limit > 0 (คือเต็มจริงๆ) ก็อาจจะหยุด
+        // แต่ถ้า limit: 0 แสดงว่ารุ่นนี้ใช้ไม่ได้ ให้ลองตัวถัดไป
+        continue;
+      }
     }
     
-    res.status(400).json({ error: "Unexpected response from Gemini" });
+    // ถ้าวนจนครบแล้วยังไม่ได้
+    throw lastError;
   } catch (error) {
     console.error("❌ Diagnostic Error:");
     if (error.response) {
@@ -66,8 +93,15 @@ exports.testAIConnection = async (req, res) => {
     }
 
     let errorMsg = error.message;
-    if (error.response && error.response.status === 403) errorMsg = "API Key นี้ยังไม่ได้เปิดสิทธิ์ Generative Language API หรือถูกระงับ";
-    if (error.response && error.response.status === 404) errorMsg = "ไม่พบ Model ที่ต้องการใช้งานบน Google Cloud โปรเจกต์นี้";
+    if (error.response) {
+      if (error.response.status === 429) {
+        errorMsg = "เกินโควต้าการใช้งาน (Quota Exceeded): คุณใช้งาน Gemini API ครบตามกำหนดของ Free Tier แล้ว กรุณารอสักครู่หรือลองใหม่ในภายหลัง";
+      } else if (error.response.status === 403) {
+        errorMsg = "API Key นี้ยังไม่ได้เปิดสิทธิ์ Generative Language API หรือถูกระงับ";
+      } else if (error.response.status === 404) {
+        errorMsg = "ไม่พบ Model ที่ต้องการใช้งานบน Google Cloud โปรเจกต์นี้";
+      }
+    }
 
     res.status(500).json({ error: errorMsg });
   }
