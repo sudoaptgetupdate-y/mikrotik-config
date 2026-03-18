@@ -208,15 +208,44 @@ exports.handleWebhook = async (req, res) => {
     const devices = group.devices || [];
     const thresholds = await getAlertThresholds();
 
+    // --- 🔍 Smart Keyword Detection (แปลงภาษาพูดเป็นคำสั่ง) ---
+    let effectiveCommand = command;
+    let effectiveArgs = args;
+
+    if (!command.startsWith('/')) {
+      const lowText = text.toLowerCase();
+      if (['รายงาน', 'สรุป', 'report', 'summary'].some(k => lowText === k || lowText === 'สรุปสถานะ')) {
+        effectiveCommand = '/report';
+      } else if (['offline', 'ออฟไลน์', 'มีเครื่องดับไหม', 'เครื่องดับ'].some(k => lowText.includes(k))) {
+        effectiveCommand = '/offline';
+      } else if (['problem', 'ปัญหา', 'เครื่องเสีย', 'มีปัญหาไหม'].some(k => lowText.includes(k))) {
+        effectiveCommand = '/problem';
+      } else if (['top', 'จัดอันดับ', 'โหลดเยอะ'].some(k => lowText.includes(k))) {
+        effectiveCommand = '/top';
+      } else if (['menu', 'เมนู', 'help', 'ช่วย'].some(k => lowText === k)) {
+        effectiveCommand = '/menu';
+      } else {
+        // ตรวจสอบว่าเป็นชื่ออุปกรณ์ หรือ Circuit ID โดยตรงหรือไม่
+        const exactDevice = devices.find(d => 
+          (d.name && d.name.toLowerCase() === lowText) || 
+          (d.circuitId && d.circuitId.toLowerCase() === lowText)
+        );
+        if (exactDevice) {
+          effectiveCommand = '/status';
+          effectiveArgs = ['/status', `_id_${exactDevice.id}`];
+        }
+      }
+    }
+
     // --- 🟢 คำสั่ง /help, /hi, /start, /menu (เมนูหลัก) ---
-    if (['/help', '/hi', '/start', '/menu'].includes(command) || command.startsWith('/help@')) {
+    if (['/help', '/hi', '/start', '/menu'].includes(effectiveCommand) || effectiveCommand.startsWith('/help@')) {
       let msg = `👋 <b>สวัสดีครับ! ระบบจัดการ Network พร้อมให้บริการ</b>\n`;
       msg += `กรุณาจิ้มเลือกดูข้อมูลจากเมนูด้านล่างได้เลยครับ 👇\n\n`;
       
       // อธิบายการใช้งาน /status ให้ผู้ใช้ทราบ
       msg += `🔍 <b>ต้องการดูสถานะเฉพาะเครื่อง?</b>\n`;
       msg += `พิมพ์คำสั่ง <code>/status [ชื่อ หรือ Circuit ID]</code>\n`;
-      msg += `<i>ตัวอย่าง: <code>/status โรงเรียนxxx</code> หรือ <code>/status 7534j</code></i>`;
+      msg += `หรือพิมพ์ชื่ออุปกรณ์/วงจร เข้ามาได้เลยครับ`;
 
       // 🟢 สร้างปุ่มกด (จัดเรียงเป็น 2 แถว)
       const mainMenuKeyboard = [
@@ -236,14 +265,14 @@ exports.handleWebhook = async (req, res) => {
     }
 
     // --- คำสั่ง /report ---
-    if (command === '/report' || command.startsWith('/report@')) {
+    if (effectiveCommand === '/report' || effectiveCommand.startsWith('/report@')) {
       const msg = generateGroupReportText(group, false, thresholds);
       await sendTelegramAlert(group.telegramBotToken, chatId, msg);
       return;
     }
 
     // --- คำสั่ง /offline ---
-    if (command === '/offline' || command.startsWith('/offline@')) {
+    if (effectiveCommand === '/offline' || effectiveCommand.startsWith('/offline@')) {
       const offlineDevices = devices.filter(d => getOfflineMinutes(d.lastSeen) > 3);
       const separator = "━━━━━━━━━━━━━━━━━━";
 
@@ -269,8 +298,8 @@ exports.handleWebhook = async (req, res) => {
     }
 
     // --- 🟢 คำสั่ง /status ---
-    if (command === '/status' || command.startsWith('/status@')) {
-      const searchKeyword = args.slice(1).join(' ').trim().toLowerCase();
+    if (effectiveCommand === '/status' || effectiveCommand.startsWith('/status@')) {
+      const searchKeyword = effectiveArgs.slice(1).join(' ').trim().toLowerCase();
       const separator = "━━━━━━━━━━━━━━━━━━";
       
       if (!searchKeyword) {
@@ -292,6 +321,10 @@ exports.handleWebhook = async (req, res) => {
       }
 
       if (matchedDevices.length === 0) {
+        // ถ้าไม่เจอ และไม่ใช่คำสั่ง /status โดยตรง (เป็นภาษาพูด) ให้ไป AI ต่อ
+        if (!command.startsWith('/')) {
+            throw new Error('FALLBACK_TO_AI'); 
+        }
         await sendTelegramAlert(group.telegramBotToken, chatId, `❌ <b>ไม่พบข้อมูล:</b>\nอุปกรณ์ที่ตรงกับ "<code>${searchKeyword.replace('_id_', '')}</code>"`);
         return;
       }
