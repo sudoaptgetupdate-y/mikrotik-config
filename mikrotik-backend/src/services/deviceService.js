@@ -330,14 +330,19 @@ exports.getAISummary = async (groupId = null) => {
   });
   summary += `\n`;
 
-  // ดึง Log เฉพาะรายการที่ "สำคัญ" 3 รายการล่าสุด
+  // ดึง Log เฉพาะรายการที่ "สำคัญ" 3 รายการล่าสุด ของอุปกรณ์ในกลุ่มนี้
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
+  const logsWhere = { createdAt: { gte: today } };
+  if (groupId) {
+    logsWhere.device = { groups: { some: { id: parseInt(groupId) } } };
+  }
+
   const recentLogs = await prisma.deviceEventLog.findMany({
-    where: { createdAt: { gte: today } },
+    where: logsWhere,
     orderBy: { createdAt: 'desc' },
-    take: 3, // ลดเหลือ 3 รายการ
+    take: 3, 
     include: { device: { select: { name: true } } }
   });
 
