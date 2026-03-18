@@ -118,8 +118,8 @@ ${basePrompt}
     settingsContext += `- ${s.key}: ${s.value}\n`;
   });
 
-  // ลำดับรุ่นที่ต้องการใช้งาน (Priority List - เน้นรุ่นที่เสถียรก่อน)
-  const models = ["gemini-1.5-flash-latest", "gemini-1.5-flash", "gemini-2.0-flash-exp", "gemini-2.0-flash"];
+  // ลำดับรุ่นที่ต้องการใช้งาน (Priority List - อ้างอิงจากรุ่นที่ Key นี้ใช้งานได้จริง)
+  const models = ["gemini-2.5-flash", "gemini-flash-latest", "gemini-2.0-flash"];
   
   let lastError = null;
   for (const model of models) {
