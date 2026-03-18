@@ -12,7 +12,6 @@ import TabVlanNetwork from './components/TabVlanNetwork';
 import TabMaintenance from './components/TabMaintenance';
 import TabAlertThresholds from './components/TabAlertThresholds';
 import TabDashboardAnnouncement from './components/TabDashboardAnnouncement';
-import TabAISettings from './components/TabAISettings';
 
 const GlobalSettings = () => {
   const [activeTab, setActiveTab] = useState(() => localStorage.getItem('activeGlobalSettingsTab') || 'ADMINS');
@@ -34,20 +33,14 @@ const GlobalSettings = () => {
       MONITOR_IPS: [], 
       DEFAULT_NETWORKS: [], 
       ALERT_THRESHOLDS: null, 
-      DASHBOARD_ANNOUNCEMENT: '',
-      AI_ENABLED: 'false',
-      AI_GEMINI_KEY: '',
-      AI_SYSTEM_PROMPT: ''
+      DASHBOARD_ANNOUNCEMENT: ''
     };
     if (!rawSettings) return parsed;
 
     rawSettings.forEach(item => {
       const complexKeys = [
         'DEFAULT_NETWORKS', 
-        'ALERT_THRESHOLDS', 
-        'AI_ENABLED', 
-        'AI_GEMINI_KEY', 
-        'AI_SYSTEM_PROMPT'
+        'ALERT_THRESHOLDS'
       ];
 
       if (complexKeys.includes(item.key)) {
@@ -71,7 +64,6 @@ const GlobalSettings = () => {
     { id: 'MAINTENANCE', label: 'Maintenance', icon: Database, color: 'text-rose-600', border: 'border-rose-600', bg: 'bg-rose-50' },
     { id: 'ALERTS', label: 'Alert Thresholds', icon: Bell, color: 'text-rose-500', border: 'border-rose-500', bg: 'bg-rose-50' },
     { id: 'ANNOUNCEMENT', label: 'Announcement', icon: Megaphone, color: 'text-blue-500', border: 'border-blue-500', bg: 'bg-blue-50' },
-    { id: 'AI', label: 'Gemini AI', icon: Bot, color: 'text-emerald-600', border: 'border-emerald-600', bg: 'bg-emerald-50' },
   ];
 
   return (
@@ -156,15 +148,6 @@ const GlobalSettings = () => {
               {activeTab === 'MAINTENANCE' && <TabMaintenance />}
               {activeTab === 'ALERTS' && <TabAlertThresholds initialData={settingsData.ALERT_THRESHOLDS} />}
               {activeTab === 'ANNOUNCEMENT' && <TabDashboardAnnouncement initialData={settingsData.DASHBOARD_ANNOUNCEMENT} />}
-              {activeTab === 'AI' && (
-                <TabAISettings 
-                  initialData={{
-                    AI_ENABLED: settingsData.AI_ENABLED,
-                    AI_GEMINI_KEY: settingsData.AI_GEMINI_KEY,
-                    AI_SYSTEM_PROMPT: settingsData.AI_SYSTEM_PROMPT
-                  }} 
-                />
-              )}
             </div>
           </div>
         </div>

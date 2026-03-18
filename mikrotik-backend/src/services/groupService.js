@@ -5,7 +5,11 @@ const { setupTelegramWebhook } = require('../utils/telegramUtil'); // ✅ นำ
 // Group Management Service
 // ==========================================
 exports.createGroup = async (data) => {
-  const { name, adminName, adminContact, description, telegramBotToken, telegramChatId, isNotifyEnabled } = data;
+  const { 
+    name, adminName, adminContact, description, 
+    telegramBotToken, telegramChatId, isNotifyEnabled,
+    aiEnabled, aiGeminiKey, aiSystemPrompt
+  } = data;
   
   const newGroup = await prisma.deviceGroup.create({
     data: {
@@ -16,6 +20,9 @@ exports.createGroup = async (data) => {
       telegramBotToken,
       telegramChatId,
       isNotifyEnabled: isNotifyEnabled ?? true,
+      aiEnabled: aiEnabled ?? false,
+      aiGeminiKey,
+      aiSystemPrompt
     }
   });
 
@@ -52,11 +59,17 @@ exports.getGroupById = async (id) => {
 };
 
 exports.updateGroup = async (id, data) => {
-  const { name, description, telegramBotToken, telegramChatId, isNotifyEnabled, adminName, adminContact } = data;
+  const { 
+    name, description, telegramBotToken, telegramChatId, isNotifyEnabled, 
+    adminName, adminContact, aiEnabled, aiGeminiKey, aiSystemPrompt 
+  } = data;
   
   const updatedGroup = await prisma.deviceGroup.update({
     where: { id: parseInt(id) },
-    data: { name, description, telegramBotToken, telegramChatId, isNotifyEnabled, adminName, adminContact }
+    data: { 
+      name, description, telegramBotToken, telegramChatId, isNotifyEnabled, 
+      adminName, adminContact, aiEnabled, aiGeminiKey, aiSystemPrompt 
+    }
   });
 
   // 🌟 อัปเดตแจ้งให้ Telegram ทราบ Webhook URL อีกครั้งในกรณีที่มีการแก้ไข Token

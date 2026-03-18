@@ -1,7 +1,11 @@
-import React, { useEffect } from 'react';
-import { Plus, Edit, X, Send, PlayCircle, CheckCircle } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { Plus, Edit, X, Send, PlayCircle, CheckCircle, Bot, Key, MessageSquare, Power, RefreshCw, ExternalLink } from 'lucide-react';
+import apiClient from '../../../utils/apiClient';
+import toast from 'react-hot-toast';
 
 const GroupFormModal = ({ isOpen, onClose, isEditMode, formData, setFormData, onSubmit, onTestTelegram, manualMessage, setManualMessage, onSendManualMessage }) => {
+  const [isTestingAI, setIsTestingAI] = useState(false);
+
   useEffect(() => {
     const handleEsc = (e) => {
       if (e.key === 'Escape') onClose();
@@ -17,6 +21,24 @@ const GroupFormModal = ({ isOpen, onClose, isEditMode, formData, setFormData, on
       document.body.style.overflow = 'unset';
     };
   }, [isOpen, onClose]);
+
+  const handleTestAI = async () => {
+    if (!formData.aiGeminiKey) return toast.error('กรุณากรอก API Key ก่อนทดสอบ');
+    setIsTestingAI(true);
+    try {
+      const response = await apiClient.post('/api/settings/test-ai', { 
+        apiKey: formData.aiGeminiKey 
+      });
+      if (response.data.success) {
+        toast.success(response.data.message);
+      }
+    } catch (error) {
+      const errorMsg = error.response?.data?.error || 'ไม่สามารถเชื่อมต่อกับ Gemini AI ได้';
+      toast.error(errorMsg);
+    } finally {
+      setIsTestingAI(false);
+    }
+  };
 
   return (
     <div 
@@ -48,6 +70,7 @@ const GroupFormModal = ({ isOpen, onClose, isEditMode, formData, setFormData, on
         
         <form onSubmit={onSubmit}>
           <div className="p-5 sm:p-6 space-y-5 max-h-[70vh] overflow-y-auto">
+            {/* 1. Group Details */}
             <div className="space-y-4">
               <h4 className="text-xs font-black text-slate-400 uppercase tracking-wider mb-2">Group Details</h4>
               <div>
@@ -71,6 +94,7 @@ const GroupFormModal = ({ isOpen, onClose, isEditMode, formData, setFormData, on
               </div>
             </div>
 
+            {/* 2. Telegram Settings */}
             <div className="pt-5 border-t border-slate-100 space-y-4">
               <div className="flex justify-between items-center mb-2">
                 <h4 className="text-xs font-black text-blue-500 uppercase tracking-wider flex items-center gap-1.5"><Send size={14}/> Telegram Notifications</h4>
@@ -120,9 +144,43 @@ const GroupFormModal = ({ isOpen, onClose, isEditMode, formData, setFormData, on
                       <Send size={16} /> ส่งข้อความไปยังกลุ่ม
                     </button>
                   </div>
-                  <p className="text-[10px] text-blue-400 mt-2 italic text-center">ข้อความจะถูกส่งไปยัง Telegram Group ทันที</p>
                 </div>
               )}
+            </div>
+
+            {/* 3. AI Settings (NEW) */}
+            <div className="pt-5 border-t border-slate-100 space-y-4">
+              <div className="flex justify-between items-center mb-2">
+                <h4 className="text-xs font-black text-emerald-500 uppercase tracking-wider flex items-center gap-1.5"><Bot size={14}/> Gemini AI Assistant</h4>
+                <label className="flex items-center cursor-pointer gap-2">
+                  <span className="text-xs font-bold text-slate-600">เปิดใช้งาน AI</span>
+                  <div className="relative">
+                    <input type="checkbox" className="sr-only" checked={formData.aiEnabled} onChange={e => setFormData({...formData, aiEnabled: e.target.checked})} />
+                    <div className={`block w-10 h-6 rounded-full transition-colors ${formData.aiEnabled ? 'bg-emerald-500' : 'bg-slate-300'}`}></div>
+                    <div className={`dot absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform ${formData.aiEnabled ? 'transform translate-x-4' : ''}`}></div>
+                  </div>
+                </label>
+              </div>
+
+              <div className="space-y-3">
+                <div>
+                  <div className="flex justify-between items-center mb-1.5">
+                    <label className="block text-sm font-bold text-slate-700">Gemini API Key</label>
+                    <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noreferrer" className="text-[10px] text-blue-600 hover:underline flex items-center gap-0.5">รับ Key ฟรี <ExternalLink size={10} /></a>
+                  </div>
+                  <div className="flex gap-2">
+                    <input type="password" value={formData.aiGeminiKey || ''} onChange={e => setFormData({...formData, aiGeminiKey: e.target.value})} className="w-full border border-slate-300 rounded-xl p-3 text-sm font-mono focus:ring-2 focus:ring-emerald-100 focus:border-emerald-500 outline-none transition" placeholder="AIzaSy..." />
+                    <button type="button" onClick={handleTestAI} disabled={isTestingAI || !formData.aiGeminiKey} className="px-4 py-2 bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 font-bold text-sm rounded-xl transition flex items-center gap-1.5 shrink-0 disabled:opacity-50">
+                      {isTestingAI ? <RefreshCw size={16} className="animate-spin" /> : <RefreshCw size={16} />} ทดสอบ
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-bold text-slate-700 mb-1.5">System Instruction (บทบาท AI)</label>
+                  <textarea value={formData.aiSystemPrompt || ''} onChange={e => setFormData({...formData, aiSystemPrompt: e.target.value})} className="w-full border border-slate-300 rounded-xl p-3 text-sm focus:ring-2 focus:ring-emerald-100 focus:border-emerald-500 outline-none transition min-h-[100px] resize-none" placeholder="เช่น: คุณคือผู้ช่วยดูแลระบบ Network ของกลุ่มนี้ ตอบคำถามอย่างสุภาพและเป็นมืออาชีพ..." />
+                </div>
+              </div>
             </div>
           </div>
 

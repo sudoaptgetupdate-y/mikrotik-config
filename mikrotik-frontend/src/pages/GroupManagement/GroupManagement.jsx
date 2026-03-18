@@ -29,7 +29,8 @@ const GroupManagement = () => {
   const itemsPerPage = 6; // แสดงหน้าละ 6 กลุ่ม
   
   const [formData, setFormData] = useState({
-    name: '', description: '', telegramBotToken: '', telegramChatId: '', isNotifyEnabled: true, adminName: '', adminContact: ''
+    name: '', description: '', telegramBotToken: '', telegramChatId: '', isNotifyEnabled: true, adminName: '', adminContact: '',
+    aiEnabled: false, aiGeminiKey: '', aiSystemPrompt: ''
   });
   const [manualMessage, setManualMessage] = useState("");
 
@@ -74,7 +75,10 @@ const GroupManagement = () => {
 
   // Handlers
   const openAddModal = () => {
-    setFormData({ name: '', description: '', telegramBotToken: '', telegramChatId: '', isNotifyEnabled: true, adminName: '', adminContact: '' });
+    setFormData({ 
+      name: '', description: '', telegramBotToken: '', telegramChatId: '', isNotifyEnabled: true, adminName: '', adminContact: '',
+      aiEnabled: false, aiGeminiKey: '', aiSystemPrompt: ''
+    });
     setManualMessage("");
     setIsEditMode(false);
     setIsFormModalOpen(true);
@@ -84,7 +88,8 @@ const GroupManagement = () => {
     setFormData({ 
       name: group.name, description: group.description || '', 
       telegramBotToken: group.telegramBotToken || '', telegramChatId: group.telegramChatId || '', 
-      isNotifyEnabled: group.isNotifyEnabled, adminName: group.adminName || '', adminContact: group.adminContact || ''
+      isNotifyEnabled: group.isNotifyEnabled, adminName: group.adminName || '', adminContact: group.adminContact || '',
+      aiEnabled: group.aiEnabled || false, aiGeminiKey: group.aiGeminiKey || '', aiSystemPrompt: group.aiSystemPrompt || ''
     });
     setManualMessage("");
     setEditingId(group.id);

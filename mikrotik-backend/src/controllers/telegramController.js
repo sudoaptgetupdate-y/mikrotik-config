@@ -229,6 +229,7 @@ const dispatchCommand = async (group, chatId, devices, thresholds, cmd, args) =>
 };
 
 exports.handleWebhook = async (req, res) => {
+  console.log("📥 Incoming Telegram Webhook:", JSON.stringify(req.body, null, 2));
   res.sendStatus(200);
   let chatId, text;
   if (req.body.message && req.body.message.text) {
@@ -258,7 +259,7 @@ exports.handleWebhook = async (req, res) => {
     if (command.startsWith('/')) {
       handled = await dispatchCommand(group, chatId, devices, thresholds, command, args);
       // ถ้าเป็น slash command แต่ไม่เจอเครื่อง หรือคำสั่งผิด ให้ส่ง fallback สั้นๆ (กรณีไม่เข้า AI)
-      if (!handled && !await aiService.isAIEnabled()) {
+      if (!handled && !await aiService.isAIEnabled(group.id)) {
         await sendTelegramAlert(group.telegramBotToken, chatId, `❌ ไม่พบข้อมูลอุปกรณ์หรือคำสั่งที่ระบุครับ`);
         return;
       }
@@ -275,11 +276,11 @@ exports.handleWebhook = async (req, res) => {
 
     // 2. ถ้ายังไม่ถูกจัดการ -> ส่งให้ AI
     if (!handled) {
-      const aiEnabled = await aiService.isAIEnabled();
+      const aiEnabled = await aiService.isAIEnabled(group.id);
       if (aiEnabled) {
         await sendTelegramAlert(group.telegramBotToken, chatId, "🤖 <i>กำลังประมวลผลคำตอบ...</i>");
         const aiContext = await deviceService.getAISummary(group.id);
-        const aiReply = await aiService.askAI(text, aiContext);
+        const aiReply = await aiService.askAI(text, aiContext, group.id);
         if (aiReply) {
           if (aiReply.includes('COMMAND:')) {
             const parts = aiReply.split('COMMAND:');

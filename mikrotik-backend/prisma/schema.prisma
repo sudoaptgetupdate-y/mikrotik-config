@@ -120,6 +120,11 @@ model DeviceGroup {
   telegramChatId   String?
   isNotifyEnabled  Boolean @default(true) // เปิด/ปิด การแจ้งเตือนของกลุ่มนี้
 
+  // AI Settings สำหรับกลุ่มนี้
+  aiEnabled         Boolean  @default(false)
+  aiGeminiKey       String?
+  aiSystemPrompt    String?  @db.Text
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
