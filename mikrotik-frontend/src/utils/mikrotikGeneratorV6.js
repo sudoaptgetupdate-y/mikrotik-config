@@ -87,6 +87,10 @@ export const generateMikrotikScriptV6 = (config = {}) => {
   const wanInterfaces = wanList.map(w => w.interface);
   const lanPorts = selectedModel?.ports?.filter(p => !wanInterfaces.includes(p.name) && p.type !== 'WLAN') || [];
 
+  // 🟢 หาพอร์ต Ethernet สุดท้ายไว้เป็น Fallback Management
+  const etherPorts = lanPorts.filter(p => p.type === 'ETHER' || p.name.toLowerCase().startsWith('ether'));
+  const fallbackPortName = etherPorts.length > 0 ? etherPorts[etherPorts.length - 1].name : null;
+
   const safeMonitorIps = (monitorIps && monitorIps.length >= 5) 
     ? monitorIps 
     : ['1.1.1.1', '8.8.8.8', '208.67.222.222', '9.9.9.9', '8.26.56.26'];
@@ -106,7 +110,11 @@ export const generateMikrotikScriptV6 = (config = {}) => {
     script += `\n# --- Interface Lists ---\n`;
     script += `/interface list add name=WAN\n`;
     script += `/interface list add name=LAN\n`;
-    script += `/interface list member add interface=${bridgeName} list=LAN\n\n`;
+    script += `/interface list member add interface=${bridgeName} list=LAN\n`;
+    lanPorts.forEach(port => {
+      script += `:do { /interface list member add interface=${port.name} list=LAN } on-error={}\n`;
+    });
+    script += `\n`;
 
     script += `/system clock set time-zone-name=Asia/Bangkok\n`;
     
@@ -189,6 +197,7 @@ export const generateMikrotikScriptV6 = (config = {}) => {
     networks.forEach(net => {
       const vlanInterface = `${net.name}-v${net.vlanId}`;
       script += `/interface vlan add interface=${bridgeName} name=${vlanInterface} vlan-id=${net.vlanId}\n`;
+      script += `/interface list member add interface=${vlanInterface} list=LAN\n`;
       script += `/ip address add address=${net.ip} interface=${vlanInterface} comment="${net.name} Gateway"\n`;
       
       const [gatewayIP, cidr] = net.ip.split('/');
@@ -217,10 +226,12 @@ export const generateMikrotikScriptV6 = (config = {}) => {
       const defaultPvid = networks.length > 0 ? Number(networks[0].vlanId) : 1;
 
       lanPorts.forEach(port => {
-         const pConfig = portConfig[port.name] || { mode: 'access', pvid: defaultPvid, nativeVlan: 1, allowed: [] };
+         const isFallback = port.name === fallbackPortName;
+         const pConfig = isFallback ? { mode: 'access', pvid: 1, nativeVlan: 1, allowed: [] } : (portConfig[port.name] || { mode: 'access', pvid: defaultPvid, nativeVlan: 1, allowed: [] });
          const portPvid = pConfig.mode === 'access' ? (pConfig.pvid || defaultPvid) : (pConfig.nativeVlan || 1);
+         const commentStr = isFallback ? 'Management Fallback' : `LAN Port (${pConfig.mode})`;
 
-         script += `:do { /interface bridge port add bridge=${bridgeName} interface=${port.name} pvid=${portPvid} comment="LAN Port (${pConfig.mode})" } on-error={ :log warning "Wizard: Port ${port.name} not found" }\n`;
+         script += `:do { /interface bridge port add bridge=${bridgeName} interface=${port.name} pvid=${portPvid} comment="${commentStr}" } on-error={ :log warning "Wizard: Port ${port.name} not found" }\n`;
       });
     }
 

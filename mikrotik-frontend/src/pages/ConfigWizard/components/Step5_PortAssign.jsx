@@ -11,6 +11,11 @@ const Step5_PortAssign = ({ selectedModel, wanList, networks, portConfig, setPor
 
   const lanPorts = getLanPorts();
   
+  // 🟢 หา Ethernet พอร์ตสุดท้ายไว้เป็น Fallback Management
+  const etherPorts = lanPorts.filter(p => p.type === 'ETHER' || p.name.toLowerCase().startsWith('ether'));
+  const fallbackPortName = etherPorts.length > 0 ? etherPorts[etherPorts.length - 1].name : null;
+  const editableLanPorts = lanPorts.filter(p => p.name !== fallbackPortName);
+  
   // 🟢 บังคับหาค่า VLAN 10 เพื่อใช้เป็นค่า PVID ตั้งต้นเสมอ (ถ้าไม่มีจริงๆ ให้เอา vlan ที่น้อยที่สุดแทน)
   const defaultVlan = React.useMemo(() => {
     if (!networks || networks.length === 0) return 1;
@@ -70,7 +75,7 @@ const Step5_PortAssign = ({ selectedModel, wanList, networks, portConfig, setPor
   // === ฟังก์ชันสำหรับ Checkbox ===
   const handleSelectAll = (e) => {
     if (e.target.checked) {
-      setSelectedPorts(lanPorts.map(p => p.name));
+      setSelectedPorts(editableLanPorts.map(p => p.name));
     } else {
       setSelectedPorts([]);
     }
@@ -255,7 +260,7 @@ const Step5_PortAssign = ({ selectedModel, wanList, networks, portConfig, setPor
                     <input 
                       type="checkbox" 
                       className="w-4.5 h-4.5 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
-                      checked={selectedPorts.length === lanPorts.length && lanPorts.length > 0}
+                      checked={selectedPorts.length === editableLanPorts.length && editableLanPorts.length > 0}
                       onChange={handleSelectAll}
                     />
                   </th>
@@ -267,129 +272,145 @@ const Step5_PortAssign = ({ selectedModel, wanList, networks, portConfig, setPor
               
               <tbody className="divide-y divide-slate-100">
                 {lanPorts.map((port) => {
-                  const config = portConfig[port.name] || { mode: 'access', pvid: defaultVlan, nativeVlan: 1, allowed: [] };
+                  const isFallback = port.name === fallbackPortName;
+                  const config = isFallback ? { mode: 'access', pvid: 1, nativeVlan: 1, allowed: [] } : (portConfig[port.name] || { mode: 'access', pvid: defaultVlan, nativeVlan: 1, allowed: [] });
                   const isChecked = selectedPorts.includes(port.name);
                   
                   return (
-                    <tr key={port.id || port.name} className={`transition-colors group ${isChecked ? 'bg-blue-50/40' : 'hover:bg-slate-50/50'}`}>
+                    <tr key={port.id || port.name} className={`transition-colors group ${isFallback ? 'bg-amber-50/30' : isChecked ? 'bg-blue-50/40' : 'hover:bg-slate-50/50'}`}>
                       
                       {/* Checkbox Column */}
                       <td className="p-3 pl-5 text-center align-top pt-4">
-                        <input 
-                          type="checkbox" 
-                          className="w-4.5 h-4.5 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
-                          checked={isChecked}
-                          onChange={() => handleSelectPort(port.name)}
-                        />
+                        {!isFallback && (
+                          <input 
+                            type="checkbox" 
+                            className="w-4.5 h-4.5 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                            checked={isChecked}
+                            onChange={() => handleSelectPort(port.name)}
+                          />
+                        )}
                       </td>
 
                       {/* Port Name */}
                       <td className="p-3 align-top pt-3">
                         <div 
-                          className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-sm border transition-colors cursor-pointer ${
+                          className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-sm border transition-colors ${
+                            isFallback ? 'bg-amber-100 border-amber-200 text-amber-800' :
                             isChecked 
-                              ? 'bg-blue-100 border-blue-200 text-blue-700' 
-                              : 'bg-slate-100 border-slate-200 text-slate-700 group-hover:border-blue-200 group-hover:bg-blue-50'
+                              ? 'bg-blue-100 border-blue-200 text-blue-700 cursor-pointer' 
+                              : 'bg-slate-100 border-slate-200 text-slate-700 group-hover:border-blue-200 group-hover:bg-blue-50 cursor-pointer'
                           }`}
-                          onClick={() => handleSelectPort(port.name)}
+                          onClick={() => !isFallback && handleSelectPort(port.name)}
                         >
-                          <Network size={14} className={isChecked ? 'text-blue-500' : 'opacity-70'} />
+                          <Network size={14} className={isFallback ? 'text-amber-600' : isChecked ? 'text-blue-500' : 'opacity-70'} />
                           {port.name}
                         </div>
                       </td>
 
                       {/* Port Mode Selection */}
                       <td className="p-3 align-top pt-3">
-                        <div className="relative">
-                          <select 
-                            value={config.mode}
-                            onChange={(e) => updatePortConfig(port.name, 'mode', e.target.value)}
-                            disabled={isChecked}
-                            className={`w-full pl-3 pr-8 py-2 border rounded-xl text-[13px] outline-none transition-all appearance-none shadow-sm ${
-                              isChecked 
-                                ? 'opacity-40 cursor-not-allowed bg-slate-50 border-slate-200 text-slate-500' 
-                                : config.mode === 'trunk'
-                                  ? 'bg-white border-purple-200 text-purple-700 focus:border-purple-400 focus:ring-2 focus:ring-purple-50 cursor-pointer'
-                                  : 'bg-white border-blue-200 text-blue-700 focus:border-blue-400 focus:ring-2 focus:ring-blue-50 cursor-pointer'
-                            }`}
-                          >
-                            <option value="access">Access</option>
-                            <option value="trunk">Trunk</option>
-                          </select>
-                          <ChevronDown size={14} className={`absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none ${isChecked ? 'text-slate-300' : 'text-slate-400'}`} />
-                        </div>
+                        {isFallback ? (
+                          <div className="w-full pl-3 pr-4 py-2 border border-amber-200 bg-amber-50 rounded-xl text-[13px] text-amber-700 shadow-sm flex items-center font-medium">
+                            Fallback Management
+                          </div>
+                        ) : (
+                          <div className="relative">
+                            <select 
+                              value={config.mode}
+                              onChange={(e) => updatePortConfig(port.name, 'mode', e.target.value)}
+                              disabled={isChecked}
+                              className={`w-full pl-3 pr-8 py-2 border rounded-xl text-[13px] outline-none transition-all appearance-none shadow-sm ${
+                                isChecked 
+                                  ? 'opacity-40 cursor-not-allowed bg-slate-50 border-slate-200 text-slate-500' 
+                                  : config.mode === 'trunk'
+                                    ? 'bg-white border-purple-200 text-purple-700 focus:border-purple-400 focus:ring-2 focus:ring-purple-50 cursor-pointer'
+                                    : 'bg-white border-blue-200 text-blue-700 focus:border-blue-400 focus:ring-2 focus:ring-blue-50 cursor-pointer'
+                              }`}
+                            >
+                              <option value="access">Access</option>
+                              <option value="trunk">Trunk</option>
+                            </select>
+                            <ChevronDown size={14} className={`absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none ${isChecked ? 'text-slate-300' : 'text-slate-400'}`} />
+                          </div>
+                        )}
                       </td>
 
                       {/* VLAN Configuration */}
                       <td className="p-3 pr-5 pb-3">
-                        <div className={`bg-slate-50/80 p-3 rounded-xl border border-slate-100 transition-opacity duration-300 ${isChecked ? 'opacity-40 pointer-events-none' : ''}`}>
-                          
-                          {config.mode === 'access' ? (
-                            <div className="animate-in fade-in zoom-in-95 duration-200 flex items-center gap-3">
-                              <label className="text-[10px] text-slate-400 uppercase tracking-wider shrink-0">VLAN (PVID)</label>
-                              <div className="relative w-full max-w-[200px]">
-                                <select 
-                                  value={config.pvid}
-                                  onChange={(e) => updatePortConfig(port.name, 'pvid', parseInt(e.target.value))}
-                                  className="w-full pl-3 pr-8 py-1.5 bg-white border border-slate-200 rounded-lg text-[13px] text-slate-700 focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-50 transition-all cursor-pointer appearance-none"
-                                >
-                                  {networks.map(n => (
-                                    <option key={n.id} value={n.vlanId}>VLAN {n.vlanId} {n.name ? `(${n.name})` : ''}</option>
-                                  ))}
-                                </select>
-                                <ChevronDown size={12} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-                              </div>
-                            </div>
-                          ) : (
-                            <div className="animate-in fade-in zoom-in-95 duration-200 space-y-3">
-                              {/* Native VLAN */}
-                              <div className="flex items-center gap-3">
-                                <label className="text-[10px] text-slate-400 uppercase tracking-wider shrink-0 w-20">Native</label>
+                        {isFallback ? (
+                           <div className="bg-amber-50/50 p-3 rounded-xl border border-amber-100/50 flex items-center gap-2">
+                              <span className="text-[11px] text-amber-600 uppercase tracking-wider font-bold">VLAN (PVID)</span>
+                              <span className="px-3 py-1 bg-amber-100 text-amber-700 rounded-lg text-xs font-bold shadow-sm">1</span>
+                              <span className="text-[11px] text-amber-600/80 ml-2 italic hidden sm:inline-block">Reserved for MAC Winbox</span>
+                           </div>
+                        ) : (
+                          <div className={`bg-slate-50/80 p-3 rounded-xl border border-slate-100 transition-opacity duration-300 ${isChecked ? 'opacity-40 pointer-events-none' : ''}`}>
+                            {config.mode === 'access' ? (
+                              <div className="animate-in fade-in zoom-in-95 duration-200 flex items-center gap-3">
+                                <label className="text-[10px] text-slate-400 uppercase tracking-wider shrink-0">VLAN (PVID)</label>
                                 <div className="relative w-full max-w-[200px]">
                                   <select 
-                                    value={config.nativeVlan || 1}
-                                    onChange={(e) => updatePortConfig(port.name, 'nativeVlan', parseInt(e.target.value))}
-                                    className="w-full pl-3 pr-8 py-1.5 bg-white border border-purple-200 rounded-lg text-[13px] text-purple-700 focus:outline-none focus:border-purple-400 focus:ring-2 focus:ring-purple-50 transition-all cursor-pointer appearance-none"
+                                    value={config.pvid}
+                                    onChange={(e) => updatePortConfig(port.name, 'pvid', parseInt(e.target.value))}
+                                    className="w-full pl-3 pr-8 py-1.5 bg-white border border-slate-200 rounded-lg text-[13px] text-slate-700 focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-50 transition-all cursor-pointer appearance-none"
                                   >
-                                    <option value={1}>VLAN 1 (Default)</option>
                                     {networks.map(n => (
                                       <option key={n.id} value={n.vlanId}>VLAN {n.vlanId} {n.name ? `(${n.name})` : ''}</option>
                                     ))}
                                   </select>
-                                  <ChevronDown size={12} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-purple-400 pointer-events-none" />
+                                  <ChevronDown size={12} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
                                 </div>
                               </div>
+                            ) : (
+                              <div className="animate-in fade-in zoom-in-95 duration-200 space-y-3">
+                                {/* Native VLAN */}
+                                <div className="flex items-center gap-3">
+                                  <label className="text-[10px] text-slate-400 uppercase tracking-wider shrink-0 w-20">Native</label>
+                                  <div className="relative w-full max-w-[200px]">
+                                    <select 
+                                      value={config.nativeVlan || 1}
+                                      onChange={(e) => updatePortConfig(port.name, 'nativeVlan', parseInt(e.target.value))}
+                                      className="w-full pl-3 pr-8 py-1.5 bg-white border border-purple-200 rounded-lg text-[13px] text-purple-700 focus:outline-none focus:border-purple-400 focus:ring-2 focus:ring-purple-50 transition-all cursor-pointer appearance-none"
+                                    >
+                                      <option value={1}>VLAN 1 (Default)</option>
+                                      {networks.map(n => (
+                                        <option key={n.id} value={n.vlanId}>VLAN {n.vlanId} {n.name ? `(${n.name})` : ''}</option>
+                                      ))}
+                                    </select>
+                                    <ChevronDown size={12} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-purple-400 pointer-events-none" />
+                                  </div>
+                                </div>
 
-                              {/* Allowed VLANs */}
-                              <div className="flex items-start gap-3">
-                                <label className="text-[10px] text-slate-400 uppercase tracking-wider shrink-0 w-20 pt-1.5">Allowed</label>
-                                <div className="flex flex-wrap gap-1.5">
-                                  {networks.map(n => {
-                                    if (n.vlanId === (config.nativeVlan || 1)) return null;
-                                    const isSelected = config.allowed?.includes(n.vlanId);
-                                    return (
-                                      <button 
-                                        key={n.id}
-                                        onClick={() => updatePortConfig(port.name, 'toggleVlan', n.vlanId)}
-                                        className={`px-2.5 py-1 rounded-md text-[11px] border transition-all flex items-center gap-1 duration-200 ${
-                                          isSelected 
-                                            ? 'bg-purple-600 border-purple-600 text-white shadow-sm' 
-                                            : 'bg-white border-slate-200 text-slate-500 hover:border-purple-300 hover:text-purple-600'
-                                        }`}
-                                      >
-                                        {isSelected && <CheckCircle size={12} className="text-white" />} VLAN {n.vlanId}
-                                      </button>
-                                    );
-                                  })}
-                                  {networks.length === 0 && (
-                                    <span className="text-xs text-slate-400 italic pt-1">No VLANs created yet.</span>
-                                  )}
+                                {/* Allowed VLANs */}
+                                <div className="flex items-start gap-3">
+                                  <label className="text-[10px] text-slate-400 uppercase tracking-wider shrink-0 w-20 pt-1.5">Allowed</label>
+                                  <div className="flex flex-wrap gap-1.5">
+                                    {networks.map(n => {
+                                      if (n.vlanId === (config.nativeVlan || 1)) return null;
+                                      const isSelected = config.allowed?.includes(n.vlanId);
+                                      return (
+                                        <button 
+                                          key={n.id}
+                                          onClick={() => updatePortConfig(port.name, 'toggleVlan', n.vlanId)}
+                                          className={`px-2.5 py-1 rounded-md text-[11px] border transition-all flex items-center gap-1 duration-200 ${
+                                            isSelected 
+                                              ? 'bg-purple-600 border-purple-600 text-white shadow-sm' 
+                                              : 'bg-white border-slate-200 text-slate-500 hover:border-purple-300 hover:text-purple-600'
+                                          }`}
+                                        >
+                                          {isSelected && <CheckCircle size={12} className="text-white" />} VLAN {n.vlanId}
+                                        </button>
+                                      );
+                                    })}
+                                    {networks.length === 0 && (
+                                      <span className="text-xs text-slate-400 italic pt-1">No VLANs created yet.</span>
+                                    )}
+                                  </div>
                                 </div>
                               </div>
-                            </div>
-                          )}
-
-                        </div>
+                            )}
+                          </div>
+                        )}
                       </td>
                     </tr>
                   );
