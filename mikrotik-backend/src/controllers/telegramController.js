@@ -111,6 +111,40 @@ const parseUptimeToSeconds = (uptimeStr) => {
   return totalSeconds;
 };
 
+/**
+ * 🇹🇭 ฟังก์ชันขยายคำค้นหาสำหรับตัวย่อภาษาไทยที่เป็นทางการ
+ */
+const expandSearchTerms = (keyword) => {
+  const mapping = {
+    'อบต': ['อบต', 'องค์การบริหารส่วนตำบล'],
+    'อบจ': ['อบจ', 'องค์การบริหารส่วนจังหวัด'],
+    'เทศบาล': ['ทม', 'ทน', 'ทต', 'เทศบาล'],
+    'รพ': ['รพ', 'โรงพยาบาล'],
+    'รพสต': ['รพ.สต', 'โรงพยาบาลส่งเสริมสุขภาพตำบล', 'อนามัย'],
+    'สภ': ['สภ', 'สถานีตำรวจภูธร'],
+    'โรงเรียน': ['ร.ร', 'รร', 'โรงเรียน'],
+    'สพป': ['สพป', 'สำนักงานเขตพื้นที่การศึกษาประถมศึกษา'],
+    'สพม': ['สพม', 'สำนักงานเขตพื้นที่การศึกษามัธยมศึกษา'],
+    'กฟภ': ['กฟภ', 'pea', 'การไฟฟ้าส่วนภูมิภาค'],
+    'ไปรษณีย์': ['ปณ', 'ไปรษณีย์']
+  };
+
+  const results = new Set([keyword]);
+  // ลบจุดและช่องว่างเพื่อการเปรียบเทียบที่แม่นยำ
+  const cleanKeyword = keyword.replace(/\./g, '').replace(/\s/g, ''); 
+
+  for (const [key, values] of Object.entries(mapping)) {
+    // ตรวจสอบว่า keyword ตรงกับ key (ตัวย่อหลัก) หรือมีอยู่ใน values (คำเต็ม/ตัวย่ออื่นๆ)
+    const isMatch = cleanKeyword.includes(key) || 
+                    values.some(v => cleanKeyword.includes(v.replace(/\./g, '')));
+    
+    if (isMatch) {
+      values.forEach(v => results.add(v));
+    }
+  }
+  return Array.from(results);
+};
+
 const formatTimeAgo = (minutes) => {
   if (minutes > 1440) return `${Math.floor(minutes / 1440)} วัน`;
   if (minutes > 60) return `${Math.floor(minutes / 60)} ชม. ${Math.floor(minutes % 60)} นาที`;
@@ -214,7 +248,19 @@ const dispatchCommand = async (group, chatId, devices, thresholds, cmd, args) =>
       const d = devices.find(x => x.id.toString() === id);
       if (d) matched.push(d);
     } else {
-      matched = devices.filter(d => (d.circuitId && d.circuitId.toLowerCase().includes(searchKeyword)) || (d.name && d.name.toLowerCase().includes(searchKeyword)));
+      // 🎯 [NEW] ใช้ระบบขยายคำค้นหา (ตัวย่อ/คำเต็ม)
+      const searchTerms = expandSearchTerms(searchKeyword);
+      
+      matched = devices.filter(d => {
+        const name = (d.name || '').toLowerCase();
+        const circuit = (d.circuitId || '').toLowerCase();
+        
+        // ค้นหาว่าชื่อเครื่อง หรือ Circuit ID ตรงกับคำค้นหาใดๆ ใน List หรือไม่
+        return searchTerms.some(term => 
+          name.includes(term.toLowerCase()) || 
+          circuit.includes(term.toLowerCase())
+        );
+      });
     }
     if (matched.length === 0) return false;
     if (matched.length > 1) {
