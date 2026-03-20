@@ -88,12 +88,31 @@ const parseUptimeToSeconds = (uptimeStr) => {
 };
 
 const expandSearchTerms = (keyword) => {
-  const mapping = { 'อบต': 'องค์การบริหารส่วนตำบล', 'อบจ': 'องค์การบริหารส่วนจังหวัด', 'รพสต': 'โรงพยาบาลส่งเสริมสุขภาพตำบล', 'รพ': 'โรงพยาบาล', 'สภ': 'สถานีตำรวจภูธร', 'รร': 'โรงเรียน', 'ร.ร': 'โรงเรียน', 'กฟภ': 'การไฟฟ้าส่วนภูมิภาค', 'ปณ': 'ไปรษณีย์' };
+  const mapping = { 
+    'อบต': 'องค์การบริหารส่วนตำบล', 
+    'อบจ': 'องค์การบริหารส่วนจังหวัด', 
+    'รพสต': 'โรงพยาบาลส่งเสริมสุขภาพตำบล', 
+    'รพ': 'โรงพยาบาล', 
+    'สภ': 'สถานีตำรวจภูธร', 
+    'รร': 'โรงเรียน', 
+    'ร.ร': 'โรงเรียน', 
+    'กฟภ': 'การไฟฟ้าส่วนภูมิภาค', 
+    'ปณ': 'ไปรษณีย์' 
+  };
   const results = new Set([keyword]);
   const lowKey = keyword.toLowerCase();
+
   for (const [abbr, full] of Object.entries(mapping)) {
-    if (lowKey.includes(abbr.toLowerCase())) { results.add(lowKey.replace(abbr.toLowerCase(), full)); results.add(lowKey.replace(abbr.toLowerCase(), `${full} `)); }
-    if (lowKey.includes(full)) { results.add(lowKey.replace(full, abbr)); results.add(lowKey.replace(full, `${abbr}.`)); }
+    // 🎯 ปรับให้เช็คแบบเฉพาะเจาะจงมากขึ้น (ต้องตรงกับตัวย่อเป๊ะๆ หรือเป็นส่วนหนึ่งของชื่อ)
+    // เพิ่มเงื่อนไข: ตัวย่อต้องไม่อยู่กลางคำอื่น (เช่น 'รร' ใน 'บรรทัด' จะไม่นับ)
+    const abbrRegex = new RegExp(`(^|[.\\s])${abbr}([.\\s]|$)`, 'i');
+    
+    if (lowKey.includes(abbr.toLowerCase()) || abbrRegex.test(lowKey)) {
+      results.add(lowKey.replace(abbr.toLowerCase(), full));
+    }
+    if (lowKey === full || lowKey.includes(full)) {
+      results.add(lowKey.replace(full, abbr));
+    }
   }
   return Array.from(results);
 };
@@ -208,6 +227,15 @@ const dispatchCommand = async (group, chatId, devices, thresholds, cmd, args) =>
     }
 
     if (matchedDevice) {
+      // 🎯 [NEW] ตรวจสอบว่าอุปกรณ์มีปัญหาอยู่จริงหรือไม่
+      const isDeviceOffline = getOfflineMinutes(matchedDevice.lastSeen) > 3;
+      const hasProblem = matchedDevice.isOfflineAlerted || matchedDevice.isWarningAlerted || isDeviceOffline;
+
+      if (!hasProblem) {
+        await sendTelegramAlert(group.telegramBotToken, chatId, `✅ <b><u>สถานะปกติ</u></b>\n🖥 <b>ชื่อ:</b> <b>${matchedDevice.name}</b>\n\nอุปกรณ์นี้ทำงานเป็นปกติอยู่แล้ว ไม่จำเป็นต้องรับทราบปัญหาครับ`);
+        return true;
+      }
+
       await prisma.managedDevice.update({ where: { id: matchedDevice.id }, data: { isAcknowledged: true } });
       
       // 🎯 [FIX] เปลี่ยนจาก ActivityLog (ซึ่งต้องมี User) เป็น DeviceEventLog แทน
