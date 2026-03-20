@@ -462,26 +462,27 @@ exports.handleWebhook = async (req, res) => {
       
       // --- หมวดที่ 2: ตรวจสอบการดูสถานะรายเครื่อง (Status) - ทำทีหลังเพื่อกันชื่อเครื่องไปซ้ำกับคำสั่ง ---
       if (!handled) {
-        const statusKeywords = ['ขอข้อมูล', 'ข้อมูล', 'สถานะ', 'เช็ค', 'check', 'ดู', 'ขอดู'];
-        // เอาคำว่า "ของ" ออกจากคีย์เวิร์ดเพราะกว้างเกินไป อาจขัดแย้งกับประโยคคุยทั่วไป
+        const statusKeywords = ['ขอข้อมูล', 'ข้อมูล', 'สถานะ', 'เช็ค', 'check', 'ดู', 'ขอดู', 'แสดง', 'ทั้งหมด'];
         const isStatusIntent = statusKeywords.some(k => low.includes(k));
-        // ... rest of the logic
         
-        // 🧼 ทำความสะอาดประโยคเพื่อหา "คำค้นหา" (Search Term)
+        // 🧼 ทำความสะอาดประโยคเพื่อหา "คำค้นหา" (Search Term) ที่สะอาดที่สุด
         let searchTerm = low;
         statusKeywords.forEach(k => {
-          searchTerm = searchTerm.replace(k, '');
+          searchTerm = searchTerm.replace(new RegExp(k, 'g'), '');
         });
         searchTerm = searchTerm.trim();
 
         if (searchTerm || isStatusIntent) {
-          // ค้นหาอุปกรณ์ (ใช้ Partial Match เหมือนคำสั่ง /status)
-          const matched = devices.filter(d => 
-            (d.name && d.name.toLowerCase().includes(searchTerm)) || 
-            (d.circuitId && d.circuitId.toLowerCase().includes(searchTerm))
-          );
+          // ใช้ระบบขยายคำค้นหา (ตัวย่อ/คำเต็ม) ทันทีตั้งแต่ใน Filter
+          const searchTerms = expandSearchTerms(searchTerm);
+          
+          const matched = devices.filter(d => {
+            const name = (d.name || '').toLowerCase();
+            const circuit = (d.circuitId || '').toLowerCase();
+            return searchTerms.some(term => name.includes(term.toLowerCase()) || circuit.includes(term.toLowerCase()));
+          });
 
-          // เงื่อนไข: เจอเครื่อง และ (มีคำว่าข้อมูลปนอยู่ หรือ ชื่อที่พิมพ์มายาวกว่า 2 ตัวอักษรเพื่อป้องกันการพิมพ์มั่ว)
+          // เงื่อนไข: เจอเครื่อง และ (มีคำสำคัญ หรือ ชื่อที่พิมพ์มายาวพอ)
           if (matched.length > 0 && (isStatusIntent || searchTerm.length >= 2)) {
             handled = await dispatchCommand(group, chatId, devices, thresholds, '/status', ['/status', searchTerm]);
           }
