@@ -240,8 +240,18 @@ const dispatchCommand = async (group, chatId, devices, thresholds, cmd, args) =>
 
   // --- 🟢 คำสั่ง /status ---
   if (command === '/status' || command.startsWith('/status@')) {
-    const searchKeyword = args.slice(1).join(' ').trim().toLowerCase();
+    let searchKeyword = args.slice(1).join(' ').trim().toLowerCase();
+    let page = 1;
+
+    // 🎯 [NEW] จัดการระบบ Pagination (จาก Callback Data: _page_หน้า_คำค้นหา)
+    if (searchKeyword.startsWith('_page_')) {
+      const parts = searchKeyword.split('_');
+      page = parseInt(parts[2], 10) || 1;
+      searchKeyword = parts.slice(3).join('_');
+    }
+
     if (!searchKeyword) { await sendTelegramAlert(group.telegramBotToken, chatId, "⚠️ <b>รูปแบบคำสั่งผิด:</b>\nกรุณาระบุชื่อ หรือ Circuit ID"); return true; }
+    
     let matched = [];
     if (searchKeyword.startsWith('_id_')) {
       const id = searchKeyword.replace('_id_', '');
@@ -262,12 +272,42 @@ const dispatchCommand = async (group, chatId, devices, thresholds, cmd, args) =>
         );
       });
     }
+
     if (matched.length === 0) return false;
+
+    // 🎯 [NEW] จัดการแสดงผลแบบแบ่งหน้า (หน้าละ 10 รายการ)
     if (matched.length > 1) {
-      const keyboard = matched.slice(0, 10).map(d => [{ text: `📱 ${d.name} (${d.circuitId || '-'})`, callback_data: `/status _id_${d.id}` }]);
-      await sendTelegramAlert(group.telegramBotToken, chatId, `⚠️ <b>พบข้อมูลมากกว่า 1 รายการ</b>\nกรุณาเลือกอุปกรณ์ที่ต้องการตรวจสอบ:`, { inline_keyboard: keyboard });
-      return true;
+      const limit = 10;
+      const start = (page - 1) * limit;
+      const end = start + limit;
+      const currentItems = matched.slice(start, end);
+
+      if (currentItems.length === 0 && page > 1) {
+        await sendTelegramAlert(group.telegramBotToken, chatId, "❌ ไม่พบข้อมูลในหน้านี้แล้วครับ");
+        return true;
+      }
+
+      // ถ้าหน้าแรกและเจอแค่ 1 เครื่อง (Unique Match) ให้แสดงผลเลย
+      if (page === 1 && matched.length === 1) {
+        const device = matched[0];
+        // ... (จะไหลไปทำ logic แสดงผลเครื่องเดียวข้างล่าง)
+      } else {
+        const keyboard = currentItems.map(d => [{ text: `📱 ${d.name} (${d.circuitId || '-'})`, callback_data: `/status _id_${d.id}` }]);
+        
+        // เพิ่มปุ่ม "ดูเพิ่มเติม" หากยังมีรายการเหลือ
+        if (matched.length > end) {
+          keyboard.push([{ 
+            text: `🔍 ดูเพิ่มเติม (รายการที่ ${end + 1}-${Math.min(end + 10, matched.length)})`, 
+            callback_data: `/status _page_${page + 1}_${searchKeyword}` 
+          }]);
+        }
+
+        const msgText = `⚠️ <b>พบข้อมูลทั้งหมด ${matched.length} รายการ</b>\nแสดงรายการที่ ${start + 1} - ${Math.min(end, matched.length)}\nกรุณาเลือกอุปกรณ์ที่ต้องการตรวจสอบ:`;
+        await sendTelegramAlert(group.telegramBotToken, chatId, msgText, { inline_keyboard: keyboard });
+        return true;
+      }
     }
+
     const device = matched[0];
     const isOffline = getOfflineMinutes(device.lastSeen) > 3;
     let msg = `📱 <b><u>ข้อมูลสถานะอุปกรณ์</u></b>\n🖥 ชื่อ: <b>${device.name}</b>\n✨ วงจร: <code>${device.circuitId || '-'}</code>\n🏷️ รุ่น: <code>${device.boardName || '-'}</code>\n${separator}\n\n📍 <b><u>การเชื่อมต่อ</u></b>\n🌐 IP: <code>${device.currentIp}</code>\n`;
@@ -447,7 +487,13 @@ exports.handleWebhook = async (req, res) => {
         handled = await dispatchCommand(group, chatId, devices, thresholds, '/top', ['/top', metric, count]);
       }
       else if (['offline', 'ออฟไลน์', 'เครื่องดับ', 'ติดต่อไม่ได้'].some(k => low.includes(k))) {
-        handled = await dispatchCommand(group, chatId, devices, thresholds, '/offline', []);
+        // 🎯 [NEW] ตรวจสอบว่าเป็นคำถามถึงประวัติย้อนหลังหรือไม่
+        const isHistoryQuery = ['เคย', 'ย้อนหลัง', 'ชั่วโมง', 'วัน', 'ที่ผ่านมา', 'ประวัติ', 'เมื่อวาน'].some(k => low.includes(k));
+        
+        if (!isHistoryQuery) {
+          handled = await dispatchCommand(group, chatId, devices, thresholds, '/offline', []);
+        }
+        // ถ้าเป็นประวัติย้อนหลัง จะปล่อยผ่าน (handled = false) เพื่อให้ AI เป็นคนจัดการ
       }
       else if (['ปัญหา', 'problem', 'เสีย', 'พัง'].some(k => low.includes(k))) {
         handled = await dispatchCommand(group, chatId, devices, thresholds, '/problem', []);
