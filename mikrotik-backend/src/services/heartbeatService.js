@@ -133,12 +133,12 @@ exports.processHeartbeat = async (token, payload, remoteIp) => {
     if (isOfflineAlerted && device.groups && device.groups.length > 0) {
       const offlineDurationStr = formatDuration(diffMinutesFromLastSeen);
       const separator = "━━━━━━━━━━━━━━━━━━";
-      const msgOnline = `✅ <b><code>[ DEVICE ONLINE ]</code></b>\n${separator}\n` +
-                        `🖥 <b>อุปกรณ์:</b> <code>${device.name}</code>\n` +
+      const msgOnline = `✅ <b><u>[ DEVICE ONLINE ]</u></b>\n${separator}\n` +
+                        `🖥 <b>ชื่อ:</b> <b>${device.name}</b>\n` +
                         `✨ <b>วงจร:</b> <code>${device.circuitId || '-'}</code>\n\n` +
-                        `✅ <b>สถานะ:</b> <u>กลับมาออนไลน์ปกติแล้ว</u>\n` +
+                        `📊 <b>สถานะ:</b> <u>กลับมาออนไลน์ปกติแล้ว</u>\n` +
                         `⏱️ <b>ขาดหายไป:</b> <code>${offlineDurationStr}</code>\n` +
-                        `⏳ <b>เวลาที่บันทึก:</b> <code>${now.toLocaleDateString('th-TH')} ${now.toLocaleTimeString('th-TH')}</code>\n` +
+                        `⏳ <b>เวลาบันทึก:</b> <code>${now.toLocaleDateString('th-TH')} ${now.toLocaleTimeString('th-TH')}</code>\n` +
                         `${separator}\n🌐 <b>Dashboard:</b> <a href="https://mikrotik.ntnakhon.com">ดูรายละเอียด</a>`;
       
       for (const group of device.groups) {
@@ -180,8 +180,8 @@ exports.processHeartbeat = async (token, payload, remoteIp) => {
             if (group.isNotifyEnabled && group.telegramBotToken && group.telegramChatId) {
               const adminInfo = (group.adminName || group.adminContact) ? `\n\n👨‍🔧 <b><u>ผู้รับผิดชอบดูแล</u></b>\n👤 ชื่อ: ${group.adminName || '-'}\n📞 ติดต่อ: ${group.adminContact || '-'}` : '';
               
-              const msg = `⚠️ <b>[HIGH LOAD ALERT]</b>\n${separator}\n` +
-                          `🖥 <b>อุปกรณ์:</b> <code>${device.name}</code>\n` +
+              const msg = `⚠️ <b><u>[ HIGH LOAD ALERT ]</u></b>\n${separator}\n` +
+                          `🖥 <b>ชื่อ:</b> <b>${device.name}</b>\n` +
                           `✨ <b>วงจร:</b> <code>${device.circuitId || '-'}</code>\n\n` +
                           `🚨 <b><u>ปัญหาที่พบ (เกิน 3 นาที)</u></b>\n` +
                           `${details.map(d => `• <code>${d}</code>`).join('\n')}\n\n` +
@@ -216,12 +216,12 @@ exports.processHeartbeat = async (token, payload, remoteIp) => {
         }
         
         const separator = "━━━━━━━━━━━━━━━━━━";
-        const msg = `✅ <b>[SYSTEM RECOVERY]</b>\n${separator}\n` +
-                    `🖥 <b>อุปกรณ์:</b> <code>${device.name}</code>\n` +
+        const msg = `✅ <b><u>[ SYSTEM RECOVERY ]</u></b>\n${separator}\n` +
+                    `🖥 <b>ชื่อ:</b> <b>${device.name}</b>\n` +
                     `✨ <b>วงจร:</b> <code>${device.circuitId || '-'}</code>\n\n` +
-                    `🟢 <b>สถานะ:</b> <u>การทำงานกลับสู่ภาวะปกติแล้ว</u>\n` +
+                    `📊 <b>สถานะ:</b> <u>การทำงานกลับสู่ภาวะปกติแล้ว</u>\n` +
                     `⏱️ <b>ระยะเวลาที่มีปัญหา:</b> <code>${warningDurationStr}</code>\n` +
-                    `⏳ <b>เวลา:</b> <code>${now.toLocaleDateString('th-TH')} ${now.toLocaleTimeString('th-TH')}</code>\n` +
+                    `⏳ <b>เวลาบันทึก:</b> <code>${now.toLocaleDateString('th-TH')} ${now.toLocaleTimeString('th-TH')}</code>\n` +
                     `${separator}\n🌐 <b>Dashboard:</b> <a href="https://mikrotik.ntnakhon.com">ดูภาพรวม</a>`;
         
         for (const group of device.groups) {
