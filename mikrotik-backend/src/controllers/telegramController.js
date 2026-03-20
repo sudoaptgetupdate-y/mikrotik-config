@@ -254,27 +254,44 @@ const dispatchCommand = async (group, chatId, devices, thresholds, cmd, args) =>
 
   // --- 🟢 คำสั่ง /event (Timeline) ---
   if (command === '/event' || command.startsWith('/event@')) {
-    const deviceIds = devices.map(d => d.id);
+    const searchKeyword = args.slice(1).join(' ').trim();
+    let queryWhere = { deviceId: { in: devices.map(d => d.id) } };
+    let title = "เหตุการณ์สำคัญล่าสุด";
+    let subTitle = "แสดง 10 รายการล่าสุดในกลุ่ม";
+    let refreshData = "/event";
+
+    if (searchKeyword.startsWith('_id_')) {
+      const id = parseInt(searchKeyword.replace('_id_', ''), 10);
+      const device = devices.find(x => x.id === id);
+      if (device) {
+        queryWhere = { deviceId: id };
+        title = `ประวัติเหตุการณ์: ${device.name}`;
+        subTitle = `แสดง 10 รายการล่าสุดของอุปกรณ์นี้`;
+        refreshData = `/event _id_${id}`;
+      }
+    }
+
     const logs = await prisma.deviceEventLog.findMany({
-      where: { deviceId: { in: deviceIds } },
+      where: queryWhere,
       orderBy: { createdAt: 'desc' },
       take: 10,
       include: { device: true }
     });
 
     if (logs.length === 0) {
-      await sendTelegramAlert(group.telegramBotToken, chatId, "ℹ️ <b><u>เหตุการณ์ล่าสุด</u></b>\nยังไม่มีบันทึกเหตุการณ์สำคัญในกลุ่มนี้ครับ");
+      await sendTelegramAlert(group.telegramBotToken, chatId, `ℹ️ <b><u>${title}</u></b>\nยังไม่มีบันทึกเหตุการณ์สำคัญครับ`);
       return true;
     }
 
-    let msg = `📜 <b><u>เหตุการณ์สำคัญล่าสุด</u></b>\nแสดง 10 รายการล่าสุดในกลุ่ม\n${separator}\n\n`;
+    let msg = `📜 <b><u>${title}</u></b>\n${subTitle}\n${separator}\n\n`;
     logs.forEach((l, i) => {
+      const date = new Date(l.createdAt).toLocaleDateString('th-TH', { day: '2-digit', month: '2-digit' });
       const time = new Date(l.createdAt).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
-      const emoji = l.eventType === 'OFFLINE' ? '🛑' : (l.eventType === 'ONLINE' ? '✅' : '⚠️');
-      msg += `${i + 1}. <code>${time}</code> | ${emoji} <b>${l.device.name}</b>\n   └ <i>${l.details}</i>\n\n`;
+      const emoji = l.eventType === 'OFFLINE' ? '🛑' : (l.eventType === 'ONLINE' ? '✅' : (l.eventType === 'ACKNOWLEDGE' ? '👌' : '⚠️'));
+      msg += `${i + 1}. <code>${date} ${time}</code> | ${emoji} <b>${l.device.name}</b>\n   └ <i>${l.details}</i>\n\n`;
     });
     msg += `${separator}\n🌐 <b>Dashboard:</b> <a href="https://mikrotik.ntnakhon.com">ดู Log ทั้งหมด</a>`;
-    const keyboard = [[{ text: "🔄 ดึงข้อมูลล่าสุด", callback_data: "/event" }]];
+    const keyboard = [[{ text: "🔄 ดึงข้อมูลล่าสุด", callback_data: refreshData }]];
     await sendTelegramAlert(group.telegramBotToken, chatId, msg, { inline_keyboard: keyboard });
     return true;
   }
@@ -350,7 +367,10 @@ const dispatchCommand = async (group, chatId, devices, thresholds, cmd, args) =>
       msg += `⚡ <b><u>ประสิทธิภาพระบบ</u></b>\n🎛️ CPU: <code>${device.cpuLoad || 0}%</code> | 🧩 RAM: <code>${device.memoryUsage || 0}%</code>\n🌡️ Temp: <code>${device.temp || 'N/A'}°C</code> | 📶 Ping: <code>${latency}</code>\n⏱️ Uptime: <code>${device.uptime || '-'}</code>`;
     }
     msg += `\n\n${separator}\n🌐 <b>จัดการ:</b> <a href="https://mikrotik.ntnakhon.com">คลิกเพื่อเปิดเว็บ</a>`;
-    const keyboard = [[{ text: "🔄 อัปเดตข้อมูล", callback_data: `/status _id_${device.id}` }, { text: "✅ รับทราบปัญหา", callback_data: `/ack _id_${device.id}` }]];
+    const keyboard = [
+      [{ text: "🔄 อัปเดตข้อมูล", callback_data: `/status _id_${device.id}` }, { text: "✅ รับทราบปัญหา", callback_data: `/ack _id_${device.id}` }],
+      [{ text: "📜 ประวัติเหตุการณ์", callback_data: `/event _id_${device.id}` }]
+    ];
     await sendTelegramAlert(group.telegramBotToken, chatId, msg, { inline_keyboard: keyboard });
     return true;
   }
