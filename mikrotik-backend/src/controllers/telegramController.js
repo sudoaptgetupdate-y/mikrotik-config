@@ -156,16 +156,28 @@ const dispatchCommand = async (group, chatId, devices, thresholds, cmd, args) =>
   // --- 🟢 คำสั่ง /help ---
   if (['/help', '/hi', '/start', '/menu'].includes(command) || command.startsWith('/help@')) {
     let msg = `👋 <b><u>สวัสดีครับ! ระบบจัดการ Network พร้อมให้บริการ</u></b>\nกรุณาจิ้มเลือกดูข้อมูลจากเมนูด้านล่างได้เลยครับ 👇\n\n` +
-              `🔍 <b>เช็ครายเครื่อง:</b> <code>/status [ชื่อ/วงจร]</code>\n` +
-              `✅ <b>รับทราบปัญหา:</b> <code>/ack [ชื่อ/วงจร]</code>\n` +
-              `📜 <b>ดูเหตุการณ์:</b> <code>/event</code>\n\n` +
-              `หรือพิมพ์ชื่ออุปกรณ์เพื่อตรวจสอบได้ทันทีครับ`;
+              `💡 <b>คำแนะนำ:</b>\n` +
+              `• หากต้องการเช็ครายเครื่องหรือรับทราบปัญหา คุณสามารถ<b>พิมพ์ชื่ออุปกรณ์</b>เข้ามาได้เลยทันทีครับ\n` +
+              `• หรือเลือกกดปุ่มด้านล่างเพื่อดูข้อมูลสรุปในด้านต่างๆ`;
+    
     const keyboard = [
-      [{ text: "🛑 ดูเครื่องออฟไลน์", callback_data: "/offline" }, { text: "⚠️ ดูเครื่องมีปัญหา", callback_data: "/problem" }], 
-      [{ text: "📜 เหตุการณ์ล่าสุด", callback_data: "/event" }, { text: "🔥 จัดอันดับอุปกรณ์", callback_data: "/top" }],
-      [{ text: "📊 รายงานภาพรวม", callback_data: "/report" }]
+      [{ text: "🛑 ดูเครื่อง Offline", callback_data: "/offline" }, { text: "⚠️ ดูเครื่องมีปัญหา", callback_data: "/problem" }], 
+      [{ text: "📜 เหตุการณ์ล่าสุด", callback_data: "/event" }, { text: "📊 รายงานภาพรวม", callback_data: "/report" }],
+      [{ text: "🧩 Top 5 RAM", callback_data: "/top ram 5" }, { text: "🌡️ Top 5 Temp", callback_data: "/top temp 5" }],
+      [{ text: "📶 Top 5 Ping", callback_data: "/top ping 5" }, { text: "💾 Top 5 Disk", callback_data: "/top hdd 5" }],
+      [{ text: "🔍 เช็ครายเครื่อง (พิมพ์ชื่อ)", callback_data: "/status_hint" }, { text: "✅ รับทราบปัญหา (พิมพ์ชื่อ)", callback_data: "/ack_hint" }]
     ];
     await sendTelegramAlert(group.telegramBotToken, chatId, msg, { inline_keyboard: keyboard });
+    return true;
+  }
+
+  // --- 💡 คำสั่งแนะนำ (Hints) ---
+  if (command === '/status_hint') {
+    await sendTelegramAlert(group.telegramBotToken, chatId, "🔍 <b><u>การเช็คสถานะรายเครื่อง</u></b>\nกรุณาพิมพ์ <code>/status [ชื่อเครื่อง]</code>\n\n<i>ตัวอย่าง: <code>/status บ้านโคก</code></i>");
+    return true;
+  }
+  if (command === '/ack_hint') {
+    await sendTelegramAlert(group.telegramBotToken, chatId, "✅ <b><u>การรับทราบปัญหา</u></b>\nกรุณาพิมพ์ <code>/ack [ชื่อเครื่อง]</code>\n\n<i>ตัวอย่าง: <code>/ack บ้านโคก</code></i>");
     return true;
   }
 
