@@ -394,7 +394,16 @@ export const generateMikrotikScript = (config = {}) => {
     script += `    :do { :set temp [/system health get [find name="cpu-temperature"] value] } on-error={};\n`;
     script += `  };\n`;
     script += `  :local latency "timeout";\n`;
-    script += `  :do { :set latency ([:tostr ([/ping 8.8.8.8 count=1 as-value]->"time")]) } on-error={};\n`;
+    script += `  :do {\n`;
+    script += `    :local pingRes [/ping 8.8.8.8 count=3 as-value];\n`;
+    script += `    :local totalTime 0; :local okCount 0;\n`;
+    script += `    :foreach r in=$pingRes do={\n`;
+    script += `      :if ([:typeof ($r->"time")] != "nothing") do={\n`;
+    script += `        :set totalTime ($totalTime + ($r->"time")); :set okCount ($okCount + 1);\n`;
+    script += `      }\n`;
+    script += `    };\n`;
+    script += `    :if ($okCount > 0) do={ :set latency ([:tostr ($totalTime / $okCount)]) };\n`;
+    script += `  } on-error={};\n`;
     //ดึงค่า DDNS (ครอบ do-catch ไว้เผื่อไม่ได้เปิด Cloud)
     script += `  :local ddnsName "N/A";\n`;
     script += `  :do { :set ddnsName [/ip cloud get dns-name] } on-error={};\n`;

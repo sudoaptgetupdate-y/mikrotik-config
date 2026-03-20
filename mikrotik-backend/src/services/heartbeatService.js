@@ -133,7 +133,7 @@ exports.processHeartbeat = async (token, payload, remoteIp) => {
     if (isOfflineAlerted && device.groups && device.groups.length > 0) {
       const offlineDurationStr = formatDuration(diffMinutesFromLastSeen);
       const separator = "━━━━━━━━━━━━━━━━━━";
-      const msgOnline = `🟢 <b>[DEVICE ONLINE]</b>\n${separator}\n` +
+      const msgOnline = `✅ <b><code>[ DEVICE ONLINE ]</code></b>\n${separator}\n` +
                         `🖥 <b>อุปกรณ์:</b> <code>${device.name}</code>\n` +
                         `✨ <b>วงจร:</b> <code>${device.circuitId || '-'}</code>\n\n` +
                         `✅ <b>สถานะ:</b> <u>กลับมาออนไลน์ปกติแล้ว</u>\n` +

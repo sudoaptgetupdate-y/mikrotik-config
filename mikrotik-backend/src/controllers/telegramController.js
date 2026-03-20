@@ -146,18 +146,18 @@ const generateGroupReportText = (group, isDaily = false, thresholds) => {
   const totalWarning = warningUnack.length + warningAck.length, totalOnline = onlineHealthy.length + totalWarning, totalOffline = offlineUnack.length + offlineAck.length;
   const title = isDaily ? "🗓 <b>รายงานสถานะระบบประจำวัน</b>" : "📊 <b>รายงานสถานะระบบภาพรวม</b>";
   const separator = "━━━━━━━━━━━━━━━━━━";
-  let msg = `${title}\n<code>กลุ่ม: ${group.name}</code>\n${separator}\n\n📍 <b><u>สรุปสถานะอุปกรณ์</u></b>\n📦 ทั้งหมด: <b>${devices.length}</b> รายการ\n🟢 Online: <b>${totalOnline}</b> รายการ\n      ├ ✅ ปกติ: <code>${onlineHealthy.length}</code>\n      └ ⚠️ ปัญหา: <code>${totalWarning}</code> ${warningAck.length > 0 ? `<i>(Ack: ${warningAck.length})</i>` : ''}\n🔴 Offline: <b>${totalOffline}</b> รายการ\n`;
+  let msg = `${title}\n<code>กลุ่ม: ${group.name}</code>\n${separator}\n\n📍 <b><u>สรุปสถานะอุปกรณ์</u></b>\n📦 ทั้งหมด: <b>${devices.length}</b> รายการ\n✅ Online: <b>${totalOnline}</b> รายการ\n      ├ ปกติ: <code>${onlineHealthy.length}</code>\n      └ ปัญหา: <code>${totalWarning}</code> ${warningAck.length > 0 ? `<i>(Ack: ${warningAck.length})</i>` : ''}\n🛑 Offline: <b>${totalOffline}</b> รายการ\n`;
   if (totalOffline > 0) { msg += `      ├ 🚨 ใหม่: <code>${offlineUnack.length}</code>\n      └ ⌛ รับทราบ: <code>${offlineAck.length}</code>\n`; }
   msg += `\n${separator}\n🚨 <b><u>ปัญหาที่ต้องตรวจสอบด่วน</u></b>\n`;
   if (warningUnack.length === 0 && offlineUnack.length === 0) msg += `✅ <i>ระบบทำงานปกติ ไม่พบปัญหาใหม่</i>\n`;
   else {
-    offlineUnack.forEach(o => msg += `• <b>${o.name}</b>\n  └ <code>[OFFLINE] ขาดการติดต่อ</code>\n`);
-    warningUnack.forEach(p => msg += `• <b>${p.name}</b>\n  └ <code>⚠️ ${p.issues}</code>\n`);
+    offlineUnack.forEach(o => msg += `• <b>${o.name}</b>\n  └ 🛑 <b><code>[ OFFLINE ]</code></b> ขาดการติดต่อ\n`);
+    warningUnack.forEach(p => msg += `• <b>${p.name}</b>\n  └ ⚠️ <code>${p.issues}</code>\n`);
   }
   if (warningAck.length > 0 || offlineAck.length > 0) {
     msg += `\n⌛ <b><u>อยู่ระหว่างดำเนินการ (Ack)</u></b>\n`;
-    offlineAck.forEach(o => msg += `• <b>${o.name}</b>\n  └ <code>[OFFLINE] รับทราบแล้ว</code>\n`);
-    warningAck.forEach(a => msg += `• <b>${a.name}</b>\n  └ <code>🔸 ${a.issues}</code>\n`);
+    offlineAck.forEach(o => msg += `• <b>${o.name}</b>\n  └ 🛑 <b><code>[ OFFLINE ]</code></b> รับทราบแล้ว\n`);
+    warningAck.forEach(a => msg += `• <b>${a.name}</b>\n  └ 🔸 <code>${a.issues}</code>\n`);
   }
   msg += `\n${separator}\n🌐 <b>Dashboard:</b> <a href="https://mikrotik.ntnakhon.com">คลิกเพื่อจัดการ</a>`;
   return msg;
@@ -225,8 +225,8 @@ const dispatchCommand = async (group, chatId, devices, thresholds, cmd, args) =>
     const device = matched[0];
     const isOffline = getOfflineMinutes(device.lastSeen) > 3;
     let msg = `📱 <b><u>ข้อมูลสถานะอุปกรณ์</u></b>\n🖥 ชื่อ: <b>${device.name}</b>\n✨ วงจร: <code>${device.circuitId || '-'}</code>\n🏷️ รุ่น: <code>${device.boardName || '-'}</code>\n${separator}\n\n📍 <b><u>การเชื่อมต่อ</u></b>\n🌐 IP: <code>${device.currentIp}</code>\n`;
-    if (device.ddnsName && device.ddnsName !== "N/A") msg += `☁️ DDNS: <code>${device.ddnsName}</code>\n`;
-    msg += `📊 สถานะ: <b>${isOffline ? '🔴 Offline' : '🟢 Online'}</b>\n\n`;
+    if (device.ddnsName && device.ddnsName !== "N/A") msg += `\n☁️ <b>DDNS:</b> <code>${device.ddnsName}</code>\n`;
+    msg += `📊 สถานะ: ${isOffline ? '🛑 <b><code>[ OFFLINE ]</code></b>' : '✅ <b><code>[ ONLINE ]</code></b>'}\n\n`;
     if (isOffline) msg += `⚠️ <i>ขาดการติดต่อไปแล้ว: ${device.lastSeen ? formatTimeAgo(getOfflineMinutes(device.lastSeen)) : "ไม่เคยเชื่อมต่อ"}</i>`;
     else {
       const latency = device.latency === "N/A" ? "N/A" : (device.latency && device.latency !== "timeout" ? parseLatencyToMs(device.latency) + 'ms' : 'Timeout');
@@ -331,7 +331,8 @@ const dispatchCommand = async (group, chatId, devices, thresholds, cmd, args) =>
       } else if (metric === 'temp') {
         valueStr = `Temp: <code>${d.temp || 'N/A'}°C</code>`;
       } else if (metric === 'ping') {
-        valueStr = `Ping: <code>${d.latency || 'N/A'}</code>`;
+        const ms = parseLatencyToMs(d.latency);
+        valueStr = `Ping: <code>${ms === 0 && d.latency === 'timeout' ? 'Timeout' : ms + 'ms'}</code>`;
       } else if (metric === 'hdd') {
         valueStr = `Disk: <code>${d.storage || 0}%</code>`;
       } else if (metric === 'uptime') {
@@ -386,27 +387,39 @@ exports.handleWebhook = async (req, res) => {
       // 🎯 [NEW] Keyword Matching เพื่อประหยัด Token AI
       const low = text.toLowerCase();
       
-      // --- หมวดที่ 1: คำสั่งเฉพาะทาง (ตรวจสอบก่อนเพื่อความแม่นยำ) ---
-      if (['รายงาน', 'สรุป', 'report', 'ดูรายงาน'].some(k => low.includes(k))) {
-        handled = await dispatchCommand(group, chatId, devices, thresholds, '/report', []);
+      // --- หมวดที่ 1: คำสั่งเฉพาะทางที่มีความสำคัญสูง (Specific Intent) ---
+      if (['อันดับ', 'top', 'สูงสุด'].some(k => low.includes(k))) {
+        let metric = 'cpu';
+        if (['ram', 'memory', 'แรม', 'หน่วยความจำ', 'mem'].some(k => low.includes(k))) metric = 'ram';
+        else if (['temp', 'temperature', 'ร้อน', 'อุณหภูมิ', 'องศา', 'heat'].some(k => low.includes(k))) metric = 'temp';
+        else if (['hdd', 'disk', 'storage', 'พื้นที่', 'ความจุ', 'ดิสก์', 'ssd', 'harddisk'].some(k => low.includes(k))) metric = 'hdd';
+        else if (['ping', 'latency', 'ช้า', 'แลค', 'หน่วง', 'ms', 'มิลลิวินาที'].some(k => low.includes(k))) metric = 'ping';
+        else if (['uptime', 'ออนไลน์นาน', 'เปิดนาน', 'อัพไทม์', 'นาน'].some(k => low.includes(k))) metric = 'uptime';
+
+        const matchCount = text.match(/\d+/);
+        const count = matchCount ? matchCount[0] : '5';
+        handled = await dispatchCommand(group, chatId, devices, thresholds, '/top', ['/top', metric, count]);
       }
       else if (['offline', 'ออฟไลน์', 'เครื่องดับ', 'ติดต่อไม่ได้'].some(k => low.includes(k))) {
         handled = await dispatchCommand(group, chatId, devices, thresholds, '/offline', []);
       }
-      else if (['ปัญหา', 'problem', 'เสีย'].some(k => low.includes(k))) {
+      else if (['ปัญหา', 'problem', 'เสีย', 'พัง'].some(k => low.includes(k))) {
         handled = await dispatchCommand(group, chatId, devices, thresholds, '/problem', []);
       }
-      else if (['อันดับ', 'top', 'โหลดหนัก', 'ช้า'].some(k => low.includes(k))) {
-        handled = await dispatchCommand(group, chatId, devices, thresholds, '/top', []);
+      else if (['รายงาน', 'report', 'ดูรายงาน'].some(k => low.includes(k))) {
+        // ย้ายคำว่า "สรุป" ออกจากหมวดนี้ถ้ามีคำว่า "อันดับ" ปนอยู่ (ซึ่งจะถูกดักข้างบนไปแล้ว)
+        handled = await dispatchCommand(group, chatId, devices, thresholds, '/report', []);
       }
-      else if (['ช่วยเหลือ', 'ช่วยด้วย', 'help', 'ทำอะไรได้บ้าง'].some(k => low.includes(k))) {
+      else if (['ช่วยเหลือ', 'ช่วยด้วย', 'help', 'ทำอะไรได้บ้าง', 'เมนู'].some(k => low.includes(k))) {
         handled = await dispatchCommand(group, chatId, devices, thresholds, '/help', []);
       }
       
-      // --- หมวดที่ 2: ตรวจสอบการดูสถานะรายเครื่อง (Status) ---
+      // --- หมวดที่ 2: ตรวจสอบการดูสถานะรายเครื่อง (Status) - ทำทีหลังเพื่อกันชื่อเครื่องไปซ้ำกับคำสั่ง ---
       if (!handled) {
-        const statusKeywords = ['ขอข้อมูล', 'ข้อมูล', 'สถานะ', 'เช็ค', 'check', 'ดู', 'ขอดู', 'ของ'];
+        const statusKeywords = ['ขอข้อมูล', 'ข้อมูล', 'สถานะ', 'เช็ค', 'check', 'ดู', 'ขอดู'];
+        // เอาคำว่า "ของ" ออกจากคีย์เวิร์ดเพราะกว้างเกินไป อาจขัดแย้งกับประโยคคุยทั่วไป
         const isStatusIntent = statusKeywords.some(k => low.includes(k));
+        // ... rest of the logic
         
         // 🧼 ทำความสะอาดประโยคเพื่อหา "คำค้นหา" (Search Term)
         let searchTerm = low;
