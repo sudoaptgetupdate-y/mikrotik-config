@@ -3,7 +3,7 @@ import { Globe, Plus, Trash2, User, Key, Network, ShieldCheck, Router } from 'lu
 
 const Step2_WANSetup = ({ selectedModel, wanList, setWanList }) => {
   
-  const addWan = () => {
+  const addWan = (type = 'pppoe') => {
     // ✅ 1. เพิ่มเงื่อนไขจำกัดสูงสุด 5 WAN
     if (wanList.length >= 5) {
       alert("สามารถตั้งค่าได้สูงสุด 5 WAN เท่านั้น");
@@ -23,7 +23,7 @@ const Step2_WANSetup = ({ selectedModel, wanList, setWanList }) => {
       { 
         id: Date.now(),
         interface: availablePort.name, 
-        type: 'pppoe',
+        type: type,
         username: '', password: '', 
         ipAddress: '', gateway: '',
         dns: '8.8.8.8,1.1.1.1' 
@@ -55,12 +55,20 @@ const Step2_WANSetup = ({ selectedModel, wanList, setWanList }) => {
         {/* ✅ 2. ซ่อนปุ่มเมื่อครบ 5 WAN และแสดงข้อความแจ้งเตือน */}
         <div className="flex flex-col items-end">
           {wanList.length < 5 ? (
-            <button 
-              onClick={addWan}
-              className="bg-slate-900 text-white px-4 py-2.5 rounded-xl flex items-center justify-center gap-2 hover:bg-blue-600 hover:shadow-lg hover:shadow-blue-500/20 transition-all duration-300 font-bold text-sm"
-            >
-              <Plus size={18} /> Add WAN Link
-            </button>
+            <div className="flex flex-wrap gap-2 justify-end">
+              <button 
+                onClick={() => addWan('pppoe')}
+                className="bg-blue-600 text-white px-4 py-2.5 rounded-xl flex items-center justify-center gap-2 hover:bg-blue-700 hover:shadow-lg hover:shadow-blue-500/20 transition-all duration-300 font-bold text-sm"
+              >
+                <Plus size={18} /> Add PPPoE
+              </button>
+              <button 
+                onClick={() => addWan('static')}
+                className="bg-slate-900 text-white px-4 py-2.5 rounded-xl flex items-center justify-center gap-2 hover:bg-slate-800 hover:shadow-lg hover:shadow-slate-500/20 transition-all duration-300 font-bold text-sm"
+              >
+                <Plus size={18} /> Add Static IP
+              </button>
+            </div>
           ) : (
             <span className="text-red-600 text-xs font-bold bg-red-50 px-3 py-2 rounded-lg border border-red-100 flex items-center gap-1">
               * รองรับการทำ PBR / Failover สูงสุดที่ 5 WAN
