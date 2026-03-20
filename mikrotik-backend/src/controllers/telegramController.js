@@ -460,20 +460,32 @@ exports.handleWebhook = async (req, res) => {
       }
       
       if (!handled) {
-        const statusKeywords = ['ขอข้อมูล', 'ข้อมูล', 'สถานะ', 'เช็ค', 'check', 'ดู', 'ขอดู', 'แสดง', 'ทั้งหมด'];
+        const statusKeywords = [
+          'ขอข้อมูล', 'ข้อมูล', 'สถานะ', 'เช็ค', 'check', 'ดู', 'ขอดู', 'แสดง', 'ทั้งหมด',
+          'ขอดูรายชื่อ', 'ขอรายชื่อ', 'แสดงรายชื่อ', 'แสดงชื่อ', 'ขอดูชื่อ', 'รายชื่อ', 'ชื่อ'
+        ];
         const isStatusIntent = statusKeywords.some(k => low.includes(k));
+        
         let searchTerm = low;
         statusKeywords.forEach(k => searchTerm = searchTerm.replace(new RegExp(k, 'g'), ''));
         searchTerm = searchTerm.trim();
-        if (searchTerm || isStatusIntent) {
-          const searchTerms = expandSearchTerms(searchTerm);
+
+        // 🎯 ถ้าเป็นความตั้งใจจะดูสถานะ/รายชื่อ
+        if (isStatusIntent) {
+          // หาก searchTerm ว่าง (เช่น พิมพ์แค่ "ขอดูรายชื่อ") ให้ถือว่าค้นหา "ทั้งหมด"
+          const finalSearch = searchTerm || "";
+          
+          // ค้นหาอุปกรณ์ (ถ้า finalSearch ว่าง จะได้ matched ทั้งหมด)
+          const searchTerms = expandSearchTerms(finalSearch);
           const matched = devices.filter(d => {
+            if (!finalSearch) return true; // ถ้าไม่มีคำค้น ให้เอาทั้งหมด
             const name = (d.name || '').toLowerCase();
             const circuit = (d.circuitId || '').toLowerCase();
             return searchTerms.some(term => name.includes(term.toLowerCase()) || circuit.includes(term.toLowerCase()));
           });
-          if (matched.length > 0 && (isStatusIntent || searchTerm.length >= 2)) {
-            handled = await dispatchCommand(group, chatId, devices, thresholds, '/status', ['/status', searchTerm]);
+
+          if (matched.length > 0) {
+            handled = await dispatchCommand(group, chatId, devices, thresholds, '/status', ['/status', finalSearch]);
           }
         }
       }
