@@ -232,9 +232,17 @@ export const generateMikrotikScript = (config = {}) => {
 
       lanPorts.forEach(port => {
          const isFallback = port.name === fallbackPortName;
-         const pConfig = isFallback ? { mode: 'access', pvid: 1, nativeVlan: 1, allowed: [] } : (portConfig[port.name] || { mode: 'access', pvid: defaultPvid, nativeVlan: 1, allowed: [] });
+         
+         // 🔴 [CRITICAL FIX] Skip fallback port from bridge to prevent disconnect when vlan-filtering is enabled
+         if (isFallback) {
+            script += `# Port ${port.name} is reserved for Rescue/Management (Not in Bridge)\n`;
+            script += `/ip address add address=192.168.88.1/24 interface=${port.name} comment="Rescue IP - Always use this if locked out"\n`;
+            return;
+         }
+
+         const pConfig = portConfig[port.name] || { mode: 'access', pvid: defaultPvid, nativeVlan: 1, allowed: [] };
          const portPvid = pConfig.mode === 'access' ? (pConfig.pvid || defaultPvid) : (pConfig.nativeVlan || 1);
-         const commentStr = isFallback ? 'Management Fallback' : `LAN Port (${pConfig.mode})`;
+         const commentStr = `LAN Port (${pConfig.mode})`;
 
          script += `:do { /interface bridge port add bridge=${bridgeName} interface=${port.name} pvid=${portPvid} comment="${commentStr}" } on-error={ :log warning "Wizard: Port ${port.name} not found" }\n`;
       });
@@ -361,7 +369,7 @@ export const generateMikrotikScript = (config = {}) => {
     script += `\n################################################\n`;
     script += `# Apply VLAN Filtering\n`;
     script += `################################################\n`;
-    script += `/interface bridge set bridge-trunk vlan-filtering=yes\n`;
+    script += `/interface bridge set ${bridgeName} vlan-filtering=yes\n`;
 
     if (config.isStandalone) {
         script += `\n################################################\n`;
