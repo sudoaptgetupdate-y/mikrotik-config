@@ -112,34 +112,34 @@ const parseUptimeToSeconds = (uptimeStr) => {
 };
 
 /**
- * 🇹🇭 ฟังก์ชันขยายคำค้นหาสำหรับตัวย่อภาษาไทยที่เป็นทางการ
+ * 🇹🇭 ฟังก์ชันขยายคำค้นหาโดยใช้การแทนที่ (Replacement) เพื่อรักษาความเฉพาะเจาะจง
  */
 const expandSearchTerms = (keyword) => {
   const mapping = {
-    'อบต': ['อบต', 'องค์การบริหารส่วนตำบล'],
-    'อบจ': ['อบจ', 'องค์การบริหารส่วนจังหวัด'],
-    'เทศบาล': ['ทม', 'ทน', 'ทต', 'เทศบาล'],
-    'รพ': ['รพ', 'โรงพยาบาล'],
-    'รพสต': ['รพ.สต', 'โรงพยาบาลส่งเสริมสุขภาพตำบล', 'อนามัย'],
-    'สภ': ['สภ', 'สถานีตำรวจภูธร'],
-    'โรงเรียน': ['ร.ร', 'รร', 'โรงเรียน'],
-    'สพป': ['สพป', 'สำนักงานเขตพื้นที่การศึกษาประถมศึกษา'],
-    'สพม': ['สพม', 'สำนักงานเขตพื้นที่การศึกษามัธยมศึกษา'],
-    'กฟภ': ['กฟภ', 'pea', 'การไฟฟ้าส่วนภูมิภาค'],
-    'ไปรษณีย์': ['ปณ', 'ไปรษณีย์']
+    'อบต': 'องค์การบริหารส่วนตำบล',
+    'อบจ': 'องค์การบริหารส่วนจังหวัด',
+    'รพสต': 'โรงพยาบาลส่งเสริมสุขภาพตำบล',
+    'รพ': 'โรงพยาบาล',
+    'สภ': 'สถานีตำรวจภูธร',
+    'รร': 'โรงเรียน',
+    'ร.ร': 'โรงเรียน',
+    'กฟภ': 'การไฟฟ้าส่วนภูมิภาค',
+    'ปณ': 'ไปรษณีย์'
   };
 
   const results = new Set([keyword]);
-  // ลบจุดและช่องว่างเพื่อการเปรียบเทียบที่แม่นยำ
-  const cleanKeyword = keyword.replace(/\./g, '').replace(/\s/g, ''); 
+  const lowKey = keyword.toLowerCase();
 
-  for (const [key, values] of Object.entries(mapping)) {
-    // ตรวจสอบว่า keyword ตรงกับ key (ตัวย่อหลัก) หรือมีอยู่ใน values (คำเต็ม/ตัวย่ออื่นๆ)
-    const isMatch = cleanKeyword.includes(key) || 
-                    values.some(v => cleanKeyword.includes(v.replace(/\./g, '')));
-    
-    if (isMatch) {
-      values.forEach(v => results.add(v));
+  for (const [abbr, full] of Object.entries(mapping)) {
+    // ถ้าในคำที่พิมพ์มามีตัวย่อ (เช่น "อบต.บ้านโคก") ให้เพิ่มเวอร์ชันคำเต็มเข้าไป
+    if (lowKey.includes(abbr.toLowerCase())) {
+      results.add(lowKey.replace(abbr.toLowerCase(), full));
+      results.add(lowKey.replace(abbr.toLowerCase(), `${full} `)); // เผื่อกรณีมี/ไม่มีช่องว่าง
+    }
+    // ถ้าในคำที่พิมพ์มามีคำเต็ม ให้เพิ่มเวอร์ชันตัวย่อเข้าไป
+    if (lowKey.includes(full)) {
+      results.add(lowKey.replace(full, abbr));
+      results.add(lowKey.replace(full, `${abbr}.`));
     }
   }
   return Array.from(results);
