@@ -197,7 +197,16 @@ const dispatchCommand = async (group, chatId, devices, thresholds, cmd, args) =>
 
     if (matchedDevice) {
       await prisma.managedDevice.update({ where: { id: matchedDevice.id }, data: { isAcknowledged: true } });
-      await prisma.activityLog.create({ data: { userId: null, action: "ACKNOWLEDGE", details: `Telegram User acknowledged issue for: ${matchedDevice.name}` } });
+      
+      // 🎯 [FIX] เปลี่ยนจาก ActivityLog (ซึ่งต้องมี User) เป็น DeviceEventLog แทน
+      await prisma.deviceEventLog.create({ 
+        data: { 
+          deviceId: matchedDevice.id, 
+          eventType: 'ACKNOWLEDGE', 
+          details: `รับทราบปัญหาผ่าน Telegram` 
+        } 
+      });
+
       await sendTelegramAlert(group.telegramBotToken, chatId, `✅ <b><u>รับทราบปัญหาแล้ว</u></b>\n🖥 <b>ชื่อ:</b> <b>${matchedDevice.name}</b>\n✨ <b>วงจร:</b> <code>${matchedDevice.circuitId || '-'}</code>\n\n👌 ระบบบันทึกการรับทราบปัญหาเรียบร้อยแล้วครับ`);
     }
     return true;
