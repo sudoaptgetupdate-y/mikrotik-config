@@ -337,13 +337,20 @@ export const generateMikrotikScript = (config = {}) => {
       script += `\n/ip route\n`;
       wanList.forEach((wan, index) => {
           const i = index + 1;
+          const tableName = `to_wan${i}`;
           
-          script += `add dst-address=0.0.0.0/0 gateway=${wan.monitorIp} distance=1 routing-table=to_wan${i} target-scope=11 check-gateway=ping comment="PBR Primary for WAN${i}"\n`;
+          // 🔴 [CRITICAL FIX] Add Host Route into this Routing Table so the Recursive Route becomes Active
+          script += `add dst-address=${wan.monitorIp}/32 gateway=${wan.actualGw} scope=10 routing-table=${tableName} comment="PBR Recursive Host Route for WAN${i}"\n`;
+          script += `add dst-address=0.0.0.0/0 gateway=${wan.monitorIp} distance=1 routing-table=${tableName} check-gateway=ping target-scope=11 comment="PBR Primary Default Route WAN${i}"\n`;
           
+          // 🟢 [REDUNDANCY] Add Backup routes to other WANs within this table
           let backupDistance = 2;
-          wanList.forEach((backupWan, backupIndex) => {
-              if (index !== backupIndex) {
-                  script += `add dst-address=0.0.0.0/0 gateway=${backupWan.monitorIp} distance=${backupDistance} routing-table=to_wan${i} target-scope=11 check-gateway=ping comment="PBR Backup to WAN${backupIndex + 1}"\n`;
+          wanList.forEach((backupWan, bIdx) => {
+              if (index !== bIdx) {
+                  const bNum = bIdx + 1;
+                  // Must also add the host route for the backup gateway to this table
+                  script += `add dst-address=${backupWan.monitorIp}/32 gateway=${backupWan.actualGw} scope=10 routing-table=${tableName} comment="PBR Backup Host Route to WAN${bNum}"\n`;
+                  script += `add dst-address=0.0.0.0/0 gateway=${backupWan.monitorIp} distance=${backupDistance} routing-table=${tableName} check-gateway=ping target-scope=11 comment="PBR Backup to WAN${bNum}"\n`;
                   backupDistance++;
               }
           });
