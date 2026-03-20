@@ -188,8 +188,9 @@ exports.processHeartbeat = async (token, payload, remoteIp) => {
                           `⏳ <b>เวลา:</b> <code>${now.toLocaleDateString('th-TH')} ${now.toLocaleTimeString('th-TH')}</code>` +
                           `${adminInfo}\n` +
                           `${separator}\n🌐 <b>Dashboard:</b> <a href="https://mikrotik.ntnakhon.com">คลิกเพื่อจัดการ</a>`;
-              
-              const msgId = await sendTelegramAlert(group.telegramBotToken, group.telegramChatId, msg);
+
+              const keyboard = [[{ text: "✅ รับทราบปัญหา", callback_data: `/ack _id_${device.id}` }]];
+              const msgId = await sendTelegramAlert(group.telegramBotToken, group.telegramChatId, msg, { inline_keyboard: keyboard });
               if (msgId) alertMsgIds[group.telegramChatId] = msgId;
             }
           }
