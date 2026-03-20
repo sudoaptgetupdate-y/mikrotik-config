@@ -11,6 +11,7 @@ const { createModelSchema } = require('../validations/schemas');
 router.use(verifyToken);
 
 router.get('/models', modelController.getModels);
+router.get('/models/check-duplicate', modelController.checkDuplicate);
 
 const adminAccess = requireRole(['SUPER_ADMIN', 'ADMIN']);
 const superAdminAccess = requireRole(['SUPER_ADMIN']);

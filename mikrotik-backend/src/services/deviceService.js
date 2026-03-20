@@ -23,7 +23,51 @@ const saveConfigHistory = async (userId, name, configData, managedDeviceId) => {
   }
 };
 
+exports.checkDuplicate = async (name, circuitId, excludeId = null) => {
+  const where = {
+    status: { not: 'DELETED' }
+  };
+
+  if (excludeId) {
+    where.id = { not: parseInt(excludeId) };
+  }
+
+  const results = { nameExists: false, circuitExists: false };
+
+  if (name) {
+    const d = await prisma.managedDevice.findFirst({
+      where: { ...where, name: { equals: name } }
+    });
+    if (d) results.nameExists = true;
+  }
+
+  if (circuitId) {
+    const d = await prisma.managedDevice.findFirst({
+      where: { ...where, circuitId: { equals: circuitId, not: null } }
+    });
+    if (d) results.circuitExists = true;
+  }
+
+  return results;
+};
+
 exports.createDevice = async (name, circuitId, groupIds, configData, actionUserId) => {
+  // 🎯 [NEW] ตรวจสอบข้อมูลซ้ำ (ชื่อ หรือ วงจร) - เฉพาะเครื่องที่ไม่ได้ถูกลบ (status != 'DELETED')
+  const existingDevice = await prisma.managedDevice.findFirst({
+    where: {
+      OR: [
+        { name: { equals: name } },
+        { circuitId: { equals: circuitId, not: null } }
+      ],
+      status: { not: 'DELETED' }
+    }
+  });
+
+  if (existingDevice) {
+    if (existingDevice.name === name) throw new Error("CONFLICT: ชื่ออุปกรณ์นี้มีอยู่ในระบบแล้ว");
+    if (existingDevice.circuitId === circuitId) throw new Error("CONFLICT: รหัสวงจรนี้มีอยู่ในระบบแล้ว");
+  }
+
   const plainToken = crypto.randomUUID();
   const encryptedToken = encrypt(plainToken);
 
@@ -63,11 +107,31 @@ exports.createDevice = async (name, circuitId, groupIds, configData, actionUserI
 };
 
 exports.updateDevice = async (id, name, circuitId, groupIds, status, configData, actionUserId) => {
-  const oldDevice = await prisma.managedDevice.findUnique({ where: { id: parseInt(id) } });
+  const deviceId = parseInt(id);
+  const oldDevice = await prisma.managedDevice.findUnique({ where: { id: deviceId } });
   if (!oldDevice) throw new Error("NOT_FOUND");
 
+  // 🎯 [NEW] ตรวจสอบข้อมูลซ้ำเมื่อมีการแก้ไขชื่อหรือวงจร (ไม่เช็คซ้ำกับตัวเอง)
+  if (name || circuitId) {
+    const duplicate = await prisma.managedDevice.findFirst({
+      where: {
+        OR: [
+          (name && name !== oldDevice.name) ? { name: { equals: name } } : null,
+          (circuitId && circuitId !== oldDevice.circuitId) ? { circuitId: { equals: circuitId, not: null } } : null
+        ].filter(Boolean),
+        id: { not: deviceId },
+        status: { not: 'DELETED' }
+      }
+    });
+
+    if (duplicate) {
+      if (name && duplicate.name === name) throw new Error("CONFLICT: ชื่ออุปกรณ์ใหม่ซ้ำกับเครื่องอื่นในระบบ");
+      if (circuitId && duplicate.circuitId === circuitId) throw new Error("CONFLICT: รหัสวงจรใหม่ซ้ำกับเครื่องอื่นในระบบ");
+    }
+  }
+
   const plainToken = decrypt(oldDevice.apiToken); 
-  const combinedToken = `${parseInt(id)}-${plainToken}`;
+  const combinedToken = `${deviceId}-${plainToken}`;
 
   let finalConfigData = configData;
   if (configData) {
@@ -79,7 +143,7 @@ exports.updateDevice = async (id, name, circuitId, groupIds, status, configData,
     : undefined;
 
   const updatedDevice = await prisma.managedDevice.update({
-    where: { id: parseInt(id) },
+    where: { id: deviceId },
     data: {
       configData: finalConfigData || oldDevice.configData, 
       ...(name !== undefined && { name }),           

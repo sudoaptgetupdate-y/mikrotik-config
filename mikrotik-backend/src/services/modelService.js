@@ -1,5 +1,13 @@
 const prisma = require('../config/prisma');
 
+exports.checkDuplicate = async (name, excludeId = null) => {
+  const where = { name: { equals: name } };
+  if (excludeId) where.id = { not: parseInt(excludeId) };
+
+  const existing = await prisma.deviceModel.findFirst({ where });
+  return { exists: !!existing };
+};
+
 exports.getModels = async (isShowDeleted) => {
   return await prisma.deviceModel.findMany({
     where: { isActive: !isShowDeleted },
@@ -11,19 +19,19 @@ exports.getModels = async (isShowDeleted) => {
 exports.createModel = async (name, imageUrl, ports, actionUserId) => {
   if (!name || !ports || ports.length === 0) throw new Error("BAD_REQUEST: Model name and at least one port are required.");
 
-  try {
-    const newModel = await prisma.deviceModel.create({
-      data: { name, imageUrl: imageUrl || null, ports: { create: ports } },
-      include: { ports: true }
-    });
-    
-    await prisma.activityLog.create({
-      data: { userId: actionUserId, action: "CREATE_DEVICE", details: `Created hardware model: ${name}` }
-    });
-    return newModel;
-  } catch (error) {
-    throw new Error("BAD_REQUEST: Failed to create model. Name might already exist.");
-  }
+  // 🎯 ตรวจสอบชื่อซ้ำ
+  const isDuplicate = await prisma.deviceModel.findUnique({ where: { name } });
+  if (isDuplicate) throw new Error("CONFLICT: ชื่อรุ่นอุปกรณ์นี้มีอยู่ในระบบแล้ว");
+
+  const newModel = await prisma.deviceModel.create({
+    data: { name, imageUrl: imageUrl || null, ports: { create: ports } },
+    include: { ports: true }
+  });
+  
+  await prisma.activityLog.create({
+    data: { userId: actionUserId, action: "CREATE_DEVICE", details: `Created hardware model: ${name}` }
+  });
+  return newModel;
 };
 
 exports.deleteModel = async (id, actionUserId) => {
@@ -51,21 +59,23 @@ exports.restoreModel = async (id, actionUserId) => {
 exports.updateModel = async (id, name, imageUrl, ports, actionUserId) => {
   if (!name || !ports || ports.length === 0) throw new Error("BAD_REQUEST: Model name and at least one port are required.");
 
-  try {
-    await prisma.portTemplate.deleteMany({ where: { deviceModelId: parseInt(id) } });
-    const updatedModel = await prisma.deviceModel.update({
-      where: { id: parseInt(id) },
-      data: {
-        name, imageUrl: imageUrl || null,
-        ports: { create: ports.map(p => ({ name: p.name, type: p.type, defaultRole: p.defaultRole })) }
-      },
-      include: { ports: true }
-    });
+  const modelId = parseInt(id);
+  // 🎯 ตรวจสอบชื่อซ้ำ (ไม่รวมตัวเอง)
+  const isDuplicate = await prisma.deviceModel.findFirst({ 
+    where: { name, id: { not: modelId } } 
+  });
+  if (isDuplicate) throw new Error("CONFLICT: ชื่อรุ่นอุปกรณ์ใหม่ซ้ำกับรุ่นอื่นในระบบ");
 
-    await prisma.activityLog.create({ data: { userId: actionUserId, action: "UPDATE_DEVICE", details: `Updated hardware model: ${name}` } });
-    return updatedModel;
-  } catch (error) {
-    if (error.code === 'P2002') throw new Error("BAD_REQUEST: Model name already exists.");
-    throw error;
-  }
+  await prisma.portTemplate.deleteMany({ where: { deviceModelId: modelId } });
+  const updatedModel = await prisma.deviceModel.update({
+    where: { id: modelId },
+    data: {
+      name, imageUrl: imageUrl || null,
+      ports: { create: ports.map(p => ({ name: p.name, type: p.type, defaultRole: p.defaultRole })) }
+    },
+    include: { ports: true }
+  });
+
+  await prisma.activityLog.create({ data: { userId: actionUserId, action: "UPDATE_DEVICE", details: `Updated hardware model: ${name}` } });
+  return updatedModel;
 };

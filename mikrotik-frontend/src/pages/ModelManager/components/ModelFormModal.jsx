@@ -1,5 +1,6 @@
-import React, { useEffect } from 'react';
-import { X, PlusCircle, Save, Edit, Trash2 } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { X, PlusCircle, Save, Edit, Trash2, AlertCircle, Loader2 } from 'lucide-react';
+import apiClient from '../../../utils/apiClient';
 
 const ModelFormModal = ({ 
   isOpen, 
@@ -9,7 +10,50 @@ const ModelFormModal = ({
   setNewModel, 
   onSave 
 }) => {
+  const [error, setError] = useState('');
+  const [isValidating, setIsValidating] = useState(false);
+
   useEffect(() => {
+    // รีเซ็ต Error เมื่อเปิด Modal
+    if (isOpen) setError('');
+  }, [isOpen]);
+
+  const checkDuplicateName = async (name) => {
+    if (!name || name.trim() === "") {
+      setError('');
+      return;
+    }
+
+    setIsValidating(true);
+    try {
+      const params = { name };
+      if (isEditMode) params.excludeId = newModel.id;
+
+      const { data } = await apiClient.get('/api/master/models/check-duplicate', { params });
+      if (data.exists) {
+        setError('ชื่อรุ่นอุปกรณ์นี้มีอยู่ในระบบแล้ว');
+      } else {
+        setError('');
+      }
+    } catch (err) {
+      console.error("Validation error:", err);
+    } finally {
+      setIsValidating(false);
+    }
+  };
+
+  const handleNameChange = (e) => {
+    const value = e.target.value;
+    setNewModel({ ...newModel, name: value });
+    if (error) setError('');
+  };
+
+  const handleNameBlur = (e) => {
+    checkDuplicateName(e.target.value);
+  };
+
+  useEffect(() => {
+// ... (existing useEffect for Esc key)
     const handleEsc = (e) => {
       if (e.key === 'Escape') onClose();
     };
@@ -80,7 +124,22 @@ const ModelFormModal = ({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-bold text-slate-700 mb-1">Model Name *</label>
-              <input type="text" className="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition" placeholder="e.g. RB5009UG+S+IN" value={newModel.name} onChange={(e) => setNewModel({...newModel, name: e.target.value})} />
+              <div className="relative">
+                <input 
+                  type="text" 
+                  className={`w-full p-2 border rounded-lg outline-none transition ${error ? 'border-red-500 focus:ring-2 focus:ring-red-200' : 'border-slate-300 focus:ring-2 focus:ring-blue-500'}`} 
+                  placeholder="e.g. RB5009UG+S+IN" 
+                  value={newModel.name} 
+                  onChange={handleNameChange} 
+                  onBlur={handleNameBlur}
+                />
+                {isValidating && <Loader2 size={16} className="absolute right-3 top-2.5 animate-spin text-slate-400" />}
+              </div>
+              {error && (
+                <p className="mt-1 text-xs text-red-500 flex items-center gap-1 font-medium animate-in fade-in slide-in-from-top-1">
+                  <AlertCircle size={12} /> {error}
+                </p>
+              )}
             </div>
             <div>
               <label className="block text-sm font-bold text-slate-700 mb-1">Image URL</label>

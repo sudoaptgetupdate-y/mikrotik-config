@@ -23,6 +23,7 @@ router.post('/maintenance/clear-events', requireRole(['SUPER_ADMIN']), deviceCon
 router.post('/maintenance/clear-activity-logs', requireRole(['SUPER_ADMIN']), deviceController.clearActivityLog);
 
 // 🟢 โซน Read-only: ทุกคน (รวมถึง Employee) ดูข้อมูลได้
+router.get('/check-duplicate', deviceController.checkDuplicate);
 router.get('/user/:userId', deviceController.getUserDevices);
 router.get('/:id', deviceController.getDeviceById);
 router.get('/:id/history', deviceController.getDeviceHistory);

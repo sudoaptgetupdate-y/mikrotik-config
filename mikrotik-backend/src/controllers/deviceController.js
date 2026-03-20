@@ -3,6 +3,14 @@ const heartbeatService = require('../services/heartbeatService');
 const maintenanceService = require('../services/maintenanceService');
 const logService = require('../services/logService');
 
+exports.checkDuplicate = async (req, res, next) => {
+  try {
+    const { name, circuitId, excludeId } = req.query;
+    const result = await deviceService.checkDuplicate(name, circuitId, excludeId);
+    res.json(result);
+  } catch (error) { next(error); }
+};
+
 // ==========================================
 // CRUD Devices
 // ==========================================

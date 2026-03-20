@@ -1,7 +1,8 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { Router, CheckCircle, MapPin, Search, Star, ChevronLeft, ChevronRight, FolderKanban, Bell } from 'lucide-react';
+import { Router, CheckCircle, MapPin, Search, Star, ChevronLeft, ChevronRight, FolderKanban, Bell, AlertCircle, Loader2 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { groupService } from '../../../services/groupService'; 
+import apiClient from '../../../utils/apiClient';
 
 const Step1_ModelSelect = ({ 
   models, 
@@ -9,8 +10,45 @@ const Step1_ModelSelect = ({
   setSelectedModel,
   deviceMeta,     
   setDeviceMeta,
-  mode
+  mode,
+  deviceId // ส่ง id มาด้วยถ้าอยู่ในโหมด Edit
 }) => {
+  // === State สำหรับการตรวจสอบข้อมูลซ้ำ (Real-time Validation) ===
+  const [errors, setErrors] = useState({ name: '', circuitId: '' });
+  const [isValidating, setIsValidating] = useState({ name: false, circuitId: false });
+
+  // ฟังก์ชันตรวจสอบข้อมูลซ้ำจาก API
+  const checkDuplicate = async (field, value) => {
+    // 🎯 [NEW] ถ้าเป็นโหมด standalone (Config Builder) ไม่ต้องเช็คซ้ำ
+    if (mode === 'standalone') return;
+
+    if (!value || value.trim() === "") {
+      setErrors(prev => ({ ...prev, [field]: '' }));
+      return;
+    }
+
+    setIsValidating(prev => ({ ...prev, [field]: true }));
+    try {
+      // เรียก API ตรวจสอบ
+      const params = { [field]: value };
+      if (deviceId) params.excludeId = deviceId; // ถ้าเป็นโหมด Edit ไม่ต้องเช็คซ้ำกับตัวเอง
+
+      const { data } = await apiClient.get('/api/devices/check-duplicate', { params });
+      
+      if (field === 'name' && data.nameExists) {
+        setErrors(prev => ({ ...prev, name: 'ชื่ออุปกรณ์นี้ถูกใช้งานแล้วในระบบ' }));
+      } else if (field === 'circuitId' && data.circuitExists) {
+        setErrors(prev => ({ ...prev, circuitId: 'รหัสวงจรนี้ถูกใช้งานแล้วในระบบ' }));
+      } else {
+        setErrors(prev => ({ ...prev, [field]: '' }));
+      }
+    } catch (err) {
+      console.error("Validation error:", err);
+    } finally {
+      setIsValidating(prev => ({ ...prev, [field]: false }));
+    }
+  };
+
   // === State สำหรับค้นหาและแบ่งหน้า (Models) ===
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
@@ -51,6 +89,13 @@ const Step1_ModelSelect = ({
   const handleChange = (e) => {
     const { name, value } = e.target;
     setDeviceMeta(prev => ({ ...prev, [name]: value }));
+    // เคลียร์ Error ทันทีที่เริ่มพิมพ์ใหม่
+    if (errors[name]) setErrors(prev => ({ ...prev, [name]: '' }));
+  };
+
+  const handleBlur = (e) => {
+    const { name, value } = e.target;
+    checkDuplicate(name, value);
   };
 
   const toggleGroup = (groupId) => {
@@ -122,17 +167,52 @@ const Step1_ModelSelect = ({
             <MapPin size={16} /> Device Information {mode === 'standalone' && '(For Identification)'}
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* --- Name Input --- */}
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">
                 Site Name / Device Name <span className="text-red-500">*</span>
               </label>
-              <input type="text" name="name" value={deviceMeta.name} onChange={handleChange} placeholder="EngineerOffice" className="w-full px-4 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-blue-500 outline-none transition" />
+              <div className="relative">
+                <input 
+                  type="text" 
+                  name="name" 
+                  value={deviceMeta.name} 
+                  onChange={handleChange} 
+                  onBlur={handleBlur}
+                  placeholder="EngineerOffice" 
+                  className={`w-full px-4 py-2 rounded-lg border outline-none transition ${errors.name ? 'border-red-500 focus:ring-2 focus:ring-red-200' : 'border-slate-300 focus:ring-2 focus:ring-blue-500'}`} 
+                />
+                {isValidating.name && <Loader2 size={16} className="absolute right-3 top-3 animate-spin text-slate-400" />}
+              </div>
+              {errors.name && (
+                <p className="mt-1 text-xs text-red-500 flex items-center gap-1 font-medium animate-in fade-in slide-in-from-top-1">
+                  <AlertCircle size={12} /> {errors.name}
+                </p>
+              )}
             </div>
+
+            {/* --- Circuit ID Input --- */}
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">
                 Circuit ID / User Ref <span className="text-red-500">*</span>
               </label>
-              <input type="text" name="circuitId" value={deviceMeta.circuitId} onChange={handleChange} placeholder="7534j7572" className="w-full px-4 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-blue-500 outline-none transition" />
+              <div className="relative">
+                <input 
+                  type="text" 
+                  name="circuitId" 
+                  value={deviceMeta.circuitId} 
+                  onChange={handleChange} 
+                  onBlur={handleBlur}
+                  placeholder="7534j7572" 
+                  className={`w-full px-4 py-2 rounded-lg border outline-none transition ${errors.circuitId ? 'border-red-500 focus:ring-2 focus:ring-red-200' : 'border-slate-300 focus:ring-2 focus:ring-blue-500'}`} 
+                />
+                {isValidating.circuitId && <Loader2 size={16} className="absolute right-3 top-3 animate-spin text-slate-400" />}
+              </div>
+              {errors.circuitId && (
+                <p className="mt-1 text-xs text-red-500 flex items-center gap-1 font-medium animate-in fade-in slide-in-from-top-1">
+                  <AlertCircle size={12} /> {errors.circuitId}
+                </p>
+              )}
             </div>
           </div>
         </div>
@@ -207,7 +287,6 @@ const Step1_ModelSelect = ({
       </div>
 
       {/* --- ส่วนที่ 2: เลือก Model --- */}
-      {/* ... โค้ดส่วนเลือก Model เหมือนเดิมเป๊ะ ... */}
       <div>
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
           <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">

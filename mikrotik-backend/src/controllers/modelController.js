@@ -1,6 +1,14 @@
 const modelService = require('../services/modelService');
 const logService = require('../services/logService');
 
+exports.checkDuplicate = async (req, res, next) => {
+  try {
+    const { name, excludeId } = req.query;
+    const result = await modelService.checkDuplicate(name, excludeId);
+    res.json(result);
+  } catch (error) { res.status(500).json({ error: error.message }); }
+};
+
 exports.getModels = async (req, res) => {
   const models = await modelService.getModels(req.query.showDeleted === 'true');
   res.json(models);

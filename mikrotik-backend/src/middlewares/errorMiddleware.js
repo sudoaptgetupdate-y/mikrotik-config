@@ -5,6 +5,9 @@ const errorHandler = (err, req, res, next) => {
   console.error(`[Global Error] ${req.method} ${req.url} >> ${err.message}`);
   
   // 2. ดักจับ Error ปกติที่เราโยนมาจาก Service Layer (เช่น throw new Error("NOT_FOUND"))
+  if (err.message.startsWith('CONFLICT')) {
+    return res.status(409).json({ error: err.message.split(': ')[1] || "Conflict occurred" });
+  }
   if (err.message === 'NOT_FOUND') {
     return res.status(404).json({ error: "Resource not found" });
   }
