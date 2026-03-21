@@ -347,18 +347,17 @@ export const generateMikrotikScript = (config = {}) => {
           const i = index + 1;
           const tableName = `to_wan${i}`;
           
-          // 🔴 [CRITICAL FIX] Add Host Route into this Routing Table so the Recursive Route becomes Active
-          script += `add dst-address=${wan.monitorIp}/32 gateway=${wan.actualGw} scope=10 routing-table=${tableName} comment="PBR Recursive Host Route for WAN${i}"\n`;
-          script += `add dst-address=0.0.0.0/0 gateway=${wan.monitorIp} distance=1 routing-table=${tableName} check-gateway=ping target-scope=11 comment="PBR Primary Default Route WAN${i}"\n`;
+          // 🟢 [V7 FIX] In MikroTik V7, we rely on Host Routes in the 'main' table for recursive lookups.
+          // Adding Host Routes directly to PBR tables can break Static IP resolution if connected routes aren't present.
+          script += `add dst-address=0.0.0.0/0 gateway=${wan.monitorIp}@main distance=1 routing-table=${tableName} check-gateway=ping target-scope=11 comment="PBR Primary Default Route WAN${i}"\n`;
           
           // 🟢 [REDUNDANCY] Add Backup routes to other WANs within this table
           let backupDistance = 2;
           wanList.forEach((backupWan, bIdx) => {
               if (index !== bIdx) {
                   const bNum = bIdx + 1;
-                  // Must also add the host route for the backup gateway to this table
-                  script += `add dst-address=${backupWan.monitorIp}/32 gateway=${backupWan.actualGw} scope=10 routing-table=${tableName} comment="PBR Backup Host Route to WAN${bNum}"\n`;
-                  script += `add dst-address=0.0.0.0/0 gateway=${backupWan.monitorIp} distance=${backupDistance} routing-table=${tableName} check-gateway=ping target-scope=11 comment="PBR Backup to WAN${bNum}"\n`;
+                  // Recursive lookup through main table for backup routes
+                  script += `add dst-address=0.0.0.0/0 gateway=${backupWan.monitorIp}@main distance=${backupDistance} routing-table=${tableName} check-gateway=ping target-scope=11 comment="PBR Backup to WAN${bNum}"\n`;
                   backupDistance++;
               }
           });
