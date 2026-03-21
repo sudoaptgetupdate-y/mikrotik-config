@@ -172,7 +172,8 @@ export const generateMikrotikScriptV6 = (config = {}) => {
 
       let actualGw = '';
       if (wan.type === 'pppoe') {
-        script += `/interface pppoe-client add name="pppoe-out${i}" interface=${wanName} user="${wan.username}" password="${wan.password}" disabled=no add-default-route=no use-peer-dns=yes\n`;
+        // 🟢 v6 Fix: เปิด add-default-route=yes แต่ใช้ distance สูงๆ เพื่อให้ระบบรู้จักทางออกพื้นฐาน ช่วยให้ Recursive Lookup ทำงานได้แม่นยำขึ้น
+        script += `/interface pppoe-client add name="pppoe-out${i}" interface=${wanName} user="${wan.username}" password="${wan.password}" disabled=no add-default-route=yes default-route-distance=250 use-peer-dns=yes\n`;
         script += `/interface list member add interface=pppoe-out${i} list=WAN\n`;
         actualGw = `pppoe-out${i}`;
       } else {
@@ -188,8 +189,9 @@ export const generateMikrotikScriptV6 = (config = {}) => {
     script += `/ip route\n`;
     wanList.forEach((wan, index) => {
       const i = index + 1;
+      // 🟢 v6 Fix: ใช้ scope=10 และ target-scope=10 ซึ่งเป็นค่าที่เสถียรที่สุดสำหรับ Recursive บน RouterOS v6
       script += `add dst-address=${wan.monitorIp}/32 gateway=${wan.actualGw} scope=10 comment="Host Route for WAN${i}"\n`;
-      script += `add dst-address=0.0.0.0/0 gateway=${wan.monitorIp} distance=${i} check-gateway=ping target-scope=11 comment="Main Recursive Default Route WAN${i}"\n`;
+      script += `add dst-address=0.0.0.0/0 gateway=${wan.monitorIp} distance=${i} check-gateway=ping target-scope=10 comment="Main Recursive Default Route WAN${i}"\n`;
     });
 
     // --- 5. LAN & VLAN SETUP ---
@@ -338,13 +340,13 @@ export const generateMikrotikScriptV6 = (config = {}) => {
           const markName = `to_wan${i}`;
           
           // 🟢 v6: Recursive Lookup จะวิ่งไปหา Host Route ในตาราง main อัตโนมัติ (ไม่ต้องใส่ @main)
-          script += `add dst-address=0.0.0.0/0 gateway=${wan.monitorIp} distance=1 routing-mark=${markName} check-gateway=ping target-scope=11 comment="PBR Primary Default Route WAN${i}"\n`;
+          script += `add dst-address=0.0.0.0/0 gateway=${wan.monitorIp} distance=1 routing-mark=${markName} check-gateway=ping target-scope=10 comment="PBR Primary Default Route WAN${i}"\n`;
           
           let backupDistance = 2;
           wanList.forEach((backupWan, bIdx) => {
               if (index !== bIdx) {
                   const bNum = bIdx + 1;
-                  script += `add dst-address=0.0.0.0/0 gateway=${backupWan.monitorIp} distance=${backupDistance} routing-mark=${markName} check-gateway=ping target-scope=11 comment="PBR Backup to WAN${bNum}"\n`;
+                  script += `add dst-address=0.0.0.0/0 gateway=${backupWan.monitorIp} distance=${backupDistance} routing-mark=${markName} check-gateway=ping target-scope=10 comment="PBR Backup to WAN${bNum}"\n`;
                   backupDistance++;
               }
           });

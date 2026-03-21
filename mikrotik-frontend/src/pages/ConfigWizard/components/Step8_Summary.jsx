@@ -23,6 +23,9 @@ const Step8_Summary = ({
   const [isGenerating, setIsGenerating] = useState(false);
   const [rosVersion, setRosVersion] = useState('v7');
 
+  // 🎯 หาพอร์ต Ether สุดท้ายจาก Selected Model
+  const lastEther = selectedModel?.ports?.filter(p => p.type === 'ETHER').pop()?.name || 'etherX';
+
   const handleGenAndFinish = async () => { 
     setIsGenerating(true); 
 
@@ -94,19 +97,32 @@ const Step8_Summary = ({
   return (
     <div className="max-w-4xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">
       
-      {/* --- Success Header --- */}
-      <div className="text-center mb-10 relative">
-        <div className="w-24 h-24 bg-green-100 text-green-500 rounded-full flex items-center justify-center mx-auto mb-6 border-[8px] border-green-50 shadow-sm relative z-10">
-          <CheckCircle size={48} className="animate-in zoom-in duration-500 delay-150" strokeWidth={2.5} />
+      {/* --- Success Header (Smaller) --- */}
+      <div className="text-center mb-6 relative">
+        <div className="w-16 h-16 bg-green-100 text-green-500 rounded-full flex items-center justify-center mx-auto mb-4 border-[6px] border-green-50 shadow-sm relative z-10">
+          <CheckCircle size={32} className="animate-in zoom-in duration-500 delay-150" strokeWidth={2.5} />
         </div>
-        <h2 className="text-3xl font-black text-slate-800 tracking-tight">
+        <h2 className="text-xl font-black text-slate-800 tracking-tight">
           {mode === 'standalone' ? 'Config Builder Ready!' : 'Setup Ready!'}
         </h2>
-        <p className="text-slate-500 mt-2 font-medium">
+        <p className="text-slate-400 mt-1 text-sm font-medium">
           {mode === 'standalone' 
             ? 'ตรวจสอบการตั้งค่าก่อนดาวน์โหลดไฟล์สคริปต์ (Standalone Mode)' 
             : 'ตรวจสอบรายละเอียดการตั้งค่าก่อนสร้างสคริปต์ Config'}
         </p>
+      </div>
+
+      {/* --- Access Notice --- */}
+      <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-6 flex items-start gap-3 shadow-sm">
+        <div className="w-8 h-8 bg-amber-100 text-amber-600 rounded-lg flex items-center justify-center shrink-0">
+          <ShieldCheck size={18} />
+        </div>
+        <div className="space-y-1">
+          <p className="text-[11px] font-black text-amber-900 uppercase tracking-wider">Winbox Access Note</p>
+          <p className="text-xs text-amber-800 font-medium leading-relaxed">
+            สามารถเข้าใช้งาน Winbox ผ่าน <b>Management IP</b> หรือเชื่อมต่อ <b>MAC Winbox</b> ผ่านพอร์ต <b>{lastEther}</b> เท่านั้น (พอร์ตนี้ถูกแยกออกจาก Bridge เพื่อความปลอดภัย)
+          </p>
+        </div>
       </div>
 
       {/* --- Summary Cards Grid --- */}
