@@ -168,7 +168,7 @@ const generateGroupReportText = (group, isDaily = false, thresholds) => {
 // 🎯 API: จัดการ Webhook (รับคำสั่งจาก Telegram)
 // ==========================================
 
-const dispatchCommand = async (group, chatId, devices, thresholds, cmd, args) => {
+const dispatchCommand = async (group, chatId, devices, thresholds, cmd, args, senderName = 'ไม่ระบุชื่อ') => {
   const command = cmd.toLowerCase();
   const separator = "━━━━━━━━━━━━━━━━━━";
 
@@ -238,16 +238,16 @@ const dispatchCommand = async (group, chatId, devices, thresholds, cmd, args) =>
 
       await prisma.managedDevice.update({ where: { id: matchedDevice.id }, data: { isAcknowledged: true } });
       
-      // 🎯 [FIX] เปลี่ยนจาก ActivityLog (ซึ่งต้องมี User) เป็น DeviceEventLog แทน
+      // 🎯 [FIX] บันทึกชื่อผู้ที่กดรับทราบปัญหาจาก Telegram
       await prisma.deviceEventLog.create({ 
         data: { 
           deviceId: matchedDevice.id, 
           eventType: 'ACKNOWLEDGE', 
-          details: `รับทราบปัญหาผ่าน Telegram` 
+          details: `รับทราบปัญหาผ่าน Telegram (${senderName})` 
         } 
       });
 
-      await sendTelegramAlert(group.telegramBotToken, chatId, `✅ <b><u>รับทราบปัญหาแล้ว</u></b>\n🖥 <b>ชื่อ:</b> <b>${matchedDevice.name}</b>\n✨ <b>วงจร:</b> <code>${matchedDevice.circuitId || '-'}</code>\n\n👌 ระบบบันทึกการรับทราบปัญหาเรียบร้อยแล้วครับ`);
+      await sendTelegramAlert(group.telegramBotToken, chatId, `✅ <b><u>รับทราบปัญหาแล้ว</u></b>\n🖥 <b>ชื่อ:</b> <b>${matchedDevice.name}</b>\n✨ <b>วงจร:</b> <code>${matchedDevice.circuitId || '-'}</code>\n\n👌 ระบบบันทึกการรับทราบปัญหาโดย <b>${senderName}</b> เรียบร้อยแล้วครับ`);
     }
     return true;
   }
@@ -433,11 +433,18 @@ const dispatchCommand = async (group, chatId, devices, thresholds, cmd, args) =>
 
 exports.handleWebhook = async (req, res) => {
   res.sendStatus(200);
-  let chatId, text;
+  let chatId, text, senderName = 'ไม่ระบุชื่อ';
+  
   if (req.body.message && req.body.message.text) {
-    chatId = req.body.message.chat.id.toString(); text = req.body.message.text.trim();
+    chatId = req.body.message.chat.id.toString(); 
+    text = req.body.message.text.trim();
+    const from = req.body.message.from;
+    if (from) senderName = from.first_name + (from.last_name ? ' ' + from.last_name : '') + (from.username ? ` (@${from.username})` : '');
   } else if (req.body.callback_query) {
-    chatId = req.body.callback_query.message.chat.id.toString(); text = req.body.callback_query.data.trim();
+    chatId = req.body.callback_query.message.chat.id.toString(); 
+    text = req.body.callback_query.data.trim();
+    const from = req.body.callback_query.from;
+    if (from) senderName = from.first_name + (from.last_name ? ' ' + from.last_name : '') + (from.username ? ` (@${from.username})` : '');
   } else return;
 
   try {
@@ -452,7 +459,7 @@ exports.handleWebhook = async (req, res) => {
     let handled = false;
 
     if (text.startsWith('/')) {
-      handled = await dispatchCommand(group, chatId, devices, thresholds, text.split(' ')[0], text.split(' '));
+      handled = await dispatchCommand(group, chatId, devices, thresholds, text.split(' ')[0], text.split(' '), senderName);
     } else {
       if (['อันดับ', 'top', 'สูงสุด'].some(k => low.includes(k))) {
         let metric = 'cpu';
@@ -462,21 +469,21 @@ exports.handleWebhook = async (req, res) => {
         else if (['ping', 'latency', 'ช้า', 'แลค', 'ms'].some(k => low.includes(k))) metric = 'ping';
         else if (['uptime', 'ออนไลน์นาน', 'อัพไทม์'].some(k => low.includes(k))) metric = 'uptime';
         const matchCount = text.match(/\d+/);
-        handled = await dispatchCommand(group, chatId, devices, thresholds, '/top', ['/top', metric, matchCount ? matchCount[0] : '5']);
+        handled = await dispatchCommand(group, chatId, devices, thresholds, '/top', ['/top', metric, matchCount ? matchCount[0] : '5'], senderName);
       }
       else if (['offline', 'ออฟไลน์', 'เครื่องดับ', 'ติดต่อไม่ได้'].some(k => low.includes(k))) {
         if (!['เคย', 'ย้อนหลัง', 'ชั่วโมง', 'วัน', 'ประวัติ'].some(k => low.includes(k))) {
-          handled = await dispatchCommand(group, chatId, devices, thresholds, '/offline', []);
+          handled = await dispatchCommand(group, chatId, devices, thresholds, '/offline', [], senderName);
         }
       }
       else if (['ปัญหา', 'problem', 'เสีย', 'พัง'].some(k => low.includes(k))) {
-        handled = await dispatchCommand(group, chatId, devices, thresholds, '/problem', []);
+        handled = await dispatchCommand(group, chatId, devices, thresholds, '/problem', [], senderName);
       }
       else if (['รายงาน', 'report', 'ดูรายงาน'].some(k => low.includes(k))) {
-        handled = await dispatchCommand(group, chatId, devices, thresholds, '/report', []);
+        handled = await dispatchCommand(group, chatId, devices, thresholds, '/report', [], senderName);
       }
       else if (['ช่วยเหลือ', 'ช่วยด้วย', 'help', 'ทำอะไรได้บ้าง', 'เมนู'].some(k => low.includes(k))) {
-        handled = await dispatchCommand(group, chatId, devices, thresholds, '/help', []);
+        handled = await dispatchCommand(group, chatId, devices, thresholds, '/help', [], senderName);
       }
       
       if (!handled) {
@@ -506,7 +513,7 @@ exports.handleWebhook = async (req, res) => {
           });
 
           if (matched.length > 0) {
-            handled = await dispatchCommand(group, chatId, devices, thresholds, '/status', ['/status', finalSearch]);
+            handled = await dispatchCommand(group, chatId, devices, thresholds, '/status', ['/status', finalSearch], senderName);
           }
         }
       }
@@ -525,7 +532,7 @@ exports.handleWebhook = async (req, res) => {
             const fullCmd = parts[1].trim();
             const cmdArgs = fullCmd.split(' ');
             if (replyText) await sendTelegramAlert(group.telegramBotToken, chatId, replyText);
-            const cmdHandled = await dispatchCommand(group, chatId, devices, thresholds, cmdArgs[0], cmdArgs);
+            const cmdHandled = await dispatchCommand(group, chatId, devices, thresholds, cmdArgs[0], cmdArgs, senderName);
             if (!cmdHandled && !replyText) await sendTelegramAlert(group.telegramBotToken, chatId, sanitizeHTML(aiReply.replace('COMMAND:', '')));
           } else await sendTelegramAlert(group.telegramBotToken, chatId, sanitizeHTML(aiReply));
         }
