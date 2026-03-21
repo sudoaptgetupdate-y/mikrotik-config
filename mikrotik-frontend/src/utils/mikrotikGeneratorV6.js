@@ -227,9 +227,17 @@ export const generateMikrotikScriptV6 = (config = {}) => {
 
       lanPorts.forEach(port => {
          const isFallback = port.name === fallbackPortName;
-         const pConfig = isFallback ? { mode: 'access', pvid: 1, nativeVlan: 1, allowed: [] } : (portConfig[port.name] || { mode: 'access', pvid: defaultPvid, nativeVlan: 1, allowed: [] });
+         
+         // 🔴 [ROS v6/v7 FIX] Skip fallback port from bridge to prevent disconnect when vlan-filtering is enabled
+         if (isFallback) {
+            script += `# Port ${port.name} is reserved for Rescue/Management (Not in Bridge)\n`;
+            script += `/ip address add address=192.168.88.1/24 interface=${port.name} comment="Rescue IP - Always use this if locked out"\n`;
+            return;
+         }
+
+         const pConfig = portConfig[port.name] || { mode: 'access', pvid: defaultPvid, nativeVlan: 1, allowed: [] };
          const portPvid = pConfig.mode === 'access' ? (pConfig.pvid || defaultPvid) : (pConfig.nativeVlan || 1);
-         const commentStr = isFallback ? 'Management Fallback' : `LAN Port (${pConfig.mode})`;
+         const commentStr = `LAN Port (${pConfig.mode})`;
 
          script += `:do { /interface bridge port add bridge=${bridgeName} interface=${port.name} pvid=${portPvid} comment="${commentStr}" } on-error={ :log warning "Wizard: Port ${port.name} not found" }\n`;
       });
@@ -306,8 +314,6 @@ export const generateMikrotikScriptV6 = (config = {}) => {
     });
 
     if (pbrConfig.enabled) {
-      // 🟢 v6 Fix: ลบการสร้าง /routing table fib ออก เพราะ v6 ใช้ routing-mark โดยตรง
-
       script += `\n/ip firewall mangle\n`;
       script += `add chain=prerouting src-address-list=Local_Networks dst-address-list=Local_Networks action=accept comment="Bypass PBR for Local Traffic"\n`;
       
@@ -318,9 +324,9 @@ export const generateMikrotikScriptV6 = (config = {}) => {
            if (foundIndex !== -1) {
               const wanNum = foundIndex + 1;
               const [gw, cidr] = net.ip.split('/');
-              
               const { networkAddr } = calculatePoolRange(gw, cidr);
               
+              // 🟢 v6: ใช้ routing-mark โดยตรง
               script += `add chain=prerouting src-address=${networkAddr} dst-address-list=!Local_Networks action=mark-routing new-routing-mark=to_wan${wanNum} passthrough=no comment="Route ${net.name} -> WAN${wanNum}"\n`;
            }
         }
@@ -329,14 +335,16 @@ export const generateMikrotikScriptV6 = (config = {}) => {
       script += `\n/ip route\n`;
       wanList.forEach((wan, index) => {
           const i = index + 1;
+          const markName = `to_wan${i}`;
           
-          // 🟢 v6 Fix: เปลี่ยน routing-table เป็น routing-mark
-          script += `add dst-address=0.0.0.0/0 gateway=${wan.monitorIp} distance=1 routing-mark=to_wan${i} target-scope=11 check-gateway=ping comment="PBR Primary for WAN${i}"\n`;
+          // 🟢 v6: Recursive Lookup จะวิ่งไปหา Host Route ในตาราง main อัตโนมัติ (ไม่ต้องใส่ @main)
+          script += `add dst-address=0.0.0.0/0 gateway=${wan.monitorIp} distance=1 routing-mark=${markName} check-gateway=ping target-scope=11 comment="PBR Primary Default Route WAN${i}"\n`;
           
           let backupDistance = 2;
-          wanList.forEach((backupWan, backupIndex) => {
-              if (index !== backupIndex) {
-                  script += `add dst-address=0.0.0.0/0 gateway=${backupWan.monitorIp} distance=${backupDistance} routing-mark=to_wan${i} target-scope=11 check-gateway=ping comment="PBR Backup to WAN${backupIndex + 1}"\n`;
+          wanList.forEach((backupWan, bIdx) => {
+              if (index !== bIdx) {
+                  const bNum = bIdx + 1;
+                  script += `add dst-address=0.0.0.0/0 gateway=${backupWan.monitorIp} distance=${backupDistance} routing-mark=${markName} check-gateway=ping target-scope=11 comment="PBR Backup to WAN${bNum}"\n`;
                   backupDistance++;
               }
           });
@@ -347,7 +355,7 @@ export const generateMikrotikScriptV6 = (config = {}) => {
     script += `\n################################################\n`;
     script += `# Apply VLAN Filtering\n`;
     script += `################################################\n`;
-    script += `/interface bridge set bridge-trunk vlan-filtering=yes\n`;
+    script += `/interface bridge set ${bridgeName} vlan-filtering=yes\n`;
 
     if (config.isStandalone) {
         script += `\n################################################\n`;
@@ -360,9 +368,7 @@ export const generateMikrotikScriptV6 = (config = {}) => {
     script += `\n################################################\n`;
     script += `# Start Heartbeat Monitoring (API)\n`;
     script += `################################################\n`;
-
-    // 🟢 v6 Fix: เอา !fetch ออกไปแล้ว
-
+    
     script += `/system script remove [find name="heartbeat-script"]\n`;
     script += `/system script add name="heartbeat-script" source={\n`;
     script += `  :local serverUrl "${finalApiUrl}";\n`;
@@ -382,14 +388,16 @@ export const generateMikrotikScriptV6 = (config = {}) => {
     script += `  :local temp "N/A";\n`;
     script += `  :do { :set temp [/system health get temperature] } on-error={};\n`;
     
-    // 🟢 v6 Fix: เปลี่ยนวิธีเช็ค Ping ไม่ให้ใช้ as-value
     script += `  :local latency "timeout";\n`;
-    script += `  :do { :if ([:ping 8.8.8.8 count=3] > 0) do={ :set latency "N/A" } } on-error={};\n`;
+    script += `  :do {\n`;
+    script += `    :if ([:ping 8.8.8.8 count=3] > 0) do={ :set latency "N/A" }\n`;
+    script += `  } on-error={};\n`;
+    
     script += `  :local ddnsName "N/A";\n`;
     script += `  :do { :set ddnsName [/ip cloud get dns-name] } on-error={};\n`;
-    
     script += `  :local payload "{\\"cpu\\":\\"$cpuLoad\\", \\"ram\\":\\"$memPercent\\", \\"storage\\":\\"$hddPercent\\", \\"temp\\":\\"$temp\\", \\"latency\\":\\"$latency\\", \\"ddnsName\\":\\"$ddnsName\\", \\"uptime\\":\\"$uptime\\", \\"version\\":\\"$version\\", \\"boardName\\":\\"$boardName\\"}";\n`;    
     
+    // 🌟 v6: ไม่ใช้ :toarray เพราะอาจทำให้เกิดปัญหากับบางเวอร์ชั่น ให้ใช้สตริงต่อกันตรงๆ
     script += `  :local headers "Authorization: Bearer $apiToken,Content-Type: application/json";\n`;
     script += `  :do {\n`;
     script += `    /tool fetch url=$serverUrl http-method=post http-header-field=$headers http-data=$payload keep-result=no ${fetchExtras};\n`;
