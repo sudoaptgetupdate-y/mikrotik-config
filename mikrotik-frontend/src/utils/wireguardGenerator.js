@@ -60,15 +60,13 @@ add address=${serverAddress} interface=${interfaceName}
 /interface wireguard peers
 add allowed-address=${clientAddress} interface=${interfaceName} public-key="${clientPublicKey}" comment="${clientName}"
 
-# --- Firewall Rules ---
+# --- Firewall Rules (Placed at top to bypass any drop rules) ---
 /ip firewall filter
-add action=accept chain=input dst-port=${listenPort} protocol=udp comment="Allow WireGuard"
-add action=accept chain=input src-address-list=Local_Networks comment="Allow WireGuard Traffic"
+add action=accept chain=input dst-port=${listenPort} protocol=udp comment="Allow WireGuard VPN Incoming" place-before=0
+add action=accept chain=forward src-address=${serverAddress} comment="Allow WireGuard Subnet Forwarding" place-before=0
+add action=accept chain=input src-address=${serverAddress} comment="Allow WireGuard Subnet to Router" place-before=0
 `;
 
-  // Note: Client needs Server Public Key which isn't easily derived here.
-  // We'll assume the user provides it or we show how to get it.
-  
   return { serverScript };
 };
 
@@ -92,6 +90,11 @@ add allowed-address=${sideB.address},${sideB.lan} endpoint-address=${sideB.endpo
 
 /ip route
 add dst-address=${sideB.lan} gateway=${sideB.address.split('/')[0]} comment="Route to ${sideB.name}"
+
+# --- Firewall Rules (Placed at top) ---
+/ip firewall filter
+add action=accept chain=input dst-port=${listenPort} protocol=udp comment="Allow WireGuard S2S - ${sideB.name}" place-before=0
+add action=accept chain=forward src-address=${sideB.lan} dst-address=${sideA.lan} comment="Allow Traffic from ${sideB.name}" place-before=0
 `;
 
   const scriptB = `
@@ -107,6 +110,11 @@ add allowed-address=${sideA.address},${sideA.lan} endpoint-address=${sideA.endpo
 
 /ip route
 add dst-address=${sideA.lan} gateway=${sideA.address.split('/')[0]} comment="Route to ${sideA.name}"
+
+# --- Firewall Rules (Placed at top) ---
+/ip firewall filter
+add action=accept chain=input dst-port=${listenPort} protocol=udp comment="Allow WireGuard S2S - ${sideA.name}" place-before=0
+add action=accept chain=forward src-address=${sideA.lan} dst-address=${sideB.lan} comment="Allow Traffic from ${sideA.name}" place-before=0
 `;
 
   return { scriptA, scriptB };
