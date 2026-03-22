@@ -273,9 +273,25 @@ const SiteToSiteTab = () => {
                         <input type="text" value={formData.sideB.address} onChange={e => setFormData({...formData, sideB: {...formData.sideB, address: e.target.value}})} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl font-mono text-sm font-semibold text-slate-700 focus:bg-white focus:ring-4 focus:ring-emerald-50 focus:border-emerald-400 outline-none transition-all placeholder:text-slate-300" placeholder="10.0.10.2/30" />
                     </div>
                 </div>
-                <div className="space-y-2">
-                    <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider ml-1">Public Endpoint (Optional)</label>
-                    <input type="text" value={formData.sideB.endpoint} onChange={e => setFormData({...formData, sideB: {...formData.sideB, endpoint: e.target.value}})} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-700 focus:bg-white focus:ring-4 focus:ring-emerald-50 focus:border-emerald-400 outline-none transition-all placeholder:text-slate-300" placeholder="สาขาไม่จำเป็นต้องมี Public IP" />
+                <div className="space-y-3">
+                    <div className="space-y-2">
+                        <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider ml-1">Public Endpoint (Optional)</label>
+                        <input 
+                            type="text" 
+                            value={formData.sideB.endpoint} 
+                            onChange={e => setFormData({...formData, sideB: {...formData.sideB, endpoint: e.target.value}})} 
+                            className="w-full px-4 py-3 bg-slate-100 border border-slate-200 rounded-xl text-sm font-semibold text-slate-600 focus:bg-white focus:ring-4 focus:ring-slate-100 focus:border-slate-400 outline-none transition-all placeholder:text-slate-400" 
+                            placeholder="e.g. branch.ddns.net" 
+                        />
+                    </div>
+                    
+                    <div className="bg-amber-50/50 border border-amber-100 rounded-xl p-3 flex gap-3 items-start animate-in fade-in slide-in-from-top-1">
+                        <Info size={16} className="text-amber-600 shrink-0 mt-0.5" />
+                        <p className="text-[11px] text-amber-800 leading-relaxed font-medium">
+                            <span className="font-bold">TIP:</span> ไม่ต้องระบุหากฝั่งนี้ไม่มี Public IP <br/>
+                            <span className="opacity-80">(ระบบจะเชื่อมต่อจากสาขาไปหาสำนักงานใหญ่แทน)</span>
+                        </p>
+                    </div>
                 </div>
                 <div className="bg-slate-50/50 p-6 rounded-2xl border border-slate-100 space-y-5 shadow-inner">
                     <div className="flex flex-wrap gap-3">
