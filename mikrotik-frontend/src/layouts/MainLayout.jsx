@@ -58,7 +58,7 @@ const MainLayout = () => {
   // Render
   // ==========================================
   return (
-    <div className="flex h-screen bg-slate-50 overflow-hidden font-sans text-slate-900">
+    <div className="flex h-screen bg-slate-50 overflow-hidden text-slate-900">
 
       {/* 📱 Mobile Menu Button */}
       <div className="md:hidden fixed top-4 right-4 z-50">

@@ -67,31 +67,24 @@ const GlobalSettings = () => {
   ];
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-500">
+    <div className="max-w-6xl mx-auto space-y-6 animate-in fade-in duration-500 my-4 sm:my-8">
       
-      {/* 1. Page Header */}
+      {/* 1. Page Header Section (Island Card) */}
       <div className="space-y-4">
-        <nav className="flex items-center text-sm font-medium text-slate-500 gap-2">
-          <a href="/dashboard" className="hover:text-blue-600 transition-colors">Home</a>
-          <ChevronRight size={14} className="text-slate-400" />
-          <span className="text-slate-400">System Administration</span>
-          <ChevronRight size={14} className="text-slate-400" />
-          <span className="text-slate-800">Global Settings</span>
-        </nav>
-
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
+        {/* Header Card */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm relative overflow-hidden group">
+          <div className="relative z-10">
             <h1 className="text-2xl font-bold text-slate-800 tracking-tight flex items-center gap-2">
               <Shield className="text-blue-600" size={28} /> 
               Global System Settings
             </h1>
-            <p className="text-sm text-slate-500 mt-1">
+            <p className="text-sm text-slate-500 mt-1 font-medium italic">
               ตั้งค่าพารามิเตอร์ส่วนกลาง ระบบแจ้งเตือน และการดูแลรักษา
             </p>
           </div>
+          {/* Accent Blur */}
+          <div className="absolute right-0 top-0 w-48 h-48 bg-blue-50/50 rounded-full blur-3xl -mr-16 -mt-16 group-hover:bg-blue-100/50 transition-colors duration-700"></div>
         </div>
-
-        <hr className="border-slate-200 mt-2" />
       </div>
 
       {isLoading ? (
@@ -100,9 +93,9 @@ const GlobalSettings = () => {
           <p className="text-slate-500 font-medium animate-pulse">กำลังโหลดข้อมูลการตั้งค่า...</p>
         </div>
       ) : (
-        <div className="flex flex-col lg:flex-row gap-8">
-          {/* Sidebar Tabs - Left Side */}
-          <div className="lg:w-72 flex-shrink-0">
+        <div className="flex flex-col lg:flex-row gap-6">
+          {/* Sidebar Tabs - Left Side (Island Card) */}
+          <div className="lg:w-72 flex-shrink-0 space-y-6">
             <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden p-2 flex flex-row lg:flex-col gap-1 overflow-x-auto lg:overflow-x-visible [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
               {tabs.map((tab) => {
                 const Icon = tab.icon;
@@ -114,7 +107,7 @@ const GlobalSettings = () => {
                     className={`
                       flex items-center gap-3 px-4 py-3 text-sm font-bold rounded-xl transition-all whitespace-nowrap lg:whitespace-normal
                       ${isActive 
-                        ? `${tab.bg} ${tab.color} ring-1 ring-inset ring-slate-100 shadow-sm` 
+                        ? `${tab.bg} ${tab.color} ring-1 ring-inset ring-slate-100 shadow-sm scale-[1.02]` 
                         : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700'}
                     `}
                   >
@@ -126,19 +119,22 @@ const GlobalSettings = () => {
               })}
             </div>
             
-            {/* Help/Status Card in Sidebar (Optional) */}
-            <div className="hidden lg:block mt-6 p-5 bg-gradient-to-br from-slate-50 to-white rounded-2xl border border-slate-200 shadow-sm">
-              <h3 className="text-sm font-bold text-slate-800 mb-2 flex items-center gap-2">
-                <Settings2 size={16} className="text-blue-500" />
-                Setting Tip
-              </h3>
-              <p className="text-xs text-slate-500 leading-relaxed">
-                การตั้งค่าในหน้านี้จะมีผลกับอุปกรณ์ทุกเครื่องในระบบ โปรดตรวจสอบความถูกต้องก่อนบันทึกข้อมูล
-              </p>
+            {/* Help/Status Card */}
+            <div className="hidden lg:block p-5 bg-white rounded-2xl border border-slate-200 shadow-sm relative overflow-hidden group">
+              <div className="relative z-10">
+                <h3 className="text-sm font-bold text-slate-800 mb-2 flex items-center gap-2">
+                  <Settings2 size={16} className="text-blue-500" />
+                  Setting Tip
+                </h3>
+                <p className="text-xs text-slate-500 leading-relaxed font-medium">
+                  การตั้งค่าในหน้านี้จะมีผลกับอุปกรณ์ทุกเครื่องในระบบ โปรดตรวจสอบความถูกต้องก่อนบันทึกข้อมูล
+                </p>
+              </div>
+              <div className="absolute -right-4 -bottom-4 w-16 h-16 bg-slate-50 rounded-full blur-xl group-hover:bg-blue-50 transition-colors"></div>
             </div>
           </div>
 
-          {/* Content Area - Right Side */}
+          {/* Content Area - Right Side (Island Card) */}
           <div className="flex-1 min-w-0">
             <div className="bg-white p-6 sm:p-8 rounded-2xl border border-slate-200 shadow-sm flex flex-col transition-all min-h-[600px]">
               {activeTab === 'ADMINS' && <TabAdmins initialData={settingsData.ROUTER_ADMINS} />}

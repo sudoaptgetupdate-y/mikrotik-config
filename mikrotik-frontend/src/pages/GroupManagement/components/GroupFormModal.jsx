@@ -132,7 +132,7 @@ const GroupFormModal = ({ isOpen, onClose, isEditMode, formData, setFormData, on
 
                     {isEditMode && formData.telegramBotToken && formData.telegramChatId && (
                       <div className="mt-4 p-4 bg-slate-50 rounded-2xl border border-slate-200">
-                        <label className="block text-xs font-bold text-slate-600 mb-2 flex items-center gap-1.5">
+                        <label className="text-xs font-bold text-slate-600 mb-2 flex items-center gap-1.5">
                           <MessageSquare size={14} className="text-blue-500" /> ส่งประกาศด่วน (Manual)
                         </label>
                         <div className="flex gap-2">

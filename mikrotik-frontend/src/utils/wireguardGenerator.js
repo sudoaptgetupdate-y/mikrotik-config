@@ -72,10 +72,38 @@ add action=accept chain=input src-address=${serverAddress} comment="Allow WireGu
 
 export const generateS2SConfig = (params) => {
   const {
-    sideA = { name: 'Site-A', privateKey: '', publicKey: '', address: '10.0.10.1/30', lan: '192.168.1.0/24', endpoint: '' },
-    sideB = { name: 'Site-B', privateKey: '', publicKey: '', address: '10.0.10.2/30', lan: '192.168.2.0/24', endpoint: '' },
+    sideA = { name: 'Site-A', privateKey: '', publicKey: '', address: '10.0.10.1/30', lan: '', endpoint: '', autoRoute: true },
+    sideB = { name: 'Site-B', privateKey: '', publicKey: '', address: '10.0.10.2/30', lan: '', endpoint: '', autoRoute: true },
     listenPort = 51820
   } = params;
+
+  // 🟢 Helper to join addresses without trailing commas or spaces
+  const getAllowedAddresses = (peer) => {
+    const parts = [];
+    if (peer.address && peer.address.trim()) parts.push(peer.address.trim());
+    if (peer.lan && peer.lan.trim()) {
+        peer.lan.split(',').forEach(s => {
+            if (s.trim()) parts.push(s.trim());
+        });
+    }
+    return parts.join(',');
+  };
+
+  // 🟢 Helper to generate routes for potentially multiple LAN subnets
+  const generateRoutes = (targetLan, gatewayIp, targetName, enabled) => {
+    if (!enabled || !targetLan || !targetLan.trim()) return "";
+    return targetLan.split(',').map(s => {
+        const subnet = s.trim();
+        if (!subnet) return "";
+        return `/ip route add dst-address=${subnet} gateway=${gatewayIp} comment="Route to ${targetName}"`;
+    }).filter(Boolean).join('\n');
+  };
+
+  // 🟢 Helper to generate forward rules safely
+  const generateForwardRules = (srcLan, dstLan, peerName) => {
+    if (!srcLan || !srcLan.trim() || !dstLan || !dstLan.trim()) return "";
+    return `add action=accept chain=forward src-address=${srcLan.trim()} dst-address=${dstLan.trim()} comment="Allow Traffic from ${peerName}" place-before=0`;
+  };
 
   const scriptA = `
 # --- Configuration for ${sideA.name} (Side A) ---
@@ -86,35 +114,33 @@ add listen-port=${listenPort} name=wg-s2s-${sideB.name} private-key="${sideA.pri
 add address=${sideA.address} interface=wg-s2s-${sideB.name}
 
 /interface wireguard peers
-add allowed-address=${sideB.address},${sideB.lan} endpoint-address=${sideB.endpoint} endpoint-port=${listenPort} interface=wg-s2s-${sideB.name} public-key="${sideB.publicKey}" persistent-keepalive=25s
+add allowed-address=${getAllowedAddresses(sideB)} endpoint-address="${sideB.endpoint}" endpoint-port=${listenPort} interface=wg-s2s-${sideB.name} public-key="${sideB.publicKey}" persistent-keepalive=25s comment="Peer to ${sideB.name}"
 
-/ip route
-add dst-address=${sideB.lan} gateway=${sideB.address.split('/')[0]} comment="Route to ${sideB.name}"
+${generateRoutes(sideB.lan, (sideB.address || "").split('/')[0], sideB.name, sideB.autoRoute)}
 
-# --- Firewall Rules (Placed at top) ---
+# --- Firewall Rules (Placed at top to bypass drop rules) ---
 /ip firewall filter
 add action=accept chain=input dst-port=${listenPort} protocol=udp comment="Allow WireGuard S2S - ${sideB.name}" place-before=0
-add action=accept chain=forward src-address=${sideB.lan} dst-address=${sideA.lan} comment="Allow Traffic from ${sideB.name}" place-before=0
+${generateForwardRules(sideB.lan, sideA.lan, sideB.name)}
 `;
 
   const scriptB = `
 # --- Configuration for ${sideB.name} (Side B) ---
 /interface wireguard
-add listen-port=${listenPort} name=wg-s2s-${sideA.name} private-key="${sideB.privateKey}"
+add listen-port=${listenPort} name=wg-to-${sideA.name} private-key="${sideB.privateKey}"
 
 /ip address
-add address=${sideB.address} interface=wg-s2s-${sideA.name}
+add address=${sideB.address} interface=wg-to-${sideA.name}
 
 /interface wireguard peers
-add allowed-address=${sideA.address},${sideA.lan} endpoint-address=${sideA.endpoint} endpoint-port=${listenPort} interface=wg-s2s-${sideA.name} public-key="${sideA.publicKey}" persistent-keepalive=25s
+add allowed-address=${getAllowedAddresses(sideA)} endpoint-address="${sideA.endpoint}" endpoint-port=${listenPort} interface=wg-to-${sideA.name} public-key="${sideA.publicKey}" persistent-keepalive=25s comment="Peer to ${sideA.name}"
 
-/ip route
-add dst-address=${sideA.lan} gateway=${sideA.address.split('/')[0]} comment="Route to ${sideA.name}"
+${generateRoutes(sideA.lan, (sideA.address || "").split('/')[0], sideA.name, sideA.autoRoute)}
 
-# --- Firewall Rules (Placed at top) ---
+# --- Firewall Rules (Placed at top to bypass drop rules) ---
 /ip firewall filter
 add action=accept chain=input dst-port=${listenPort} protocol=udp comment="Allow WireGuard S2S - ${sideA.name}" place-before=0
-add action=accept chain=forward src-address=${sideA.lan} dst-address=${sideB.lan} comment="Allow Traffic from ${sideA.name}" place-before=0
+${generateForwardRules(sideA.lan, sideB.lan, sideA.name)}
 `;
 
   return { scriptA, scriptB };

@@ -104,46 +104,36 @@ const AuditLog = () => {
   // Render
   // ==========================================
   return (
-    <div className="space-y-6 animate-in fade-in duration-500">
+    <div className="max-w-6xl mx-auto space-y-6 animate-in fade-in duration-500 my-4 sm:my-8">
       
-      {/* 1. Page Header (แบบ Classic & Clean) */}
-      <div className="space-y-4">
-        {/* Breadcrumbs */}
-        <nav className="flex items-center text-sm font-medium text-slate-500 gap-2">
-          <a href="/dashboard" className="hover:text-blue-600 transition-colors">Home</a>
-          <ChevronRight size={14} className="text-slate-400" />
-          <span className="text-slate-400">System Administration</span>
-          <ChevronRight size={14} className="text-slate-400" />
-          <span className="text-slate-800">Audit Logs</span>
-        </nav>
-
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-slate-800 tracking-tight flex items-center gap-2">
-              <Activity className="text-blue-600" size={28} /> 
-              System Audit Logs
-            </h1>
-            <p className="text-sm text-slate-500 mt-1">
-              ติดตามประวัติการใช้งานระบบ การเข้าสู่ระบบ และการเปลี่ยนแปลงตั้งค่า
-            </p>
-          </div>
-          
-          {/* ปุ่ม Refresh สไตล์ Soft/Tonal */}
+      {/* 1. Page Header Section (Island Card) */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm relative overflow-hidden group">
+        <div className="relative z-10">
+          <h1 className="text-2xl font-bold text-slate-800 tracking-tight flex items-center gap-2">
+            <Activity className="text-blue-600" size={28} /> 
+            System Audit Logs
+          </h1>
+          <p className="text-sm text-slate-500 mt-1 font-medium italic">
+            ติดตามประวัติการใช้งานระบบ การเข้าสู่ระบบ และการเปลี่ยนแปลงตั้งค่า
+          </p>
+        </div>
+        
+        <div className="relative z-10">
           <button 
             onClick={() => refetch()} 
-            className="shrink-0 bg-blue-50 text-blue-700 px-5 py-2.5 rounded-lg flex items-center justify-center gap-2 hover:bg-blue-100 transition-all font-semibold text-sm border border-blue-100"
+            className="shrink-0 bg-blue-600 text-white px-5 py-2.5 rounded-xl flex items-center justify-center gap-2 hover:bg-blue-700 hover:-translate-y-0.5 active:translate-y-0 transition-all font-bold text-sm shadow-lg shadow-blue-500/20"
           >
             <RefreshCw size={18} strokeWidth={2.5} className={isFetching ? "animate-spin" : ""} /> 
             <span>Refresh Logs</span>
           </button>
         </div>
 
-        {/* เส้นกั้น Solid Divider */}
-        <hr className="border-slate-200 mt-2" />
+        {/* Accent Blur */}
+        <div className="absolute right-0 top-0 w-48 h-48 bg-blue-50/50 rounded-full blur-3xl -mr-16 -mt-16 group-hover:bg-blue-100/50 transition-colors duration-700"></div>
       </div>
 
       {/* 2. Control Toolbar (Search & Filters) */}
-      <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col gap-4">
+      <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col gap-4">
         <div className="flex flex-col md:flex-row md:items-center gap-4">
           <div className="relative flex-1 w-full">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />

@@ -7,40 +7,48 @@ const VPNTools = () => {
   const [activeTab, setActiveTab] = useState('c2s');
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-500">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-3xl border border-slate-200 shadow-sm overflow-hidden relative">
+    <div className="max-w-6xl mx-auto space-y-6 animate-in fade-in duration-500 my-4 sm:my-8">
+      {/* Header (Simplified to match Wizard flow) */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm relative overflow-hidden group">
         <div className="relative z-10">
-          <h1 className="text-2xl font-black text-slate-800 flex items-center gap-2">
-            <ShieldCheck size={28} className="text-blue-600" />
-            VPN Tools (WireGuard)
+          <h1 className="text-2xl font-bold text-slate-800 flex items-center gap-2 tracking-tight">
+            <ShieldCheck size={32} className="text-blue-600" />
+            VPN Configuration Center
           </h1>
-          <p className="text-slate-500 text-sm mt-1">
-            เครื่องมือช่วยเจนสคริปต์ WireGuard VPN สำหรับ MikroTik RouterOS v7+
+          <p className="text-slate-500 text-sm mt-1 font-medium italic">
+            Automated WireGuard Script Generator for RouterOS v7+
           </p>
         </div>
-        <div className="absolute right-0 top-0 w-32 h-32 bg-blue-50/50 rounded-full blur-3xl -mr-10 -mt-10"></div>
+        <div className="absolute right-0 top-0 w-48 h-48 bg-blue-50/50 rounded-full blur-3xl -mr-16 -mt-16 group-hover:bg-blue-100/50 transition-colors duration-700"></div>
       </div>
 
-      {/* Tabs Selection */}
-      <div className="flex bg-slate-100 p-1.5 rounded-2xl w-fit mx-auto md:mx-0 shadow-inner">
-        <button
-          onClick={() => setActiveTab('c2s')}
-          className={`px-6 py-2.5 rounded-xl font-bold text-sm flex items-center gap-2 transition-all ${activeTab === 'c2s' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-        >
-          <UserPlus size={18} /> Client to Site
-        </button>
-        <button
-          onClick={() => setActiveTab('s2s')}
-          className={`px-6 py-2.5 rounded-xl font-bold text-sm flex items-center gap-2 transition-all ${activeTab === 's2s' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-        >
-          <Network size={18} /> Site to Site
-        </button>
-      </div>
+      {/* Main Container (Matched with ConfigWizard) */}
+      <div className="bg-white sm:rounded-2xl shadow-sm border-0 sm:border border-slate-200">
+        
+        {/* Tabs Selection (Integrated into Container) */}
+        <div className="bg-slate-50/50 border-b border-slate-100 p-4 sm:p-6 flex justify-center sm:justify-start">
+          <div className="flex bg-slate-200/60 p-1 rounded-2xl w-full sm:w-fit shadow-inner">
+            <button
+              onClick={() => setActiveTab('c2s')}
+              className={`flex-1 sm:flex-none px-8 py-3 rounded-xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 transition-all duration-300 ${activeTab === 'c2s' ? 'bg-white text-blue-600 shadow-lg scale-[1.02]' : 'text-slate-500 hover:text-slate-700'}`}
+            >
+              <UserPlus size={16} /> Client-to-Site
+            </button>
+            <button
+              onClick={() => setActiveTab('s2s')}
+              className={`flex-1 sm:flex-none px-8 py-3 rounded-xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 transition-all duration-300 ${activeTab === 's2s' ? 'bg-white text-blue-600 shadow-lg scale-[1.02]' : 'text-slate-500 hover:text-slate-700'}`}
+            >
+              <Network size={16} /> Site-to-Site
+            </button>
+          </div>
+        </div>
 
-      {/* Content */}
-      <div className="animate-in slide-in-from-bottom-4 duration-500">
-        {activeTab === 'c2s' ? <ClientToSiteTab /> : <SiteToSiteTab />}
+        {/* Tab Content Area */}
+        <div className="p-4 sm:p-8 min-h-[500px]">
+          <div className="animate-in slide-in-from-bottom-4 duration-500">
+            {activeTab === 'c2s' ? <ClientToSiteTab /> : <SiteToSiteTab />}
+          </div>
+        </div>
       </div>
     </div>
   );
