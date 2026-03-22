@@ -21,13 +21,14 @@ const Step8_Summary = ({
 }) => {
 
   const [isGenerating, setIsGenerating] = useState(false);
-  const [rosVersion, setRosVersion] = useState('v7');
+  const [activeRos, setActiveRos] = useState(null); // 'v7' or 'v6'
 
   // 🎯 หาพอร์ต Ether สุดท้ายจาก Selected Model
   const lastEther = selectedModel?.ports?.filter(p => p.type === 'ETHER').pop()?.name || 'etherX';
 
-  const handleGenAndFinish = async () => { 
+  const handleGenAndFinish = async (targetVersion) => { 
     setIsGenerating(true); 
+    setActiveRos(targetVersion);
 
     try {
       // 1. ดึงข้อมูล Global Settings จาก Backend
@@ -67,7 +68,7 @@ const Step8_Summary = ({
       }
 
       // 4. สร้างสคริปต์ MikroTik โดยใช้ข้อมูลที่มี Token แล้ว และเลือก Generator ตาม ROS Version
-      const scriptContent = rosVersion === 'v7' 
+      const scriptContent = targetVersion === 'v7' 
         ? generateMikrotikScript(configData)
         : generateMikrotikScriptV6(configData);
 
@@ -75,13 +76,14 @@ const Step8_Summary = ({
       const element = document.createElement("a");
       const file = new Blob([scriptContent], {type: 'text/plain'});
       element.href = URL.createObjectURL(file);
-      element.download = `${circuitId}_config_${rosVersion}.rsc`;
+      element.download = `${circuitId}_config_${targetVersion}.rsc`;
       document.body.appendChild(element); 
       element.click();
       document.body.removeChild(element);
 
-      // 6. ชะลอเวลา 1.5 วินาทีเพื่อให้ Browser เรียกกล่องโหลดไฟล์ขึ้นมาก่อน แล้วค่อยเปลี่ยนหน้าไป DeviceList
-      if (onFinish) {
+      // 6. ชะลอเวลา 1.5 วินาทีเพื่อให้ Browser เรียกกล่องโหลดไฟล์ขึ้นมาก่อน 
+      // แต่ถ้าเป็นโหมด Standalone จะไม่ Redirect
+      if (onFinish && mode !== 'standalone') {
         setTimeout(() => {
           onFinish();
         }, 1500);
@@ -91,6 +93,7 @@ const Step8_Summary = ({
       console.error("Generation failed:", error);
     } finally {
       setIsGenerating(false); 
+      setActiveRos(null);
     }
   };
 
@@ -196,44 +199,6 @@ const Step8_Summary = ({
           </div>
         </div>
 
-        {/* RouterOS Version Selection */}
-        <div className="bg-blue-50/50 p-6 rounded-2xl border border-blue-100 shadow-sm md:col-span-2">
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-blue-600 text-white rounded-xl flex items-center justify-center shadow-md">
-                <Zap size={20} />
-              </div>
-              <div>
-                <h4 className="text-sm font-black text-slate-700 uppercase tracking-wide">RouterOS Target Version</h4>
-                <p className="text-xs text-slate-500 font-medium">เลือกเวอร์ชันของ RouterOS ที่คุณต้องการใช้งาน</p>
-              </div>
-            </div>
-            
-            <div className="flex p-1 bg-slate-200/80 rounded-xl w-full sm:w-auto">
-              <button
-                onClick={() => setRosVersion('v7')}
-                className={`flex-1 sm:flex-none px-6 py-2 rounded-lg font-bold text-sm transition-all duration-200 ${
-                  rosVersion === 'v7' 
-                    ? 'bg-white text-blue-600 shadow-sm' 
-                    : 'text-slate-500 hover:text-slate-700'
-                }`}
-              >
-                RouterOS v7 (Stable)
-              </button>
-              <button
-                onClick={() => setRosVersion('v6')}
-                className={`flex-1 sm:flex-none px-6 py-2 rounded-lg font-bold text-sm transition-all duration-200 ${
-                  rosVersion === 'v6' 
-                    ? 'bg-white text-orange-600 shadow-sm' 
-                    : 'text-slate-500 hover:text-slate-700'
-                }`}
-              >
-                RouterOS v6.49
-              </button>
-            </div>
-          </div>
-        </div>
-
         {/* Card 3: Security & Policy */}
         <div className="bg-white p-6 md:p-8 rounded-2xl border border-slate-200 shadow-sm hover:shadow-lg transition-all duration-300 md:col-span-2">
           <div className="flex items-center gap-2 mb-6 pb-4 border-b border-slate-100">
@@ -268,31 +233,49 @@ const Step8_Summary = ({
 
       </div>
 
-      {/* --- Action Button --- */}
-      <div className="flex flex-col items-center">
-        <button 
-          onClick={handleGenAndFinish}
-          disabled={isGenerating}
-          className={`group relative flex items-center justify-center gap-3 w-full sm:w-auto px-12 py-4 rounded-2xl font-bold text-lg shadow-xl transition-all duration-300 disabled:opacity-70 disabled:hover:translate-y-0 disabled:cursor-not-allowed hover:-translate-y-1 ${
-            rosVersion === 'v7' 
-              ? 'bg-blue-600 text-white shadow-blue-600/20 hover:bg-blue-500 hover:shadow-blue-600/40' 
-              : 'bg-orange-600 text-white shadow-orange-600/20 hover:bg-orange-500 hover:shadow-orange-600/40'
-          }`}
-        >
-          {isGenerating ? (
-            <Loader2 size={24} className="animate-spin" />
-          ) : (
-             <FileDown size={24} className="group-hover:animate-bounce" />
-          )}
-          {isGenerating 
-            ? (mode === 'standalone' ? 'Generating Config...' : 'Generating & Saving...') 
-            : (mode === 'standalone' 
-                ? `Download ROS ${rosVersion === 'v7' ? 'v7' : 'v6.49'} Config` 
-                : `Generate ${rosVersion === 'v7' ? 'v7' : 'v6.49'} Config & Finish`)}
-        </button>
-        <p className="text-center text-sm font-medium text-slate-400 mt-5">
-          ไฟล์ <span className="text-slate-600 font-mono bg-slate-100 px-1.5 py-0.5 rounded">.rsc</span> จะถูกดาวน์โหลดสำหรับ <span className={`font-bold ${rosVersion === 'v7' ? 'text-blue-600' : 'text-orange-600'}`}>RouterOS {rosVersion === 'v7' ? 'v7' : 'v6.49'}</span>
-        </p>
+      {/* --- Action Buttons --- */}
+      <div className="flex flex-col items-center border-t border-slate-100 pt-10">
+        <p className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-6">Select Version & Download Config</p>
+        
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full sm:w-auto">
+          {/* v7 Button */}
+          <button 
+            onClick={() => handleGenAndFinish('v7')}
+            disabled={isGenerating}
+            className="group relative flex items-center justify-center gap-3 px-8 py-4 rounded-2xl font-bold text-white bg-blue-600 shadow-xl shadow-blue-600/20 hover:bg-blue-500 transition-all hover:-translate-y-1 disabled:opacity-70 disabled:hover:translate-y-0"
+          >
+            {isGenerating && activeRos === 'v7' ? (
+              <Loader2 size={20} className="animate-spin" />
+            ) : (
+              <Zap size={20} className="group-hover:animate-pulse" />
+            )}
+            <span>Download v7 Config</span>
+          </button>
+
+          {/* v6 Button */}
+          <button 
+            onClick={() => handleGenAndFinish('v6')}
+            disabled={isGenerating}
+            className="group relative flex items-center justify-center gap-3 px-8 py-4 rounded-2xl font-bold text-white bg-orange-600 shadow-xl shadow-orange-600/20 hover:bg-orange-500 transition-all hover:-translate-y-1 disabled:opacity-70 disabled:hover:translate-y-0"
+          >
+            {isGenerating && activeRos === 'v6' ? (
+              <Loader2 size={20} className="animate-spin" />
+            ) : (
+              <FileDown size={20} className="group-hover:animate-bounce" />
+            )}
+            <span>Download v6.49 Config</span>
+          </button>
+        </div>
+
+        {mode !== 'standalone' ? (
+          <p className="text-center text-sm font-medium text-slate-400 mt-6">
+            หลังจากดาวน์โหลด ระบบจะนำคุณไปยังหน้ารายการอุปกรณ์โดยอัตโนมัติ
+          </p>
+        ) : (
+          <p className="text-center text-sm font-medium text-slate-400 mt-6 italic">
+            Config Builder Mode: คุณสามารถดาวน์โหลดไฟล์สคริปต์ได้หลายเวอร์ชันตามต้องการ
+          </p>
+        )}
       </div>
 
     </div>
