@@ -172,8 +172,10 @@ export const generateMikrotikScriptV6 = (config = {}) => {
 
       let actualGw = '';
       if (wan.type === 'pppoe') {
-        // 🟢 v6 Fix: เปิด add-default-route=yes แต่ใช้ distance สูงๆ เพื่อให้ระบบรู้จักทางออกพื้นฐาน ช่วยให้ Recursive Lookup ทำงานได้แม่นยำขึ้น
-        script += `/interface pppoe-client add name="pppoe-out${i}" interface=${wanName} user="${wan.username}" password="${wan.password}" disabled=no add-default-route=yes default-route-distance=250 use-peer-dns=yes\n`;
+        // 🟢 v6 RSC Ironclad Fix: ใช้ \22 แทนเครื่องหมายคำพูดข้างในสคริปต์ เพื่อป้องกันปัญหาการ Import ไฟล์ .rsc ล้มเหลว
+        // และใช้ \$ เพื่อป้องกันการตีความเป็นตัวแปรในขณะ Import
+        script += `/ppp profile add name="profile_wan${i}" on-up=":delay 5; :local gw \\$\\22remote-address\\22; /ip route set [find comment=\\22Host Route for WAN${i}\\22] gateway=\\$gw; :log info \\22Wizard: Updated WAN${i} gateway to \$gw\\22"\n`;
+        script += `/interface pppoe-client add name="pppoe-out${i}" interface=${wanName} user="${wan.username}" password="${wan.password}" profile="profile_wan${i}" disabled=no add-default-route=no use-peer-dns=yes\n`;
         script += `/interface list member add interface=pppoe-out${i} list=WAN\n`;
         actualGw = `pppoe-out${i}`;
       } else {
@@ -185,13 +187,12 @@ export const generateMikrotikScriptV6 = (config = {}) => {
     });
 
     // --- 4. Main Routing Table ---
-    script += `\n# --- Main Routing Table (Host Routes & Recursive Defaults) ---\n`;
-    script += `/ip route\n`;
+    script += `\n# --- Main Routing Table (Recursive Logic) ---\n`;
     wanList.forEach((wan, index) => {
       const i = index + 1;
-      // 🟢 v6 Fix: ใช้ scope=10 และ target-scope=10 ซึ่งเป็นค่าที่เสถียรที่สุดสำหรับ Recursive บน RouterOS v6
-      script += `add dst-address=${wan.monitorIp}/32 gateway=${wan.actualGw} scope=10 comment="Host Route for WAN${i}"\n`;
-      script += `add dst-address=0.0.0.0/0 gateway=${wan.monitorIp} distance=${i} check-gateway=ping target-scope=10 comment="Main Recursive Default Route WAN${i}"\n`;
+      // 🟢 v6 Verified Fix: สร้าง Host Route ด้วยชื่อ Interface (Profile Script จะเป็นตัวอัปเดตเป็น IP ภายหลัง)
+      script += `/ip route add dst-address=${wan.monitorIp}/32 gateway=${wan.actualGw} scope=10 comment="Host Route for WAN${i}"\n`;
+      script += `/ip route add dst-address=0.0.0.0/0 gateway=${wan.monitorIp} distance=${i} check-gateway=ping target-scope=10 comment="Main Recursive Default Route WAN${i}"\n`;
     });
 
     // --- 5. LAN & VLAN SETUP ---
@@ -300,6 +301,7 @@ export const generateMikrotikScriptV6 = (config = {}) => {
     script += `add action=drop chain=input comment="Drop All Else"\n`;
     
     script += `# Forward Chain (Protect LAN from WAN)\n`;
+    script += `add action=fasttrack-connection chain=forward comment="FastTrack" connection-state=established,related\n`;
     script += `add action=accept chain=forward comment="Established, Related" connection-state=established,related\n`;
     script += `add action=drop chain=forward comment="Drop Invalid" connection-state=invalid\n`;
     script += `add action=drop chain=forward comment="Drop incoming from WAN not DST-NATed" connection-nat-state=!dstnat connection-state=new in-interface-list=WAN\n`;
@@ -328,7 +330,7 @@ export const generateMikrotikScriptV6 = (config = {}) => {
               const [gw, cidr] = net.ip.split('/');
               const { networkAddr } = calculatePoolRange(gw, cidr);
               
-              // 🟢 v6: ใช้ routing-mark โดยตรง
+              // 🟢 v6: Standard PBR marking
               script += `add chain=prerouting src-address=${networkAddr} dst-address-list=!Local_Networks action=mark-routing new-routing-mark=to_wan${wanNum} passthrough=no comment="Route ${net.name} -> WAN${wanNum}"\n`;
            }
         }
@@ -339,7 +341,7 @@ export const generateMikrotikScriptV6 = (config = {}) => {
           const i = index + 1;
           const markName = `to_wan${i}`;
           
-          // 🟢 v6: Recursive Lookup จะวิ่งไปหา Host Route ในตาราง main อัตโนมัติ (ไม่ต้องใส่ @main)
+          // 🟢 v6 Fix: PBR Route ชี้ไปที่ Monitor IP (target-scope=10 เพื่อ Resolve Host Route ที่ใช้ IP)
           script += `add dst-address=0.0.0.0/0 gateway=${wan.monitorIp} distance=1 routing-mark=${markName} check-gateway=ping target-scope=10 comment="PBR Primary Default Route WAN${i}"\n`;
           
           let backupDistance = 2;
