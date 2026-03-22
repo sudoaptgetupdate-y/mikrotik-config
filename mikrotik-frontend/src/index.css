@@ -3,19 +3,19 @@
 @tailwind utilities;
 
 :root {
-  /* ประกาศตัวแปรฟอนต์เพื่อให้เรียกใช้งานง่ายและแน่นอน */
-  --font-family-thai: "IBM Plex Sans Thai", "IBM Plex Sans", sans-serif;
+  /* IBM Plex Sans Thai for both Thai and English (Cohesive Tech Look) */
+  --font-family-main: "IBM Plex Sans Thai", "IBM Plex Sans", sans-serif;
 }
 
 @layer base {
   html {
-    font-family: var(--font-family-thai);
+    font-family: var(--font-family-main);
     -webkit-tap-highlight-color: transparent;
   }
   
   body {
     @apply antialiased text-slate-800 bg-slate-50;
-    font-family: var(--font-family-thai);
+    font-family: var(--font-family-main);
   }
 
   /* บังคับให้ Form elements ทั้งหมดใช้ฟอนต์ตัวเดียวกัน */

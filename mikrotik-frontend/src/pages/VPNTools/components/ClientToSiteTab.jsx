@@ -100,11 +100,11 @@ PersistentKeepalive = 25`;
   const StatusPill = ({ active, onClick, icon: Icon, label, activeClass, inactiveClass }) => (
   <button 
       onClick={onClick}
-      className={`flex items-center justify-center h-9 px-3 rounded-xl border transition-all duration-300 font-semibold text-[10px] ${
+      className={`flex items-center justify-center h-10 px-4 rounded-xl border transition-all duration-300 font-bold text-[11px] uppercase tracking-wider ${
           active ? activeClass : inactiveClass
       }`}
   >
-      <Icon size={12} className={active ? "opacity-100" : "opacity-60"} />
+      <Icon size={14} className={active ? "opacity-100" : "opacity-60"} />
       <span className="ml-2 whitespace-nowrap">{label}</span>
   </button>
   );
@@ -114,44 +114,44 @@ PersistentKeepalive = 25`;
   return (
   <div className="max-w-6xl mx-auto space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-20 px-4 sm:px-0">
 
-    {/* --- 1. Header Section --- */}
-    <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-white/80 backdrop-blur-md p-4 rounded-3xl border border-slate-200 shadow-sm sticky top-4 z-40">
+    {/* --- 1. Header Section (Internal) --- */}
+    <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-white p-5 rounded-2xl border border-slate-200 shadow-sm sticky top-4 z-40">
         <div className="flex items-center gap-3 ml-2">
-            <div className="w-10 h-10 bg-blue-600 text-white rounded-xl flex items-center justify-center shadow-md">
+            <div className="w-10 h-10 bg-blue-600 text-white rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/20">
                 <Smartphone size={22} />
             </div>
             <div>
-                <h2 className="text-base font-bold text-slate-800 leading-none tracking-tight">Client-to-Site VPN Configuration</h2>
-                <p className="text-[10px] text-slate-400 mt-1 font-semibold uppercase tracking-wider">Mobile & Remote Access</p>
+                <h2 className="text-lg font-black text-slate-800 leading-none tracking-tight">Client-to-Site VPN Configuration</h2>
+                <p className="text-[11px] text-slate-400 mt-1.5 font-bold uppercase tracking-widest">Mobile & Remote Access Setup</p>
             </div>
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
             {/* Port Input */}
-            <div className="flex items-center gap-2 bg-slate-50 pl-3 pr-1 py-1 rounded-xl border border-slate-200">
-                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-tight">Port:</span>
+            <div className="flex items-center gap-2 bg-slate-50 pl-3 pr-1 py-1.5 rounded-xl border border-slate-200 shadow-inner">
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Listen Port:</span>
                 <input 
                     type="text" 
                     value={formData.listenPort} 
                     onChange={e => setFormData({...formData, listenPort: e.target.value.replace(/[^0-9]/g, '')})} 
-                    className="bg-transparent text-sm font-bold text-blue-600 w-14 outline-none"
+                    className="bg-transparent text-sm font-bold text-blue-600 w-16 outline-none text-center"
                     placeholder="51820"
                 />
-                <button onClick={handleGeneratePort} className="p-1 hover:bg-white rounded-lg text-slate-400 hover:text-blue-600 transition-all"><Zap size={14} /></button>
+                <button onClick={handleGeneratePort} className="p-1.5 hover:bg-white rounded-lg text-slate-400 hover:text-blue-600 transition-all"><Zap size={14} /></button>
             </div>
 
             {/* Generate Action */}
             <button 
                 onClick={handleGenerateConfig} 
                 disabled={isGenerateDisabled}
-                className={`flex items-center gap-2 px-6 py-2 rounded-xl font-bold text-xs uppercase tracking-wider transition-all duration-300 ${
+                className={`flex items-center gap-2 px-6 py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider transition-all duration-300 ${
                     isGenerateDisabled 
                     ? 'bg-slate-100 text-slate-400 cursor-not-allowed border border-slate-200' 
                     : 'bg-slate-900 text-white shadow-lg hover:bg-black hover:-translate-y-0.5 active:translate-y-0'
                 }`}
             >
                 <Terminal size={14} />
-                Generate
+                Generate Script
             </button>
         </div>
     </div>
@@ -159,41 +159,41 @@ PersistentKeepalive = 25`;
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         
         {/* Left Card: Server & Network */}
-        <div className="bg-white p-8 rounded-[2.5rem] border border-slate-200 shadow-sm space-y-6">
+        <div className="bg-white p-6 md:p-8 rounded-3xl border border-slate-200 shadow-sm space-y-6 hover:border-blue-200 transition-colors duration-300">
           <div className="flex items-center gap-3 border-b border-slate-50 pb-5">
               <div className="w-10 h-10 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center shadow-inner"><Globe size={20}/></div>
-              <span className="font-bold text-slate-800 uppercase tracking-tight text-sm">Server Configuration</span>
+              <span className="font-black text-slate-800 uppercase tracking-tight text-base">Server Configuration</span>
           </div>
           
           <div className="space-y-5">
             <div className="space-y-2">
-                <label className="block text-[11px] font-medium text-slate-500 uppercase tracking-wider ml-1">Public IP / DDNS</label>
-                <input type="text" value={formData.serverPublicIp} onChange={e => setFormData({...formData, serverPublicIp: e.target.value})} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-semibold text-slate-700 focus:bg-white focus:ring-4 focus:ring-blue-50 outline-none transition-all" placeholder="hq.yourdomain.com" />
+                <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider ml-1">Public IP / DDNS Hostname</label>
+                <input type="text" value={formData.serverPublicIp} onChange={e => setFormData({...formData, serverPublicIp: e.target.value})} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-700 focus:bg-white focus:ring-4 focus:ring-blue-50 focus:border-blue-400 outline-none transition-all placeholder:text-slate-300" placeholder="hq.yourdomain.com" />
             </div>
 
-            <div className="p-6 bg-slate-50 rounded-[2rem] border border-slate-100 space-y-4 shadow-inner">
-               <label className="text-[10px] font-bold text-slate-600 uppercase tracking-wider flex items-center gap-2 mb-2"><ShieldCheck size={14}/> Existing Hub Info</label>
+            <div className="p-6 bg-slate-50/50 rounded-2xl border border-slate-100 space-y-4 shadow-inner">
+               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2 mb-2"><ShieldCheck size={14}/> MikroTik WireGuard Hub</label>
                <div className="grid grid-cols-1 gap-4">
                   <div className="space-y-1.5">
-                     <label className="block text-[10px] font-semibold text-slate-400 uppercase ml-1">Interface Name</label>
-                     <input type="text" value={formData.serverName} onChange={e => setFormData({...formData, serverName: e.target.value})} className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-700" placeholder="wireguard1" />
+                     <label className="block text-[10px] font-bold text-slate-500 uppercase ml-1">Interface Name</label>
+                     <input type="text" value={formData.serverName} onChange={e => setFormData({...formData, serverName: e.target.value})} className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700 focus:border-blue-400 outline-none transition-all" placeholder="wireguard1" />
                   </div>
                   <div className="space-y-1.5">
-                     <label className="block text-[10px] font-semibold text-slate-400 uppercase ml-1">Server Public Key</label>
-                     <input type="text" value={formData.serverPublicKey} onChange={e => setFormData({...formData, serverPublicKey: e.target.value})} className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-mono" placeholder="Paste Public Key from MikroTik" />
+                     <label className="block text-[10px] font-bold text-slate-500 uppercase ml-1">Server Public Key</label>
+                     <input type="text" value={formData.serverPublicKey} onChange={e => setFormData({...formData, serverPublicKey: e.target.value})} className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-mono focus:border-blue-400 outline-none transition-all" placeholder="Paste Public Key from MikroTik" />
                   </div>
                </div>
             </div>
 
             <div className="space-y-4 pt-2">
-               <label className="block text-[10px] font-bold text-blue-600 uppercase tracking-wider ml-1">Traffic Routing (Allowed IPs)</label>
-               <div className="flex gap-2">
+               <label className="block text-[11px] font-bold text-blue-600 uppercase tracking-wider ml-1">Traffic Routing Mode</label>
+               <div className="flex flex-wrap gap-2">
                   <StatusPill 
                     active={formData.routingMode === 'full'}
                     onClick={() => setFormData({...formData, routingMode: 'full'})}
                     icon={Globe}
                     label="Full Tunnel"
-                    activeClass="bg-blue-600 border-blue-600 text-white shadow-md"
+                    activeClass="bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-500/20 scale-[1.02]"
                     inactiveClass="bg-white border-slate-200 text-slate-400 hover:border-blue-300"
                   />
                   <StatusPill 
@@ -201,7 +201,7 @@ PersistentKeepalive = 25`;
                     onClick={() => setFormData({...formData, routingMode: 'split'})}
                     icon={Network}
                     label="Split Tunnel"
-                    activeClass="bg-blue-600 border-blue-600 text-white shadow-md"
+                    activeClass="bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-500/20 scale-[1.02]"
                     inactiveClass="bg-white border-slate-200 text-slate-400 hover:border-blue-300"
                   />
                   <StatusPill 
@@ -209,7 +209,7 @@ PersistentKeepalive = 25`;
                     onClick={() => setFormData({...formData, routingMode: 'custom'})}
                     icon={Settings2}
                     label="Custom"
-                    activeClass="bg-blue-600 border-blue-600 text-white shadow-md"
+                    activeClass="bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-500/20 scale-[1.02]"
                     inactiveClass="bg-white border-slate-200 text-slate-400 hover:border-blue-300"
                   />
                </div>
@@ -220,7 +220,7 @@ PersistentKeepalive = 25`;
                        type="text" 
                        value={formData.customAllowedIPs} 
                        onChange={e => setFormData({...formData, customAllowedIPs: e.target.value})} 
-                       className="w-full border border-blue-100 rounded-2xl p-3 text-xs font-semibold text-blue-700 bg-blue-50/20 focus:ring-4 focus:ring-blue-50 outline-none transition-all" 
+                       className="w-full border border-blue-200 rounded-xl p-3 text-xs font-bold text-blue-700 bg-blue-50/30 focus:ring-4 focus:ring-blue-50 outline-none transition-all" 
                        placeholder="เช่น 192.168.1.0/24, 10.0.88.0/24" 
                      />
                   </div>
@@ -230,42 +230,42 @@ PersistentKeepalive = 25`;
         </div>
 
         {/* Right Card: Client Setup */}
-        <div className="bg-white p-8 rounded-[2.5rem] border border-slate-200 shadow-sm space-y-6">
+        <div className="bg-white p-6 md:p-8 rounded-3xl border border-slate-200 shadow-sm space-y-6 hover:border-emerald-200 transition-colors duration-300">
           <div className="flex items-center gap-3 border-b border-slate-50 pb-5">
               <div className="w-10 h-10 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center shadow-inner"><Cpu size={20}/></div>
-              <span className="font-bold text-slate-800 uppercase tracking-tight text-sm">Client Device Settings</span>
+              <span className="font-black text-slate-800 uppercase tracking-tight text-base">Client Device Settings</span>
           </div>
 
           <div className="space-y-5">
              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                 <div className="space-y-2">
-                   <label className="block text-[11px] font-medium text-slate-500 uppercase tracking-wider ml-1">Client Name</label>
-                   <input type="text" value={formData.clientName} onChange={e => setFormData({...formData, clientName: e.target.value})} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-semibold text-slate-700 focus:bg-white outline-none transition-all" placeholder="Work-Laptop" />
+                   <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider ml-1">Friendly Name</label>
+                   <input type="text" value={formData.clientName} onChange={e => setFormData({...formData, clientName: e.target.value})} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-700 focus:bg-white focus:ring-4 focus:ring-emerald-50 focus:border-emerald-400 outline-none transition-all placeholder:text-slate-300" placeholder="e.g. CEO-iPhone" />
                 </div>
                 <div className="space-y-2">
-                   <label className="block text-[11px] font-medium text-slate-500 uppercase tracking-wider ml-1">VPN Network</label>
-                   <input type="text" value={formData.vpnSubnet} onChange={e => setFormData({...formData, vpnSubnet: e.target.value})} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl font-mono text-sm font-semibold text-slate-700 focus:bg-white outline-none transition-all" placeholder="10.88.0.0" />
+                   <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider ml-1">VPN Virtual IP</label>
+                   <input type="text" value={formData.vpnSubnet} onChange={e => setFormData({...formData, vpnSubnet: e.target.value})} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl font-mono text-sm font-bold text-slate-700 focus:bg-white focus:ring-4 focus:ring-emerald-50 focus:border-emerald-400 outline-none transition-all" placeholder="10.88.0.2" />
                 </div>
              </div>
              
              <div className="space-y-2">
-                <label className="block text-[11px] font-medium text-slate-500 uppercase tracking-wider ml-1">Primary DNS</label>
-                <input type="text" value={formData.dns} onChange={e => setFormData({...formData, dns: e.target.value})} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-semibold text-slate-700 focus:bg-white outline-none transition-all" placeholder="8.8.8.8" />
+                <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider ml-1">DNS Server (Optional)</label>
+                <input type="text" value={formData.dns} onChange={e => setFormData({...formData, dns: e.target.value})} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-700 focus:bg-white focus:ring-4 focus:ring-emerald-50 focus:border-emerald-400 outline-none transition-all" placeholder="8.8.8.8, 1.1.1.1" />
              </div>
 
-             <div className="p-6 bg-emerald-50/20 rounded-[2rem] border border-emerald-100/50 space-y-4 shadow-inner">
+             <div className="p-6 bg-emerald-50/30 rounded-2xl border border-emerald-100/50 space-y-4 shadow-inner">
                 <div className="flex items-center justify-between mb-2">
-                    <label className="block text-[10px] font-bold text-emerald-600 uppercase tracking-wider ml-1 leading-none">Client Keypair</label>
-                    <button onClick={() => handleGenerateKeys('client')} className="flex items-center gap-1.5 px-3 py-1 bg-emerald-600 text-white rounded-xl text-[10px] font-bold uppercase hover:bg-emerald-700 transition-all shadow-md"><RefreshCw size={12} /> Generate New</button>
+                    <label className="block text-[10px] font-black text-emerald-600 uppercase tracking-widest ml-1 leading-none">Client Keypair</label>
+                    <button onClick={() => handleGenerateKeys('client')} className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-[10px] font-bold uppercase hover:bg-emerald-700 transition-all shadow-md"><RefreshCw size={12} /> Generate New</button>
                 </div>
                 <div className="space-y-4">
                     <div className="space-y-1.5">
-                        <label className="block text-[10px] font-semibold text-emerald-400 uppercase ml-1">Private Key</label>
-                        <input type="text" value={formData.clientPrivateKey} onChange={e => setFormData({...formData, clientPrivateKey: e.target.value})} className="w-full px-4 py-2.5 bg-white border border-emerald-100 rounded-xl text-xs font-mono shadow-sm" placeholder="Client Secret Key" />
+                        <label className="block text-[10px] font-bold text-emerald-500 uppercase ml-1">Private Key (Keep Secret)</label>
+                        <input type="text" value={formData.clientPrivateKey} onChange={e => setFormData({...formData, clientPrivateKey: e.target.value})} className="w-full px-4 py-2.5 bg-white border border-emerald-100 rounded-xl text-xs font-mono shadow-sm focus:border-emerald-400 outline-none transition-all" placeholder="Client Private Key" />
                     </div>
                     <div className="space-y-1.5">
-                       <label className="block text-[10px] font-semibold text-emerald-400 uppercase ml-1">Public Key</label>
-                       <input type="text" value={formData.clientPublicKey} onChange={e => setFormData({...formData, clientPublicKey: e.target.value})} className="w-full px-4 py-2.5 bg-white border border-emerald-100 rounded-xl text-xs font-mono shadow-sm" placeholder="Copy to MikroTik Peer" />
+                       <label className="block text-[10px] font-bold text-emerald-500 uppercase ml-1">Public Key (For MikroTik)</label>
+                       <input type="text" value={formData.clientPublicKey} onChange={e => setFormData({...formData, clientPublicKey: e.target.value})} className="w-full px-4 py-2.5 bg-white border border-emerald-100 rounded-xl text-xs font-mono shadow-sm focus:border-emerald-400 outline-none transition-all" placeholder="Copy to Peer configuration" />
                     </div>
                 </div>
              </div>

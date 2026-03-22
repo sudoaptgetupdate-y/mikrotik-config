@@ -27,16 +27,16 @@ const VPNTools = () => {
         
         {/* Tabs Selection (Integrated into Container) */}
         <div className="bg-slate-50/50 border-b border-slate-100 p-4 sm:p-6 flex justify-center sm:justify-start">
-          <div className="flex bg-slate-200/60 p-1 rounded-2xl w-full sm:w-fit shadow-inner">
+          <div className="flex bg-slate-200/60 p-1.5 rounded-2xl w-full sm:w-fit shadow-inner">
             <button
               onClick={() => setActiveTab('c2s')}
-              className={`flex-1 sm:flex-none px-8 py-3 rounded-xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 transition-all duration-300 ${activeTab === 'c2s' ? 'bg-white text-blue-600 shadow-lg scale-[1.02]' : 'text-slate-500 hover:text-slate-700'}`}
+              className={`flex-1 sm:flex-none px-8 py-3 rounded-xl font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-all duration-300 ${activeTab === 'c2s' ? 'bg-white text-blue-600 shadow-lg scale-[1.02]' : 'text-slate-500 hover:text-slate-700'}`}
             >
               <UserPlus size={16} /> Client-to-Site
             </button>
             <button
               onClick={() => setActiveTab('s2s')}
-              className={`flex-1 sm:flex-none px-8 py-3 rounded-xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 transition-all duration-300 ${activeTab === 's2s' ? 'bg-white text-blue-600 shadow-lg scale-[1.02]' : 'text-slate-500 hover:text-slate-700'}`}
+              className={`flex-1 sm:flex-none px-8 py-3 rounded-xl font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-all duration-300 ${activeTab === 's2s' ? 'bg-white text-blue-600 shadow-lg scale-[1.02]' : 'text-slate-500 hover:text-slate-700'}`}
             >
               <Network size={16} /> Site-to-Site
             </button>

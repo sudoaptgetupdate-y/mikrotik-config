@@ -7,7 +7,7 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        sans: ['"IBM Plex Sans Thai"', '"IBM Plex Sans"', 'sans-serif'],
+        sans: ['var(--font-family-main)', 'sans-serif'],
       },
       animation: {
         'marquee': 'marquee 25s linear infinite',
