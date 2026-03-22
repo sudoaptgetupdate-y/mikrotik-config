@@ -122,7 +122,7 @@ const DeviceList = () => {
         (d.boardName?.toLowerCase().includes(searchLower)) || 
         (modelName?.toLowerCase().includes(searchLower));
 
-      const statusObj = getDeviceStatus(d, thresholds);
+      const statusObj = getDeviceStatus(d, thresholds, t);
       
       if (statusFilter === 'ACTIVE_ONLY') return statusObj.state !== 'deleted' && matchesSearch;
       if (statusFilter === 'ONLINE') return statusObj.state === 'online' && matchesSearch;

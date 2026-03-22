@@ -42,7 +42,7 @@ const MainLayout = () => {
         { to: '/devices', icon: Server, label: t('sidebar.managed_routers'), roles: ['SUPER_ADMIN', 'ADMIN', 'EMPLOYEE'] },
         { to: '/groups', icon: FolderKanban, label: t('sidebar.device_groups'), roles: ['SUPER_ADMIN', 'ADMIN'] }, 
         { to: '/models', icon: Database, label: t('sidebar.hardware_models'), roles: ['SUPER_ADMIN', 'ADMIN'] },
-        { to: '/wizard', icon: Wand2, label: t('sidebar.config_wizard'), roles: ['SUPER_ADMIN', 'ADMIN', 'EMPLOYEE'] },
+        { to: '/config-builder', icon: Wand2, label: t('sidebar.config_builder'), roles: ['SUPER_ADMIN', 'ADMIN', 'EMPLOYEE'] },
         { to: '/vpn-tools', icon: ShieldCheck, label: t('sidebar.vpn_tools'), roles: ['SUPER_ADMIN', 'ADMIN', 'EMPLOYEE'] },
       ]
     },
