@@ -1,7 +1,9 @@
 import React, { useEffect } from 'react';
 import { Wifi, Shield, ShieldAlert, Key } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 const Step6_WirelessSetup = ({ selectedModel, wirelessConfig, setWirelessConfig }) => {
+  const { t } = useTranslation();
   // ดึงเฉพาะพอร์ตที่เป็น WLAN ออกมา
   const wlanPorts = selectedModel?.ports?.filter(p => p.type === 'WLAN') || [];
 
@@ -46,17 +48,16 @@ const Step6_WirelessSetup = ({ selectedModel, wirelessConfig, setWirelessConfig 
         <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-blue-100 mb-4">
           <Wifi className="text-blue-600" size={32} />
         </div>
-        <h2 className="text-2xl font-bold text-slate-800">Wireless Setup</h2>
+        <h2 className="text-2xl font-bold text-slate-800">{t('wizard.step6.title')}</h2>
         <p className="text-slate-500 mt-2">
-          Configure Wi-Fi networks for your {selectedModel?.name}. 
-          This step is specifically for devices with built-in wireless capabilities.
+          {t('wizard.step6.desc')} {selectedModel?.name}
         </p>
       </div>
 
       <div className="max-w-4xl mx-auto grid gap-6 md:grid-cols-2">
         {wlanPorts.length === 0 ? (
            <div className="col-span-full text-center p-10 bg-slate-50 rounded-xl border border-dashed border-slate-300">
-             <p className="text-slate-500">No wireless interfaces found on this device model.</p>
+             <p className="text-slate-500">{t('wizard.step6.no_interfaces')}</p>
            </div>
         ) : (
           wlanPorts.map((port) => {
@@ -74,17 +75,17 @@ const Step6_WirelessSetup = ({ selectedModel, wirelessConfig, setWirelessConfig 
                     </div>
                     <div>
                       <h3 className="font-bold text-slate-800 uppercase tracking-wide">{port.name}</h3>
-                      <p className="text-xs text-slate-500">Interface</p>
+                      <p className="text-xs text-slate-500">{t('wizard.step6.interface')}</p>
                     </div>
                   </div>
                   {/* Badge แจ้งเตือนเรื่องความปลอดภัย */}
                   {isNoPassword ? (
                     <span className="flex items-center gap-1 text-[10px] font-bold bg-red-100 text-red-600 px-2 py-1 rounded-full">
-                      <ShieldAlert size={12} /> Unsecured
+                      <ShieldAlert size={12} /> {t('wizard.step6.unsecured')}
                     </span>
                   ) : (
                     <span className="flex items-center gap-1 text-[10px] font-bold bg-green-100 text-green-700 px-2 py-1 rounded-full">
-                      <Shield size={12} /> Secured
+                      <Shield size={12} /> {t('wizard.step6.secured')}
                     </span>
                   )}
                 </div>
@@ -94,12 +95,12 @@ const Step6_WirelessSetup = ({ selectedModel, wirelessConfig, setWirelessConfig 
                   
                   {/* SSID */}
                   <div>
-                    <label className="block text-sm font-bold text-slate-700 mb-1.5">Network Name (SSID)</label>
+                    <label className="block text-sm font-bold text-slate-700 mb-1.5">{t('wizard.step6.label_ssid')}</label>
                     <input 
                       type="text" 
                       value={config.ssid || ''}
                       onChange={(e) => handleUpdate(port.name, 'ssid', e.target.value)}
-                      placeholder="e.g. MyWiFi_Network"
+                      placeholder={t('wizard.step6.placeholder_ssid')}
                       className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition"
                     />
                   </div>
@@ -107,7 +108,7 @@ const Step6_WirelessSetup = ({ selectedModel, wirelessConfig, setWirelessConfig 
                   <div className="grid grid-cols-2 gap-4">
                     {/* Security Type */}
                     <div>
-                      <label className="block text-sm font-bold text-slate-700 mb-1.5">Security</label>
+                      <label className="block text-sm font-bold text-slate-700 mb-1.5">{t('wizard.step6.label_security')}</label>
                       <select 
                         value={config.security || 'wpa2-psk'}
                         onChange={(e) => {
@@ -116,16 +117,16 @@ const Step6_WirelessSetup = ({ selectedModel, wirelessConfig, setWirelessConfig 
                         }}
                         className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white transition"
                       >
-                        <option value="none">Open (No Password)</option>
-                        <option value="wpa2-psk">WPA2 Personal</option>
-                        <option value="wpa2-wpa3-psk">WPA2 / WPA3</option>
+                        <option value="none">{t('wizard.step6.option_open')}</option>
+                        <option value="wpa2-psk">{t('wizard.step6.option_wpa2')}</option>
+                        <option value="wpa2-wpa3-psk">{t('wizard.step6.option_wpa2_wpa3')}</option>
                       </select>
                     </div>
 
                     {/* Password */}
                     <div>
                       <label className={`block text-sm font-bold mb-1.5 ${isNoPassword ? 'text-slate-400' : 'text-slate-700'}`}>
-                        Password
+                        {t('wizard.step6.label_pass')}
                       </label>
                       <div className="relative">
                         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -135,7 +136,7 @@ const Step6_WirelessSetup = ({ selectedModel, wirelessConfig, setWirelessConfig 
                           type="text" 
                           value={config.password || ''}
                           onChange={(e) => handleUpdate(port.name, 'password', e.target.value)}
-                          placeholder={isNoPassword ? "Not required" : "Min 8 chars"}
+                          placeholder={isNoPassword ? t('wizard.step6.placeholder_no_pass') : t('wizard.step6.placeholder_pass')}
                           disabled={isNoPassword}
                           className={`w-full pl-9 p-2.5 border rounded-lg focus:ring-2 outline-none transition ${
                             isNoPassword 
@@ -145,7 +146,7 @@ const Step6_WirelessSetup = ({ selectedModel, wirelessConfig, setWirelessConfig 
                         />
                       </div>
                       {!isNoPassword && config.password && config.password.length < 8 && (
-                        <p className="text-xs text-red-500 mt-1">Password must be at least 8 characters.</p>
+                        <p className="text-xs text-red-500 mt-1">{t('wizard.step6.error_pass_length')}</p>
                       )}
                     </div>
                   </div>

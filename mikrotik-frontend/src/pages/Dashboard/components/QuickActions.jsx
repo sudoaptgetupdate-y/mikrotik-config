@@ -1,15 +1,17 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { Plus, Router, Database, Users, ArrowRight } from 'lucide-react';
 
 const QuickActions = () => {
+  const { t } = useTranslation();
   const navigate = useNavigate();
 
   return (
     <div className="space-y-3 h-full flex flex-col">
       <div className="flex items-center gap-2 mb-1">
         <div className="w-1.5 h-5 bg-indigo-500 rounded-full"></div>
-        <h3 className="text-base font-black text-slate-800">Quick Actions</h3>
+        <h3 className="text-base font-black text-slate-800">{t('dashboard.sections.quick_actions')}</h3>
       </div>
       
       <div className="grid gap-3">
@@ -18,7 +20,7 @@ const QuickActions = () => {
           <div className="flex items-center gap-3">
             <div className="p-2.5 bg-blue-50 text-blue-600 rounded-xl group-hover:bg-blue-600 group-hover:text-white transition-colors"><Plus size={20} /></div>
             <div>
-              <h4 className="text-sm font-bold text-slate-800 group-hover:text-blue-600 transition">Add New Device</h4>
+              <h4 className="text-sm font-bold text-slate-800 group-hover:text-blue-600 transition">{t('sidebar.config_wizard')}</h4>
               <p className="text-[11px] text-slate-500 font-medium">Create a new router config</p>
             </div>
           </div>
@@ -30,7 +32,7 @@ const QuickActions = () => {
           <div className="flex items-center gap-3">
             <div className="p-2.5 bg-indigo-50 text-indigo-600 rounded-xl group-hover:bg-indigo-600 group-hover:text-white transition-colors"><Router size={20} /></div>
             <div>
-              <h4 className="text-sm font-bold text-slate-800 group-hover:text-indigo-600 transition">Manage Devices</h4>
+              <h4 className="text-sm font-bold text-slate-800 group-hover:text-indigo-600 transition">{t('sidebar.managed_routers')}</h4>
               <p className="text-[11px] text-slate-500 font-medium">View and edit inventory</p>
             </div>
           </div>
@@ -42,7 +44,7 @@ const QuickActions = () => {
           <div className="flex items-center gap-3">
             <div className="p-2.5 bg-teal-50 text-teal-600 rounded-xl group-hover:bg-teal-600 group-hover:text-white transition-colors"><Users size={20} /></div>
             <div>
-              <h4 className="text-sm font-bold text-slate-800 group-hover:text-teal-600 transition">Manage Groups</h4>
+              <h4 className="text-sm font-bold text-slate-800 group-hover:text-teal-600 transition">{t('sidebar.device_groups')}</h4>
               <p className="text-[11px] text-slate-500 font-medium">Organize devices & alerts</p>
             </div>
           </div>
@@ -54,7 +56,7 @@ const QuickActions = () => {
           <div className="flex items-center gap-3">
             <div className="p-2.5 bg-slate-100 text-slate-600 rounded-xl group-hover:bg-slate-800 group-hover:text-white transition-colors"><Database size={20} /></div>
             <div>
-              <h4 className="text-sm font-bold text-slate-800 group-hover:text-slate-900 transition">Hardware Models</h4>
+              <h4 className="text-sm font-bold text-slate-800 group-hover:text-slate-900 transition">{t('sidebar.hardware_models')}</h4>
               <p className="text-[11px] text-slate-500 font-medium">Manage port templates</p>
             </div>
           </div>

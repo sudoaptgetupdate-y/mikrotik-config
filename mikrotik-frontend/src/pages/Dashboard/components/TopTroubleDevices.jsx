@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { logService } from '../../../services/logService';
 import { AlertCircle, WifiOff, AlertTriangle, ChevronRight, Loader2 } from 'lucide-react';
 
 const TopTroubleDevices = () => {
+  const { t } = useTranslation();
   const [days, setDays] = useState(7); // Default to 7 days for trends
   const navigate = useNavigate();
 
@@ -25,7 +27,7 @@ const TopTroubleDevices = () => {
       <div className="flex items-center justify-between mb-1">
         <div className="flex items-center gap-2">
           <div className="w-1.5 h-5 bg-rose-600 rounded-full"></div>
-          <h3 className="text-base font-black text-slate-800">Incident Leaderboard</h3>
+          <h3 className="text-base font-black text-slate-800">{t('dashboard.sections.trouble_devices')}</h3>
         </div>
         
         <div className="flex bg-slate-100 p-1 rounded-lg border border-slate-200 shadow-inner">
@@ -56,7 +58,7 @@ const TopTroubleDevices = () => {
             <div className="w-12 h-12 bg-slate-50 rounded-full flex items-center justify-center mb-3 text-slate-300">
                 <AlertCircle size={24} />
             </div>
-            <p className="text-xs font-bold text-slate-400">No recurring incidents found in this period.</p>
+            <p className="text-xs font-bold text-slate-400">{t('common.no_data')}</p>
           </div>
         ) : (
           <div className="divide-y divide-slate-100">

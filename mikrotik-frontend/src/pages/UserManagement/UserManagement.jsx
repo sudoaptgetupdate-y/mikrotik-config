@@ -3,6 +3,7 @@ import { Users, Plus, Search, ChevronRight, ChevronLeft } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import Swal from 'sweetalert2';
+import { useTranslation } from 'react-i18next';
 
 import { userService } from '../../services/userService';
 import UserFormModal from './components/UserFormModal';
@@ -10,6 +11,7 @@ import UserTable from './components/UserTable';
 import Pagination from '../../components/Pagination';
 
 const UserManagement = () => {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
 
   // ==========================================
@@ -33,18 +35,18 @@ const UserManagement = () => {
   const { data: users = [], isLoading: loading } = useQuery({
     queryKey: ['users'],
     queryFn: () => userService.getUsers(),
-    onError: () => toast.error("ดึงข้อมูลผู้ใช้ไม่สำเร็จ")
+    onError: () => toast.error(t('users.messages.fetch_error'))
   });
 
   // ==========================================
   // Validation Rules
   // ==========================================
   const passwordRules = [
-    { id: 'length', label: 'อย่างน้อย 8 ตัวอักษร', regex: /.{8,}/ },
-    { id: 'upper', label: 'ตัวพิมพ์ใหญ่ (A-Z)', regex: /[A-Z]/ },
-    { id: 'lower', label: 'ตัวพิมพ์เล็ก (a-z)', regex: /[a-z]/ },
-    { id: 'number', label: 'ตัวเลข (0-9)', regex: /[0-9]/ },
-    { id: 'special', label: 'อักขระพิเศษ (@$!%*?&)', regex: /[@$!%*?&#^]/ }
+    { id: 'length', label: t('users.form.rules.length'), regex: /.{8,}/ },
+    { id: 'upper', label: t('users.form.rules.upper'), regex: /[A-Z]/ },
+    { id: 'lower', label: t('users.form.rules.lower'), regex: /[a-z]/ },
+    { id: 'number', label: t('users.form.rules.number'), regex: /[0-9]/ },
+    { id: 'special', label: t('users.form.rules.special'), regex: /[@$!%*?&#^]/ }
   ];
 
   // ==========================================
@@ -103,9 +105,9 @@ const UserManagement = () => {
     const updatePromise = userService.updateUser(user.id, { isActive: newStatus });
     
     toast.promise(updatePromise, {
-      loading: 'กำลังอัปเดตสถานะ...',
-      success: `เปลี่ยนสถานะเป็น ${newStatus ? 'Active' : 'Inactive'} เรียบร้อย!`,
-      error: (err) => err.response?.data?.error || "ไม่สามารถเปลี่ยนสถานะได้"
+      loading: t('users.messages.updating'),
+      success: t('users.actions.update_success'),
+      error: (err) => err.response?.data?.error || t('common.error_default')
     });
 
     try {
@@ -115,30 +117,50 @@ const UserManagement = () => {
   };
 
   const handleRestoreUser = async (user) => {
-    const updatePromise = userService.updateUser(user.id, { isArchived: false, isActive: true });
-    
-    toast.promise(updatePromise, {
-      loading: 'กำลังกู้คืนบัญชี...',
-      success: 'กู้คืนบัญชีผู้ใช้เรียบร้อย!',
-      error: (err) => err.response?.data?.error || "กู้คืนบัญชีไม่สำเร็จ"
+    const result = await Swal.fire({
+      title: t('users.restore_confirm.title'),
+      text: t('users.restore_confirm.text', { name: `${user.firstName} ${user.lastName}` }),
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonText: t('users.restore_confirm.confirm'),
+      cancelButtonText: t('common.cancel'),
+      buttonsStyling: false,
+      customClass: {
+        popup: 'rounded-3xl p-6 border border-slate-100 shadow-2xl',
+        title: 'text-xl font-bold text-slate-800',
+        htmlContainer: 'text-sm text-slate-500 font-medium mt-2',
+        actions: 'flex gap-3 mt-6 w-full justify-center',
+        confirmButton: 'bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-xl text-sm font-bold shadow-sm transition-all',
+        cancelButton: 'bg-slate-100 hover:bg-slate-200 text-slate-600 px-6 py-2.5 rounded-xl text-sm font-bold transition-all'
+      }
     });
 
-    try {
-      await updatePromise;
-      queryClient.invalidateQueries({ queryKey: ['users'] });
-    } catch (error) {}
+    if (result.isConfirmed) {
+      const updatePromise = userService.updateUser(user.id, { isArchived: false, isActive: true });
+      
+      toast.promise(updatePromise, {
+        loading: t('users.messages.restoring'),
+        success: t('users.restore_confirm.success'),
+        error: (err) => err.response?.data?.error || t('users.restore_confirm.error')
+      });
+
+      try {
+        await updatePromise;
+        queryClient.invalidateQueries({ queryKey: ['users'] });
+      } catch (error) {}
+    }
   };
 
   const handleDelete = async (user) => {
     const result = await Swal.fire({
-      title: user.isArchived ? 'ยืนยันการลบถาวร?' : 'ยืนยันการลบผู้ใช้งาน?',
+      title: user.isArchived ? t('users.delete_confirm.title_perm') : t('users.delete_confirm.title'),
       text: user.isArchived 
-        ? `ระวัง! ข้อมูลของ "${user.firstName}" จะถูกลบออกจากฐานข้อมูลอย่างถาวรและไม่สามารถกู้คืนได้`
-        : `คุณแน่ใจหรือไม่ว่าต้องการลบผู้ใช้ "${user.firstName} ${user.lastName}"?`,
+        ? t('users.delete_confirm.text_perm', { name: user.firstName })
+        : t('users.delete_confirm.text', { name: `${user.firstName} ${user.lastName}` }),
       icon: 'warning',
       showCancelButton: true,
-      confirmButtonText: user.isArchived ? 'ใช่, ลบถาวร!' : 'ใช่, ลบเลย!',
-      cancelButtonText: 'ยกเลิก',
+      confirmButtonText: user.isArchived ? t('users.delete_confirm.confirm_perm') : t('users.delete_confirm.confirm'),
+      cancelButtonText: t('common.cancel'),
       buttonsStyling: false,
       customClass: {
         popup: 'rounded-3xl p-6 border border-slate-100 shadow-2xl',
@@ -153,9 +175,9 @@ const UserManagement = () => {
     if (result.isConfirmed) {
       const deletePromise = userService.deleteUser(user.id);
       toast.promise(deletePromise, {
-        loading: 'Deleting user...',
-        success: (res) => res.type === 'SOFT_DELETE' ? 'ย้ายผู้ใช้ไปห้องเก็บประวัติ (Archived) เนื่องจากมีข้อมูลผูกพัน' : 'ลบผู้ใช้สำเร็จ!',
-        error: (err) => err.response?.data?.error || "ลบผู้ใช้ไม่สำเร็จ"
+        loading: t('users.messages.deleting'),
+        success: t('users.delete_confirm.success'),
+        error: (err) => err.response?.data?.error || t('users.delete_confirm.error')
       });
       try {
         await deletePromise;
@@ -167,18 +189,18 @@ const UserManagement = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!isEditing || formData.password) {
-      if (formData.password !== formData.confirmPassword) return toast.error("รหัสผ่านและการยืนยันรหัสผ่านไม่ตรงกัน");
+      if (formData.password !== formData.confirmPassword) return toast.error(t('users.messages.password_mismatch'));
       const isValidPassword = passwordRules.every(rule => rule.regex.test(formData.password));
-      if (!isValidPassword) return toast.error("รหัสผ่านไม่ตรงตามเงื่อนไขความปลอดภัย");
+      if (!isValidPassword) return toast.error(t('users.messages.password_invalid'));
     }
 
     const payload = isEditing ? { firstName: formData.firstName, lastName: formData.lastName, role: formData.role, isActive: formData.isActive, isArchived: formData.isArchived, ...(formData.password && {password: formData.password}) } : formData;
     const savePromise = isEditing ? userService.updateUser(formData.id, payload) : userService.createUser(payload);
 
     toast.promise(savePromise, {
-      loading: 'Saving user...',
-      success: isEditing ? 'อัปเดตผู้ใช้สำเร็จ!' : 'สร้างผู้ใช้ใหม่สำเร็จ!',
-      error: (err) => err.response?.data?.error || "เกิดข้อผิดพลาดในการบันทึกข้อมูล"
+      loading: t('users.messages.saving'),
+      success: isEditing ? t('users.actions.update_success') : t('users.actions.create_success'),
+      error: (err) => err.response?.data?.error || t('common.error_default')
     });
 
     try {
@@ -200,10 +222,10 @@ const UserManagement = () => {
         <div className="relative z-10">
           <h1 className="text-2xl font-bold text-slate-800 tracking-tight flex items-center gap-2">
             <Users className="text-blue-600" size={28} /> 
-            User Management
+            {t('users.title')}
           </h1>
           <p className="text-sm text-slate-500 mt-1 font-medium italic">
-            จัดการผู้ใช้งานระบบและกำหนดสิทธิ์การเข้าถึง (RBAC)
+            {t('users.subtitle')}
           </p>
         </div>
         
@@ -213,7 +235,7 @@ const UserManagement = () => {
             className="shrink-0 bg-blue-600 text-white px-5 py-2.5 rounded-xl flex items-center justify-center gap-2 hover:bg-blue-700 hover:-translate-y-0.5 active:translate-y-0 transition-all font-bold text-sm shadow-lg shadow-blue-500/20"
           >
             <Plus size={18} strokeWidth={2.5} /> 
-            <span>Add New User</span>
+            <span>{t('users.add_button')}</span>
           </button>
         </div>
 
@@ -233,7 +255,7 @@ const UserManagement = () => {
               : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50/50'
             }`}
           >
-            Users
+            {t('users.tab_users')}
             <span className={`ml-2 px-1.5 py-0.5 rounded-md text-[10px] ${activeTab === 'active' ? 'bg-blue-100 text-blue-700' : 'bg-slate-200 text-slate-500'}`}>
               {users.filter(u => !u.isArchived).length}
             </span>
@@ -246,7 +268,7 @@ const UserManagement = () => {
               : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50/50'
             }`}
           >
-            Archived
+            {t('users.tab_archived')}
             <span className={`ml-2 px-1.5 py-0.5 rounded-md text-[10px] ${activeTab === 'inactive' ? 'bg-orange-100 text-orange-700' : 'bg-slate-200 text-slate-500'}`}>
               {users.filter(u => u.isArchived).length}
             </span>
@@ -259,14 +281,14 @@ const UserManagement = () => {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
             <input 
               type="text" 
-              placeholder={`ค้นหาใน ${activeTab === 'active' ? 'รายชื่อผู้ใช้' : 'จดหมายเหตุ'}...`} 
+              placeholder={t('users.search_placeholder', { tab: activeTab === 'active' ? t('users.tab_users') : t('users.tab_archived') })} 
               className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-sm" 
               value={searchTerm} 
               onChange={(e) => setSearchTerm(e.target.value)} 
             />
           </div>
           <div className="text-sm text-slate-500 font-medium px-2">
-            พบ <span className={`font-bold ${activeTab === 'active' ? 'text-blue-600' : 'text-orange-600'}`}>{filteredUsers.length}</span> รายการ
+            {t('users.found_total', { count: filteredUsers.length })}
           </div>
         </div>
       </div>

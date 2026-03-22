@@ -5,8 +5,10 @@ import toast from 'react-hot-toast';
 import { useQueryClient } from '@tanstack/react-query';
 import Swal from 'sweetalert2';
 import Pagination from '../../../components/Pagination';
+import { useTranslation } from 'react-i18next';
 
 export default function TabManagementIps({ initialData }) {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
 
   const [managementIps, setManagementIps] = useState(initialData || []);
@@ -30,9 +32,9 @@ export default function TabManagementIps({ initialData }) {
     const savePromise = apiClient.put(`/api/settings/MANAGEMENT_IPS`, { value: updatedList });
     
     toast.promise(savePromise, {
-      loading: 'กำลังบันทึกข้อมูล...',
-      success: 'อัปเดต Management IPs สำเร็จ!',
-      error: (err) => `เกิดข้อผิดพลาด: ${err.message}`
+      loading: t('common.saving') || 'กำลังบันทึกข้อมูล...',
+      success: t('settings.management_ips.toast_success'),
+      error: (err) => `${t('common.error')}: ${err.message}`
     });
 
     try {
@@ -46,8 +48,8 @@ export default function TabManagementIps({ initialData }) {
 
   const addManagementIp = () => {
     const cleanIp = newManagementIp.trim();
-    if (!cleanIp) return toast.error("กรุณากรอก IP Address หรือ CIDR");
-    if (managementIps.includes(cleanIp)) return toast.error(`IP "${cleanIp}" มีอยู่ในระบบแล้ว`);
+    if (!cleanIp) return toast.error(t('settings.management_ips.error_missing'));
+    if (managementIps.includes(cleanIp)) return toast.error(t('settings.management_ips.error_duplicate', { name: cleanIp }));
 
     const updatedList = [...managementIps, cleanIp];
     handleSaveToBackend(updatedList, () => { 
@@ -59,8 +61,13 @@ export default function TabManagementIps({ initialData }) {
   const removeManagementIp = async (index, ip) => {
     const realIndex = (currentPage - 1) * itemsPerPage + index;
     const result = await Swal.fire({
-      title: 'ยืนยันการลบ IP?', text: `คุณต้องการลบ IP "${ip}" ออกจาก Allow List ใช่หรือไม่?`, icon: 'warning',
-      showCancelButton: true, confirmButtonText: 'ใช่, ลบออก!', cancelButtonText: 'ยกเลิก', buttonsStyling: false,
+      title: t('settings.management_ips.delete_confirm.title'), 
+      text: t('settings.management_ips.delete_confirm.text', { name: ip }), 
+      icon: 'warning',
+      showCancelButton: true, 
+      confirmButtonText: t('settings.management_ips.delete_confirm.confirm'), 
+      cancelButtonText: t('common.cancel'), 
+      buttonsStyling: false,
       customClass: {
         popup: 'rounded-3xl p-6 border border-slate-100 shadow-xl', title: 'text-xl font-bold text-slate-800',
         htmlContainer: 'text-sm text-slate-500 font-medium mt-2', actions: 'flex gap-3 mt-6 w-full justify-center',
@@ -78,14 +85,14 @@ export default function TabManagementIps({ initialData }) {
   return (
     <div className="flex-1 flex flex-col h-full">
       <div className="mb-6 pb-4 border-b border-slate-100 shrink-0">
-        <h3 className="text-lg font-bold text-slate-800">Management IPs (Allow List)</h3>
-        <p className="text-sm text-slate-500 mt-1">IP ที่ได้รับอนุญาตให้เข้าถึงระบบจัดการของอุปกรณ์ (บันทึกอัตโนมัติ)</p>
+        <h3 className="text-lg font-bold text-slate-800">{t('settings.management_ips.title')}</h3>
+        <p className="text-sm text-slate-500 mt-1">{t('settings.management_ips.desc')}</p>
       </div>
 
       <div className="flex flex-col sm:flex-row items-center gap-3 mb-6 bg-white p-4 border border-slate-200 rounded-xl shadow-sm shrink-0">
-        <input type="text" placeholder="e.g. 10.234.56.0/24 หรือ 192.168.1.100" value={newManagementIp} onChange={e => setNewManagementIp(e.target.value)} onKeyDown={e => e.key === 'Enter' && addManagementIp()} className="w-full sm:flex-1 border border-slate-300 rounded-xl px-4 py-2.5 text-sm font-mono outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-50 transition-all" />
+        <input type="text" placeholder={t('settings.management_ips.placeholder')} value={newManagementIp} onChange={e => setNewManagementIp(e.target.value)} onKeyDown={e => e.key === 'Enter' && addManagementIp()} className="w-full sm:flex-1 border border-slate-300 rounded-xl px-4 py-2.5 text-sm font-mono outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-50 transition-all" />
         <button onClick={addManagementIp} disabled={isSaving} className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-400 text-white px-6 py-2.5 rounded-xl flex items-center justify-center gap-2 font-bold transition-all shadow-sm whitespace-nowrap">
-          {isSaving ? <Loader2 size={18} className="animate-spin" /> : <Plus size={18} />} Add IP
+          {isSaving ? <Loader2 size={18} className="animate-spin" /> : <Plus size={18} />} {t('settings.management_ips.add_button')}
         </button>
       </div>
 
@@ -95,7 +102,6 @@ export default function TabManagementIps({ initialData }) {
             {paginatedIps.map((ip, idx) => (
               <div key={idx} className="flex items-center gap-3 bg-slate-50 p-3 rounded-xl border border-slate-200 shadow-sm transition-all hover:border-emerald-300">
                 <Network size={16} className="text-emerald-500 shrink-0" />
-                {/* 🟢 นำ font-bold ออกจาก IP Address */}
                 <span className="flex-1 text-sm font-mono text-emerald-800">{ip}</span>
                 <button onClick={() => removeManagementIp(idx, ip)} disabled={isSaving} className="text-slate-400 hover:text-red-600 bg-white border border-slate-200 hover:bg-red-50 p-2 rounded-lg transition-colors disabled:opacity-50">
                   <Trash2 size={16} />
@@ -106,7 +112,7 @@ export default function TabManagementIps({ initialData }) {
 
           {managementIps.length === 0 && (
             <div className="text-center py-8 text-slate-400 text-sm border border-dashed border-slate-300 rounded-xl bg-slate-50 mb-6">
-              ไม่มี IP ใน Allow List (อุปกรณ์จะอนุญาตให้เข้าจากทุก IP ซึ่งไม่ปลอดภัย)
+              {t('settings.management_ips.empty')}
             </div>
           )}
         </div>

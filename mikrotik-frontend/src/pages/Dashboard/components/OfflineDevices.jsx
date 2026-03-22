@@ -1,15 +1,17 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { Radio, Clock, MapPin, CheckCircle2 } from 'lucide-react';
 
 const OfflineDevices = ({ devices }) => {
+  const { t, i18n } = useTranslation();
   const navigate = useNavigate();
 
   return (
     <div className="space-y-3">
       <div className="flex items-center gap-2 mb-1">
         <div className="w-1.5 h-5 bg-rose-500 rounded-full"></div>
-        <h3 className="text-base font-black text-slate-800">Offline Devices</h3>
+        <h3 className="text-base font-black text-slate-800">{t('dashboard.sections.offline_alerts')}</h3>
       </div>
 
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
@@ -18,15 +20,15 @@ const OfflineDevices = ({ devices }) => {
             <div className="w-14 h-14 bg-emerald-50 rounded-full flex items-center justify-center mb-3">
               <CheckCircle2 size={28} className="text-emerald-500" />
             </div>
-            <p className="text-sm font-medium text-slate-500">No connectivity issues</p>
-            <p className="text-[11px] mt-1 text-slate-400">All managed devices are online</p>
+            <p className="text-sm font-medium text-slate-500">{t('common.no_data')}</p>
           </div>
         ) : (
           <div className="divide-y divide-slate-100 max-h-[320px] overflow-y-auto custom-scrollbar">
             {devices.map((device) => {
               const lastSeenDate = device.lastSeen ? new Date(device.lastSeen) : null;
-              const timeStr = lastSeenDate ? lastSeenDate.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }) : 'N/A';
-              const dateStr = lastSeenDate ? lastSeenDate.toLocaleDateString('th-TH', { day: '2-digit', month: 'short' }) : '';
+              const locale = i18n.language === 'en' ? 'en-US' : 'th-TH';
+              const timeStr = lastSeenDate ? lastSeenDate.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' }) : 'N/A';
+              const dateStr = lastSeenDate ? lastSeenDate.toLocaleDateString(locale, { day: '2-digit', month: 'short' }) : '';
 
               return (
                 <div 

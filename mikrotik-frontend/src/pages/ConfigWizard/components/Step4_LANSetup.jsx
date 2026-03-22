@@ -1,7 +1,9 @@
 import React, { useEffect } from 'react';
 import { Network, Plus, Trash2, Server, ShieldCheck, Settings2, Globe } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 const Step4_LANSetup = ({ networks, setNetworks, dnsConfig }) => {
+  const { t } = useTranslation();
   
   // 🟢 จัดเรียง Network ตาม VLAN ID จากน้อยไปมาก ทันทีที่โหลดหน้านี้ (เช่น ตอนกด Back กลับมา)
   useEffect(() => {
@@ -77,16 +79,16 @@ const Step4_LANSetup = ({ networks, setNetworks, dnsConfig }) => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
         <div>
           <h2 className="text-xl font-black text-slate-800 flex items-center gap-2">
-            <Settings2 className="text-blue-600" /> LAN & VLAN Configuration
+            <Settings2 className="text-blue-600" /> {t('wizard.step4.title')}
           </h2>
-          <p className="text-sm text-slate-500 mt-1 font-medium">กำหนดวงเครือข่ายภายในและระบบ Hotspot</p>
+          <p className="text-sm text-slate-500 mt-1 font-medium">{t('wizard.step4.desc')}</p>
         </div>
         
         <button 
           onClick={addNetwork}
           className="bg-blue-600 text-white px-5 py-2.5 rounded-xl flex items-center justify-center gap-2 hover:bg-blue-700 hover:shadow-lg hover:shadow-blue-500/20 transition-all duration-300 font-bold text-sm"
         >
-          <Plus size={18} /> New Network
+          <Plus size={18} /> {t('wizard.step4.add_lan')}
         </button>
       </div>
 
@@ -111,7 +113,7 @@ const Step4_LANSetup = ({ networks, setNetworks, dnsConfig }) => {
                 
                 {/* VLAN ID */}
                 <div className="md:col-span-2">
-                  <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">VLAN ID</label>
+                  <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">{t('wizard.step4.label_vlan')}</label>
                   <input 
                     type="number" 
                     className="w-full px-4 py-2.5 border border-slate-200 rounded-xl font-mono font-bold text-blue-600 text-center bg-slate-50 focus:bg-white focus:ring-4 focus:ring-blue-50 focus:border-blue-400 outline-none transition-all"
@@ -122,7 +124,7 @@ const Step4_LANSetup = ({ networks, setNetworks, dnsConfig }) => {
 
                 {/* Name */}
                 <div className="md:col-span-3">
-                  <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">Network Name</label>
+                  <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">{t('wizard.step4.label_name')}</label>
                   <div className="relative">
                     <Network className={`absolute left-3.5 top-1/2 -translate-y-1/2 ${net.hotspot ? 'text-orange-400' : 'text-slate-400'}`} size={16} />
                     <input 
@@ -132,14 +134,14 @@ const Step4_LANSetup = ({ networks, setNetworks, dnsConfig }) => {
                       }`}
                       value={net.name}
                       onChange={(e) => updateNetwork(net.id, 'name', e.target.value)}
-                      placeholder="e.g. vlan10Service"
+                      placeholder={t('wizard.step4.placeholder_name')}
                     />
                   </div>
                 </div>
 
                 {/* IP Gateway */}
                 <div className="md:col-span-3">
-                  <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">Gateway / CIDR</label>
+                  <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">{t('wizard.step4.label_ip')}</label>
                   <input 
                     type="text" 
                     className={`w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-mono text-sm font-medium text-slate-700 focus:bg-white outline-none transition-all focus:ring-4 ${
@@ -147,7 +149,7 @@ const Step4_LANSetup = ({ networks, setNetworks, dnsConfig }) => {
                     }`}
                     value={net.ip}
                     onChange={(e) => updateNetwork(net.id, 'ip', e.target.value)}
-                    placeholder="192.168.10.1/24"
+                    placeholder={t('wizard.step4.placeholder_ip')}
                   />
                 </div>
 
@@ -165,7 +167,7 @@ const Step4_LANSetup = ({ networks, setNetworks, dnsConfig }) => {
                   >
                     <Server size={16} className={net.dhcp ? "text-green-500" : "opacity-70"} />
                     <span className="ml-2 text-[11px] font-bold whitespace-nowrap">
-                      {net.dhcp ? 'DHCP: ON' : 'DHCP: OFF'}
+                      {t('wizard.step4.label_dhcp')}: {net.dhcp ? 'ON' : 'OFF'}
                     </span>
                   </button>
 
@@ -180,7 +182,7 @@ const Step4_LANSetup = ({ networks, setNetworks, dnsConfig }) => {
                   >
                     <ShieldCheck size={16} className={net.hotspot ? "text-orange-500" : "opacity-70"} />
                     <span className="ml-2 text-[11px] font-bold whitespace-nowrap">
-                      {net.hotspot ? 'HOTSPOT: ON' : 'HOTSPOT: OFF'}
+                      {t('wizard.step4.label_hotspot')}: {net.hotspot ? 'ON' : 'OFF'}
                     </span>
                   </button>
 
@@ -188,7 +190,7 @@ const Step4_LANSetup = ({ networks, setNetworks, dnsConfig }) => {
                   <button 
                     onClick={() => removeNetwork(net.id)}
                     className="flex items-center justify-center h-11 w-11 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all border border-transparent hover:border-red-100 shrink-0 ml-1"
-                    title="Remove Network"
+                    title={t('common.delete')}
                   >
                     <Trash2 size={18} />
                   </button>
@@ -200,7 +202,7 @@ const Step4_LANSetup = ({ networks, setNetworks, dnsConfig }) => {
               <div className="mt-4 flex flex-wrap items-center gap-5 text-[11px] text-slate-500 border-t border-slate-100 pt-3">
                 <div className="flex items-center gap-1.5">
                   <span className="font-bold uppercase tracking-wider text-[10px] text-slate-400 flex items-center gap-1">
-                    <Server size={12}/> DHCP Server:
+                    <Server size={12}/> {t('wizard.step4.label_dhcp')}:
                   </span> 
                   <span className={`font-medium ${net.dhcp ? "text-green-600" : "text-slate-400"}`}>
                     {net.dhcp ? "Active (Auto Issue IP)" : "Disabled"}

@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
 import { X, Activity, ArrowUpCircle, ArrowDownCircle, AlertTriangle, Loader2, Search, Filter } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 const EventLogModal = ({ isOpen, onClose, device, events, loading }) => {
+  const { t, i18n } = useTranslation();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
 
@@ -41,7 +43,7 @@ const EventLogModal = ({ isOpen, onClose, device, events, loading }) => {
 
     if (searchTerm.trim() !== '') {
       const term = searchTerm.toLowerCase();
-      const dateStr = new Date(ev.createdAt).toLocaleString('th-TH', { dateStyle: 'short', timeStyle: 'short' }).toLowerCase();
+      const dateStr = new Date(ev.createdAt).toLocaleString(i18n.language, { dateStyle: 'short', timeStyle: 'short' }).toLowerCase();
       const details = (ev.details || '').toLowerCase();
       const type = (ev.eventType || '').toLowerCase();
 
@@ -81,8 +83,8 @@ const EventLogModal = ({ isOpen, onClose, device, events, loading }) => {
               <Activity size={24} />
             </div>
             <div>
-              <h3 className="font-black text-xl text-slate-800 tracking-tight">Event History Logs</h3>
-              <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Device: {device?.name}</p>
+              <h3 className="font-black text-xl text-slate-800 tracking-tight">{t('devices.events.title', 'Event History Logs')}</h3>
+              <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">{t('devices.events.deviceName', 'Device:')} {device?.name}</p>
             </div>
           </div>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-600 hover:bg-slate-100 p-2 rounded-xl transition-all">
@@ -96,7 +98,7 @@ const EventLogModal = ({ isOpen, onClose, device, events, loading }) => {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
             <input 
               type="text"
-              placeholder="ค้นหาวันที่ (เช่น 28/2), เดือน หรือรายละเอียด..."
+              placeholder={t('devices.events.search_placeholder', 'Search by date or details...')}
               className="w-full pl-9 pr-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
@@ -109,10 +111,10 @@ const EventLogModal = ({ isOpen, onClose, device, events, loading }) => {
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
             >
-              <option value="ALL">ทุกสถานะ</option>
-              <option value="ONLINE">🟢 Online</option>
-              <option value="OFFLINE">🔴 Offline</option>
-              <option value="WARNING">🟠 Warning</option>
+              <option value="ALL">{t('devices.events.allStatuses', 'All Statuses')}</option>
+              <option value="ONLINE">🟢 {t('devices.events.online', 'Online')}</option>
+              <option value="OFFLINE">🔴 {t('devices.events.offline', 'Offline')}</option>
+              <option value="WARNING">🟠 {t('devices.events.warning', 'Warning')}</option>
             </select>
           </div>
         </div>
@@ -122,15 +124,15 @@ const EventLogModal = ({ isOpen, onClose, device, events, loading }) => {
           {loading ? (
             <div className="py-10 flex flex-col items-center justify-center text-slate-400">
               <Loader2 size={32} className="animate-spin text-blue-500 mb-3" />
-              <p className="text-sm font-medium">กำลังโหลดประวัติ...</p>
+              <p className="text-sm font-medium">{t('devices.events.loading', 'Loading events...')}</p>
             </div>
           ) : events.length === 0 ? (
             <div className="py-10 text-center text-slate-400 bg-white rounded-xl border border-dashed border-slate-200">
-              ไม่พบประวัติการเปลี่ยนสถานะ
+              {t('devices.events.noHistory', 'No event history found')}
             </div>
           ) : filteredEvents.length === 0 ? (
             <div className="py-10 text-center text-slate-400 bg-white rounded-xl border border-dashed border-slate-200">
-              ไม่พบข้อมูลที่ตรงกับคำค้นหา "<span className="text-slate-600 font-bold">{searchTerm}</span>"
+              {t('devices.events.noResults', 'No results matching')} "<span className="text-slate-600 font-bold">{searchTerm}</span>"
             </div>
           ) : (
             <div className="relative border-l-2 border-slate-200 ml-3 space-y-5">
@@ -149,10 +151,10 @@ const EventLogModal = ({ isOpen, onClose, device, events, loading }) => {
                         ev.eventType === 'OFFLINE' ? 'text-rose-700' : 
                         ev.eventType === 'WARNING' ? 'text-orange-700' : 'text-slate-700'
                       }`}>
-                        {ev.eventType}
+                        {t(`devices.events.${ev.eventType.toLowerCase()}`, ev.eventType)}
                       </span>
                       <span className="text-xs font-bold text-slate-500 whitespace-nowrap bg-white/60 px-2 py-0.5 rounded-md border border-slate-200/50">
-                        {new Date(ev.createdAt).toLocaleString('th-TH', { dateStyle: 'short', timeStyle: 'short' })}
+                        {new Date(ev.createdAt).toLocaleString(i18n.language, { dateStyle: 'short', timeStyle: 'short' })}
                       </span>
                     </div>
                     <p className="text-xs font-medium text-slate-600 mt-1 leading-relaxed">{ev.details}</p>

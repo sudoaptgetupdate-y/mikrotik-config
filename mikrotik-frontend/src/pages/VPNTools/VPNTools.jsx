@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import { ShieldCheck, UserPlus, Network } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import ClientToSiteTab from './components/ClientToSiteTab';
 import SiteToSiteTab from './components/SiteToSiteTab';
 
 const VPNTools = () => {
+  const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState('c2s');
 
   return (
@@ -13,10 +15,10 @@ const VPNTools = () => {
         <div className="relative z-10">
           <h1 className="text-2xl font-bold text-slate-800 flex items-center gap-2 tracking-tight">
             <ShieldCheck size={32} className="text-blue-600" />
-            VPN Configuration Center
+            {t('vpn.title')}
           </h1>
           <p className="text-slate-500 text-sm mt-1 font-medium italic">
-            Automated WireGuard Script Generator for RouterOS v7+
+            {t('vpn.subtitle')}
           </p>
         </div>
         <div className="absolute right-0 top-0 w-48 h-48 bg-blue-50/50 rounded-full blur-3xl -mr-16 -mt-16 group-hover:bg-blue-100/50 transition-colors duration-700"></div>
@@ -32,13 +34,13 @@ const VPNTools = () => {
               onClick={() => setActiveTab('c2s')}
               className={`flex-1 sm:flex-none px-8 py-3 rounded-xl font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-all duration-300 ${activeTab === 'c2s' ? 'bg-white text-blue-600 shadow-lg scale-[1.02]' : 'text-slate-500 hover:text-slate-700'}`}
             >
-              <UserPlus size={16} /> Client-to-Site
+              <UserPlus size={16} /> {t('vpn.tabs.c2s')}
             </button>
             <button
               onClick={() => setActiveTab('s2s')}
               className={`flex-1 sm:flex-none px-8 py-3 rounded-xl font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-all duration-300 ${activeTab === 's2s' ? 'bg-white text-blue-600 shadow-lg scale-[1.02]' : 'text-slate-500 hover:text-slate-700'}`}
             >
-              <Network size={16} /> Site-to-Site
+              <Network size={16} /> {t('vpn.tabs.s2s')}
             </button>
           </div>
         </div>

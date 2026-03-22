@@ -4,6 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useQuery } from '@tanstack/react-query'; 
 import { Activity, Calendar, CheckCircle2, AlertTriangle, Megaphone } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { useTranslation } from 'react-i18next';
 
 import { deviceService } from '../../services/deviceService';
 import { modelService } from '../../services/modelService';
@@ -19,6 +20,7 @@ import EventSummaryCard from './components/EventSummaryCard';
 import TopTroubleDevices from './components/TopTroubleDevices';
 
 const Dashboard = () => {
+  const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const { user } = useAuth();
 // ฟังก์ชันช่วยแปลง Uptime ของ MikroTik ให้เป็นวินาทีเพื่อใช้ในการเรียงลำดับ
@@ -50,12 +52,12 @@ const uptimeToSeconds = (uptimeStr) => {
 
   const getGreeting = () => {
     const hour = new Date().getHours();
-    if (hour < 12) return 'Good morning';
-    if (hour < 18) return 'Good afternoon';
-    return 'Good evening';
+    if (hour < 12) return t('dashboard.greeting.morning');
+    if (hour < 18) return t('dashboard.greeting.afternoon');
+    return t('dashboard.greeting.evening');
   };
 
-  const currentDate = new Date().toLocaleDateString('en-US', { 
+  const currentDate = new Date().toLocaleDateString(i18n.language === 'en' ? 'en-US' : 'th-TH', { 
     weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' 
   });
 
@@ -161,7 +163,7 @@ const uptimeToSeconds = (uptimeStr) => {
       };
     },
     refetchInterval: 30000, 
-    onError: () => toast.error("ไม่สามารถดึงข้อมูลสรุป Dashboard ได้")
+    onError: () => toast.error(t('common.error_default', 'Error loading data'))
   });
 
   const { stats, topHighLoadDevices, offlineDevicesList, topUptimeDevices, thresholds, announcement } = data || { 
@@ -175,14 +177,14 @@ const uptimeToSeconds = (uptimeStr) => {
   
   const onlinePercentage = stats.totalDevices > 0 ? (stats.onlineDevices / stats.totalDevices) * 100 : 0;
   const isSystemHealthy = stats.activeAlerts === 0 && stats.offlineDevices === 0;
-  const lastSyncTime = dataUpdatedAt ? new Date(dataUpdatedAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : 'Syncing...';
+  const lastSyncTime = dataUpdatedAt ? new Date(dataUpdatedAt).toLocaleTimeString(i18n.language === 'en' ? 'en-US' : 'th-TH', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : 'Syncing...';
   const handleCardClick = (filterState) => navigate('/devices', { state: { filter: filterState } });
 
   if (isLoading) {
     return (
       <div className="flex flex-col items-center justify-center h-[70vh] text-slate-400">
         <Activity size={48} className="animate-spin text-blue-600 mb-6" />
-        <p className="font-medium animate-pulse">Syncing system data...</p>
+        <p className="font-medium animate-pulse">{t('dashboard.status.syncing')}</p>
       </div>
     );
   }
@@ -199,7 +201,7 @@ const uptimeToSeconds = (uptimeStr) => {
           <div className="relative z-10">
             <div className="flex items-center gap-2 text-blue-600 mb-2">
               <Activity size={16} />
-              <span className="text-[11px] font-black uppercase tracking-widest">System Overview</span>
+              <span className="text-[11px] font-black uppercase tracking-widest">{t('dashboard.title')}</span>
             </div>
             <h2 className="text-3xl font-black text-slate-800 tracking-tight">
               {getGreeting()}, <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600">{user?.username || user?.firstName || 'User'}</span>! 👋
@@ -221,13 +223,13 @@ const uptimeToSeconds = (uptimeStr) => {
               </span>
               <div className="flex flex-col">
                 <span className="text-xs font-black uppercase tracking-wider">
-                  System {isSystemHealthy ? 'Optimal' : 'Attention'}
+                  {isSystemHealthy ? t('dashboard.status.optimal') : t('dashboard.status.attention')}
                 </span>
               </div>
               {isSystemHealthy ? <CheckCircle2 size={18} className="ml-1 opacity-80" /> : <AlertTriangle size={18} className="ml-1 opacity-80" />}
             </div>
             <p className="text-[11px] text-slate-400 font-medium tracking-wide">
-              Last updated: <span className="text-slate-500">{lastSyncTime}</span>
+              {t('dashboard.status.last_updated')}: <span className="text-slate-500">{lastSyncTime}</span>
             </p>
           </div>
         </div>
@@ -237,7 +239,7 @@ const uptimeToSeconds = (uptimeStr) => {
           <div className="bg-slate-900 border-t border-slate-800 py-2.5 relative flex items-center">
             <div className="absolute left-0 top-0 bottom-0 bg-slate-900 px-4 flex items-center z-20 border-r border-slate-800 shadow-[10px_0_15px_rgba(0,0,0,0.5)]">
               <Megaphone size={16} className="text-blue-400 animate-bounce" />
-              <span className="ml-2 text-[10px] font-black text-white uppercase tracking-tighter">News</span>
+              <span className="ml-2 text-[10px] font-black text-white uppercase tracking-tighter">{t('dashboard.news')}</span>
             </div>
             <div className="overflow-hidden whitespace-nowrap w-full">
               <div className="inline-block animate-marquee pl-32 text-blue-100 text-xs font-bold tracking-wide">

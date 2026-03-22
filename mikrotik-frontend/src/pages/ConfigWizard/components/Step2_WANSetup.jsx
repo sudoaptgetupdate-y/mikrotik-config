@@ -1,7 +1,9 @@
 import React from 'react';
 import { Globe, Plus, Trash2, User, Key, Network, ShieldCheck, Router } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 const Step2_WANSetup = ({ selectedModel, wanList, setWanList }) => {
+  const { t } = useTranslation();
   
   const addWan = (type = 'pppoe') => {
     // ✅ 1. เพิ่มเงื่อนไขจำกัดสูงสุด 5 WAN
@@ -47,9 +49,9 @@ const Step2_WANSetup = ({ selectedModel, wanList, setWanList }) => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
         <div>
           <h2 className="text-xl font-black text-slate-800 flex items-center gap-2">
-            <Globe className="text-blue-600" /> Internet Setup (WAN)
+            <Globe className="text-blue-600" /> {t('wizard.step2.title')}
           </h2>
-          <p className="text-sm text-slate-500 mt-1 font-medium">Configure your uplink connections</p>
+          <p className="text-sm text-slate-500 mt-1 font-medium">{t('wizard.step2.desc')}</p>
         </div>
         
         {/* ✅ 2. ซ่อนปุ่มเมื่อครบ 5 WAN และแสดงข้อความแจ้งเตือน */}
@@ -60,13 +62,13 @@ const Step2_WANSetup = ({ selectedModel, wanList, setWanList }) => {
                 onClick={() => addWan('pppoe')}
                 className="bg-blue-600 text-white px-4 py-2.5 rounded-xl flex items-center justify-center gap-2 hover:bg-blue-700 hover:shadow-lg hover:shadow-blue-500/20 transition-all duration-300 font-bold text-sm"
               >
-                <Plus size={18} /> Add PPPoE
+                <Plus size={18} /> {t('wizard.step2.add_wan')} (PPPoE)
               </button>
               <button 
                 onClick={() => addWan('static')}
                 className="bg-slate-900 text-white px-4 py-2.5 rounded-xl flex items-center justify-center gap-2 hover:bg-slate-800 hover:shadow-lg hover:shadow-slate-500/20 transition-all duration-300 font-bold text-sm"
               >
-                <Plus size={18} /> Add Static IP
+                <Plus size={18} /> {t('wizard.step2.add_wan')} (Static IP)
               </button>
             </div>
           ) : (
@@ -86,7 +88,7 @@ const Step2_WANSetup = ({ selectedModel, wanList, setWanList }) => {
             <div className="flex justify-between items-center mb-6 pb-4 border-b border-slate-100">
               <div className="flex items-center gap-3">
                 <span className="bg-blue-50 text-blue-600 px-3 py-1.5 rounded-lg text-xs font-black uppercase tracking-wider">
-                  WAN {index + 1}
+                  {t('wizard.step2.wan_number', { num: index + 1 })}
                 </span>
                 <span className="text-sm text-slate-500 font-bold flex items-center gap-1.5">
                   <Router size={16} className="text-slate-400" />
@@ -98,9 +100,9 @@ const Step2_WANSetup = ({ selectedModel, wanList, setWanList }) => {
                 <button 
                   onClick={() => removeWan(wan.id)} 
                   className="text-slate-400 hover:text-red-600 hover:bg-red-50 p-2 rounded-lg transition-colors flex items-center gap-1.5 text-xs font-bold"
-                  title="Remove this WAN"
+                  title={t('common.delete')}
                 >
-                  <Trash2 size={16} /> <span className="hidden sm:inline">Remove</span>
+                  <Trash2 size={16} /> <span className="hidden sm:inline">{t('common.delete')}</span>
                 </button>
               )}
             </div>
@@ -108,7 +110,7 @@ const Step2_WANSetup = ({ selectedModel, wanList, setWanList }) => {
             {/* Interface & Type Selection */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
               <div>
-                <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">Physical Interface</label>
+                <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">{t('wizard.step2.label_interface')}</label>
                 <div className="relative">
                   <Network className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                   <select 
@@ -133,7 +135,7 @@ const Step2_WANSetup = ({ selectedModel, wanList, setWanList }) => {
               </div>
 
               <div>
-                <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">Connection Type</label>
+                <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">{t('wizard.step2.label_type')}</label>
                 <div className="relative">
                   <ShieldCheck className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                   <select 
@@ -141,8 +143,8 @@ const Step2_WANSetup = ({ selectedModel, wanList, setWanList }) => {
                     onChange={(e) => updateWan(wan.id, 'type', e.target.value)}
                     className="w-full pl-10 pr-4 py-3 border border-slate-200 rounded-xl bg-slate-50 hover:bg-white focus:bg-white focus:border-blue-400 focus:ring-4 focus:ring-blue-50 outline-none transition-all cursor-pointer text-sm font-medium text-slate-700 appearance-none"
                   >
-                    <option value="pppoe">PPPoE Client (Standard)</option>
-                    <option value="static">Static IP (Corporate)</option>
+                    <option value="pppoe">PPPoE Client</option>
+                    <option value="static">Static IP</option>
                   </select>
                   <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
                     ▼
@@ -158,12 +160,12 @@ const Step2_WANSetup = ({ selectedModel, wanList, setWanList }) => {
               {wan.type === 'pppoe' && (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5 animate-in fade-in zoom-in-95 duration-200">
                   <div>
-                    <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">ISP Username</label>
+                    <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">{t('wizard.step2.label_user')}</label>
                     <div className="relative">
                       <User className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
                       <input 
                         type="text" 
-                        placeholder="7534j7572@fftxbiz"
+                        placeholder={t('wizard.step2.placeholder_user')}
                         value={wan.username || ''}
                         onChange={(e) => {
                           const val = e.target.value;
@@ -176,7 +178,7 @@ const Step2_WANSetup = ({ selectedModel, wanList, setWanList }) => {
                     </div>
                   </div>
                   <div>
-                    <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">ISP Password</label>
+                    <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">{t('wizard.step2.label_pass')}</label>
                     <div className="relative">
                       <Key className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
                       <input 
@@ -202,7 +204,7 @@ const Step2_WANSetup = ({ selectedModel, wanList, setWanList }) => {
                   <div className="col-span-1 md:col-span-2">
                     <div className="flex flex-col sm:flex-row gap-5">
                       <div className="flex-1">
-                        <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">IP Address & Subnet</label>
+                        <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">{t('wizard.step2.label_ip')}</label>
                         <div className="flex items-center gap-2">
                           <div className="relative flex-1">
                             <Network className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
@@ -239,7 +241,7 @@ const Step2_WANSetup = ({ selectedModel, wanList, setWanList }) => {
                         </div>
                       </div>
                       <div className="flex-1">
-                        <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">Default Gateway</label>
+                        <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">{t('wizard.step2.label_gw')}</label>
                         <div className="relative">
                           <Globe className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
                           <input 

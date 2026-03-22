@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { Activity, Search, RefreshCw, FileText, Plus, Edit, Download, Trash2, Calendar, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 import { useQuery, keepPreviousData } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { logService } from '../services/logService';
 import toast from 'react-hot-toast';
 
 const PAGE_SIZES = [8, 10, 50, 100];
 
 const AuditLog = () => {
+  const { t, i18n } = useTranslation();
   // ==========================================
   // States & Hooks
   // ==========================================
@@ -111,10 +113,10 @@ const AuditLog = () => {
         <div className="relative z-10">
           <h1 className="text-2xl font-bold text-slate-800 tracking-tight flex items-center gap-2">
             <Activity className="text-blue-600" size={28} /> 
-            System Audit Logs
+            {t('audit.title')}
           </h1>
           <p className="text-sm text-slate-500 mt-1 font-medium italic">
-            ติดตามประวัติการใช้งานระบบ การเข้าสู่ระบบ และการเปลี่ยนแปลงตั้งค่า
+            {t('audit.subtitle')}
           </p>
         </div>
         
@@ -124,7 +126,7 @@ const AuditLog = () => {
             className="shrink-0 bg-blue-600 text-white px-5 py-2.5 rounded-xl flex items-center justify-center gap-2 hover:bg-blue-700 hover:-translate-y-0.5 active:translate-y-0 transition-all font-bold text-sm shadow-lg shadow-blue-500/20"
           >
             <RefreshCw size={18} strokeWidth={2.5} className={isFetching ? "animate-spin" : ""} /> 
-            <span>Refresh Logs</span>
+            <span>{t('audit.refresh')}</span>
           </button>
         </div>
 
@@ -139,22 +141,28 @@ const AuditLog = () => {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
             <input 
               type="text" 
-              placeholder="ค้นหาตาม User, การกระทำ หรือรายละเอียด..." 
+              placeholder={t('audit.search_placeholder')} 
               className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-sm" 
               value={searchTerm} 
               onChange={(e) => setSearchTerm(e.target.value)} 
             />
           </div>
           <div className="text-sm text-slate-500 font-medium px-2 shrink-0">
-            พบ <span className="text-slate-800 font-bold">{totalLogs}</span> รายการ
+            {t('audit.found_total', { count: totalLogs })}
           </div>
         </div>
 
         {/* Date Filter */}
         <div className="flex flex-col xl:flex-row xl:items-center gap-3 pt-3 border-t border-slate-100">
-          <div className="flex items-center gap-2 text-sm text-slate-500 font-bold px-1"><Calendar size={16} /> ช่วงเวลา:</div>
+          <div className="flex items-center gap-2 text-sm text-slate-500 font-bold px-1"><Calendar size={16} /> {t('audit.filter_period')}</div>
           <div className="flex flex-wrap gap-2">
-            {[{ id: 'all', label: 'ทั้งหมด' }, { id: 'today', label: 'วันนี้' }, { id: '7days', label: '7 วันที่ผ่านมา' }, { id: '30days', label: '30 วันที่ผ่านมา' }, { id: 'custom', label: 'กำหนดเอง' }].map(preset => (
+            {[
+              { id: 'all', label: t('audit.presets.all') }, 
+              { id: 'today', label: t('audit.presets.today') }, 
+              { id: '7days', label: t('audit.presets.days_7') }, 
+              { id: '30days', label: t('audit.presets.days_30') }, 
+              { id: 'custom', label: t('audit.presets.custom') }
+            ].map(preset => (
               <button 
                 key={preset.id} 
                 onClick={() => handlePresetClick(preset.id)} 
@@ -179,16 +187,16 @@ const AuditLog = () => {
         {isLoading ? (
           <div className="flex-1 flex flex-col items-center justify-center p-8 text-slate-400">
             <Loader2 size={36} className="animate-spin text-blue-600 mb-4" />
-            <p className="font-medium text-sm">กำลังโหลดข้อมูลประวัติ...</p>
+            <p className="font-medium text-sm">{t('audit.loading')}</p>
           </div>
         ) : logs.length === 0 ? (
           <div className="flex-1 flex flex-col items-center justify-center text-center p-8">
             <div className="bg-slate-50 p-5 rounded-full mb-4">
               <FileText size={48} className="text-slate-300" />
             </div>
-            <h3 className="text-lg font-bold text-slate-700 mb-1">ไม่พบประวัติการใช้งาน</h3>
+            <h3 className="text-lg font-bold text-slate-700 mb-1">{t('audit.no_logs')}</h3>
             <p className="text-slate-500 text-sm max-w-sm">
-              ไม่พบประวัติที่ตรงกับเงื่อนไข หรือช่วงเวลาที่คุณเลือก
+              {t('audit.no_logs_desc')}
             </p>
           </div>
         ) : (
@@ -198,10 +206,10 @@ const AuditLog = () => {
               <table className={`w-full text-left border-collapse transition-opacity duration-200 ${isFetching ? 'opacity-50' : 'opacity-100'}`}>
                 <thead>
                   <tr className="bg-slate-50/80 border-b border-slate-200 text-xs uppercase tracking-wider text-slate-500 font-bold">
-                    <th className="p-4 pl-6 w-48 whitespace-nowrap">Date / Time</th>
-                    <th className="p-4 w-40 whitespace-nowrap">User</th>
-                    <th className="p-4 w-56 whitespace-nowrap">Action</th>
-                    <th className="p-4 whitespace-nowrap">Details</th>
+                    <th className="p-4 pl-6 w-48 whitespace-nowrap">{t('audit.table.date')}</th>
+                    <th className="p-4 w-40 whitespace-nowrap">{t('audit.table.user')}</th>
+                    <th className="p-4 w-56 whitespace-nowrap">{t('audit.table.action')}</th>
+                    <th className="p-4 whitespace-nowrap">{t('audit.table.details')}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 bg-white">
@@ -210,7 +218,7 @@ const AuditLog = () => {
                     return (
                       <tr key={log.id} className="hover:bg-slate-50/50 transition-colors">
                         <td className="p-4 pl-6 text-sm text-slate-600 font-medium whitespace-nowrap">
-                          {new Date(log.createdAt).toLocaleString('th-TH', { 
+                          {new Date(log.createdAt).toLocaleString(i18n.language === 'en' ? 'en-US' : 'th-TH', { 
                             year: 'numeric', month: 'short', day: 'numeric', 
                             hour: '2-digit', minute: '2-digit', second: '2-digit' 
                           })}
@@ -236,7 +244,7 @@ const AuditLog = () => {
             {/* Table Footer: Rows per page & Showing summary (mt-auto ดันติดขอบล่างเสมอ) */}
             <div className="bg-slate-50 border-t border-slate-100 p-4 flex flex-col sm:flex-row justify-between items-center gap-4 text-xs mt-auto">
               <div className="flex items-center gap-2">
-                <span className="text-slate-500 font-medium">รายการต่อหน้า:</span>
+                <span className="text-slate-500 font-medium">{t('audit.table.rows_per_page')}</span>
                 <div className="flex gap-1">
                   {PAGE_SIZES.map(size => (
                     <button 
@@ -250,7 +258,7 @@ const AuditLog = () => {
                 </div>
               </div>
               <div className="text-slate-500 font-medium">
-                กำลังแสดง <span className="font-bold text-slate-700">{from}</span> ถึง <span className="font-bold text-slate-700">{to}</span> จากทั้งหมด <span className="font-bold text-slate-700">{totalLogs}</span> รายการ
+                {t('audit.table.showing', { from, to, total: totalLogs })}
               </div>
             </div>
           </div>

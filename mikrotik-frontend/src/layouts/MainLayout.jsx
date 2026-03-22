@@ -1,18 +1,25 @@
 import React, { useState } from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { 
   Server, Activity, Menu, X, 
   Database, LayoutDashboard, Users, LogOut, User, Settings, FolderKanban, Wand2, ShieldCheck,
-  ChevronLeft, ChevronRight
+  ChevronLeft, ChevronRight, Globe
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext'; 
 import Footer from '../components/Footer';
 
 const MainLayout = () => {
+  const { t, i18n } = useTranslation();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+
+  const toggleLanguage = () => {
+    const nextLang = i18n.language === 'en' ? 'th' : 'en';
+    i18n.changeLanguage(nextLang);
+  };
 
   const handleLogout = () => {
     logout();
@@ -24,27 +31,27 @@ const MainLayout = () => {
   // ==========================================
   const menuCategories = [
     {
-      title: 'Main',
+      title: t('sidebar.cat_main', 'Main'),
       items: [
-        { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard', roles: ['SUPER_ADMIN', 'ADMIN', 'EMPLOYEE'] },
+        { to: '/dashboard', icon: LayoutDashboard, label: t('sidebar.dashboard'), roles: ['SUPER_ADMIN', 'ADMIN', 'EMPLOYEE'] },
       ]
     },
     {
-      title: 'Device Management',
+      title: t('sidebar.cat_device', 'Device Management'),
       items: [
-        { to: '/devices', icon: Server, label: 'Managed Routers', roles: ['SUPER_ADMIN', 'ADMIN', 'EMPLOYEE'] },
-        { to: '/groups', icon: FolderKanban, label: 'Device Groups', roles: ['SUPER_ADMIN', 'ADMIN'] }, 
-        { to: '/models', icon: Database, label: 'Hardware Models', roles: ['SUPER_ADMIN', 'ADMIN'] },
-        { to: '/config-builder', icon: Wand2, label: 'Config Builder', roles: ['SUPER_ADMIN', 'ADMIN', 'EMPLOYEE'] },
-        { to: '/vpn-tools', icon: ShieldCheck, label: 'VPN Tools', roles: ['SUPER_ADMIN', 'ADMIN', 'EMPLOYEE'] },
+        { to: '/devices', icon: Server, label: t('sidebar.managed_routers'), roles: ['SUPER_ADMIN', 'ADMIN', 'EMPLOYEE'] },
+        { to: '/groups', icon: FolderKanban, label: t('sidebar.device_groups'), roles: ['SUPER_ADMIN', 'ADMIN'] }, 
+        { to: '/models', icon: Database, label: t('sidebar.hardware_models'), roles: ['SUPER_ADMIN', 'ADMIN'] },
+        { to: '/wizard', icon: Wand2, label: t('sidebar.config_wizard'), roles: ['SUPER_ADMIN', 'ADMIN', 'EMPLOYEE'] },
+        { to: '/vpn-tools', icon: ShieldCheck, label: t('sidebar.vpn_tools'), roles: ['SUPER_ADMIN', 'ADMIN', 'EMPLOYEE'] },
       ]
     },
     {
-      title: 'System Administration',
+      title: t('sidebar.cat_system', 'System Administration'),
       items: [
-        { to: '/audit-logs', icon: Activity, label: 'Audit Logs', roles: ['SUPER_ADMIN', 'ADMIN'] },
-        { to: '/users', icon: Users, label: 'User Management', roles: ['SUPER_ADMIN', 'ADMIN'] },
-        { to: '/settings', icon: Settings, label: 'Global Settings', roles: ['SUPER_ADMIN'] },
+        { to: '/audit-logs', icon: Activity, label: t('sidebar.audit_logs'), roles: ['SUPER_ADMIN', 'ADMIN'] },
+        { to: '/users', icon: Users, label: t('sidebar.user_management'), roles: ['SUPER_ADMIN', 'ADMIN'] },
+        { to: '/settings', icon: Settings, label: t('sidebar.global_settings'), roles: ['SUPER_ADMIN'] },
       ]
     }
   ];
@@ -164,11 +171,27 @@ const MainLayout = () => {
         </div>
 
         {/* Sidebar Footer (User & Logout) */}
-        <div className="p-3 bg-slate-900 border-t border-slate-800 shrink-0">
+        <div className="p-3 bg-slate-900 border-t border-slate-800 shrink-0 space-y-1">
+           {/* 🌐 Language Switcher */}
+           <button 
+              onClick={toggleLanguage}
+              className={`
+                flex items-center gap-3 px-4 py-2.5 w-full rounded-xl text-xs font-bold transition-all duration-200
+                ${isSidebarCollapsed ? 'md:justify-center md:px-0' : ''}
+                text-slate-400 hover:text-white hover:bg-slate-800
+              `}
+              title={i18n.language === 'en' ? 'สลับเป็นภาษาไทย' : 'Switch to English'}
+            >
+              <Globe size={18} className="shrink-0 text-blue-400" />
+              <span className={`transition-all duration-300 ${isSidebarCollapsed ? 'md:hidden opacity-0 w-0' : 'opacity-100 w-auto'}`}>
+                {i18n.language === 'en' ? 'ภาษาไทย' : 'English'}
+              </span>
+            </button>
+
            <div className="space-y-1">
             <NavLink 
               to="/profile" 
-              title={isSidebarCollapsed ? "My Profile" : ""}
+              title={isSidebarCollapsed ? t('sidebar.my_profile') : ""}
               onClick={() => setIsMobileMenuOpen(false)}
               className={({isActive}) => `
                 flex items-center gap-3 px-4 py-3 rounded-xl text-sm transition-all duration-200
@@ -177,18 +200,18 @@ const MainLayout = () => {
               `}
             >
               <User size={20} className="shrink-0" />
-              <span className={`transition-all duration-300 ${isSidebarCollapsed ? 'md:hidden opacity-0 w-0' : 'opacity-100 w-auto'}`}>My Profile</span>
+              <span className={`transition-all duration-300 ${isSidebarCollapsed ? 'md:hidden opacity-0 w-0' : 'opacity-100 w-auto'}`}>{t('sidebar.my_profile')}</span>
             </NavLink>
             <button 
               onClick={() => { setIsMobileMenuOpen(false); handleLogout(); }} 
-              title={isSidebarCollapsed ? "Logout" : ""}
+              title={isSidebarCollapsed ? t('sidebar.logout') : ""}
               className={`
                 flex items-center gap-3 px-4 py-3 w-full rounded-xl text-sm text-red-400 hover:text-red-300 hover:bg-red-400/10 transition-all duration-200
                 ${isSidebarCollapsed ? 'md:justify-center md:px-0' : ''}
               `}
             >
               <LogOut size={20} className="shrink-0" />
-              <span className={`transition-all duration-300 ${isSidebarCollapsed ? 'md:hidden opacity-0 w-0' : 'opacity-100 w-auto'}`}>Logout</span>
+              <span className={`transition-all duration-300 ${isSidebarCollapsed ? 'md:hidden opacity-0 w-0' : 'opacity-100 w-auto'}`}>{t('sidebar.logout')}</span>
             </button>
           </div>
         </div>

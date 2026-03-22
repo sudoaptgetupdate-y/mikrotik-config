@@ -1,7 +1,9 @@
 import React from 'react';
 import { Globe, Plus, Trash2, ShieldCheck, ShieldAlert, Server } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 const Step3_DNSSettings = ({ dnsConfig, setDnsConfig }) => {
+  const { t } = useTranslation();
   
   // ฟังก์ชันสลับค่า Allow Remote Requests
   const toggleAllowRemote = () => {
@@ -40,15 +42,15 @@ const Step3_DNSSettings = ({ dnsConfig, setDnsConfig }) => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
         <div>
           <h2 className="text-xl font-black text-slate-800 flex items-center gap-2">
-            <Globe className="text-blue-600" /> DNS Server Settings
+            <Globe className="text-blue-600" /> {t('wizard.step3.title')}
           </h2>
-          <p className="text-sm text-slate-500 mt-1 font-medium">ตั้งค่าตัวแปลชื่อโดเมนสำหรับ MikroTik และอุปกรณ์ในเครือข่าย</p>
+          <p className="text-sm text-slate-500 mt-1 font-medium">{t('wizard.step3.desc')}</p>
         </div>
         <button 
           onClick={addDnsServer}
           className="bg-slate-900 text-white px-4 py-2.5 rounded-xl flex items-center justify-center gap-2 hover:bg-blue-600 hover:shadow-lg hover:shadow-blue-500/20 transition-all duration-300 font-bold text-sm"
         >
-          <Plus size={18} /> Add DNS Server
+          <Plus size={18} /> {t('wizard.step3.add_dns')}
         </button>
       </div>
 
@@ -59,7 +61,7 @@ const Step3_DNSSettings = ({ dnsConfig, setDnsConfig }) => {
         <div className="bg-white p-6 md:p-8 rounded-2xl border border-slate-200 shadow-sm hover:shadow-lg hover:border-blue-200 transition-all duration-300">
           <div className="flex justify-between items-center mb-6 pb-4 border-b border-slate-100">
             <h3 className="text-sm font-bold text-slate-700 flex items-center gap-2 uppercase tracking-wider">
-              <Server size={18} className="text-slate-400" /> Upstream DNS
+              <Server size={18} className="text-slate-400" /> {t('wizard.step3.label_servers')}
             </h3>
           </div>
           
@@ -80,7 +82,7 @@ const Step3_DNSSettings = ({ dnsConfig, setDnsConfig }) => {
                   <button 
                     onClick={() => removeDnsServer(index)} 
                     className="p-2.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all border border-transparent hover:border-red-100"
-                    title="Remove this DNS"
+                    title={t('common.delete')}
                   >
                     <Trash2 size={18} />
                   </button>
@@ -101,8 +103,8 @@ const Step3_DNSSettings = ({ dnsConfig, setDnsConfig }) => {
           <div className="bg-slate-50 p-5 rounded-2xl border border-slate-100">
             <div className="flex items-center justify-between mb-5">
               <div className="flex flex-col">
-                <label className="font-bold text-slate-700 text-sm">Allow Remote Requests</label>
-                <span className="text-xs text-slate-500 font-medium mt-0.5">เปิดใช้งาน DNS Caching</span>
+                <label className="font-bold text-slate-700 text-sm">{t('wizard.step3.allow_remote')}</label>
+                <span className="text-xs text-slate-500 font-medium mt-0.5">{t('wizard.step3.allow_desc')}</span>
               </div>
               
               {/* Modern Toggle Switch */}
@@ -119,7 +121,7 @@ const Step3_DNSSettings = ({ dnsConfig, setDnsConfig }) => {
               {dnsConfig.allowRemoteRequests ? (
                 <div className="p-4 bg-green-50/80 text-green-700 rounded-xl border border-green-200 animate-in fade-in zoom-in-95 duration-200">
                   <p className="font-bold flex items-center gap-2 text-green-800 mb-1">
-                    <ShieldCheck size={16}/> Mode: DNS Server (Enabled)
+                    <ShieldCheck size={16}/> Mode: {t('wizard.step8.dns_server')}
                   </p>
                   <p className="text-xs font-medium leading-relaxed opacity-90">
                     MikroTik จะทำหน้าที่เป็น DNS Server ให้กับ Client ในวง LAN ช่วยเพิ่มความเร็วในการเข้าเว็บที่เคยเข้าแล้ว (Caching)
@@ -128,7 +130,7 @@ const Step3_DNSSettings = ({ dnsConfig, setDnsConfig }) => {
               ) : (
                 <div className="p-4 bg-slate-100/80 text-slate-600 rounded-xl border border-slate-200 animate-in fade-in zoom-in-95 duration-200">
                   <p className="font-bold flex items-center gap-2 text-slate-700 mb-1">
-                    <ShieldAlert size={16}/> Mode: Forwarder (Disabled)
+                    <ShieldAlert size={16}/> Mode: {t('wizard.step8.dns_client')}
                   </p>
                   <p className="text-xs font-medium leading-relaxed opacity-90">
                     DHCP จะแจก IP ของ Upstream DNS ให้ Client โดยตรง (เช่น แจก IP ของ Google/Cloudflare ให้เครื่องลูกข่าย)

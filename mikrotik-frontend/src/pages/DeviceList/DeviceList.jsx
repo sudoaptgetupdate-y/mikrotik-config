@@ -5,6 +5,7 @@ import { useAuth } from '../../context/AuthContext';
 import toast from 'react-hot-toast';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import Swal from 'sweetalert2';
+import { useTranslation } from 'react-i18next';
 
 import { deviceService } from '../../services/deviceService';
 import { settingService } from '../../services/settingService';
@@ -23,6 +24,7 @@ import Pagination from '../../components/Pagination';
 const PAGE_SIZES = [5, 10, 20, 50];
 
 const DeviceList = () => {
+  const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAuth(); 
@@ -84,7 +86,7 @@ const DeviceList = () => {
     queryKey: ['devices', user?.id],
     queryFn: () => deviceService.getUserDevices(user?.id || 1),
     refetchInterval: 30000,
-    onError: () => toast.error("ดึงข้อมูลอุปกรณ์ไม่สำเร็จ")
+    onError: () => toast.error(t('devices.fetchError', 'ดึงข้อมูลอุปกรณ์ไม่สำเร็จ'))
   });
 
   const { data: rawSettings } = useQuery({
@@ -104,7 +106,7 @@ const DeviceList = () => {
     return defaultTh;
   }, [rawSettings]);
 
-  const lastUpdatedText = dataUpdatedAt ? new Date(dataUpdatedAt).toLocaleTimeString() : '...';
+  const lastUpdatedText = dataUpdatedAt ? new Date(dataUpdatedAt).toLocaleTimeString(i18n.language) : '...';
 
   // ==========================================
   // Filtering & Sorting & Pagination Logic
@@ -183,12 +185,12 @@ const DeviceList = () => {
 
   const handleDeleteClick = async (device) => {
     const result = await Swal.fire({
-      title: 'ยืนยันการลบอุปกรณ์?',
-      text: `คุณต้องการลบ "${device.name}" ใช่หรือไม่? (อุปกรณ์จะถูกเปลี่ยนสถานะเป็น Inactive/Trash)`,
+      title: t('devices.actions.deleteConfirmTitle'),
+      text: t('devices.actions.deleteConfirmText', { name: device.name }),
       icon: 'warning',
       showCancelButton: true,
-      confirmButtonText: 'ใช่, ทิ้งลงถังขยะ!',
-      cancelButtonText: 'ยกเลิก',
+      confirmButtonText: t('common.yesDelete', 'Yes, delete it!'),
+      cancelButtonText: t('common.cancel'),
       buttonsStyling: false,
       customClass: {
         popup: 'rounded-3xl p-6 border border-slate-100 shadow-2xl',
@@ -202,19 +204,23 @@ const DeviceList = () => {
 
     if (result.isConfirmed) {
       const deletePromise = deviceService.deleteDevice(device.id);
-      toast.promise(deletePromise, { loading: 'กำลังย้ายลงถังขยะ...', success: 'ย้ายลงถังขยะสำเร็จ!', error: 'ลบอุปกรณ์ไม่สำเร็จ' });
+      toast.promise(deletePromise, { 
+        loading: t('devices.actions.deleting'), 
+        success: t('devices.actions.deleteSuccess'), 
+        error: t('devices.actions.deleteError') 
+      });
       try { await deletePromise; queryClient.invalidateQueries({ queryKey: ['devices'] }); } catch (e) { console.error(e); }
     }
   };
 
   const handleRestoreClick = async (device) => {
     const result = await Swal.fire({
-      title: 'ยืนยันการกู้คืน?',
-      text: `คุณต้องการกู้คืนสถานะของ "${device.name}" กลับมาเป็น Active ใช่หรือไม่?`,
+      title: t('devices.actions.restoreConfirmTitle'),
+      text: t('devices.actions.restoreConfirmText', { name: device.name }),
       icon: 'question',
       showCancelButton: true,
-      confirmButtonText: 'ใช่, กู้คืนเลย!',
-      cancelButtonText: 'ยกเลิก',
+      confirmButtonText: t('common.yesRestore', 'Yes, restore it!'),
+      cancelButtonText: t('common.cancel'),
       buttonsStyling: false,
       customClass: {
         popup: 'rounded-3xl p-6 border border-slate-100 shadow-2xl',
@@ -228,7 +234,11 @@ const DeviceList = () => {
 
     if (result.isConfirmed) {
       const restorePromise = deviceService.restoreDevice(device.id);
-      toast.promise(restorePromise, { loading: 'กำลังกู้คืนอุปกรณ์...', success: 'กู้คืนอุปกรณ์สำเร็จ!', error: 'กู้คืนอุปกรณ์ไม่สำเร็จ' });
+      toast.promise(restorePromise, { 
+        loading: t('devices.actions.restoring'), 
+        success: t('devices.actions.restoreSuccess'), 
+        error: t('devices.actions.restoreError') 
+      });
       try { await restorePromise; queryClient.invalidateQueries({ queryKey: ['devices'] }); } catch (e) { console.error(e); }
     }
   };
@@ -236,12 +246,12 @@ const DeviceList = () => {
   // 🟢 ฟังก์ชัน Hard Delete สำหรับลบถาวร
   const handleHardDeleteClick = async (device) => {
     const result = await Swal.fire({
-      title: 'ยืนยันการลบถาวร?',
-      text: `คำเตือน: ข้อมูลอุปกรณ์และประวัติการแจ้งเตือนของ "${device.name}" จะถูกลบทิ้งถาวรและไม่สามารถกู้คืนได้ คุณแน่ใจหรือไม่?`,
+      title: t('devices.actions.hardDeleteConfirmTitle'),
+      text: t('devices.actions.hardDeleteConfirmText', { name: device.name }),
       icon: 'error',
       showCancelButton: true,
-      confirmButtonText: 'ใช่, ลบถาวร!',
-      cancelButtonText: 'ยกเลิก',
+      confirmButtonText: t('common.yesHardDelete', 'Yes, delete permanently!'),
+      cancelButtonText: t('common.cancel'),
       buttonsStyling: false,
       customClass: {
         popup: 'rounded-3xl p-6 border border-slate-100 shadow-2xl',
@@ -254,26 +264,28 @@ const DeviceList = () => {
     });
 
     if (result.isConfirmed) {
-      // เรียกใช้ API hardDeleteDevice ที่เราจะสร้างไว้ใน Service
       const hardDeletePromise = deviceService.hardDeleteDevice(device.id);
-      toast.promise(hardDeletePromise, { loading: 'กำลังลบข้อมูลถาวร...', success: 'ลบข้อมูลถาวรสำเร็จ!', error: 'ลบข้อมูลถาวรไม่สำเร็จ' });
+      toast.promise(hardDeletePromise, { 
+        loading: t('devices.actions.hardDeleting'), 
+        success: t('devices.actions.hardDeleteSuccess'), 
+        error: t('devices.actions.hardDeleteError') 
+      });
       try { await hardDeletePromise; queryClient.invalidateQueries({ queryKey: ['devices'] }); } catch (e) { console.error(e); }
     }
   };
 
   const handleDownloadLatest = async (device) => { 
-    if (!device.configData) return toast.error("ไม่พบข้อมูล Config ของอุปกรณ์นี้");
+    if (!device.configData) return toast.error(t('devices.actions.noConfigData'));
     
-    // 🟢 1. เด้ง Popup ถามเวอร์ชันก่อนดาวน์โหลด
     const result = await Swal.fire({
-      title: 'เลือกระบบปฏิบัติการ',
-      text: 'กรุณาเลือกเวอร์ชัน RouterOS ของอุปกรณ์ปลายทาง',
+      title: t('devices.actions.selectOsTitle'),
+      text: t('devices.actions.selectOsText'),
       icon: 'question',
       showDenyButton: true,
       showCancelButton: true,
-      confirmButtonText: 'RouterOS v7 (ปัจจุบัน)',
-      denyButtonText: 'RouterOS v6 (6.49)',
-      cancelButtonText: 'ยกเลิก',
+      confirmButtonText: t('devices.actions.rosV7'),
+      denyButtonText: t('devices.actions.rosV6'),
+      cancelButtonText: t('common.cancel'),
       buttonsStyling: false,
       customClass: {
         popup: 'rounded-3xl p-6 border border-slate-100 shadow-2xl',
@@ -286,21 +298,17 @@ const DeviceList = () => {
       }
     });
 
-    // ถ้าผู้ใช้กดยกเลิก หรือคลิกข้างนอก ให้หยุดการทำงาน
     if (!result.isConfirmed && !result.isDenied) return; 
     
-    const isV6 = result.isDenied; // ถ้ากดปุ่ม Deny แปลว่าเลือก v6
+    const isV6 = result.isDenied; 
 
     const processDownload = async () => {
       await deviceService.logDownload(device.id, null); 
       const payloadForGenerator = { ...device.configData, token: device.apiToken };
-      
-      // 🟢 2. เรียกใช้งาน Generator ตามเวอร์ชันที่ผู้ใช้เลือก
       const script = isV6 ? generateMikrotikScriptV6(payloadForGenerator) : generateMikrotikScript(payloadForGenerator);
       
       const element = document.createElement("a");
       element.href = URL.createObjectURL(new Blob([script], {type: 'text/plain'}));
-      // ตั้งชื่อไฟล์ให้รู้ว่าเป็น v6 หรือ v7
       element.download = `${device.name.replace(/\s+/g, '_')}_latest_${isV6 ? 'v6' : 'v7'}.rsc`;
       document.body.appendChild(element); 
       element.click();
@@ -308,9 +316,9 @@ const DeviceList = () => {
     };
 
     toast.promise(processDownload(), { 
-      loading: 'กำลังสร้างสคริปต์...', 
-      success: `ดาวน์โหลดสคริปต์ ${isV6 ? 'v6' : 'v7'} สำเร็จ!`, 
-      error: 'เกิดข้อผิดพลาดในการสร้างสคริปต์' 
+      loading: t('devices.actions.generatingScript'), 
+      success: t('devices.actions.downloadSuccess', { version: isV6 ? 'v6' : 'v7' }), 
+      error: t('devices.actions.downloadError') 
     });
   };
 
@@ -321,7 +329,7 @@ const DeviceList = () => {
     try {
       const data = await deviceService.getDeviceHistory(device.id);
       setHistoryData(data);
-    } catch (error) { toast.error("โหลดประวัติไม่สำเร็จ"); } 
+    } catch (error) { toast.error(t('devices.actions.historyLoadError')); } 
     finally { setHistoryLoading(false); }
   };
 
@@ -332,7 +340,7 @@ const DeviceList = () => {
     try {
       const data = await deviceService.getDeviceEvents(device.id);
       setEventData(data);
-    } catch (error) { toast.error("โหลดประวัติเหตุการณ์ไม่สำเร็จ"); } 
+    } catch (error) { toast.error(t('devices.actions.eventLoadError')); } 
     finally { setEventLoading(false); }
   };
 
@@ -343,7 +351,7 @@ const DeviceList = () => {
   };
 
   const submitAcknowledge = async () => {
-    if (!ackReason.trim()) return toast.error("กรุณากรอกข้อมูลการอัปเดต หรือเหตุผล");
+    if (!ackReason.trim()) return toast.error(t('devices.actions.ackReasonRequired'));
     setIsAckSubmitting(true);
     
     const diffMinutes = deviceToAck?.lastSeen ? (new Date() - new Date(deviceToAck.lastSeen)) / 1000 / 60 : 999;
@@ -392,7 +400,11 @@ const DeviceList = () => {
       warningData: currentWarning.length > 0 ? currentWarning.join(', ') : 'Unknown Load'
     });
 
-    toast.promise(ackPromise, { loading: 'กำลังบันทึกข้อมูล...', success: 'รับทราบสถานะเรียบร้อย!', error: 'ไม่สามารถบันทึกได้ กรุณาลองใหม่' });
+    toast.promise(ackPromise, { 
+      loading: t('common.saving'), 
+      success: t('devices.actions.ackSuccess'), 
+      error: t('common.saveError') 
+    });
 
     try {
       await ackPromise;
@@ -411,10 +423,10 @@ const DeviceList = () => {
         <div className="relative z-10">
           <h1 className="text-2xl font-bold text-slate-800 tracking-tight flex items-center gap-2">
             <Activity className="text-blue-600" size={28} /> 
-            Managed Routers
+            {t('devices.title')}
           </h1>
           <p className="text-sm text-slate-500 mt-1 font-medium italic">
-            ติดตามสถานะและจัดการอุปกรณ์ MikroTik ในระบบ (อัปเดตล่าสุด: <span className="font-semibold text-slate-700">{lastUpdatedText}</span>)
+            {t('devices.subtitle')} ({t('devices.last_updated')}: <span className="font-semibold text-slate-700">{lastUpdatedText}</span>)
           </p>
         </div>
         
@@ -424,7 +436,7 @@ const DeviceList = () => {
             className="shrink-0 bg-blue-600 text-white px-5 py-2.5 rounded-xl flex items-center justify-center gap-2 hover:bg-blue-700 hover:-translate-y-0.5 active:translate-y-0 transition-all font-bold text-sm shadow-lg shadow-blue-500/20"
           >
             <Plus size={18} strokeWidth={2.5} /> 
-            <span>Add New Device</span>
+            <span>{t('devices.addNew')}</span>
           </button>
         </div>
 
@@ -439,7 +451,6 @@ const DeviceList = () => {
           loading={loading} 
           devices={paginatedDevices} 
           canEdit={canEdit} 
-          // 🟢 เพิ่ม onHardDelete ส่งเข้าไปใน handlers
           handlers={{ onDownload: handleDownloadLatest, onViewHistory: handleViewHistory, onViewEvents: handleViewEvents, onRestore: handleRestoreClick, onEdit: handleEditClick, onDelete: handleDeleteClick, onHardDelete: handleHardDeleteClick, onAcknowledge: handleAcknowledgeClick }} 
           pageSizes={PAGE_SIZES}
           itemsPerPage={itemsPerPage}

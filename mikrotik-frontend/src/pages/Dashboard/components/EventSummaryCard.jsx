@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { logService } from '../../../services/logService';
 import { BarChart3, Clock, ArrowUpCircle, ArrowDownCircle, AlertTriangle, Loader2 } from 'lucide-react';
 
 const EventSummaryCard = () => {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [days, setDays] = useState(1); // Default to 24h
 
@@ -37,7 +39,7 @@ const EventSummaryCard = () => {
       <div className="flex items-center justify-between mb-1">
         <div className="flex items-center gap-2">
           <div className="w-1.5 h-5 bg-blue-500 rounded-full"></div>
-          <h3 className="text-base font-black text-slate-800">Event Summary</h3>
+          <h3 className="text-base font-black text-slate-800">{t('dashboard.sections.recent_activity')}</h3>
         </div>
         
         <div className="flex bg-slate-100 p-1 rounded-lg border border-slate-200 shadow-inner">

@@ -4,6 +4,7 @@ import apiClient from '../../utils/apiClient';
 import toast from 'react-hot-toast';
 import { useQueryClient } from '@tanstack/react-query';
 import { logService } from '../../services/logService';
+import { useTranslation } from 'react-i18next';
 
 // Import Modular Components
 import Step1_ModelSelect from './components/Step1_ModelSelect';
@@ -16,6 +17,7 @@ import Step7_PBRSetup from './components/Step7_PBRSetup';
 import Step8_Summary from './components/Step8_Summary';
 
 const ConfigWizard = ({ mode = 'create', initialData, onFinish }) => {
+  const { t } = useTranslation();
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [models, setModels] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -55,17 +57,17 @@ const ConfigWizard = ({ mode = 'create', initialData, onFinish }) => {
   const getActiveSteps = () => {
     const hasWLAN = selectedModel?.ports?.some(p => p.type === 'WLAN');
     const steps = [
-      { id: 'model', label: 'Device Info' },
-      { id: 'wan', label: 'WAN' },
-      { id: 'dns', label: 'DNS' },
-      { id: 'lan', label: 'LAN' },
-      { id: 'assign', label: 'Assign' },
+      { id: 'model', label: t('wizard.steps.model') },
+      { id: 'wan', label: t('wizard.steps.wan') },
+      { id: 'dns', label: t('wizard.steps.dns') },
+      { id: 'lan', label: t('wizard.steps.lan') },
+      { id: 'assign', label: t('wizard.steps.assign') },
     ];
     
-    if (hasWLAN) steps.push({ id: 'wireless', label: 'Wireless' });
+    if (hasWLAN) steps.push({ id: 'wireless', label: t('wizard.steps.wireless') });
     
-    steps.push({ id: 'pbr', label: 'PBR' });
-    steps.push({ id: 'summary', label: 'Finish' });
+    steps.push({ id: 'pbr', label: t('wizard.steps.pbr') });
+    steps.push({ id: 'summary', label: t('wizard.steps.summary') });
     
     return steps;
   };
@@ -156,9 +158,9 @@ const ConfigWizard = ({ mode = 'create', initialData, onFinish }) => {
     })();
 
     toast.promise(savePromise, {
-      loading: mode === 'create' ? 'กำลังสร้างอุปกรณ์...' : 'กำลังอัปเดตอุปกรณ์...',
-      success: mode === 'create' ? 'สร้างอุปกรณ์สำเร็จ!' : 'อัปเดตข้อมูลสำเร็จ!',
-      error: (err) => `เกิดข้อผิดพลาด: ${err.response?.data?.error || err.message}`
+      loading: t('common.saving'),
+      success: t('common.save_changes'),
+      error: (err) => `${t('common.error')}: ${err.response?.data?.error || err.message}`
     });
 
     try {
@@ -216,7 +218,7 @@ const ConfigWizard = ({ mode = 'create', initialData, onFinish }) => {
 
       <div className="min-h-[300px] sm:min-h-[450px]">
         {loading ? (
-          <div className="text-center py-20 text-slate-400 font-medium italic">Loading...</div>
+          <div className="text-center py-20 text-slate-400 font-medium italic">{t('common.loading')}</div>
         ) : (
           <>
             {currentStepData.id === 'model' && <Step1_ModelSelect models={models} selectedModel={selectedModel} setSelectedModel={setSelectedModel} deviceMeta={deviceMeta} setDeviceMeta={setDeviceMeta} mode={mode} />}
@@ -251,7 +253,7 @@ const ConfigWizard = ({ mode = 'create', initialData, onFinish }) => {
           disabled={currentStepIndex === 0} 
           className="w-full sm:w-auto flex justify-center items-center gap-2 px-6 py-2.5 text-slate-600 font-medium hover:bg-slate-50 border border-slate-200 sm:border-transparent rounded-lg disabled:opacity-50 transition"
         >
-          <ArrowLeft size={18} /> Back
+          <ArrowLeft size={18} /> {t('common.back')}
         </button>
         {currentStepIndex < activeSteps.length - 1 && (
           <button 
@@ -259,7 +261,7 @@ const ConfigWizard = ({ mode = 'create', initialData, onFinish }) => {
             disabled={!canGoNext()} 
             className="w-full sm:w-auto flex justify-center items-center gap-2 px-8 py-2.5 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed transition shadow-sm"
           >
-            Next Step <ArrowRight size={18} />
+            {t('common.next')} <ArrowRight size={18} />
           </button>
         )}
       </div>

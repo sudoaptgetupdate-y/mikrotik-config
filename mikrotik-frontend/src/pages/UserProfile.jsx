@@ -4,8 +4,10 @@ import { User, Lock, Mail, Save, AlertCircle, Shield, CheckCircle, XCircle } fro
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { userService } from '../services/userService';
 import toast from 'react-hot-toast';
+import { useTranslation } from 'react-i18next';
 
 const UserProfile = () => {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const queryClient = useQueryClient();
 
@@ -27,7 +29,7 @@ const UserProfile = () => {
     queryKey: ['userProfile', user?.id],
     queryFn: () => userService.getUserById(user.id),
     enabled: !!user?.id, 
-    onError: () => toast.error('Failed to load user data.')
+    onError: () => toast.error(t('profile.load_error'))
   });
 
   // ==========================================
@@ -45,25 +47,25 @@ const UserProfile = () => {
   const isChangingPassword = formData.newPassword.length > 0 || formData.confirmNewPassword.length > 0;
   
   const passwordCriteria = [
-    { label: "At least 8 characters", met: formData.newPassword.length >= 8 },
-    { label: "Contains uppercase letter", met: /[A-Z]/.test(formData.newPassword) },
-    { label: "Contains lowercase letter", met: /[a-z]/.test(formData.newPassword) },
-    { label: "Contains number", met: /[0-9]/.test(formData.newPassword) },
-    { label: "Passwords match", met: formData.newPassword === formData.confirmNewPassword && formData.newPassword !== '' }
+    { label: t('profile.rules.length'), met: formData.newPassword.length >= 8 },
+    { label: t('profile.rules.upper'), met: /[A-Z]/.test(formData.newPassword) },
+    { label: t('profile.rules.lower'), met: /[a-z]/.test(formData.newPassword) },
+    { label: t('profile.rules.number'), met: /[0-9]/.test(formData.newPassword) },
+    { label: t('profile.rules.match'), met: formData.newPassword === formData.confirmNewPassword && formData.newPassword !== '' }
   ];
 
   const allCriteriaMet = passwordCriteria.every(c => c.met);
 
   const validateForm = () => {
     const errors = {};
-    if (!formData.firstName.trim()) errors.firstName = "First name is required";
-    if (!formData.lastName.trim()) errors.lastName = "Last name is required";
+    if (!formData.firstName.trim()) errors.firstName = t('profile.error_fname');
+    if (!formData.lastName.trim()) errors.lastName = t('profile.error_lname');
     if (isChangingPassword) {
-      if (!formData.currentPassword) errors.currentPassword = "Current password is required to set a new one";
-      if (!allCriteriaMet) errors.newPassword = "Password does not meet all requirements";
+      if (!formData.currentPassword) errors.currentPassword = t('profile.error_current_pass');
+      if (!allCriteriaMet) errors.newPassword = t('profile.error_requirements');
     }
     setFieldErrors(errors);
-    if (Object.keys(errors).length > 0) toast.error("กรุณาตรวจสอบข้อมูลให้ถูกต้อง"); 
+    if (Object.keys(errors).length > 0) toast.error(t('profile.validation_error')); 
     return Object.keys(errors).length === 0;
   };
 
@@ -89,9 +91,9 @@ const UserProfile = () => {
     const updatePromise = userService.updateUser(user.id, payload);
 
     toast.promise(updatePromise, {
-      loading: 'Saving profile...',
-      success: 'Profile updated successfully!',
-      error: (err) => err.response?.data?.error || 'An error occurred while updating profile.'
+      loading: t('profile.toast_saving'),
+      success: t('profile.toast_success'),
+      error: (err) => err.response?.data?.error || t('profile.toast_error')
     });
 
     try {
@@ -136,27 +138,27 @@ const UserProfile = () => {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
           <div className="bg-white p-6 md:p-8 rounded-2xl border border-slate-200 shadow-sm relative overflow-hidden h-full group">
             <div className="absolute top-0 right-0 p-8 opacity-[0.03] pointer-events-none group-hover:scale-110 transition-transform duration-700"><User size={120} /></div>
-            <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2 mb-6"><User className="text-blue-600" size={20} /> Personal Information</h3>
+            <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2 mb-6"><User className="text-blue-600" size={20} /> {t('profile.section_personal')}</h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 mb-5">
-              <div><label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">First Name</label><input type="text" name="firstName" value={formData.firstName} onChange={handleChange} className={`w-full p-3 bg-slate-50 border rounded-xl focus:bg-white focus:ring-4 outline-none transition-all font-medium text-slate-700 ${fieldErrors.firstName ? 'border-red-300 focus:ring-red-50 focus:border-red-400' : 'border-slate-200 focus:ring-blue-50 focus:border-blue-400'}`} />{fieldErrors.firstName && <p className="text-xs text-red-500 mt-1.5 font-bold flex items-center gap-1"><AlertCircle size={12}/> {fieldErrors.firstName}</p>}</div>
-              <div><label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Last Name</label><input type="text" name="lastName" value={formData.lastName} onChange={handleChange} className={`w-full p-3 bg-slate-50 border rounded-xl focus:bg-white focus:ring-4 outline-none transition-all font-medium text-slate-700 ${fieldErrors.lastName ? 'border-red-300 focus:ring-red-50 focus:border-red-400' : 'border-slate-200 focus:ring-blue-50 focus:border-blue-400'}`} />{fieldErrors.lastName && <p className="text-xs text-red-500 mt-1.5 font-bold flex items-center gap-1"><AlertCircle size={12}/> {fieldErrors.lastName}</p>}</div>
+              <div><label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">{t('profile.label_fname')}</label><input type="text" name="firstName" value={formData.firstName} onChange={handleChange} className={`w-full p-3 bg-slate-50 border rounded-xl focus:bg-white focus:ring-4 outline-none transition-all font-medium text-slate-700 ${fieldErrors.firstName ? 'border-red-300 focus:ring-red-50 focus:border-red-400' : 'border-slate-200 focus:ring-blue-50 focus:border-blue-400'}`} />{fieldErrors.firstName && <p className="text-xs text-red-500 mt-1.5 font-bold flex items-center gap-1"><AlertCircle size={12}/> {fieldErrors.firstName}</p>}</div>
+              <div><label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">{t('profile.label_lname')}</label><input type="text" name="lastName" value={formData.lastName} onChange={handleChange} className={`w-full p-3 bg-slate-50 border rounded-xl focus:bg-white focus:ring-4 outline-none transition-all font-medium text-slate-700 ${fieldErrors.lastName ? 'border-red-300 focus:ring-red-50 focus:border-red-400' : 'border-slate-200 focus:ring-blue-50 focus:border-blue-400'}`} />{fieldErrors.lastName && <p className="text-xs text-red-500 mt-1.5 font-bold flex items-center gap-1"><AlertCircle size={12}/> {fieldErrors.lastName}</p>}</div>
             </div>
-            <div><label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Email Address</label><div className="relative"><Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={18} /><input type="email" value={formData.email} disabled className="w-full pl-11 pr-4 py-3 bg-slate-100 border border-slate-200 rounded-xl text-slate-500 font-medium cursor-not-allowed" /></div></div>
+            <div><label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">{t('profile.label_email')}</label><div className="relative"><Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={18} /><input type="email" value={formData.email} disabled className="w-full pl-11 pr-4 py-3 bg-slate-100 border border-slate-200 rounded-xl text-slate-500 font-medium cursor-not-allowed" /></div></div>
           </div>
 
           <div className="bg-white p-6 md:p-8 rounded-2xl border border-slate-200 shadow-sm h-full flex flex-col group relative overflow-hidden">
-            <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2 mb-6"><Shield className="text-emerald-600" size={20} /> Security & Password</h3>
+            <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2 mb-6"><Shield className="text-emerald-600" size={20} /> {t('profile.section_security')}</h3>
             <div className="space-y-6 flex-1 relative z-10">
               <div className="space-y-5">
-                <div><label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Current Password</label><div className="relative"><Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={18} /><input type="password" name="currentPassword" value={formData.currentPassword} onChange={handleChange} placeholder="Required if changing password" className={`w-full pl-11 pr-4 py-3 bg-slate-50 border rounded-xl focus:bg-white focus:ring-4 outline-none transition-all font-mono text-sm ${fieldErrors.currentPassword ? 'border-red-300 focus:ring-red-50 focus:border-red-400' : 'border-slate-200 focus:ring-blue-50 focus:border-blue-400'}`} /></div>{fieldErrors.currentPassword && <p className="text-xs text-red-500 mt-1.5 font-bold flex items-center gap-1"><AlertCircle size={12}/> {fieldErrors.currentPassword}</p>}</div>
+                <div><label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">{t('profile.label_current_pass')}</label><div className="relative"><Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={18} /><input type="password" name="currentPassword" value={formData.currentPassword} onChange={handleChange} placeholder={t('profile.pass_placeholder')} className={`w-full pl-11 pr-4 py-3 bg-slate-50 border rounded-xl focus:bg-white focus:ring-4 outline-none transition-all font-mono text-sm ${fieldErrors.currentPassword ? 'border-red-300 focus:ring-red-50 focus:border-red-400' : 'border-slate-200 focus:ring-blue-50 focus:border-blue-400'}`} /></div>{fieldErrors.currentPassword && <p className="text-xs text-red-500 mt-1.5 font-bold flex items-center gap-1"><AlertCircle size={12}/> {fieldErrors.currentPassword}</p>}</div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                  <div><label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">New Password</label><div className="relative"><Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={18} /><input type="password" name="newPassword" value={formData.newPassword} onChange={handleChange} placeholder="New password" className={`w-full pl-11 pr-4 py-3 bg-slate-50 border rounded-xl focus:bg-white focus:ring-4 outline-none transition-all font-mono text-sm ${fieldErrors.newPassword ? 'border-red-300 focus:ring-red-50 focus:border-red-400' : 'border-slate-200 focus:ring-blue-50 focus:border-blue-400'}`} /></div></div>
-                  <div><label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Confirm New</label><div className="relative"><Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={18} /><input type="password" name="confirmNewPassword" value={formData.confirmNewPassword} onChange={handleChange} placeholder="Confirm password" className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-4 focus:ring-blue-50 border-blue-400 outline-none transition-all font-mono text-sm" /></div></div>
+                  <div><label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">{t('profile.label_new_pass')}</label><div className="relative"><Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={18} /><input type="password" name="newPassword" value={formData.newPassword} onChange={handleChange} placeholder={t('profile.new_pass_placeholder')} className={`w-full pl-11 pr-4 py-3 bg-slate-50 border rounded-xl focus:bg-white focus:ring-4 outline-none transition-all font-mono text-sm ${fieldErrors.newPassword ? 'border-red-300 focus:ring-red-50 focus:border-red-400' : 'border-slate-200 focus:ring-blue-50 focus:border-blue-400'}`} /></div></div>
+                  <div><label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">{t('profile.label_confirm_pass')}</label><div className="relative"><Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={18} /><input type="password" name="confirmNewPassword" value={formData.confirmNewPassword} onChange={handleChange} placeholder={t('profile.confirm_pass_placeholder')} className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-4 focus:ring-blue-50 border-blue-400 outline-none transition-all font-mono text-sm" /></div></div>
                 </div>
               </div>
               {isChangingPassword && (
                 <div className="bg-slate-50 p-5 rounded-xl border border-slate-100 mt-4 animate-in fade-in slide-in-from-top-2">
-                  <h4 className="text-xs font-bold text-slate-500 uppercase mb-3 tracking-wider">Password Requirements</h4>
+                  <h4 className="text-xs font-bold text-slate-500 uppercase mb-3 tracking-wider">{t('profile.pass_requirements')}</h4>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                     {passwordCriteria.map((c, i) => (
                       <div key={i} className="flex items-center gap-2 text-sm transition-all duration-300">
@@ -173,7 +175,7 @@ const UserProfile = () => {
         </div>
         <div className="flex justify-end pt-4 border-t border-slate-200">
           <button type="submit" disabled={isSubmitting || (isChangingPassword && !allCriteriaMet)} className="px-8 py-3 rounded-xl bg-blue-600 text-white font-bold text-sm shadow-lg shadow-blue-200 hover:bg-blue-700 transition-all flex items-center gap-2 disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none disabled:cursor-not-allowed">
-            {isSubmitting ? <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div> Saving...</> : <><Save size={18} /> Save Changes</>}
+            {isSubmitting ? <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div> {t('profile.btn_saving')}</> : <><Save size={18} /> {t('profile.btn_save')}</>}
           </button>
         </div>
       </form>

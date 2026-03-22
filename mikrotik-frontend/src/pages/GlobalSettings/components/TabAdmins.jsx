@@ -5,8 +5,10 @@ import toast from 'react-hot-toast';
 import { useQueryClient } from '@tanstack/react-query';
 import Swal from 'sweetalert2';
 import Pagination from '../../../components/Pagination';
+import { useTranslation } from 'react-i18next';
 
 export default function TabAdmins({ initialData }) {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
 
   const [routerAdmins, setRouterAdmins] = useState(initialData || []);
@@ -31,9 +33,9 @@ export default function TabAdmins({ initialData }) {
     const savePromise = apiClient.put(`/api/settings/ROUTER_ADMINS`, { value: updatedList });
     
     toast.promise(savePromise, {
-      loading: 'กำลังบันทึกข้อมูล...',
-      success: 'อัปเดต Router Admins สำเร็จ!',
-      error: (err) => `เกิดข้อผิดพลาด: ${err.message}`
+      loading: t('common.saving') || 'กำลังบันทึกข้อมูล...',
+      success: t('settings.admins.toast_success'),
+      error: (err) => `${t('settings.admins.toast_error')}${err.message}`
     });
 
     try {
@@ -46,9 +48,9 @@ export default function TabAdmins({ initialData }) {
   };
 
   const addAdmin = () => {
-    if (!newAdmin.username || !newAdmin.password) return toast.error("กรุณากรอก Username และ Password ให้ครบถ้วน");
+    if (!newAdmin.username || !newAdmin.password) return toast.error(t('settings.admins.error_missing'));
     const isDuplicate = routerAdmins.some(admin => admin.username.toLowerCase() === newAdmin.username.toLowerCase());
-    if (isDuplicate) return toast.error(`มี Username "${newAdmin.username}" อยู่ในระบบแล้ว`);
+    if (isDuplicate) return toast.error(t('settings.admins.error_duplicate', { name: newAdmin.username }));
 
     const updatedList = [...routerAdmins, newAdmin];
     handleSaveToBackend(updatedList, () => {
@@ -61,8 +63,13 @@ export default function TabAdmins({ initialData }) {
   const removeAdmin = async (index, username) => {
     const realIndex = (currentPage - 1) * itemsPerPage + index;
     const result = await Swal.fire({
-      title: 'ยืนยันการลบ Admin?', text: `คุณต้องการลบ "${username}" ออกจาก Default Config ใช่หรือไม่?`, icon: 'warning',
-      showCancelButton: true, confirmButtonText: 'ใช่, ลบออก!', cancelButtonText: 'ยกเลิก', buttonsStyling: false,
+      title: t('settings.admins.delete_confirm.title'), 
+      text: t('settings.admins.delete_confirm.text', { name: username }), 
+      icon: 'warning',
+      showCancelButton: true, 
+      confirmButtonText: t('settings.admins.delete_confirm.confirm'), 
+      cancelButtonText: t('common.cancel'), 
+      buttonsStyling: false,
       customClass: {
         popup: 'rounded-3xl p-6 border border-slate-100 shadow-xl', title: 'text-xl font-bold text-slate-800',
         htmlContainer: 'text-sm text-slate-500 font-medium mt-2', actions: 'flex gap-3 mt-6 w-full justify-center',
@@ -80,15 +87,15 @@ export default function TabAdmins({ initialData }) {
   return (
     <div className="flex-1 flex flex-col h-full">
       <div className="mb-6 pb-4 border-b border-slate-100 shrink-0">
-        <h3 className="text-lg font-bold text-slate-800">Default Router Admins</h3>
-        <p className="text-sm text-slate-500 mt-1">รายชื่อผู้ดูแลระบบที่จะถูกฝังเข้าไปในสคริปต์ MikroTik (บันทึกอัตโนมัติ)</p>
+        <h3 className="text-lg font-bold text-slate-800">{t('settings.admins.title')}</h3>
+        <p className="text-sm text-slate-500 mt-1">{t('settings.admins.desc')}</p>
       </div>
       
       <div className="bg-white border border-slate-200 shadow-sm rounded-xl p-4 mb-6 shrink-0">
         <div className="grid grid-cols-2 md:flex items-center gap-3">
-          <input type="text" placeholder="New Username" value={newAdmin.username} onChange={e => setNewAdmin({...newAdmin, username: e.target.value.replace(/\s/g, '')})} className="col-span-2 md:flex-1 border border-slate-300 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-50 transition-all" />
+          <input type="text" placeholder={t('settings.admins.placeholder_user')} value={newAdmin.username} onChange={e => setNewAdmin({...newAdmin, username: e.target.value.replace(/\s/g, '')})} className="col-span-2 md:flex-1 border border-slate-300 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-50 transition-all" />
           <div className="col-span-2 md:flex-1 relative">
-            <input type={showNewPassword ? "text" : "password"} placeholder="New Password" value={newAdmin.password} onChange={e => setNewAdmin({...newAdmin, password: e.target.value})} className="w-full border border-slate-300 rounded-xl pl-4 pr-10 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-50 transition-all font-mono" />
+            <input type={showNewPassword ? "text" : "password"} placeholder={t('settings.admins.placeholder_pass')} value={newAdmin.password} onChange={e => setNewAdmin({...newAdmin, password: e.target.value})} className="w-full border border-slate-300 rounded-xl pl-4 pr-10 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-50 transition-all font-mono" />
             <button type="button" onClick={() => setShowNewPassword(!showNewPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 focus:outline-none">
               {showNewPassword ? <EyeOff size={18} /> : <Eye size={18} />}
             </button>
@@ -98,7 +105,7 @@ export default function TabAdmins({ initialData }) {
             <option value="read">Read</option>
           </select>
           <button onClick={addAdmin} disabled={isSaving} className="col-span-1 justify-center bg-blue-600 hover:bg-blue-700 disabled:bg-slate-400 text-white px-5 py-2.5 rounded-xl flex items-center gap-2 font-bold transition-all shadow-sm">
-            {isSaving ? <Loader2 size={18} className="animate-spin" /> : <Plus size={18} />} Add User
+            {isSaving ? <Loader2 size={18} className="animate-spin" /> : <Plus size={18} />} {t('settings.admins.add_button')}
           </button>
         </div>
       </div>
@@ -109,7 +116,6 @@ export default function TabAdmins({ initialData }) {
             <div key={idx} className="flex flex-wrap items-center gap-3 bg-slate-50 p-3 rounded-xl border border-slate-200 shadow-sm transition-all hover:border-blue-300">
               <div className="flex-1 min-w-[120px] flex items-center gap-2">
                 <ShieldCheck size={16} className="text-blue-500 shrink-0" />
-                {/* 🟢 นำ font-bold ออกจาก username ให้เป็นตัวธรรมดา */}
                 <span className="flex-1 text-sm font-mono text-slate-700">{admin.username}</span>
               </div>
               <div className="flex-1 min-w-[120px] text-slate-400 font-mono text-sm tracking-widest">••••••••</div>
@@ -125,7 +131,7 @@ export default function TabAdmins({ initialData }) {
           ))}
 
           {routerAdmins.length === 0 && (
-            <div className="text-center py-6 text-slate-400 text-sm border border-dashed border-slate-300 rounded-xl bg-slate-50">ยังไม่มีรายชื่อ Admin เริ่มต้น</div>
+            <div className="text-center py-6 text-slate-400 text-sm border border-dashed border-slate-300 rounded-xl bg-slate-50">{t('settings.admins.empty')}</div>
           )}
         </div>
 

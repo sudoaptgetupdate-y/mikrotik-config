@@ -3,6 +3,7 @@ import { Users, Plus, Search, ChevronLeft, ChevronRight, Layers } from 'lucide-r
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import Swal from 'sweetalert2';
+import { useTranslation } from 'react-i18next';
 
 import { groupService } from '../../services/groupService'; 
 import { deviceService } from '../../services/deviceService'; 
@@ -14,6 +15,7 @@ import ManageDevicesModal from './components/ManageDevicesModal';
 import Pagination from '../../components/Pagination';
 
 const GroupManagement = () => {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
 
   // States
@@ -106,9 +108,9 @@ const GroupManagement = () => {
     e.preventDefault();
     const savePromise = isEditMode ? groupService.updateGroup(editingId, formData) : groupService.createGroup(formData);
     toast.promise(savePromise, {
-      loading: isEditMode ? 'กำลังอัปเดตข้อมูล...' : 'กำลังสร้างกลุ่ม...', 
-      success: isEditMode ? 'อัปเดตกลุ่มสำเร็จ!' : 'สร้างกลุ่มใหม่สำเร็จ!', 
-      error: (err) => err?.response?.data?.error || err.message || 'เกิดข้อผิดพลาด'
+      loading: isEditMode ? t('groups.form.updating') : t('groups.form.creating'), 
+      success: isEditMode ? t('groups.form.update_success') : t('groups.form.create_success'), 
+      error: (err) => err?.response?.data?.error || err.message || t('common.error')
     });
     try { 
       await savePromise; 
@@ -119,12 +121,17 @@ const GroupManagement = () => {
 
   const handleDeleteGroup = async (group) => {
     if (group.name === 'All Devices') {
-      return toast.error('ไม่อนุญาตให้ลบกลุ่มพื้นฐานของระบบ (Default Group) ได้');
+      return toast.error(t('groups.delete_confirm.default_group_error'));
     }
 
     const result = await Swal.fire({
-      title: 'ยืนยันการลบกลุ่ม?', text: `คุณแน่ใจหรือไม่ว่าต้องการลบกลุ่ม "${group.name}"?`, icon: 'warning',
-      showCancelButton: true, confirmButtonColor: '#ef4444', confirmButtonText: 'ใช่, ลบเลย!', cancelButtonText: 'ยกเลิก',
+      title: t('groups.delete_confirm.title'), 
+      text: t('groups.delete_confirm.text', { name: group.name }), 
+      icon: 'warning',
+      showCancelButton: true, 
+      confirmButtonColor: '#ef4444', 
+      confirmButtonText: t('groups.delete_confirm.confirm'), 
+      cancelButtonText: t('common.cancel'),
       customClass: {
         confirmButton: 'rounded-lg',
         cancelButton: 'rounded-lg'
@@ -132,7 +139,11 @@ const GroupManagement = () => {
     });
     if (result.isConfirmed) {
       const deletePromise = groupService.deleteGroup(group.id);
-      toast.promise(deletePromise, { loading: 'Deleting...', success: 'ลบสำเร็จ!', error: (err) => err.response?.data?.error || 'ไม่สำเร็จ' });
+      toast.promise(deletePromise, { 
+        loading: t('common.loading'), 
+        success: t('groups.delete_confirm.success'), 
+        error: (err) => err.response?.data?.error || t('groups.delete_confirm.error') 
+      });
       try { await deletePromise; queryClient.invalidateQueries({ queryKey: ['groups'] }); } catch (e) {}
     }
   };
@@ -145,57 +156,57 @@ const GroupManagement = () => {
       setIsDeviceModalOpen(false); return;
     }
 
-    const toastId = toast.loading('กำลังอัปเดตสมาชิกกลุ่ม...');
+    const toastId = toast.loading(t('groups.manage.updating'));
     try {
       const promises = [
         ...devicesToAdd.map(id => groupService.addDeviceToGroup(groupId, id)),
         ...devicesToRemove.map(id => groupService.removeDeviceFromGroup(groupId, id))
       ];
       await Promise.all(promises);
-      toast.success('อัปเดตอุปกรณ์ในกลุ่มสำเร็จ!', { id: toastId });
+      toast.success(t('groups.manage.success'), { id: toastId });
       queryClient.invalidateQueries({ queryKey: ['groups'] });
       queryClient.invalidateQueries({ queryKey: ['devices'] });
       setIsDeviceModalOpen(false);
-    } catch (error) { toast.error('เกิดข้อผิดพลาดในการอัปเดตข้อมูล', { id: toastId }); }
+    } catch (error) { toast.error(t('groups.manage.error'), { id: toastId }); }
   };
 
   const handleTestTelegram = async () => {
-    if (!formData.telegramBotToken || !formData.telegramChatId) return toast.error('กรุณากรอก Bot Token และ Chat ID ก่อน');
-    const tid = toast.loading('กำลังส่งข้อความ...');
+    if (!formData.telegramBotToken || !formData.telegramChatId) return toast.error(t('groups.form.telegram_missing'));
+    const tid = toast.loading(t('groups.form.telegram_sending'));
     try {
       const res = await fetch(`https://api.telegram.org/bot${formData.telegramBotToken}/sendMessage`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ chat_id: formData.telegramChatId, text: `✅ <b>[TEST SUCCESS]</b>\nระบบพร้อมใช้งานจาก MikrotikPanel`, parse_mode: 'HTML' })
+        body: JSON.stringify({ chat_id: formData.telegramChatId, text: `✅ <b>[TEST SUCCESS]</b>\n${t('groups.form.telegram_success_msg')}`, parse_mode: 'HTML' })
       });
-      if ((await res.json()).ok) toast.success('สำเร็จ! เช็คใน Telegram ได้เลย', { id: tid });
-      else throw new Error('Token หรือ Chat ID ไม่ถูกต้อง');
-    } catch (err) { toast.error(`ส่งไม่สำเร็จ: ${err.message}`, { id: tid }); }
+      if ((await res.json()).ok) toast.success(t('groups.form.telegram_success'), { id: tid });
+      else throw new Error(t('groups.form.telegram_invalid'));
+    } catch (err) { toast.error(`${t('groups.form.telegram_error')}: ${err.message}`, { id: tid }); }
   };
 
   const handleSendManualMessage = async () => {
     if (!manualMessage.trim()) return;
-    if (!formData.telegramBotToken || !formData.telegramChatId) return toast.error('ข้อมูล Telegram ไม่ครบถ้วน');
+    if (!formData.telegramBotToken || !formData.telegramChatId) return toast.error(t('groups.form.telegram_incomplete'));
 
-    const tid = toast.loading('กำลังส่งข้อความประกาศ...');
+    const tid = toast.loading(t('groups.form.manual_sending'));
     try {
       const res = await fetch(`https://api.telegram.org/bot${formData.telegramBotToken}/sendMessage`, {
         method: 'POST', 
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           chat_id: formData.telegramChatId, 
-          text: `📢 <b>[ประกาศจากผู้ดูแลระบบ]</b>\n\n${manualMessage}`, 
+          text: `📢 <b>[${t('groups.form.manual_announce_title')}]</b>\n\n${manualMessage}`, 
           parse_mode: 'HTML' 
         })
       });
       const data = await res.json();
       if (data.ok) {
-        toast.success('ส่งข้อความสำเร็จ!', { id: tid });
+        toast.success(t('groups.form.manual_success'), { id: tid });
         setManualMessage("");
       } else {
-        throw new Error(data.description || 'Token หรือ Chat ID ไม่ถูกต้อง');
+        throw new Error(data.description || t('groups.form.telegram_invalid'));
       }
     } catch (err) { 
-      toast.error(`ส่งไม่สำเร็จ: ${err.message}`, { id: tid }); 
+      toast.error(`${t('groups.form.telegram_error')}: ${err.message}`, { id: tid }); 
     }
   };
 
@@ -207,10 +218,10 @@ const GroupManagement = () => {
         <div className="relative z-10">
           <h1 className="text-2xl font-bold text-slate-800 tracking-tight flex items-center gap-2">
             <Users className="text-blue-600" size={28} /> 
-            Device Groups
+            {t('groups.title')}
           </h1>
           <p className="text-sm text-slate-500 mt-1 font-medium italic">
-            จัดการกลุ่มอุปกรณ์ การแบ่งสิทธิ์ และการแจ้งเตือนผ่าน Telegram
+            {t('groups.subtitle')}
           </p>
         </div>
         
@@ -220,7 +231,7 @@ const GroupManagement = () => {
             className="shrink-0 bg-blue-600 text-white px-5 py-2.5 rounded-xl flex items-center justify-center gap-2 hover:bg-blue-700 hover:-translate-y-0.5 active:translate-y-0 transition-all font-bold text-sm shadow-lg shadow-blue-500/20"
           >
             <Plus size={18} strokeWidth={2.5} /> 
-            <span>Create Group</span>
+            <span>{t('groups.create_button')}</span>
           </button>
         </div>
 
@@ -234,14 +245,14 @@ const GroupManagement = () => {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
           <input 
             type="text" 
-            placeholder="ค้นหากลุ่มอุปกรณ์..." 
+            placeholder={t('groups.search_placeholder')} 
             value={searchQuery} 
             onChange={(e) => setSearchQuery(e.target.value)} 
             className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-sm" 
           />
         </div>
         <div className="text-sm text-slate-500 font-medium px-2">
-          พบทั้งหมด <span className="text-slate-800 font-bold">{filteredGroups.length}</span> กลุ่ม
+          {t('groups.found_total', { count: filteredGroups.length })}
         </div>
       </div>
 
@@ -250,7 +261,7 @@ const GroupManagement = () => {
         // 🟢 เปลี่ยนความสูงตอน Loading ให้เป็น Responsive
         <div className="flex flex-col items-center justify-center py-20 text-slate-400 ">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-4"></div>
-          <p>กำลังโหลดข้อมูลกลุ่ม...</p>
+          <p>{t('groups.loading')}</p>
         </div>
       ) : filteredGroups.length === 0 ? (
         // 🟢 เปลี่ยนความสูงตอน Empty State ให้เป็น Responsive
@@ -258,15 +269,15 @@ const GroupManagement = () => {
           <div className="bg-slate-50 p-4 rounded-full mb-4">
             <Layers size={48} className="text-slate-300" />
           </div>
-          <h3 className="text-lg font-bold text-slate-700 mb-1">ไม่พบกลุ่มอุปกรณ์</h3>
+          <h3 className="text-lg font-bold text-slate-700 mb-1">{t('groups.not_found')}</h3>
           <p className="text-slate-500 text-sm max-w-sm mb-6">
-            คุณยังไม่มีกลุ่มอุปกรณ์ หรือไม่พบผลลัพธ์จากการค้นหา กรุณาสร้างกลุ่มใหม่เพื่อเริ่มต้น
+            {t('groups.empty_description')}
           </p>
           <button 
             onClick={openAddModal} 
             className="text-blue-600 font-medium text-sm hover:underline flex items-center gap-1"
           >
-            <Plus size={16} /> สร้างกลุ่มอุปกรณ์ใหม่
+            <Plus size={16} /> {t('groups.create_new')}
           </button>
         </div>
       ) : (

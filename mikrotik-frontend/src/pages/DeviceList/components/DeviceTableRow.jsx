@@ -3,6 +3,7 @@ import {
   Cpu, Zap, HardDrive, Thermometer, Wifi, ServerOff, 
   Clock, Download, History, RotateCcw, Settings, Trash2, BellRing, CheckCircle, Activity, AlertTriangle, Cloud
 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { formatUptime, formatLatency } from '../../../utils/formatters';
 
 const getProgressColor = (value, type, limit = 85) => {
@@ -39,6 +40,7 @@ const getLatencyColor = (latency) => {
 
 // 🟢 เพิ่ม onHardDelete มารับค่า props ด้วย
 const DeviceTableRow = ({ device, status, thresholds, onDownload, onViewHistory, onViewEvents, onRestore, onEdit, onDelete, onHardDelete, onAcknowledge, canEdit }) => {
+  const { t, i18n } = useTranslation();
   const isDeleted = status.state === 'deleted'; 
   
   const diffMinutes = device.lastSeen ? (new Date() - new Date(device.lastSeen)) / 1000 / 60 : 999;
@@ -48,7 +50,7 @@ const DeviceTableRow = ({ device, status, thresholds, onDownload, onViewHistory,
   const ramVal = device.ram || device.memoryUsage || 0;
   const storageVal = device.storage || 0;
 
-  let latestAckReason = 'No reason provided';
+  let latestAckReason = t('devices.status.noReason', 'No reason provided');
   let latestAckWarning = ''; 
   let ackCount = 0;
   
@@ -76,7 +78,7 @@ const DeviceTableRow = ({ device, status, thresholds, onDownload, onViewHistory,
     }
   }
 
-  let mainStateLabel = status.label;
+  let mainStateLabel = t(`devices.status.${status.state}`, status.label);
   let mainStateColor = status.color;
   let mainStateIcon = status.icon;
 
@@ -92,9 +94,9 @@ const DeviceTableRow = ({ device, status, thresholds, onDownload, onViewHistory,
           {device.isAcknowledged && (
             <span 
               className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold border bg-blue-50 text-blue-600 border-blue-200 cursor-help mt-1"
-              title={`Issue: ${latestAckWarning || 'Unknown'}\nNote: ${latestAckReason}`}
+              title={`${t('common.issue', 'Issue')}: ${latestAckWarning || t('common.unknown', 'Unknown')}\n${t('common.note', 'Note')}: ${latestAckReason}`}
             >
-              <CheckCircle size={12}/> {ackCount > 1 ? `Ack (${ackCount})` : 'Acknowledged'}
+              <CheckCircle size={12}/> {ackCount > 1 ? `${t('devices.status.acknowledged', 'Acknowledged')} (${ackCount})` : t('devices.status.acknowledged', 'Acknowledged')}
             </span>
           )}
         </div>
@@ -110,14 +112,14 @@ const DeviceTableRow = ({ device, status, thresholds, onDownload, onViewHistory,
           </div>
           <div className="flex flex-col items-start gap-1.5 mt-1.5">
             <span className={`text-xs font-mono font-medium px-2.5 py-0.5 rounded-md border ${isDeleted ? 'bg-slate-50 text-slate-400 border-slate-200' : 'bg-purple-50 text-purple-700 border-purple-200 shadow-sm'}`}>
-              {device.circuitId || 'No Circuit ID'}
+              {device.circuitId || t('devices.table.noCircuitId', 'No Circuit ID')}
             </span>
             <span className={`text-[10px] font-medium px-2 py-0.5 rounded border ${isDeleted ? 'bg-slate-50 text-slate-400 border-slate-200' : 'bg-slate-100 text-slate-700 border-slate-200 shadow-sm'}`}>
-              {device.boardName || device.model?.name || 'Unknown Model'}
+              {device.boardName || device.model?.name || t('devices.table.unknownModel', 'Unknown Model')}
             </span>
             {device.version && (
               <span className="text-[10px] font-medium bg-blue-50 text-blue-600 px-2 py-0.5 rounded border border-blue-100 shadow-sm">
-                RouterOS v{device.version}
+                {t('devices.table.routerOs', 'RouterOS v')}{device.version}
               </span>
             )}
           </div>
@@ -130,7 +132,7 @@ const DeviceTableRow = ({ device, status, thresholds, onDownload, onViewHistory,
           <div className="space-y-3 min-w-[140px]">
             <div>
               <div className="flex justify-between text-[10px] text-slate-500 mb-1">
-                <span className="flex items-center gap-1"><Cpu size={10} /> CPU</span>
+                <span className="flex items-center gap-1"><Cpu size={10} /> {t('devices.table.cpu', 'CPU')}</span>
                 <span className="font-medium">{parseFloat(cpuVal).toFixed(1)}%</span>
               </div>
               <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
@@ -139,7 +141,7 @@ const DeviceTableRow = ({ device, status, thresholds, onDownload, onViewHistory,
             </div>
             <div>
               <div className="flex justify-between text-[10px] text-slate-500 mb-1">
-                <span className="flex items-center gap-1"><Zap size={10} /> RAM</span>
+                <span className="flex items-center gap-1"><Zap size={10} /> {t('devices.table.ram', 'RAM')}</span>
                 <span className="font-medium">{parseFloat(ramVal).toFixed(1)}%</span>
               </div>
               <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
@@ -149,7 +151,7 @@ const DeviceTableRow = ({ device, status, thresholds, onDownload, onViewHistory,
             {device.storage !== null && device.storage !== undefined && (
               <div>
                 <div className="flex justify-between text-[10px] text-slate-500 mb-1">
-                  <span className="flex items-center gap-1"><HardDrive size={10} /> HDD</span>
+                  <span className="flex items-center gap-1"><HardDrive size={10} /> {t('devices.table.hdd', 'HDD')}</span>
                   <span className="font-medium">{parseFloat(storageVal).toFixed(1)}%</span>
                 </div>
                 <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
@@ -159,16 +161,15 @@ const DeviceTableRow = ({ device, status, thresholds, onDownload, onViewHistory,
             )}
           </div>
         ) : (
-          <span className="text-xs text-slate-400 italic">- No Data -</span>
+          <span className="text-xs text-slate-400 italic">{t('devices.table.noData')}</span>
         )}
       </td>
 
       {/* 4. Health, Net & Uptime */}
-      {/* 4. Health, Net & Uptime */}
       <td className="p-4 align-top">
         <div className="flex flex-col gap-1.5 text-xs">
-          <div className="font-mono font-medium text-slate-700 bg-slate-100 px-2 py-0.5 rounded w-max mb-0.5" title="Current IP Address">
-            {device.currentIp || 'No IP Address'}
+          <div className="font-mono font-medium text-slate-700 bg-slate-100 px-2 py-0.5 rounded w-max mb-0.5" title={t('devices.table.currentIp')}>
+            {device.currentIp || t('devices.table.noIpAddress')}
           </div>
           
           {/* 🟢 ส่วนแสดง Cloud DDNS เล็กๆ สีเทาใต้ IP */}
@@ -188,13 +189,13 @@ const DeviceTableRow = ({ device, status, thresholds, onDownload, onViewHistory,
               <div className="flex items-center gap-1">
                 <Wifi size={14} className={getLatencyColor(device.latency)} />
                 {/* 🟢 แสดงคำว่า N/A ตรงๆ ถ้า Latency คือ N/A */}
-                <span>{device.latency && device.latency !== "timeout" ? (device.latency === "N/A" ? "N/A" : formatLatency(device.latency)) : 'Timeout'}</span>
+                <span>{device.latency && device.latency !== "timeout" ? (device.latency === "N/A" ? "N/A" : formatLatency(device.latency)) : t('devices.table.timeout')}</span>
               </div>
             </div>
           )}
 
           <div className="flex items-start gap-2 mt-1">
-            <div className="mt-0.5" title="Uptime">
+            <div className="mt-0.5" title={t('devices.table.uptime')}>
               <Activity size={14} className="text-blue-500" />
             </div>
             <span className={`font-medium ${isDeleted ? 'text-slate-400' : 'text-slate-700'}`}>
@@ -203,16 +204,16 @@ const DeviceTableRow = ({ device, status, thresholds, onDownload, onViewHistory,
           </div>
 
           <div className="flex items-start gap-2 mt-0.5">
-            <div className="mt-0.5" title="Last Seen">
+            <div className="mt-0.5" title={t('devices.table.lastSeen')}>
               <Clock size={14} className="text-slate-400" />
             </div>
             <div className="text-slate-500">
               {device.lastSeen ? (
                 <span>
-                  {new Date(device.lastSeen).toLocaleDateString()} {new Date(device.lastSeen).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  {new Date(device.lastSeen).toLocaleDateString(i18n.language)} {new Date(device.lastSeen).toLocaleTimeString(i18n.language, { hour: '2-digit', minute: '2-digit' })}
                 </span>
               ) : (
-                'Never'
+                t('devices.table.never')
               )}
             </div>
           </div>
@@ -231,43 +232,43 @@ const DeviceTableRow = ({ device, status, thresholds, onDownload, onViewHistory,
                   ? 'text-orange-500 hover:text-white hover:bg-orange-500 animate-pulse' 
                   : 'text-blue-500 hover:text-white hover:bg-blue-500'
               }`}
-              title={!device.isAcknowledged ? "Acknowledge Warning / Offline" : "Update Acknowledge Note"}
+              title={!device.isAcknowledged ? t('devices.actions.ackTitle', 'Acknowledge Warning / Offline') : t('devices.actions.updateAckTitle', 'Update Acknowledge Note')}
             >
               <BellRing size={16} />
             </button>
           )}
 
           {canEdit && !isDeleted && (
-              <button onClick={() => onDownload(device)} className="p-2 text-slate-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition" title="Download Latest Config">
+              <button onClick={() => onDownload(device)} className="p-2 text-slate-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition" title={t('devices.actions.downloadTitle', 'Download Latest Config')}>
                 <Download size={16} />
               </button>
           )}
 
-          <button onClick={() => onViewHistory(device)} className="p-2 text-slate-400 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition" title="View Config History">
+          <button onClick={() => onViewHistory(device)} className="p-2 text-slate-400 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition" title={t('devices.actions.historyTitle', 'View Config History')}>
             <History size={16} />
           </button>
 
-          <button onClick={() => onViewEvents(device)} className="p-2 text-slate-400 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition" title="View Event Logs">
+          <button onClick={() => onViewEvents(device)} className="p-2 text-slate-400 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition" title={t('devices.actions.eventsTitle', 'View Event Logs')}>
             <Activity size={16} />
           </button>
 
           {canEdit && (
             isDeleted ? (
               <>
-                <button onClick={() => onRestore(device)} className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition" title="Restore Device">
+                <button onClick={() => onRestore(device)} className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition" title={t('devices.actions.restoreTitle', 'Restore Device')}>
                     <RotateCcw size={16} />
                 </button>
                 {/* 🟢 ปุ่ม Hard Delete แสดงคู่กับ Restore */}
-                <button onClick={() => onHardDelete(device)} className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition" title="Hard Delete (Permanent)">
+                <button onClick={() => onHardDelete(device)} className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition" title={t('devices.actions.hardDeleteTitle', 'Hard Delete (Permanent)')}>
                   <Trash2 size={16} />
                 </button>
               </>
             ) : (
               <>
-                <button onClick={() => onEdit(device)} className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition" title="Edit Config">
+                <button onClick={() => onEdit(device)} className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition" title={t('devices.actions.editTitle', 'Edit Config')}>
                   <Settings size={16} />
                 </button>
-                <button onClick={() => onDelete(device)} className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition" title="Move to Trash">
+                <button onClick={() => onDelete(device)} className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition" title={t('devices.actions.trashTitle', 'Move to Trash')}>
                   <Trash2 size={16} />
                 </button>
               </>

@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Network, Layers, CheckCircle, Settings, CheckSquare, X, ChevronDown } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 const Step5_PortAssign = ({ selectedModel, wanList, networks, portConfig, setPortConfig }) => {
+  const { t } = useTranslation();
   
   const getLanPorts = () => {
     if (!selectedModel) return [];
@@ -144,7 +146,7 @@ const Step5_PortAssign = ({ selectedModel, wanList, networks, portConfig, setPor
           <div className="flex flex-col md:flex-row md:items-center gap-4 flex-1">
             {/* Selected Count Badge */}
             <div className="flex items-center gap-2 text-white bg-blue-600 px-3 py-2 rounded-xl shrink-0 shadow-sm text-sm">
-              <CheckSquare size={16} /> {selectedPorts.length} Ports Selected
+              <CheckSquare size={16} /> {selectedPorts.length} {t('common.items')} Selected
             </div>
             
             {/* Configuration Inputs */}
@@ -247,7 +249,7 @@ const Step5_PortAssign = ({ selectedModel, wanList, networks, portConfig, setPor
         
         {lanPorts.length === 0 ? (
           <div className="p-8 text-center text-slate-500 bg-slate-50/50">
-            ไม่พบพอร์ต LAN ที่ว่าง (พอร์ตทั้งหมดอาจถูกตั้งเป็น WAN ไปแล้ว)
+            {t('common.no_data')}
           </div>
         ) : (
           <div className="overflow-x-auto [&::-webkit-scrollbar]:h-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-300 [&::-webkit-scrollbar-thumb]:rounded-full relative">
@@ -264,8 +266,8 @@ const Step5_PortAssign = ({ selectedModel, wanList, networks, portConfig, setPor
                       onChange={handleSelectAll}
                     />
                   </th>
-                  <th className="p-3 text-[11px] text-slate-500 uppercase tracking-wider w-36">Interface</th>
-                  <th className="p-3 text-[11px] text-slate-500 uppercase tracking-wider w-40">Mode</th>
+                  <th className="p-3 text-[11px] text-slate-500 uppercase tracking-wider w-36">{t('wizard.step2.label_interface')}</th>
+                  <th className="p-3 text-[11px] text-slate-500 uppercase tracking-wider w-40">{t('wizard.step2.label_type')}</th>
                   <th className="p-3 pr-5 text-[11px] text-slate-500 uppercase tracking-wider">VLAN Configuration</th>
                 </tr>
               </thead>

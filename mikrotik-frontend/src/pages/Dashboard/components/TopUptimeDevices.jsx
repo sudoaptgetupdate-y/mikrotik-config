@@ -1,8 +1,10 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { Zap, Clock, CheckCircle2 } from 'lucide-react';
 
 const TopUptimeDevices = ({ devices }) => {
+  const { t } = useTranslation();
   const navigate = useNavigate();
 
   // ฟังก์ชันแปลง Uptime ของ MikroTik (ที่มักจะหยุดแค่ weeks) ให้แสดงเป็น years
@@ -30,13 +32,13 @@ const TopUptimeDevices = ({ devices }) => {
     <div className="space-y-3">
       <div className="flex items-center gap-2 mb-1">
         <div className="w-1.5 h-5 bg-emerald-500 rounded-full"></div>
-        <h3 className="text-base font-black text-slate-800">Top Performance (Uptime)</h3>
+        <h3 className="text-base font-black text-slate-800">{t('dashboard.sections.top_uptime')}</h3>
       </div>
       
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex-1 flex flex-col">
         {devices.length === 0 ? (
           <div className="p-8 text-center text-slate-400 flex flex-col items-center justify-center min-h-[200px]">
-            <p className="text-sm font-medium">No uptime data available</p>
+            <p className="text-sm font-medium">{t('common.no_data')}</p>
           </div>
         ) : (
           <div className="divide-y divide-slate-100 max-h-[320px] overflow-y-auto custom-scrollbar">

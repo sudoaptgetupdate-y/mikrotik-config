@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
 import { Save, Bot, Loader2, Key, MessageSquare, Power, RefreshCw, ExternalLink } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import apiClient from '../../../utils/apiClient';
 import toast from 'react-hot-toast';
 import { useQueryClient } from '@tanstack/react-query';
 
 export default function TabAISettings({ initialData }) {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [isSaving, setIsSaving] = useState(false);
   const [isTesting, setIsTesting] = useState(false);
@@ -38,10 +40,10 @@ export default function TabAISettings({ initialData }) {
       );
 
       await Promise.all(promises);
-      toast.success('อัปเดตการตั้งค่า Gemini AI สำเร็จ!');
+      toast.success(t('settings.ai.toast_save_success'));
       queryClient.invalidateQueries({ queryKey: ['settings'] });
     } catch (error) {
-      toast.error('เกิดข้อผิดพลาดในการบันทึกข้อมูล');
+      toast.error(t('settings.admins.toast_error') + error.message);
       console.error(error);
     } finally {
       setIsSaving(false);
@@ -56,10 +58,10 @@ export default function TabAISettings({ initialData }) {
       });
       
       if (response.data.success) {
-        toast.success(response.data.message);
+        toast.success(t('settings.ai.toast_test_success'));
       }
     } catch (error) {
-      const errorMsg = error.response?.data?.error || 'ไม่สามารถเชื่อมต่อกับ Gemini AI ได้';
+      const errorMsg = error.response?.data?.error || t('settings.ai.error_test_failed');
       toast.error(errorMsg);
       console.error(error);
     } finally {
@@ -72,9 +74,9 @@ export default function TabAISettings({ initialData }) {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 pb-4 border-b border-slate-100 gap-4">
         <div>
           <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-            <Bot size={20} className="text-emerald-500" /> Google Gemini AI Assistant
+            <Bot size={20} className="text-emerald-500" /> {t('settings.ai.title')}
           </h3>
-          <p className="text-sm text-slate-500 mt-1">ใช้พลังของ Gemini 1.5 Flash เพื่อช่วยสรุปและวิเคราะห์สถานะเครือข่าย</p>
+          <p className="text-sm text-slate-500 mt-1">{t('settings.ai.desc')}</p>
         </div>
         <div className="flex gap-2">
           <button 
@@ -82,14 +84,14 @@ export default function TabAISettings({ initialData }) {
             disabled={isTesting || !settings.AI_GEMINI_KEY}
             className="bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 px-4 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 transition-all shadow-sm"
           >
-            {isTesting ? <RefreshCw size={16} className="animate-spin"/> : <RefreshCw size={16} />} Test API Key
+            {isTesting ? <RefreshCw size={16} className="animate-spin"/> : <RefreshCw size={16} />} {t('settings.ai.btn_test')}
           </button>
           <button 
             onClick={handleSave} 
             disabled={isSaving} 
-            className="bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 text-white px-6 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 transition-all shadow-sm"
+            className="bg-blue-600 hover:bg-blue-700 disabled:bg-slate-400 text-white px-6 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 transition-all shadow-sm"
           >
-            {isSaving ? <Loader2 size={16} className="animate-spin"/> : <Save size={16} />} Save AI Settings
+            {isSaving ? <Loader2 size={16} className="animate-spin"/> : <Save size={16} />} {t('settings.ai.btn_save')}
           </button>
         </div>
       </div>
@@ -102,8 +104,8 @@ export default function TabAISettings({ initialData }) {
               <Power size={24} />
             </div>
             <div>
-              <h4 className="font-bold text-slate-800">Enable Gemini AI</h4>
-              <p className="text-sm text-slate-500">เปิดใช้งานระบบตอบโต้อัตโนมัติด้วย Gemini 1.5 Flash ใน Telegram</p>
+              <h4 className="font-bold text-slate-800">{t('settings.ai.label_enable')}</h4>
+              <p className="text-sm text-slate-500">{t('settings.ai.desc_enable')}</p>
             </div>
           </div>
           <button
@@ -118,7 +120,7 @@ export default function TabAISettings({ initialData }) {
         <div className="space-y-2">
           <div className="flex justify-between items-center">
             <label className="text-sm font-bold text-slate-700 flex items-center gap-2">
-              <Key size={16} className="text-slate-400" /> Google AI Studio API Key
+              <Key size={16} className="text-slate-400" /> {t('settings.ai.label_key')}
             </label>
             <a 
               href="https://aistudio.google.com/app/apikey" 
@@ -126,7 +128,7 @@ export default function TabAISettings({ initialData }) {
               rel="noreferrer"
               className="text-xs text-blue-600 hover:underline flex items-center gap-1"
             >
-              รับ API Key ฟรี <ExternalLink size={12} />
+              {t('settings.ai.get_key')} <ExternalLink size={12} />
             </a>
           </div>
           <input
@@ -141,14 +143,14 @@ export default function TabAISettings({ initialData }) {
         {/* System Prompt */}
         <div className="space-y-2">
           <label className="text-sm font-bold text-slate-700 flex items-center gap-2">
-            <MessageSquare size={16} className="text-slate-400" /> AI System Instruction (Role)
+            <MessageSquare size={16} className="text-slate-400" /> {t('settings.ai.label_prompt')}
           </label>
           <textarea
             rows={5}
             value={settings.AI_SYSTEM_PROMPT}
             onChange={(e) => handleChange('AI_SYSTEM_PROMPT', e.target.value)}
             className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all shadow-sm text-sm resize-none"
-            placeholder="เช่น: คุณคือผู้ช่วยดูแลระบบ Network ของ NT ตอบสั้นๆ..."
+            placeholder={t('settings.ai.placeholder_prompt')}
           />
         </div>
 
@@ -157,8 +159,8 @@ export default function TabAISettings({ initialData }) {
           <div className="flex gap-3">
             <div className="mt-0.5"><Bot size={18} className="text-emerald-600" /></div>
             <div className="text-xs text-emerald-700 leading-relaxed">
-              <p className="font-bold mb-1">ทำไมต้อง Gemini 1.5 Flash?</p>
-              Gemini 1.5 Flash มีความฉลาดสูง เข้าใจภาษาไทยได้ดีเยี่ยม และประมวลผลได้รวดเร็วผ่าน Cloud ของ Google ช่วยให้บอทของคุณสามารถวิเคราะห์สถานะอุปกรณ์ที่ซับซ้อนได้แม่นยำกว่าการรัน Model ขนาดเล็กในเครื่อง
+              <p className="font-bold mb-1">{t('settings.ai.why_gemini')}</p>
+              {t('settings.ai.why_gemini_desc')}
             </div>
           </div>
         </div>

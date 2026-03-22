@@ -1,11 +1,14 @@
 import React, { useEffect } from 'react';
 import { X, Download, Clock, FileText, Loader2 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { generateMikrotikScript } from '../../../utils/mikrotikGenerator';
 import { generateMikrotikScriptV6 } from '../../../utils/mikrotikGeneratorV6';
 import Swal from 'sweetalert2'; 
 import apiClient from '../../../utils/apiClient';
 
 const HistoryModal = ({ isOpen, onClose, device, history, loading }) => {
+  const { t, i18n } = useTranslation();
+
   useEffect(() => {
     const handleEsc = (e) => {
       if (e.key === 'Escape') onClose();
@@ -25,14 +28,14 @@ const HistoryModal = ({ isOpen, onClose, device, history, loading }) => {
   const handleDownload = async (configEntry) => { 
     // 🟢 1. ถามเวอร์ชัน
     const result = await Swal.fire({
-      title: 'ดาวน์โหลดจากประวัติ',
-      text: 'ต้องการดาวน์โหลด History นี้สำหรับ RouterOS เวอร์ชันใด?',
+      title: t('devices.history.downloadConfirmTitle', 'Download from History'),
+      text: t('devices.history.downloadConfirmText', 'Which RouterOS version do you want to download this history for?'),
       icon: 'question',
       showDenyButton: true,
       showCancelButton: true,
-      confirmButtonText: 'RouterOS v7',
-      denyButtonText: 'RouterOS v6',
-      cancelButtonText: 'ยกเลิก',
+      confirmButtonText: t('devices.history.rosV7', 'RouterOS v7'),
+      denyButtonText: t('devices.history.rosV6', 'RouterOS v6'),
+      cancelButtonText: t('common.cancel', 'Cancel'),
       buttonsStyling: false,
       customClass: {
         popup: 'rounded-2xl p-5 border border-slate-100 shadow-xl',
@@ -71,7 +74,7 @@ const HistoryModal = ({ isOpen, onClose, device, history, loading }) => {
       document.body.removeChild(element);
     } catch (e) {
       console.error("Download Error:", e);
-      alert("Error generating script from history");
+      alert(t('devices.history.downloadError', 'Error generating script from history'));
     }
   };
 
@@ -104,8 +107,8 @@ const HistoryModal = ({ isOpen, onClose, device, history, loading }) => {
               <Clock size={24} />
             </div>
             <div>
-              <h3 className="font-black text-xl text-slate-800 tracking-tight">Config History</h3>
-              <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Device: {device?.name}</p>
+              <h3 className="font-black text-xl text-slate-800 tracking-tight">{t('devices.history.title', 'Config History')}</h3>
+              <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">{t('devices.history.deviceName', 'Device:')} {device?.name}</p>
             </div>
           </div>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-600 hover:bg-slate-100 p-2 rounded-xl transition-all">
@@ -118,21 +121,21 @@ const HistoryModal = ({ isOpen, onClose, device, history, loading }) => {
           {loading ? (
             <div className="flex flex-col items-center justify-center h-64 text-slate-400 gap-3">
               <Loader2 size={32} className="animate-spin text-blue-500" />
-              <p>Loading history records...</p>
+              <p>{t('devices.history.loading', 'Loading history records...')}</p>
             </div>
           ) : history.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-64 text-slate-400 gap-3">
               <FileText size={48} className="text-slate-300" />
-              <p>No history found for this device.</p>
+              <p>{t('devices.history.noHistory', 'No history found for this device.')}</p>
             </div>
           ) : (
             <table className="w-full text-left border-collapse">
               <thead className="bg-white text-xs uppercase text-slate-500 font-semibold sticky top-0 shadow-sm z-10">
                 <tr>
-                  <th className="p-4 border-b">Saved Date</th>
-                  <th className="p-4 border-b">Model</th>
-                  <th className="p-4 border-b">User</th>
-                  <th className="p-4 border-b text-right">Restore / Download</th>
+                  <th className="p-4 border-b">{t('devices.history.colDate', 'Saved Date')}</th>
+                  <th className="p-4 border-b">{t('devices.history.colModel', 'Model')}</th>
+                  <th className="p-4 border-b">{t('devices.history.colUser', 'User')}</th>
+                  <th className="p-4 border-b text-right">{t('devices.history.colActions', 'Restore / Download')}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200 bg-white">
@@ -140,10 +143,10 @@ const HistoryModal = ({ isOpen, onClose, device, history, loading }) => {
                   <tr key={item.id} className="hover:bg-blue-50 transition group">
                     <td className="p-4 text-sm text-slate-700">
                       <div className="font-medium">
-                        {new Date(item.createdAt).toLocaleDateString()}
+                        {new Date(item.createdAt).toLocaleDateString(i18n.language)}
                       </div>
                       <div className="text-xs text-slate-500">
-                        {new Date(item.createdAt).toLocaleTimeString()}
+                        {new Date(item.createdAt).toLocaleTimeString(i18n.language)}
                       </div>
                     </td>
                     <td className="p-4 text-sm text-slate-600">
@@ -157,7 +160,7 @@ const HistoryModal = ({ isOpen, onClose, device, history, loading }) => {
                         onClick={() => handleDownload(item)}
                         className="inline-flex items-center gap-2 text-xs font-bold px-3 py-1.5 bg-slate-100 text-slate-600 rounded-lg hover:bg-blue-600 hover:text-white transition-all shadow-sm"
                       >
-                        <Download size={14} /> Download .rsc
+                        <Download size={14} /> {t('devices.history.downloadButton', 'Download .rsc')}
                       </button>
                     </td>
                   </tr>
@@ -170,7 +173,7 @@ const HistoryModal = ({ isOpen, onClose, device, history, loading }) => {
         {/* Footer */}
         <div className="p-4 border-t border-slate-200 bg-white text-right shrink-0">
             <button onClick={onClose} className="px-5 py-2 bg-white border border-slate-300 rounded-lg text-slate-600 hover:bg-slate-50 text-sm font-medium transition shadow-sm">
-                Close Window
+                {t('common.close', 'Close')}
             </button>
         </div>
 

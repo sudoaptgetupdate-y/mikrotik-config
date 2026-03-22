@@ -3,8 +3,10 @@ import { Activity, ShieldAlert, ClipboardList, Save, CalendarClock } from 'lucid
 import apiClient from '../../../utils/apiClient';
 import toast from 'react-hot-toast';
 import Swal from 'sweetalert2';
+import { useTranslation } from 'react-i18next';
 
 export default function TabMaintenance() {
+  const { t } = useTranslation();
   
   // ==========================================
   // States สำหรับ Auto Cleanup
@@ -17,7 +19,7 @@ export default function TabMaintenance() {
   useEffect(() => {
     const fetchSettings = async () => {
       try {
-        const res = await apiClient.get('/api/settings'); // เรียกใช้ API ดึง Settings ของคุณ
+        const res = await apiClient.get('/api/settings'); 
         const settings = res.data || [];
         
         const audit = settings.find(s => s.key === 'AUDIT_LOG_RETENTION_DAYS');
@@ -40,17 +42,17 @@ export default function TabMaintenance() {
       await apiClient.post('/api/settings/update', { 
         key: 'AUDIT_LOG_RETENTION_DAYS', 
         value: auditDays.toString(),
-        description: 'จำนวนวันสูงสุดที่จะเก็บประวัติแอดมิน (Audit Log)'
+        description: 'Audit Log Retention Days'
       });
       await apiClient.post('/api/settings/update', { 
         key: 'EVENT_LOG_RETENTION_DAYS', 
         value: eventDays.toString(),
-        description: 'จำนวนวันสูงสุดที่จะเก็บประวัติสถานะอุปกรณ์ (Event Log)'
+        description: 'Event Log Retention Days'
       });
       
-      toast.success('บันทึกการตั้งค่า Auto Cleanup สำเร็จ!');
+      toast.success(t('settings.maintenance.toast_auto_success'));
     } catch (error) {
-      toast.error('ไม่สามารถบันทึกการตั้งค่าได้');
+      toast.error(t('common.error'));
       console.error(error);
     } finally {
       setIsSaving(false);
@@ -58,16 +60,16 @@ export default function TabMaintenance() {
   };
 
   // ==========================================
-  // Handlers สำหรับ Manual Cleanup (โค้ดเดิมของคุณ)
+  // Handlers สำหรับ Manual Cleanup
   // ==========================================
   const handleClearAckHistory = async (days) => {
     const result = await Swal.fire({
-      title: '⚠️ ยืนยันการล้างข้อมูล?',
-      text: `คุณแน่ใจหรือไม่ที่จะลบประวัติ "การกดรับทราบ (Acknowledge)" ที่เก่ากว่า ${days} วัน ออกจากระบบทั้งหมด? (การกระทำนี้ไม่สามารถย้อนกลับได้)`,
+      title: t('settings.maintenance.swal_confirm.title'),
+      text: t('settings.maintenance.swal_confirm.text_ack', { days }),
       icon: 'warning', 
       showCancelButton: true,
-      confirmButtonText: 'ใช่, ล้างข้อมูลเลย!',
-      cancelButtonText: 'ยกเลิก',
+      confirmButtonText: t('settings.maintenance.swal_confirm.confirm'),
+      cancelButtonText: t('common.cancel'),
       buttonsStyling: false,
       customClass: {
         popup: 'rounded-3xl p-6 border-2 border-rose-100 shadow-2xl', 
@@ -82,9 +84,9 @@ export default function TabMaintenance() {
     if (result.isConfirmed) {
       const clearPromise = apiClient.post('/api/devices/maintenance/clear-ack', { days });
       toast.promise(clearPromise, {
-        loading: 'กำลังล้างข้อมูล...',
-        success: (res) => `ล้างข้อมูลสำเร็จ! มีผลกับอุปกรณ์จำนวน ${res.data.affectedDevices} เครื่อง`,
-        error: (err) => `เกิดข้อผิดพลาด: ${err.response?.data?.error || err.message}`
+        loading: t('common.loading'),
+        success: (res) => t('settings.maintenance.toast_manual_success', { count: res.data.affectedDevices }),
+        error: (err) => `${t('common.error')}: ${err.response?.data?.error || err.message}`
       });
       try { await clearPromise; } catch (e) {}
     }
@@ -92,12 +94,12 @@ export default function TabMaintenance() {
 
   const handleClearEventHistory = async (days) => {
     const result = await Swal.fire({
-      title: '⚠️ ยืนยันการล้างข้อมูลสถานะ?',
-      text: `คุณแน่ใจหรือไม่ที่จะลบประวัติ "สถานะอุปกรณ์ (Online/Offline/Warning)" ที่เก่ากว่า ${days} วัน? (การกระทำนี้ไม่สามารถย้อนกลับได้)`,
+      title: t('settings.maintenance.swal_confirm.title'),
+      text: t('settings.maintenance.swal_confirm.text_event', { days }),
       icon: 'warning',
       showCancelButton: true,
-      confirmButtonText: 'ใช่, ล้างข้อมูลเลย!',
-      cancelButtonText: 'ยกเลิก',
+      confirmButtonText: t('settings.maintenance.swal_confirm.confirm'),
+      cancelButtonText: t('common.cancel'),
       buttonsStyling: false,
       customClass: {
         popup: 'rounded-3xl p-6 border-2 border-orange-100 shadow-2xl',
@@ -112,9 +114,9 @@ export default function TabMaintenance() {
     if (result.isConfirmed) {
       const clearPromise = apiClient.post('/api/devices/maintenance/clear-events', { days });
       toast.promise(clearPromise, {
-        loading: 'กำลังล้างข้อมูล...',
-        success: (res) => `ล้างข้อมูลสำเร็จ! ลบประวัติไปทั้งหมด ${res.data.deletedCount} รายการ`,
-        error: (err) => `เกิดข้อผิดพลาด: ${err.response?.data?.error || err.message}`
+        loading: t('common.loading'),
+        success: (res) => t('settings.maintenance.toast_manual_success', { count: res.data.deletedCount }),
+        error: (err) => `${t('common.error')}: ${err.response?.data?.error || err.message}`
       });
       try { await clearPromise; } catch (e) {}
     }
@@ -122,12 +124,12 @@ export default function TabMaintenance() {
 
   const handleClearActivityLog = async (days) => {
     const result = await Swal.fire({
-      title: '⚠️ ยืนยันการล้างประวัติแอดมิน?',
-      text: `คุณแน่ใจหรือไม่ที่จะลบ "ประวัติการใช้งานระบบ (Audit Logs)" ที่เก่ากว่า ${days} วัน? (การกระทำนี้ไม่สามารถย้อนกลับได้)`,
+      title: t('settings.maintenance.swal_confirm.title'),
+      text: t('settings.maintenance.swal_confirm.text_audit', { days }),
       icon: 'warning',
       showCancelButton: true,
-      confirmButtonText: 'ใช่, ล้างข้อมูลเลย!',
-      cancelButtonText: 'ยกเลิก',
+      confirmButtonText: t('settings.maintenance.swal_confirm.confirm'),
+      cancelButtonText: t('common.cancel'),
       buttonsStyling: false,
       customClass: {
         popup: 'rounded-3xl p-6 border-2 border-blue-100 shadow-2xl',
@@ -142,9 +144,9 @@ export default function TabMaintenance() {
     if (result.isConfirmed) {
       const clearPromise = apiClient.post('/api/devices/maintenance/clear-activity-logs', { days });
       toast.promise(clearPromise, {
-        loading: 'กำลังล้างข้อมูล...',
-        success: (res) => `ล้างข้อมูลสำเร็จ! ลบประวัติไปทั้งหมด ${res.data.deletedCount} รายการ`,
-        error: (err) => `เกิดข้อผิดพลาด: ${err.response?.data?.error || err.message}`
+        loading: t('common.loading'),
+        success: (res) => t('settings.maintenance.toast_manual_success', { count: res.data.deletedCount }),
+        error: (err) => `${t('common.error')}: ${err.response?.data?.error || err.message}`
       });
       try { await clearPromise; } catch (e) {}
     }
@@ -158,8 +160,8 @@ export default function TabMaintenance() {
       
       {/* ส่วนหัว */}
       <div className="pb-4 border-b border-slate-100">
-        <h3 className="text-lg font-bold text-slate-800">System Maintenance</h3>
-        <p className="text-sm text-slate-500">จัดการข้อมูลและดูแลรักษาพื้นที่ของระบบฐานข้อมูล</p>
+        <h3 className="text-lg font-bold text-slate-800">{t('settings.maintenance.title')}</h3>
+        <p className="text-sm text-slate-500">{t('settings.maintenance.desc')}</p>
       </div>
 
       {/* 🟢 ส่วนที่เพิ่มใหม่: Auto Cleanup Settings */}
@@ -168,10 +170,10 @@ export default function TabMaintenance() {
           <div>
             <h4 className="font-bold text-slate-800 flex items-center gap-2 text-lg">
               <CalendarClock className="text-blue-600" size={24} /> 
-              ตั้งค่าลบข้อมูลอัตโนมัติ (Auto Cleanup Cron Jobs)
+              {t('settings.maintenance.auto_title')}
             </h4>
             <p className="text-sm text-slate-600 mt-1">
-              ระบบจะทำการรันสคริปต์ทำความสะอาดทุกๆ เที่ยงคืน เพื่อลบประวัติที่เก่ากว่าจำนวนวันที่คุณกำหนด
+              {t('settings.maintenance.auto_desc')}
             </p>
           </div>
           <button 
@@ -179,14 +181,14 @@ export default function TabMaintenance() {
             disabled={isSaving} 
             className="bg-blue-600 text-white px-5 py-2.5 rounded-xl font-bold flex items-center gap-2 hover:bg-blue-700 transition-colors disabled:opacity-50 shrink-0"
           >
-            <Save size={18} /> {isSaving ? 'กำลังบันทึก...' : 'บันทึกการตั้งค่า'}
+            <Save size={18} /> {isSaving ? t('settings.maintenance.saving') : t('settings.maintenance.save_auto')}
           </button>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-white p-5 rounded-xl border border-slate-200">
           {/* Input: Audit Log */}
           <div className="space-y-2">
-            <label className="text-sm font-bold text-slate-700">เก็บประวัติการใช้งานแอดมิน (Audit Logs)</label>
+            <label className="text-sm font-bold text-slate-700">{t('settings.maintenance.audit_label')}</label>
             <div className="relative">
               <input 
                 type="number" 
@@ -195,14 +197,14 @@ export default function TabMaintenance() {
                 className="w-full pl-4 pr-16 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-bold text-slate-800 outline-none transition-all" 
                 min="1" 
               />
-              <span className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm font-medium">วัน</span>
+              <span className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm font-medium">{t('settings.maintenance.days_unit')}</span>
             </div>
-            <p className="text-xs text-slate-500">แนะนำ: 90 วันขึ้นไป</p>
+            <p className="text-xs text-slate-500">{t('settings.maintenance.audit_tip')}</p>
           </div>
 
           {/* Input: Event Log */}
           <div className="space-y-2">
-            <label className="text-sm font-bold text-slate-700">เก็บประวัติสถานะอุปกรณ์ (Event Logs)</label>
+            <label className="text-sm font-bold text-slate-700">{t('settings.maintenance.event_label')}</label>
             <div className="relative">
               <input 
                 type="number" 
@@ -211,9 +213,9 @@ export default function TabMaintenance() {
                 className="w-full pl-4 pr-16 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-bold text-slate-800 outline-none transition-all" 
                 min="1" 
               />
-              <span className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm font-medium">วัน</span>
+              <span className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm font-medium">{t('settings.maintenance.days_unit')}</span>
             </div>
-            <p className="text-xs text-slate-500">แนะนำ: 30 - 60 วัน (ข้อมูลส่วนนี้จะโตไวมาก)</p>
+            <p className="text-xs text-slate-500">{t('settings.maintenance.event_tip')}</p>
           </div>
         </div>
       </div>
@@ -224,42 +226,42 @@ export default function TabMaintenance() {
       <div>
         <h4 className="font-bold text-slate-800 flex items-center gap-2 mb-4 text-lg">
           <ShieldAlert className="text-rose-500" size={24} /> 
-          ลบข้อมูลฉุกเฉิน (Manual Emergency Cleanup)
+          {t('settings.maintenance.manual_title')}
         </h4>
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
           <div className="bg-rose-50 border border-rose-200 rounded-xl p-5 md:p-6 flex flex-col">
             <h4 className="font-bold text-rose-800 flex items-center gap-2 mb-2">
-              <ShieldAlert size={20} /> Clear Acknowledge
+              <ShieldAlert size={20} /> {t('settings.maintenance.clear_ack')}
             </h4>
-            <p className="text-sm text-rose-700 mb-6 leading-relaxed">ลบประวัติการพิมพ์ข้อความรับทราบ ช่วยลดขนาดฟิลด์ JSON ในตารางอุปกรณ์</p>
+            <p className="text-sm text-rose-700 mb-6 leading-relaxed">{t('settings.maintenance.clear_ack_desc')}</p>
             <div className="flex flex-wrap gap-2 mt-auto">
-              <button onClick={() => handleClearAckHistory(30)} className="bg-white border border-rose-200 text-rose-600 hover:bg-rose-100 px-3 py-2 rounded-lg text-sm font-bold transition-colors">&gt; 30 วัน</button>
-              <button onClick={() => handleClearAckHistory(60)} className="bg-white border border-rose-200 text-rose-600 hover:bg-rose-100 px-3 py-2 rounded-lg text-sm font-bold transition-colors">&gt; 60 วัน</button>
-              <button onClick={() => handleClearAckHistory(90)} className="bg-rose-600 text-white hover:bg-rose-700 px-3 py-2 rounded-lg text-sm font-bold transition-colors shadow-sm">&gt; 90 วัน</button>
+              <button onClick={() => handleClearAckHistory(30)} className="bg-white border border-rose-200 text-rose-600 hover:bg-rose-100 px-3 py-2 rounded-lg text-sm font-bold transition-colors">{t('settings.maintenance.clear_btn', { days: 30 })}</button>
+              <button onClick={() => handleClearAckHistory(60)} className="bg-white border border-rose-200 text-rose-600 hover:bg-rose-100 px-3 py-2 rounded-lg text-sm font-bold transition-colors">{t('settings.maintenance.clear_btn', { days: 60 })}</button>
+              <button onClick={() => handleClearAckHistory(90)} className="bg-rose-600 text-white hover:bg-rose-700 px-3 py-2 rounded-lg text-sm font-bold transition-colors shadow-sm">{t('settings.maintenance.clear_btn', { days: 90 })}</button>
             </div>
           </div>
 
           <div className="bg-orange-50 border border-orange-200 rounded-xl p-5 md:p-6 flex flex-col">
             <h4 className="font-bold text-orange-800 flex items-center gap-2 mb-2">
-              <Activity size={20} /> Clear Event Logs
+              <Activity size={20} /> {t('settings.maintenance.clear_events')}
             </h4>
-            <p className="text-sm text-orange-700 mb-6 leading-relaxed">ลบประวัติการเปลี่ยนสถานะของอุปกรณ์ (Online, Offline, Warning)</p>
+            <p className="text-sm text-orange-700 mb-6 leading-relaxed">{t('settings.maintenance.clear_events_desc')}</p>
             <div className="flex flex-wrap gap-2 mt-auto">
-              <button onClick={() => handleClearEventHistory(30)} className="bg-white border border-orange-200 text-orange-600 hover:bg-orange-100 px-3 py-2 rounded-lg text-sm font-bold transition-colors">&gt; 30 วัน</button>
-              <button onClick={() => handleClearEventHistory(60)} className="bg-white border border-orange-200 text-orange-600 hover:bg-orange-100 px-3 py-2 rounded-lg text-sm font-bold transition-colors">&gt; 60 วัน</button>
-              <button onClick={() => handleClearEventHistory(90)} className="bg-orange-600 text-white hover:bg-orange-700 px-3 py-2 rounded-lg text-sm font-bold transition-colors shadow-sm">&gt; 90 วัน</button>
+              <button onClick={() => handleClearEventHistory(30)} className="bg-white border border-orange-200 text-orange-600 hover:bg-orange-100 px-3 py-2 rounded-lg text-sm font-bold transition-colors">{t('settings.maintenance.clear_btn', { days: 30 })}</button>
+              <button onClick={() => handleClearEventHistory(60)} className="bg-white border border-orange-200 text-orange-600 hover:bg-orange-100 px-3 py-2 rounded-lg text-sm font-bold transition-colors">{t('settings.maintenance.clear_btn', { days: 60 })}</button>
+              <button onClick={() => handleClearEventHistory(90)} className="bg-orange-600 text-white hover:bg-orange-700 px-3 py-2 rounded-lg text-sm font-bold transition-colors shadow-sm">{t('settings.maintenance.clear_btn', { days: 90 })}</button>
             </div>
           </div>
 
           <div className="bg-blue-50 border border-blue-200 rounded-xl p-5 md:p-6 flex flex-col">
             <h4 className="font-bold text-blue-800 flex items-center gap-2 mb-2">
-              <ClipboardList size={20} /> Clear Audit Logs
+              <ClipboardList size={20} /> {t('settings.maintenance.clear_audit')}
             </h4>
-            <p className="text-sm text-blue-700 mb-6 leading-relaxed">ลบประวัติการใช้งานระบบของแอดมิน เช่น การเพิ่ม/ลบอุปกรณ์ และดาวน์โหลดสคริปต์</p>
+            <p className="text-sm text-blue-700 mb-6 leading-relaxed">{t('settings.maintenance.clear_audit_desc')}</p>
             <div className="flex flex-wrap gap-2 mt-auto">
-              <button onClick={() => handleClearActivityLog(30)} className="bg-white border border-blue-200 text-blue-600 hover:bg-blue-100 px-3 py-2 rounded-lg text-sm font-bold transition-colors">&gt; 30 วัน</button>
-              <button onClick={() => handleClearActivityLog(60)} className="bg-white border border-blue-200 text-blue-600 hover:bg-blue-100 px-3 py-2 rounded-lg text-sm font-bold transition-colors">&gt; 60 วัน</button>
-              <button onClick={() => handleClearActivityLog(90)} className="bg-blue-600 text-white hover:bg-blue-700 px-3 py-2 rounded-lg text-sm font-bold transition-colors shadow-sm">&gt; 90 วัน</button>
+              <button onClick={() => handleClearActivityLog(30)} className="bg-white border border-blue-200 text-blue-600 hover:bg-blue-100 px-3 py-2 rounded-lg text-sm font-bold transition-colors">{t('settings.maintenance.clear_btn', { days: 30 })}</button>
+              <button onClick={() => handleClearActivityLog(60)} className="bg-white border border-blue-200 text-blue-600 hover:bg-blue-100 px-3 py-2 rounded-lg text-sm font-bold transition-colors">{t('settings.maintenance.clear_btn', { days: 60 })}</button>
+              <button onClick={() => handleClearActivityLog(90)} className="bg-blue-600 text-white hover:bg-blue-700 px-3 py-2 rounded-lg text-sm font-bold transition-colors shadow-sm">{t('settings.maintenance.clear_btn', { days: 90 })}</button>
             </div>
           </div>
         </div>

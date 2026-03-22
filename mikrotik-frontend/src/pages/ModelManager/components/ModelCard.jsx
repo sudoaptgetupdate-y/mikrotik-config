@@ -1,7 +1,9 @@
 import React from 'react';
 import { Edit, Trash2, RotateCcw, Network, Wifi, Zap, Server } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 const ModelCard = ({ model, showDeleted, isSuperAdmin, onEdit, onDelete, onRestore }) => {
+  const { t } = useTranslation();
   const portCounts = model.ports?.reduce((acc, port) => {
     acc[port.type] = (acc[port.type] || 0) + 1;
     return acc;
@@ -29,7 +31,7 @@ const ModelCard = ({ model, showDeleted, isSuperAdmin, onEdit, onDelete, onResto
         
         {!model.isActive && (
           <span className="absolute top-3 left-3 bg-red-100 text-red-600 text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider">
-            Inactive
+            {t('models.card.inactive', 'Inactive')}
           </span>
         )}
       </div>
@@ -63,7 +65,7 @@ const ModelCard = ({ model, showDeleted, isSuperAdmin, onEdit, onDelete, onResto
             
             {Object.keys(portCounts).length === 0 && (
               <span className="text-[11px] text-slate-400 font-bold bg-slate-100 px-2 py-1 rounded uppercase tracking-wider">
-                ไม่มีข้อมูลพอร์ต
+                {t('models.card.no_ports', 'ไม่มีข้อมูลพอร์ต')}
               </span>
             )}
           </div>
@@ -77,7 +79,7 @@ const ModelCard = ({ model, showDeleted, isSuperAdmin, onEdit, onDelete, onResto
             onClick={() => onRestore(model.id, model.name)} 
             className="w-full py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl text-sm font-bold flex items-center justify-center gap-2 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 transition-all shadow-sm"
           >
-            <RotateCcw size={16} /> กู้คืนข้อมูล
+            <RotateCcw size={16} /> {t('models.card.restore', 'กู้คืนข้อมูล')}
           </button>
         ) : (
           <div className="flex w-full gap-2">
@@ -85,14 +87,14 @@ const ModelCard = ({ model, showDeleted, isSuperAdmin, onEdit, onDelete, onResto
               onClick={() => onEdit(model)} 
               className="flex-1 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl text-sm font-bold flex items-center justify-center gap-2 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-300 transition-all shadow-sm"
             >
-              <Edit size={16} /> แก้ไข
+              <Edit size={16} /> {t('models.card.edit', 'แก้ไข')}
             </button>
             {isSuperAdmin && (
               <button 
                 onClick={() => onDelete(model.id, model.name)} 
                 className="flex-1 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl text-sm font-bold flex items-center justify-center gap-2 hover:bg-red-50 hover:text-red-600 hover:border-red-300 transition-all shadow-sm"
               >
-                <Trash2 size={16} /> ลบ
+                <Trash2 size={16} /> {t('models.card.delete', 'ลบ')}
               </button>
             )}
           </div>

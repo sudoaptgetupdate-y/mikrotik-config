@@ -1,15 +1,22 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { User, Lock, ArrowRight, Activity } from 'lucide-react';
-import toast from 'react-hot-toast'; // ✅ Import toast สำหรับแจ้งเตือน
+import { User, Lock, ArrowRight, Activity, Globe } from 'lucide-react';
+import toast from 'react-hot-toast';
+import { useTranslation } from 'react-i18next';
 
 const Login = () => {
+  const { t, i18n } = useTranslation();
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
+
+  const toggleLanguage = () => {
+    const nextLang = i18n.language === 'en' ? 'th' : 'en';
+    i18n.changeLanguage(nextLang);
+  };
 
   // ==========================================
   // Handlers (Actions)
@@ -20,10 +27,10 @@ const Login = () => {
 
     try {
       await login(identifier, password);
-      toast.success('เข้าสู่ระบบสำเร็จ!'); // ✅ แจ้งเตือนเมื่อสำเร็จ
-      navigate('/dashboard'); // ล็อกอินสำเร็จ ไปหน้า Dashboard
+      toast.success(t('login.success_toast')); 
+      navigate('/dashboard'); 
     } catch (err) {
-      toast.error(err.response?.data?.error || 'Login failed. Please try again.'); // ✅ แจ้งเตือนเมื่อผิดพลาด
+      toast.error(err.response?.data?.error || t('login.error_default')); 
     } finally {
       setIsLoading(false);
     }
@@ -35,25 +42,34 @@ const Login = () => {
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4 relative overflow-hidden">
       
-      {/* Background decoration - ดีไซน์ที่นุ่มนวลและทันสมัย */}
+      {/* Language Switcher Float */}
+      <button 
+        onClick={toggleLanguage}
+        className="absolute top-6 right-6 z-20 bg-white/10 backdrop-blur-md border border-white/20 text-white px-4 py-2 rounded-full flex items-center gap-2 hover:bg-white/20 transition-all font-bold text-xs uppercase tracking-widest"
+      >
+        <Globe size={14} />
+        {i18n.language === 'en' ? 'ไทย' : 'EN'}
+      </button>
+
+      {/* Background decoration */}
       <div className="absolute top-0 left-0 w-full h-[45vh] bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 rounded-b-[3rem] sm:rounded-b-[5rem] shadow-2xl pointer-events-none" />
       <div className="absolute top-0 left-0 w-full h-[45vh] bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10 pointer-events-none mix-blend-overlay" />
 
       {/* Login Card */}
       <div className="bg-white w-full max-w-md rounded-3xl shadow-2xl z-10 overflow-hidden border border-slate-100 animate-in fade-in slide-in-from-bottom-8 duration-500">
         
-        {/* Header Section (ที่ปรับให้เด่นและเกลี่ยสีสวยงาม) */}
+        {/* Header Section */}
         <div className="pt-10 pb-6 px-8 text-center">
           <div className="flex justify-center items-center mb-2 tracking-tight">
             <span className="font-black text-3xl sm:text-4xl text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-cyan-500 uppercase tracking-widest">
-              Mikrotik
+              {t('login.title')}
             </span>
             <span className="font-medium text-2xl sm:text-3xl text-slate-400 ml-2 tracking-wide">
-              Panel
+              {t('login.subtitle')}
             </span>
           </div>
           <p className="text-slate-500 text-sm font-medium mt-2">
-            Sign in to manage your network devices
+            {t('login.description')}
           </p>
         </div>
 
@@ -65,7 +81,7 @@ const Login = () => {
               {/* Username Input */}
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1.5 uppercase tracking-wide">
-                  Username or Email
+                  {t('login.label_identifier')}
                 </label>
                 <div className="relative group">
                   <User size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-500 transition-colors" />
@@ -76,7 +92,7 @@ const Login = () => {
                     onChange={(e) => setIdentifier(e.target.value)}
                     disabled={isLoading}
                     className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-11 pr-4 py-3.5 text-sm font-medium focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 transition-all text-slate-800 placeholder:text-slate-400"
-                    placeholder="admin or user@domain.com"
+                    placeholder={t('login.placeholder_identifier')}
                   />
                 </div>
               </div>
@@ -85,7 +101,7 @@ const Login = () => {
               <div>
                 <div className="flex justify-between items-center mb-1.5">
                   <label className="block text-xs font-bold text-slate-700 uppercase tracking-wide">
-                    Password
+                    {t('login.label_password')}
                   </label>
                 </div>
                 <div className="relative group">
@@ -97,7 +113,7 @@ const Login = () => {
                     onChange={(e) => setPassword(e.target.value)}
                     disabled={isLoading}
                     className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-11 pr-4 py-3.5 text-sm font-medium focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 transition-all text-slate-800 tracking-widest placeholder:tracking-normal placeholder:text-slate-400"
-                    placeholder="••••••••"
+                    placeholder={t('login.placeholder_password')}
                   />
                 </div>
               </div>
@@ -112,11 +128,11 @@ const Login = () => {
               {isLoading ? (
                 <>
                   <Activity className="animate-spin" size={20} />
-                  <span>Authenticating...</span>
+                  <span>{t('login.button_authenticating')}</span>
                 </>
               ) : (
                 <>
-                  <span>Sign In</span>
+                  <span>{t('login.button_signin')}</span>
                   <ArrowRight size={18} />
                 </>
               )}
@@ -127,7 +143,7 @@ const Login = () => {
       
       {/* Footer text */}
       <div className="mt-8 text-center z-10 text-slate-500 text-xs font-medium">
-        &copy; {new Date().getFullYear()} MikroTik Management. All rights reserved.
+        &copy; {new Date().getFullYear()} {t('login.footer_rights')}
       </div>
 
     </div>

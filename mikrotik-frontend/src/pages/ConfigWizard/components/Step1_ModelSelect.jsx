@@ -3,6 +3,7 @@ import { Router, CheckCircle, MapPin, Search, Star, ChevronLeft, ChevronRight, F
 import { useQuery } from '@tanstack/react-query';
 import { groupService } from '../../../services/groupService'; 
 import apiClient from '../../../utils/apiClient';
+import { useTranslation } from 'react-i18next';
 
 const Step1_ModelSelect = ({ 
   models, 
@@ -13,6 +14,7 @@ const Step1_ModelSelect = ({
   mode,
   deviceId // ส่ง id มาด้วยถ้าอยู่ในโหมด Edit
 }) => {
+  const { t } = useTranslation();
   // === State สำหรับการตรวจสอบข้อมูลซ้ำ (Real-time Validation) ===
   const [errors, setErrors] = useState({ name: '', circuitId: '' });
   const [isValidating, setIsValidating] = useState({ name: false, circuitId: false });
@@ -36,9 +38,9 @@ const Step1_ModelSelect = ({
       const { data } = await apiClient.get('/api/devices/check-duplicate', { params });
       
       if (field === 'name' && data.nameExists) {
-        setErrors(prev => ({ ...prev, name: 'ชื่ออุปกรณ์นี้ถูกใช้งานแล้วในระบบ' }));
+        setErrors(prev => ({ ...prev, name: t('wizard.step1.error_name_used') }));
       } else if (field === 'circuitId' && data.circuitExists) {
-        setErrors(prev => ({ ...prev, circuitId: 'รหัสวงจรนี้ถูกใช้งานแล้วในระบบ' }));
+        setErrors(prev => ({ ...prev, circuitId: t('wizard.step1.error_circuit_used') }));
       } else {
         setErrors(prev => ({ ...prev, [field]: '' }));
       }
@@ -164,13 +166,13 @@ const Step1_ModelSelect = ({
       <div className="bg-slate-50 p-6 rounded-xl border border-slate-200 shadow-sm space-y-6">
         <div>
           <h3 className="text-sm font-bold text-slate-500 uppercase mb-4 flex items-center gap-2">
-            <MapPin size={16} /> Device Information {mode === 'standalone' && '(For Identification)'}
+            <MapPin size={16} /> {t('wizard.step1.device_info')} {mode === 'standalone' && t('wizard.step1.identification')}
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* --- Name Input --- */}
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">
-                Site Name / Device Name <span className="text-red-500">*</span>
+                {t('wizard.step1.label_name')}
               </label>
               <div className="relative">
                 <input 
@@ -179,7 +181,7 @@ const Step1_ModelSelect = ({
                   value={deviceMeta.name} 
                   onChange={handleChange} 
                   onBlur={handleBlur}
-                  placeholder="EngineerOffice" 
+                  placeholder={t('wizard.step1.placeholder_name')} 
                   className={`w-full px-4 py-2 rounded-lg border outline-none transition ${errors.name ? 'border-red-500 focus:ring-2 focus:ring-red-200' : 'border-slate-300 focus:ring-2 focus:ring-blue-500'}`} 
                 />
                 {isValidating.name && <Loader2 size={16} className="absolute right-3 top-3 animate-spin text-slate-400" />}
@@ -194,7 +196,7 @@ const Step1_ModelSelect = ({
             {/* --- Circuit ID Input --- */}
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">
-                Circuit ID / User Ref <span className="text-red-500">*</span>
+                {t('wizard.step1.label_circuit')}
               </label>
               <div className="relative">
                 <input 
@@ -203,7 +205,7 @@ const Step1_ModelSelect = ({
                   value={deviceMeta.circuitId} 
                   onChange={handleChange} 
                   onBlur={handleBlur}
-                  placeholder="7534j7572" 
+                  placeholder={t('wizard.step1.placeholder_circuit')} 
                   className={`w-full px-4 py-2 rounded-lg border outline-none transition ${errors.circuitId ? 'border-red-500 focus:ring-2 focus:ring-red-200' : 'border-slate-300 focus:ring-2 focus:ring-blue-500'}`} 
                 />
                 {isValidating.circuitId && <Loader2 size={16} className="absolute right-3 top-3 animate-spin text-slate-400" />}
@@ -223,9 +225,9 @@ const Step1_ModelSelect = ({
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
               <div>
                 <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
-                  <FolderKanban size={18} className="text-blue-600" /> Assign to Groups (Optional)
+                  <FolderKanban size={18} className="text-blue-600" /> {t('wizard.step1.assign_group')}
                 </h3>
-                <p className="text-xs text-slate-500 mt-1">เลือกกลุ่มเพื่อรับแจ้งเตือน Telegram (เลือกได้หลายกลุ่ม)</p>
+                <p className="text-xs text-slate-500 mt-1">{t('wizard.step1.group_desc')}</p>
               </div>
               
               {/* ✅ กล่องค้นหากลุ่ม */}
@@ -233,7 +235,7 @@ const Step1_ModelSelect = ({
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
                 <input 
                   type="text" 
-                  placeholder="ค้นหาชื่อกลุ่ม..." 
+                  placeholder={t('wizard.step1.search_group')} 
                   value={groupSearchTerm}
                   onChange={(e) => setGroupSearchTerm(e.target.value)}
                   className="w-full pl-9 pr-3 py-1.5 text-sm rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-200 transition" 
@@ -242,13 +244,13 @@ const Step1_ModelSelect = ({
             </div>
 
             {isLoadingGroups ? (
-              <div className="text-sm text-slate-400 p-4 bg-white rounded-xl border border-slate-200 text-center animate-pulse">กำลังโหลดรายชื่อกลุ่ม...</div>
+              <div className="text-sm text-slate-400 p-4 bg-white rounded-xl border border-slate-200 text-center animate-pulse">{t('wizard.step1.group_loading')}</div>
             ) : groups.length === 0 ? (
-              <div className="text-sm text-orange-500 p-4 bg-orange-50 rounded-xl flex items-center gap-2 font-medium border border-orange-100"><Bell size={16} /> ยังไม่มีกลุ่มอุปกรณ์ในระบบ</div>
+              <div className="text-sm text-orange-500 p-4 bg-orange-50 rounded-xl flex items-center gap-2 font-medium border border-orange-100"><Bell size={16} /> {t('wizard.step1.no_groups')}</div>
             ) : (
               <div className="space-y-4">
                 {processedGroups.length === 0 ? (
-                  <div className="text-center py-6 text-sm text-slate-400 bg-white rounded-xl border border-dashed border-slate-300">ไม่พบกลุ่มที่ค้นหา</div>
+                  <div className="text-center py-6 text-sm text-slate-400 bg-white rounded-xl border border-dashed border-slate-300">{t('wizard.step1.no_groups_found')}</div>
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                     {paginatedGroups.map(group => {
@@ -261,9 +263,9 @@ const Step1_ModelSelect = ({
                           <div className="flex-1 min-w-0">
                             <p className={`text-sm font-bold truncate transition-colors ${isSelected ? 'text-blue-800' : 'text-slate-700'}`}>{group.name}</p>
                             {group.isNotifyEnabled && group.telegramBotToken ? (
-                              <p className="text-[10px] font-bold text-emerald-600 mt-0.5 flex items-center gap-1"><Bell size={10} /> Telegram Active</p>
+                              <p className="text-[10px] font-bold text-emerald-600 mt-0.5 flex items-center gap-1"><Bell size={10} /> {t('wizard.step1.telegram_active')}</p>
                             ) : (
-                              <p className="text-[10px] text-slate-400 mt-0.5">ไม่มีแจ้งเตือน</p>
+                              <p className="text-[10px] text-slate-400 mt-0.5">{t('wizard.step1.no_notify')}</p>
                             )}
                           </div>
                         </div>
@@ -276,7 +278,7 @@ const Step1_ModelSelect = ({
                 {totalGroupPages > 1 && (
                   <div className="flex justify-end items-center gap-3 pt-2">
                     <button onClick={() => setGroupCurrentPage(p => Math.max(1, p - 1))} disabled={groupCurrentPage === 1} className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100 disabled:opacity-50 transition"><ChevronLeft size={16} /></button>
-                    <span className="text-xs font-bold text-slate-500">Page {groupCurrentPage} of {totalGroupPages}</span>
+                    <span className="text-xs font-bold text-slate-500">{t('groups.manage.page', { current: groupCurrentPage, total: totalGroupPages })}</span>
                     <button onClick={() => setGroupCurrentPage(p => Math.min(totalGroupPages, p + 1))} disabled={groupCurrentPage === totalGroupPages} className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100 disabled:opacity-50 transition"><ChevronRight size={16} /></button>
                   </div>
                 )}
@@ -290,16 +292,16 @@ const Step1_ModelSelect = ({
       <div>
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
           <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
-            <Router className="text-blue-600" /> Select Router Model
+            <Router className="text-blue-600" /> {t('wizard.step1.title')}
           </h2>
           <div className="relative w-full md:w-64">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-            <input type="text" placeholder="Search model..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full pl-10 pr-4 py-2 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-100 transition" />
+            <input type="text" placeholder={t('wizard.step1.search_placeholder')} value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full pl-10 pr-4 py-2 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-100 transition" />
           </div>
         </div>
 
         {processedModels.length === 0 ? (
-          <div className="text-center py-10 text-slate-400 bg-slate-50 rounded-xl border border-dashed border-slate-300"><Router size={40} className="mx-auto mb-2 opacity-50" /><p>No models found matching "{searchTerm}"</p></div>
+          <div className="text-center py-10 text-slate-400 bg-slate-50 rounded-xl border border-dashed border-slate-300"><Router size={40} className="mx-auto mb-2 opacity-50" /><p>{t('wizard.step1.no_models_match', { term: searchTerm })}</p></div>
         ) : (
           <div className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -308,14 +310,14 @@ const Step1_ModelSelect = ({
                 const isPopular = currentPage === 1 && index === 0 && usageCount > 0;
                 return (
                   <div key={model.id} onClick={() => setSelectedModel(model)} className={`cursor-pointer rounded-xl border-2 p-4 transition-all hover:shadow-lg relative overflow-hidden group ${selectedModel?.id === model.id ? 'border-blue-600 bg-blue-50 ring-1 ring-blue-200' : 'border-slate-200 hover:border-blue-300 bg-white'}`}>
-                    {isPopular && !searchTerm && (<div className="absolute top-0 left-0 bg-orange-500 text-white text-[10px] px-2 py-1 rounded-br-lg z-10 font-bold flex items-center gap-1"><Star size={10} fill="currentColor" /> POPULAR</div>)}
+                    {isPopular && !searchTerm && (<div className="absolute top-0 left-0 bg-orange-500 text-white text-[10px] px-2 py-1 rounded-br-lg z-10 font-bold flex items-center gap-1"><Star size={10} fill="currentColor" /> {t('wizard.step1.popular')}</div>)}
                     {selectedModel?.id === model.id && (<div className="absolute top-2 right-2 text-blue-600 animate-in zoom-in duration-200"><CheckCircle size={22} fill="white" /></div>)}
                     <div className="aspect-video bg-white rounded-lg mb-4 flex items-center justify-center p-2 border border-slate-100 group-hover:border-blue-100 transition-colors">
                       {model.imageUrl ? (<img src={model.imageUrl} alt={model.name} className="max-h-full object-contain" />) : <Router size={48} className="text-slate-300" />}
                     </div>
                     <div className="flex justify-between items-start">
-                      <div><h3 className="font-bold text-lg text-slate-800">{model.name}</h3><p className="text-xs text-slate-400">{model.ports?.length || 0} Interfaces</p></div>
-                      {usageCount > 0 && (<span className="text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded-md" title="Total setups created">Used {usageCount}x</span>)}
+                      <div><h3 className="font-bold text-lg text-slate-800">{model.name}</h3><p className="text-xs text-slate-400">{t('wizard.step1.interfaces', { count: model.ports?.length || 0 })}</p></div>
+                      {usageCount > 0 && (<span className="text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded-md" title="Total setups created">{t('wizard.step1.used_count', { count: usageCount })}</span>)}
                     </div>
                     <div className="flex flex-wrap gap-1 mt-3">
                       {model.ports?.slice(0, 5).map(p => (<span key={p.id} className="text-[10px] px-1.5 py-0.5 bg-slate-100 text-slate-500 rounded uppercase border border-slate-200">{p.name}</span>))}
@@ -328,7 +330,7 @@ const Step1_ModelSelect = ({
             {totalPages > 1 && (
               <div className="flex justify-center items-center gap-4 pt-2">
                 <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="p-2 rounded-full border border-slate-200 text-slate-600 hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed transition"><ChevronLeft size={20} /></button>
-                <span className="text-sm font-medium text-slate-600 bg-slate-50 px-4 py-1.5 rounded-full border border-slate-200">Page {currentPage} of {totalPages}</span>
+                <span className="text-sm font-medium text-slate-600 bg-slate-50 px-4 py-1.5 rounded-full border border-slate-200">{t('groups.manage.page', { current: currentPage, total: totalPages })}</span>
                 <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} className="p-2 rounded-full border border-slate-200 text-slate-600 hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed transition"><ChevronRight size={20} /></button>
               </div>
             )}

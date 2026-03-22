@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query' // ✅ 
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools' // ✅ 2. Import Devtools
 import App from './App.jsx'
 import './index.css'
+import './i18n/config'
 
 // ✅ 3. สร้าง Query Client และตั้งค่าพื้นฐาน
 const queryClient = new QueryClient({

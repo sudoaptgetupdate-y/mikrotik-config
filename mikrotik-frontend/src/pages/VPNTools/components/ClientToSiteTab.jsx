@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Terminal, Smartphone, Copy, Download, Network, Globe, Hash, Cpu, Zap, Activity, Settings2, ShieldCheck, ArrowRightLeft, RefreshCw } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { useTranslation } from 'react-i18next';
 import { generateWireguardKeyPair } from '../../../utils/wireguardGenerator';
 import { logService } from '../../../services/logService';
 
 const ClientToSiteTab = () => {
+  const { t } = useTranslation();
   const resultsRef = useRef(null); // 🟢 Ref for auto-scroll
   
   const [formData, setFormData] = useState({
@@ -35,20 +37,20 @@ const ClientToSiteTab = () => {
     if (target === 'server') {
         setFormData({...formData, serverPrivateKey: privateKey, serverPublicKey: publicKey});
     } else {
-        setFormData({...formData, clientPrivateKey: privateKey, publicKey: publicKey});
-        toast.success('Generated Client Keys Successfully');
+        setFormData({...formData, clientPrivateKey: privateKey, clientPublicKey: publicKey});
+        toast.success(t('vpn.c2s.toast_keys_success'));
     }
   };
 
   const handleGeneratePort = () => {
     const randomPort = Math.floor(Math.random() * (65000 - 10000 + 1)) + 10000;
     setFormData(prev => ({...prev, listenPort: randomPort.toString()}));
-    toast.success(`Generated Port: ${randomPort}`);
+    toast.success(t('vpn.c2s.toast_port_success', { port: randomPort }));
   };
 
   const handleGenerateConfig = () => {
     if (!formData.clientPublicKey || !formData.serverPublicIp || !formData.vpnSubnet) {
-        return toast.error('กรุณากรอกข้อมูลที่จำเป็น (Client Key, Public IP, VPN Subnet)');
+        return toast.error(t('vpn.c2s.error_required'));
     }
 
     const port = formData.listenPort || '51820';
@@ -86,7 +88,7 @@ PersistentKeepalive = 25`;
 
     setGeneratedConfig({ serverScript, clientConfig });
     logService.createActivityLog('GENERATE_VPN', `Client-to-Site VPN: ${formData.clientName || 'N/A'}`);
-    toast.success('Generated Successfully!');
+    toast.success(t('vpn.c2s.toast_generate_success'));
 
     // 🟢 Auto-scroll to results
     setTimeout(() => {
@@ -129,15 +131,15 @@ PersistentKeepalive = 25`;
                 <Smartphone size={22} />
             </div>
             <div>
-                <h2 className="text-lg font-black text-slate-800 leading-none tracking-tight">Client-to-Site VPN Configuration</h2>
-                <p className="text-[11px] text-slate-400 mt-1.5 font-bold uppercase tracking-widest">Mobile & Remote Access Setup</p>
+                <h2 className="text-lg font-black text-slate-800 leading-none tracking-tight">{t('vpn.c2s.title')}</h2>
+                <p className="text-[11px] text-slate-400 mt-1.5 font-bold uppercase tracking-widest">{t('vpn.c2s.subtitle')}</p>
             </div>
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
             {/* Port Input */}
             <div className="flex items-center gap-2 bg-slate-50 pl-3 pr-1 py-1.5 rounded-xl border border-slate-200 shadow-inner">
-                <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Listen Port:</span>
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider">{t('vpn.c2s.port_label')}</span>
                 <input 
                     type="text" 
                     value={formData.listenPort} 
@@ -159,7 +161,7 @@ PersistentKeepalive = 25`;
                 }`}
             >
                 <Terminal size={14} />
-                Generate Script
+                {t('vpn.c2s.btn_generate')}
             </button>
         </div>
     </div>
@@ -170,43 +172,43 @@ PersistentKeepalive = 25`;
         <div className="bg-white p-6 md:p-8 rounded-3xl border border-slate-200 shadow-sm space-y-6 hover:border-blue-200 transition-colors duration-300">
           <div className="flex items-center gap-3 border-b border-slate-50 pb-5">
               <div className="w-10 h-10 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center shadow-inner"><Globe size={20}/></div>
-              <span className="font-black text-slate-800 uppercase tracking-tight text-base">Server Configuration</span>
+              <span className="font-black text-slate-800 uppercase tracking-tight text-base">{t('vpn.c2s.section_server')}</span>
           </div>
           
           <div className="space-y-5">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                 <div className="space-y-2">
-                    <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider ml-1">Public IP / DDNS</label>
-                    <input type="text" value={formData.serverPublicIp} onChange={e => setFormData({...formData, serverPublicIp: e.target.value})} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-700 focus:bg-white focus:ring-4 focus:ring-blue-50 focus:border-blue-400 outline-none transition-all placeholder:text-slate-300" placeholder="hq.yourdomain.com" />
+                    <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider ml-1">{t('vpn.c2s.label_public_ip')}</label>
+                    <input type="text" value={formData.serverPublicIp} onChange={e => setFormData({...formData, serverPublicIp: e.target.value})} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-700 focus:bg-white focus:ring-4 focus:ring-blue-50 focus:border-blue-400 outline-none transition-all placeholder:text-slate-300" placeholder={t('vpn.c2s.placeholders.public_ip')} />
                 </div>
                 <div className="space-y-2">
-                    <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider ml-1">Local LAN Subnet</label>
-                    <input type="text" value={formData.officeLan} onChange={e => setFormData({...formData, officeLan: e.target.value})} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-700 focus:bg-white focus:ring-4 focus:ring-blue-50 focus:border-blue-400 outline-none transition-all placeholder:text-slate-300" placeholder="192.168.88.0/24" />
+                    <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider ml-1">{t('vpn.c2s.label_office_lan')}</label>
+                    <input type="text" value={formData.officeLan} onChange={e => setFormData({...formData, officeLan: e.target.value})} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-700 focus:bg-white focus:ring-4 focus:ring-blue-50 focus:border-blue-400 outline-none transition-all placeholder:text-slate-300" placeholder={t('vpn.c2s.placeholders.office_lan')} />
                 </div>
             </div>
 
             <div className="p-6 bg-slate-50/50 rounded-2xl border border-slate-100 space-y-4 shadow-inner">
-               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2 mb-2"><ShieldCheck size={14}/> MikroTik WireGuard Hub</label>
+               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2 mb-2"><ShieldCheck size={14}/> {t('vpn.c2s.section_hub')}</label>
                <div className="grid grid-cols-1 gap-4">
                   <div className="space-y-1.5">
-                     <label className="block text-[10px] font-bold text-slate-500 uppercase ml-1">Interface Name</label>
-                     <input type="text" value={formData.serverName} onChange={e => setFormData({...formData, serverName: e.target.value})} className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700 focus:border-blue-400 outline-none transition-all" placeholder="wireguard1" />
+                     <label className="block text-[10px] font-bold text-slate-500 uppercase ml-1">{t('vpn.c2s.label_interface')}</label>
+                     <input type="text" value={formData.serverName} onChange={e => setFormData({...formData, serverName: e.target.value})} className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700 focus:border-blue-400 outline-none transition-all" placeholder={t('vpn.c2s.placeholders.interface')} />
                   </div>
                   <div className="space-y-1.5">
-                     <label className="block text-[10px] font-bold text-slate-500 uppercase ml-1">Server Public Key</label>
-                     <input type="text" value={formData.serverPublicKey} onChange={e => setFormData({...formData, serverPublicKey: e.target.value})} className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-mono focus:border-blue-400 outline-none transition-all" placeholder="Paste Public Key from MikroTik" />
+                     <label className="block text-[10px] font-bold text-slate-500 uppercase ml-1">{t('vpn.c2s.label_server_key')}</label>
+                     <input type="text" value={formData.serverPublicKey} onChange={e => setFormData({...formData, serverPublicKey: e.target.value})} className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-mono focus:border-blue-400 outline-none transition-all" placeholder={t('vpn.c2s.placeholders.server_key')} />
                   </div>
                </div>
             </div>
 
             <div className="space-y-4 pt-2">
                <div className="flex items-center justify-between ml-1">
-                  <label className="block text-[11px] font-bold text-blue-600 uppercase tracking-wider">Traffic Routing Mode</label>
+                  <label className="block text-[11px] font-bold text-blue-600 uppercase tracking-wider">{t('vpn.c2s.routing_title')}</label>
                   <div className="group relative">
                      <Hash size={14} className="text-slate-300 cursor-help hover:text-blue-400 transition-colors" />
                      <div className="absolute bottom-full right-0 mb-2 w-64 p-3 bg-slate-900 text-white text-[10px] rounded-xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 shadow-xl leading-relaxed">
-                        <p className="font-bold border-b border-white/10 pb-1 mb-1">Routing Mode คืออะไร?</p>
-                        เป็นการกำหนดว่าข้อมูลส่วนไหนจะให้วิ่งเข้า VPN บ้าง เพื่อความปลอดภัยหรือความเร็วที่เหมาะสม
+                        <p className="font-bold border-b border-white/10 pb-1 mb-1">{t('vpn.c2s.routing_help_title')}</p>
+                        {t('vpn.c2s.routing_help_desc')}
                      </div>
                   </div>
                </div>
@@ -225,9 +227,9 @@ PersistentKeepalive = 25`;
                         <Globe size={20} />
                     </div>
                     <div>
-                        <p className="text-sm font-bold leading-none">Full Tunnel (Internet & LAN)</p>
+                        <p className="text-sm font-bold leading-none">{t('vpn.c2s.modes.full_title')}</p>
                         <p className={`text-[10px] mt-1.5 ${formData.routingMode === 'full' ? 'text-blue-50' : 'text-slate-400'}`}>
-                           ส่งข้อมูลทั้งหมดผ่าน VPN (ปลอดภัยสูงสุด / ป้องกันการดักฟังจาก Wi-Fi สาธารณะ)
+                           {t('vpn.c2s.modes.full_desc')}
                         </p>
                     </div>
                   </button>
@@ -246,22 +248,22 @@ PersistentKeepalive = 25`;
                             <Network size={20} />
                         </div>
                         <div>
-                            <p className="text-sm font-bold leading-none">Split Tunnel (Office LAN Only)</p>
+                            <p className="text-sm font-bold leading-none">{t('vpn.c2s.modes.split_title')}</p>
                             <p className={`text-[10px] mt-1.5 ${formData.routingMode === 'split' ? 'text-blue-50' : 'text-slate-400'}`}>
-                               เข้าถึงแลนออฟฟิศได้ แต่การเข้าเน็ตปกติจะใช้เน็ตของเครื่องคุณเอง (ความเร็วสูง / ประหยัดเน็ตออฟฟิศ)
+                               {t('vpn.c2s.modes.split_desc')}
                             </p>
                         </div>
                     </button>
                     
                     {formData.routingMode === 'split' && (
                         <div className="animate-in slide-in-from-top-2 duration-300 ml-4 pl-4 border-l-2 border-blue-500/30 py-1">
-                            <label className="block text-[10px] font-bold text-blue-600 uppercase tracking-wider mb-2 ml-1">Office LAN Subnet ที่ต้องการเข้าถึง</label>
+                            <label className="block text-[10px] font-bold text-blue-600 uppercase tracking-wider mb-2 ml-1">{t('vpn.c2s.label_target_lan')}</label>
                             <input 
                                 type="text" 
                                 value={formData.officeLan} 
                                 onChange={e => setFormData({...formData, officeLan: e.target.value})} 
                                 className="w-full px-4 py-2.5 bg-blue-50 border border-blue-200 rounded-xl text-xs font-bold text-blue-700 focus:bg-white focus:ring-4 focus:ring-blue-50 outline-none transition-all" 
-                                placeholder="เช่น 192.168.88.0/24" 
+                                placeholder={t('vpn.c2s.placeholders.office_lan')} 
                             />
                         </div>
                     )}
@@ -281,22 +283,22 @@ PersistentKeepalive = 25`;
                             <Settings2 size={20} />
                         </div>
                         <div>
-                            <p className="text-sm font-bold leading-none">Custom Configuration</p>
+                            <p className="text-sm font-bold leading-none">{t('vpn.c2s.modes.custom_title')}</p>
                             <p className={`text-[10px] mt-1.5 ${formData.routingMode === 'custom' ? 'text-blue-50' : 'text-slate-400'}`}>
-                               กำหนดวงเน็ตเวิร์กที่ต้องการให้วิ่งผ่าน VPN ด้วยตัวเอง
+                               {t('vpn.c2s.modes.custom_desc')}
                             </p>
                         </div>
                     </button>
                     
                     {formData.routingMode === 'custom' && (
                         <div className="animate-in slide-in-from-top-2 duration-300 ml-4 pl-4 border-l-2 border-blue-500/30 py-1">
-                            <label className="block text-[10px] font-bold text-blue-600 uppercase tracking-wider mb-2 ml-1">Allowed IPs (คั่นด้วยคอมม่า)</label>
+                            <label className="block text-[10px] font-bold text-blue-600 uppercase tracking-wider mb-2 ml-1">{t('vpn.c2s.label_allowed_ips')}</label>
                             <input 
                                 type="text" 
                                 value={formData.customAllowedIPs} 
                                 onChange={e => setFormData({...formData, customAllowedIPs: e.target.value})} 
                                 className="w-full px-4 py-2.5 bg-blue-50 border border-blue-200 rounded-xl text-xs font-bold text-blue-700 focus:bg-white focus:ring-4 focus:ring-blue-50 outline-none transition-all" 
-                                placeholder="เช่น 10.0.0.0/8, 172.16.0.0/12" 
+                                placeholder={t('vpn.c2s.placeholders.custom_allowed')} 
                             />
                         </div>
                     )}
@@ -310,39 +312,39 @@ PersistentKeepalive = 25`;
         <div className="bg-white p-6 md:p-8 rounded-3xl border border-slate-200 shadow-sm space-y-6 hover:border-emerald-200 transition-colors duration-300">
           <div className="flex items-center gap-3 border-b border-slate-50 pb-5">
               <div className="w-10 h-10 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center shadow-inner"><Cpu size={20}/></div>
-              <span className="font-black text-slate-800 uppercase tracking-tight text-base">Client Device Settings</span>
+              <span className="font-black text-slate-800 uppercase tracking-tight text-base">{t('vpn.c2s.section_client')}</span>
           </div>
 
           <div className="space-y-5">
              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                 <div className="space-y-2">
-                   <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider ml-1">Friendly Name</label>
-                   <input type="text" value={formData.clientName} onChange={e => setFormData({...formData, clientName: e.target.value})} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-700 focus:bg-white focus:ring-4 focus:ring-emerald-50 focus:border-emerald-400 outline-none transition-all placeholder:text-slate-300" placeholder="e.g. CEO-iPhone" />
+                   <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider ml-1">{t('vpn.c2s.label_friendly_name')}</label>
+                   <input type="text" value={formData.clientName} onChange={e => setFormData({...formData, clientName: e.target.value})} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-700 focus:bg-white focus:ring-4 focus:ring-emerald-50 focus:border-emerald-400 outline-none transition-all placeholder:text-slate-300" placeholder={t('vpn.c2s.placeholders.friendly_name')} />
                 </div>
                 <div className="space-y-2">
-                   <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider ml-1">VPN Virtual IP</label>
-                   <input type="text" value={formData.vpnSubnet} onChange={e => setFormData({...formData, vpnSubnet: e.target.value})} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl font-mono text-sm font-bold text-slate-700 focus:bg-white focus:ring-4 focus:ring-emerald-50 focus:border-emerald-400 outline-none transition-all" placeholder="10.88.0.2" />
+                   <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider ml-1">{t('vpn.c2s.label_virtual_ip')}</label>
+                   <input type="text" value={formData.vpnSubnet} onChange={e => setFormData({...formData, vpnSubnet: e.target.value})} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl font-mono text-sm font-bold text-slate-700 focus:bg-white focus:ring-4 focus:ring-emerald-50 focus:border-emerald-400 outline-none transition-all" placeholder={t('vpn.c2s.placeholders.virtual_ip')} />
                 </div>
              </div>
              
              <div className="space-y-2">
-                <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider ml-1">DNS Server (Optional)</label>
-                <input type="text" value={formData.dns} onChange={e => setFormData({...formData, dns: e.target.value})} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-700 focus:bg-white focus:ring-4 focus:ring-emerald-50 focus:border-emerald-400 outline-none transition-all" placeholder="8.8.8.8, 1.1.1.1" />
+                <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider ml-1">{t('vpn.c2s.label_dns')}</label>
+                <input type="text" value={formData.dns} onChange={e => setFormData({...formData, dns: e.target.value})} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-700 focus:bg-white focus:ring-4 focus:ring-emerald-50 focus:border-emerald-400 outline-none transition-all" placeholder={t('vpn.c2s.placeholders.dns')} />
              </div>
 
              <div className="p-6 bg-emerald-50/30 rounded-2xl border border-emerald-100/50 space-y-4 shadow-inner">
                 <div className="flex items-center justify-between mb-2">
-                    <label className="block text-[10px] font-black text-emerald-600 uppercase tracking-widest ml-1 leading-none">Client Keypair</label>
-                    <button onClick={() => handleGenerateKeys('client')} className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-[10px] font-bold uppercase hover:bg-emerald-700 transition-all shadow-md"><RefreshCw size={12} /> Generate New</button>
+                    <label className="block text-[10px] font-black text-emerald-600 uppercase tracking-widest ml-1 leading-none">{t('vpn.c2s.section_keys')}</label>
+                    <button onClick={() => handleGenerateKeys('client')} className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-[10px] font-bold uppercase hover:bg-emerald-700 transition-all shadow-md"><RefreshCw size={12} /> {t('vpn.c2s.btn_new_keys')}</button>
                 </div>
                 <div className="space-y-4">
                     <div className="space-y-1.5">
-                        <label className="block text-[10px] font-bold text-emerald-500 uppercase ml-1">Private Key (Keep Secret)</label>
-                        <input type="text" value={formData.clientPrivateKey} onChange={e => setFormData({...formData, clientPrivateKey: e.target.value})} className="w-full px-4 py-2.5 bg-white border border-emerald-100 rounded-xl text-xs font-mono shadow-sm focus:border-emerald-400 outline-none transition-all" placeholder="Client Private Key" />
+                        <label className="block text-[10px] font-bold text-emerald-500 uppercase ml-1">{t('vpn.c2s.label_private_key')}</label>
+                        <input type="text" value={formData.clientPrivateKey} onChange={e => setFormData({...formData, clientPrivateKey: e.target.value})} className="w-full px-4 py-2.5 bg-white border border-emerald-100 rounded-xl text-xs font-mono shadow-sm focus:border-emerald-400 outline-none transition-all" placeholder={t('vpn.c2s.placeholders.client_private')} />
                     </div>
                     <div className="space-y-1.5">
-                       <label className="block text-[10px] font-bold text-emerald-500 uppercase ml-1">Public Key (For MikroTik)</label>
-                       <input type="text" value={formData.clientPublicKey} onChange={e => setFormData({...formData, clientPublicKey: e.target.value})} className="w-full px-4 py-2.5 bg-white border border-emerald-100 rounded-xl text-xs font-mono shadow-sm focus:border-emerald-400 outline-none transition-all" placeholder="Copy to Peer configuration" />
+                       <label className="block text-[10px] font-bold text-emerald-500 uppercase ml-1">{t('vpn.c2s.label_public_key')}</label>
+                       <input type="text" value={formData.clientPublicKey} onChange={e => setFormData({...formData, clientPublicKey: e.target.value})} className="w-full px-4 py-2.5 bg-white border border-emerald-100 rounded-xl text-xs font-mono shadow-sm focus:border-emerald-400 outline-none transition-all" placeholder={t('vpn.c2s.placeholders.client_public')} />
                     </div>
                 </div>
              </div>
@@ -358,11 +360,11 @@ PersistentKeepalive = 25`;
           {/* MikroTik Result */}
           <div className="bg-slate-900 rounded-[2.5rem] p-8 shadow-2xl space-y-4 border border-slate-800 relative group">
              <div className="absolute top-6 right-6">
-                <button onClick={() => { navigator.clipboard.writeText(generatedConfig.serverScript); toast.success('Copied!'); }} className="w-10 h-10 rounded-xl bg-white/10 text-white hover:bg-blue-600 transition-all flex items-center justify-center border border-white/5"><Copy size={18} /></button>
+                <button onClick={() => { navigator.clipboard.writeText(generatedConfig.serverScript); toast.success(t('common.copied')); }} className="w-10 h-10 rounded-xl bg-white/10 text-white hover:bg-blue-600 transition-all flex items-center justify-center border border-white/5"><Copy size={18} /></button>
              </div>
              <div className="flex items-center gap-3 mb-1">
                 <div className="w-8 h-8 bg-blue-500/20 text-blue-400 rounded-lg flex items-center justify-center"><Terminal size={16} /></div>
-                <h4 className="text-white font-bold uppercase tracking-wider text-[11px]">Server Script (Paste to MikroTik)</h4>
+                <h4 className="text-white font-bold uppercase tracking-wider text-[11px]">{t('vpn.c2s.results.server_title')}</h4>
              </div>
              <div className="bg-black/40 rounded-2xl p-6 border border-white/5 shadow-inner">
                 <pre className="text-emerald-400 text-[11px] font-mono leading-relaxed overflow-x-auto max-h-[400px] scrollbar-hide">
@@ -377,19 +379,19 @@ PersistentKeepalive = 25`;
                 <div className="flex items-center gap-3">
                     <div className="w-10 h-10 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center shadow-inner"><Smartphone size={20} /></div>
                     <div>
-                        <h4 className="font-bold text-slate-800 uppercase tracking-tight text-sm">Client Configuration</h4>
-                        <p className="text-[9px] text-slate-400 font-semibold uppercase tracking-wider mt-0.5">WireGuard Config (.conf)</p>
+                        <h4 className="font-bold text-slate-800 uppercase tracking-tight text-sm">{t('vpn.c2s.results.client_title')}</h4>
+                        <p className="text-[9px] text-slate-400 font-semibold uppercase tracking-wider mt-0.5">{t('vpn.c2s.results.client_subtitle')}</p>
                     </div>
                 </div>
                 <div className="flex gap-2">
                   <button onClick={handleDownloadClientConfig} title="Download .conf" className="w-10 h-10 rounded-xl bg-slate-50 hover:bg-blue-50 text-slate-400 hover:text-blue-600 transition-all flex items-center justify-center border border-slate-100 shadow-sm"><Download size={18} /></button>
-                  <button onClick={() => { navigator.clipboard.writeText(generatedConfig.clientConfig); toast.success('Copied!'); }} className="w-10 h-10 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-all flex items-center justify-center border border-slate-100 shadow-sm"><Copy size={18} /></button>
+                  <button onClick={() => { navigator.clipboard.writeText(generatedConfig.clientConfig); toast.success(t('common.copied')); }} className="w-10 h-10 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-all flex items-center justify-center border border-slate-100 shadow-sm"><Copy size={18} /></button>
                 </div>
              </div>
              
              <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
                 <div className="h-full">
-                  <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-3 ml-1">Config Preview</label>
+                  <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-3 ml-1">{t('vpn.c2s.results.preview')}</label>
                   <div className="bg-slate-50 rounded-2xl p-5 border border-slate-100 h-[220px] shadow-inner overflow-hidden">
                     <pre className="text-[10px] text-slate-600 font-mono leading-relaxed h-full overflow-y-auto scrollbar-hide">
                         {generatedConfig.clientConfig}
@@ -405,8 +407,8 @@ PersistentKeepalive = 25`;
                       />
                    </div>
                    <div className="text-center">
-                       <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Scan to Connect</span>
-                       <p className="text-[9px] text-slate-400 mt-1 font-medium italic">Compatible with WireGuard App</p>
+                       <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">{t('vpn.c2s.results.scan_title')}</span>
+                       <p className="text-[9px] text-slate-400 mt-1 font-medium italic">{t('vpn.c2s.results.scan_desc')}</p>
                    </div>
                 </div>
              </div>
@@ -417,8 +419,8 @@ PersistentKeepalive = 25`;
            <div className="w-24 h-24 bg-white rounded-[2rem] flex items-center justify-center mb-6 text-slate-200 shadow-sm border border-slate-100">
               <Activity size={48} />
            </div>
-           <h4 className="font-bold text-slate-500 text-xl tracking-tight">Ready to Generate</h4>
-           <p className="text-sm text-slate-400 mt-2 max-w-sm leading-relaxed font-medium">กรอกข้อมูล Server และ Client ด้านบนให้ครบถ้วน <br/>จากนั้นกดปุ่ม Generate ใน Header เพื่อสร้างไฟล์ Config และ QR Code</p>
+           <h4 className="font-bold text-slate-500 text-xl tracking-tight">{t('vpn.c2s.ready_title')}</h4>
+           <p className="text-sm text-slate-400 mt-2 max-w-sm leading-relaxed font-medium">{t('vpn.c2s.ready_desc')}</p>
         </div>
       )}
     </div>

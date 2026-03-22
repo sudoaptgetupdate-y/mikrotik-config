@@ -1,7 +1,9 @@
 import React, { useEffect } from 'react';
 import { Route, Network, Globe, ChevronDown, ShieldAlert, Lock } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 const Step7_PBRSetup = ({ networks = [], wanList = [], pbrConfig, setPbrConfig }) => {
+  const { t } = useTranslation();
   
   // ✅ 1. ตัวแปรสำหรับเช็คว่ามี WAN ตั้งแต่ 2 ช่องทางขึ้นไปหรือไม่
   const isMultiWan = wanList.length >= 2;
@@ -33,9 +35,9 @@ const Step7_PBRSetup = ({ networks = [], wanList = [], pbrConfig, setPbrConfig }
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
         <div>
           <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
-            <Route className="text-blue-600" /> Policy-Based Routing (PBR)
+            <Route className="text-blue-600" /> {t('wizard.step7.title')}
           </h2>
-          <p className="text-sm text-slate-500 mt-1">กำหนดเส้นทางออกอินเทอร์เน็ตเฉพาะเจาะจงให้กับแต่ละวงเครือข่าย</p>
+          <p className="text-sm text-slate-500 mt-1">{t('wizard.step7.desc')}</p>
         </div>
 
         {/* Toggle Switch */}
@@ -43,7 +45,7 @@ const Step7_PBRSetup = ({ networks = [], wanList = [], pbrConfig, setPbrConfig }
           {/* ✅ แสดงข้อความแจ้งเตือนข้างๆ ปุ่มปิด-เปิด กรณีที่ WAN ไม่ถึง 2 */}
           {!isMultiWan && (
             <span className="text-xs font-bold text-red-500 flex items-center gap-1 bg-red-50 px-2.5 py-1.5 rounded-lg border border-red-100">
-              <Lock size={14} /> ต้องมี 2 WAN ขึ้นไป
+              <Lock size={14} /> {t('wizard.step7.multi_wan_required')}
             </span>
           )}
 
@@ -68,10 +70,9 @@ const Step7_PBRSetup = ({ networks = [], wanList = [], pbrConfig, setPbrConfig }
           <div className="bg-slate-200 p-4 rounded-full mb-4">
             <ShieldAlert size={40} className="text-slate-400" />
           </div>
-          <h3 className="text-lg font-bold text-slate-700 mb-2">ฟีเจอร์นี้รองรับเฉพาะระบบ Multi-WAN</h3>
+          <h3 className="text-lg font-bold text-slate-700 mb-2">{t('wizard.step7.multi_wan_only_title')}</h3>
           <p className="text-sm text-slate-500 max-w-md mx-auto">
-            ปัจจุบันคุณตั้งค่าอินเทอร์เน็ต (WAN) ไว้เพียง <b>{wanList.length} ช่องทาง</b><br/>
-            ระบบ Policy-Based Routing จะสามารถเปิดใช้งานได้เมื่อมีการตั้งค่า WAN ตั้งแต่ 2 ช่องทางขึ้นไปเท่านั้น
+            {t('wizard.step7.multi_wan_only_desc', { count: wanList.length })}
           </p>
         </div>
       ) : (
@@ -82,8 +83,8 @@ const Step7_PBRSetup = ({ networks = [], wanList = [], pbrConfig, setPbrConfig }
               <table className="w-full text-left border-collapse">
                 <thead>
                   <tr className="bg-slate-50 border-b border-slate-200 text-xs uppercase text-slate-500 font-bold">
-                    <th className="p-4 pl-6 w-1/3">LAN / VLAN Network</th>
-                    <th className="p-4 w-1/3">Target WAN Interface</th>
+                    <th className="p-4 pl-6 w-1/3">{t('wizard.step7.table_header_lan')}</th>
+                    <th className="p-4 w-1/3">{t('wizard.step7.table_header_wan')}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -120,7 +121,7 @@ const Step7_PBRSetup = ({ networks = [], wanList = [], pbrConfig, setPbrConfig }
                             >
                               {wanList.map((wan, idx) => (
                                 <option key={wan.id} value={wan.id}>
-                                  WAN {idx + 1} • {wan.interface} ({wan.type.toUpperCase()})
+                                  {t('wizard.step2.wan_number', { num: idx + 1 })} • {wan.interface} ({wan.type.toUpperCase()})
                                 </option>
                               ))}
                             </select>

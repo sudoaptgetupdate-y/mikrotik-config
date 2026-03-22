@@ -4,6 +4,7 @@ import { Server, Plus, Archive, Search, ChevronLeft, ChevronRight } from 'lucide
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import Swal from 'sweetalert2';
+import { useTranslation } from 'react-i18next';
 
 import { modelService } from '../../services/modelService';
 
@@ -14,6 +15,7 @@ import Pagination from '../../components/Pagination';
 
 
 const ModelManager = () => {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const isSuperAdmin = user?.role === 'SUPER_ADMIN';
   const queryClient = useQueryClient();
@@ -39,7 +41,7 @@ const ModelManager = () => {
   const { data: models = [], isLoading: loading } = useQuery({
     queryKey: ['models', showDeleted],
     queryFn: () => modelService.getModels(showDeleted),
-    onError: () => toast.error("ดึงข้อมูล Model ไม่สำเร็จ")
+    onError: () => toast.error(t('models.fetch_error', "ดึงข้อมูล Model ไม่สำเร็จ"))
   });
 
   // ==========================================
@@ -77,8 +79,8 @@ const ModelManager = () => {
   };
 
   const handleSaveModel = async () => {
-    if (!newModel.name) return toast.error("Please enter model name");
-    if (newModel.ports.length === 0) return toast.error("Please add at least 1 port");
+    if (!newModel.name) return toast.error(t('models.form.error_name', "Please enter model name"));
+    if (newModel.ports.length === 0) return toast.error(t('models.form.error_ports', "Please add at least 1 port"));
 
     const payloadToSend = {
       name: newModel.name,
@@ -95,9 +97,9 @@ const ModelManager = () => {
       : modelService.createModel(payloadToSend);
 
     toast.promise(savePromise, {
-      loading: 'Saving model...',
-      success: isEditMode ? 'Model updated successfully!' : 'Model created successfully!',
-      error: (err) => err.response?.data?.error || err.response?.data?.message || "Failed to save model"
+      loading: t('common.saving', 'Saving model...'),
+      success: isEditMode ? t('models.update_success', 'Model updated successfully!') : t('models.create_success', 'Model created successfully!'),
+      error: (err) => err.response?.data?.error || err.response?.data?.message || t('models.save_error', "Failed to save model")
     });
 
     try {
@@ -112,12 +114,12 @@ const ModelManager = () => {
 
   const handleDeleteModel = async (id, name) => {
     const result = await Swal.fire({
-      title: 'ยืนยันการลบ Model?',
-      text: `คุณต้องการลบ "${name}" ใช่หรือไม่?`,
+      title: t('models.delete_confirm.title', 'ยืนยันการลบ Model?'),
+      text: t('models.delete_confirm.text', { name }, `คุณต้องการลบ "${name}" ใช่หรือไม่?`),
       icon: 'warning',
       showCancelButton: true,
-      confirmButtonText: 'ใช่, ลบเลย!',
-      cancelButtonText: 'ยกเลิก',
+      confirmButtonText: t('models.delete_confirm.confirm', 'ใช่, ลบเลย!'),
+      cancelButtonText: t('common.cancel', 'ยกเลิก'),
       buttonsStyling: false,
       customClass: {
         popup: 'rounded-3xl p-6 border border-slate-100 shadow-2xl',
@@ -132,9 +134,9 @@ const ModelManager = () => {
     if (result.isConfirmed) {
       const deletePromise = modelService.deleteModel(id);
       toast.promise(deletePromise, {
-        loading: 'Deleting...',
-        success: `Deleted ${name} successfully!`,
-        error: (err) => err.response?.data?.error || "Failed to delete model"
+        loading: t('common.deleting', 'Deleting...'),
+        success: t('models.delete_success', { name }, `Deleted ${name} successfully!`),
+        error: (err) => err.response?.data?.error || t('models.delete_error', "Failed to delete model")
       });
       try {
         await deletePromise;
@@ -145,12 +147,12 @@ const ModelManager = () => {
 
   const handleRestoreModel = async (id, name) => {
     const result = await Swal.fire({
-      title: 'ยืนยันการกู้คืน?',
-      text: `คุณต้องการกู้คืน Model "${name}" ใช่หรือไม่?`,
+      title: t('models.restore_confirm.title', 'ยืนยันการกู้คืน?'),
+      text: t('models.restore_confirm.text', { name }, `คุณต้องการกู้คืน Model "${name}" ใช่หรือไม่?`),
       icon: 'question',
       showCancelButton: true,
-      confirmButtonText: 'ใช่, กู้คืนเลย!',
-      cancelButtonText: 'ยกเลิก',
+      confirmButtonText: t('models.restore_confirm.confirm', 'ใช่, กู้คืนเลย!'),
+      cancelButtonText: t('common.cancel', 'ยกเลิก'),
       buttonsStyling: false,
       customClass: {
         popup: 'rounded-3xl p-6 border border-slate-100 shadow-2xl',
@@ -165,9 +167,9 @@ const ModelManager = () => {
     if (result.isConfirmed) {
       const restorePromise = modelService.restoreModel(id);
       toast.promise(restorePromise, {
-        loading: 'Restoring...',
-        success: `Restored ${name} successfully!`,
-        error: "Failed to restore model"
+        loading: t('common.restoring', 'Restoring...'),
+        success: t('models.restore_success', { name }, `Restored ${name} successfully!`),
+        error: t('models.restore_error', "Failed to restore model")
       });
       try {
         await restorePromise;
@@ -187,10 +189,10 @@ const ModelManager = () => {
         <div className="relative z-10">
           <h1 className="text-2xl font-bold text-slate-800 tracking-tight flex items-center gap-2">
             <Server className="text-blue-600" size={28} /> 
-            Hardware Models
+            {t('models.title', 'Hardware Models')}
           </h1>
           <p className="text-sm text-slate-500 mt-1 font-medium italic">
-            จัดการรุ่นอุปกรณ์ MikroTik และเทมเพลตพอร์ต (Port Templates)
+            {t('models.subtitle', 'จัดการรุ่นอุปกรณ์ MikroTik และเทมเพลตพอร์ต (Port Templates)')}
           </p>
         </div>
         
@@ -202,14 +204,14 @@ const ModelManager = () => {
             }}
             className={`px-4 py-2.5 rounded-xl flex items-center gap-2 transition-all font-bold text-sm border justify-center ${showDeleted ? 'bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-200' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50 shadow-sm'}`}
           >
-            <Archive size={18} strokeWidth={2.5} /> {showDeleted ? 'View Active' : 'Deleted Models'}
+            <Archive size={18} strokeWidth={2.5} /> {showDeleted ? t('models.view_active', 'View Active') : t('models.view_deleted', 'Deleted Models')}
           </button>
           <button 
             onClick={handleOpenCreate} 
             className="shrink-0 bg-blue-600 text-white px-5 py-2.5 rounded-xl flex items-center justify-center gap-2 hover:bg-blue-700 hover:-translate-y-0.5 active:translate-y-0 transition-all font-bold text-sm shadow-lg shadow-blue-500/20"
           >
             <Plus size={18} strokeWidth={2.5} /> 
-            <span>Add New Model</span>
+            <span>{t('models.add_button', 'Add New Model')}</span>
           </button>
         </div>
 
@@ -223,14 +225,14 @@ const ModelManager = () => {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
           <input 
             type="text" 
-            placeholder="ค้นหารุ่นอุปกรณ์ (Model Name)..." 
+            placeholder={t('models.search_placeholder', "ค้นหารุ่นอุปกรณ์ (Model Name)...")} 
             className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-sm" 
             value={searchTerm} 
             onChange={handleSearchChange} 
           />
         </div>
         <div className="text-sm text-slate-500 font-medium px-2">
-          พบทั้งหมด <span className="text-slate-800 font-bold">{filteredModels.length}</span> รุ่น
+          {t('models.found_total', { count: filteredModels.length }, `พบทั้งหมด ${filteredModels.length} รุ่น`)}
         </div>
       </div>
 
@@ -239,7 +241,7 @@ const ModelManager = () => {
         // 🟢 เพิ่ม Responsive Min-Height ตอน Loading
         <div className="flex flex-col items-center justify-center py-20 text-slate-400 min-h-[450px] md:min-h-[600px] xl:min-h-[700px]">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-4"></div>
-          <p>กำลังโหลดข้อมูล Models...</p>
+          <p>{t('models.loading', 'กำลังโหลดข้อมูล Models...')}</p>
         </div>
       ) : filteredModels.length === 0 ? (
         // 🟢 เพิ่ม Responsive Min-Height ตอนไม่พบข้อมูล
@@ -247,16 +249,20 @@ const ModelManager = () => {
           <div className="bg-slate-50 p-4 rounded-full mb-4">
             <Server size={48} className="text-slate-300" />
           </div>
-          <h3 className="text-lg font-bold text-slate-700 mb-1">ไม่พบข้อมูลรุ่นอุปกรณ์</h3>
+          <h3 className="text-lg font-bold text-slate-700 mb-1">{t('models.no_models', 'ไม่พบข้อมูลรุ่นอุปกรณ์')}</h3>
           <p className="text-slate-500 text-sm max-w-sm mb-6">
-            {searchTerm ? "ไม่พบผลลัพธ์ที่ตรงกับการค้นหา" : (showDeleted ? "ไม่มีข้อมูลรุ่นอุปกรณ์ที่ถูกลบ" : "ยังไม่มีข้อมูลรุ่นอุปกรณ์ในระบบ กรุณาเพิ่มรุ่นใหม่เพื่อเริ่มต้น")}
+            {searchTerm 
+              ? t('models.no_models_desc.search', 'ไม่พบผลลัพธ์ที่ตรงกับการค้นหา') 
+              : (showDeleted 
+                ? t('models.no_models_desc.deleted', 'ไม่มีข้อมูลรุ่นอุปกรณ์ที่ถูกลบ') 
+                : t('models.no_models_desc.empty', 'ยังไม่มีข้อมูลรุ่นอุปกรณ์ในระบบ กรุณาเพิ่มรุ่นใหม่เพื่อเริ่มต้น'))}
           </p>
           {!searchTerm && !showDeleted && (
             <button 
               onClick={handleOpenCreate} 
               className="text-blue-600 font-medium text-sm hover:underline flex items-center gap-1"
             >
-              <Plus size={16} /> สร้างรุ่นอุปกรณ์ใหม่
+              <Plus size={16} /> {t('models.add_button', 'สร้างรุ่นอุปกรณ์ใหม่')}
             </button>
           )}
         </div>

@@ -1,9 +1,11 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { AlertTriangle, Cpu, HardDrive, Thermometer, Activity, CheckCircle2 } from 'lucide-react';
 
 // 🟢 รับ props thresholds เพิ่มเติม
 const TopHighLoadDevices = ({ devices, thresholds }) => {
+  const { t } = useTranslation();
   const navigate = useNavigate();
 
   // ป้องกันกรณี thresholds ส่งมาไม่ทัน
@@ -13,7 +15,7 @@ const TopHighLoadDevices = ({ devices, thresholds }) => {
     <div className="space-y-3">
       <div className="flex items-center gap-2 mb-1">
         <div className="w-1.5 h-5 bg-orange-500 rounded-full"></div>
-        <h3 className="text-base font-black text-slate-800">High-Load Devices</h3>
+        <h3 className="text-base font-black text-slate-800">{t('dashboard.sections.top_high_load')}</h3>
       </div>
       
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
@@ -22,8 +24,7 @@ const TopHighLoadDevices = ({ devices, thresholds }) => {
             <div className="w-14 h-14 bg-emerald-50 rounded-full flex items-center justify-center mb-3">
               <CheckCircle2 size={28} className="text-emerald-500" />
             </div>
-            <p className="text-sm font-medium text-slate-500">All systems optimal</p>
-            <p className="text-[11px] mt-1 text-slate-400">No high-load devices detected</p>
+            <p className="text-sm font-medium text-slate-500">{t('common.no_data')}</p>
           </div>
         ) : (
           <div className="divide-y divide-slate-100 max-h-[320px] overflow-y-auto custom-scrollbar">

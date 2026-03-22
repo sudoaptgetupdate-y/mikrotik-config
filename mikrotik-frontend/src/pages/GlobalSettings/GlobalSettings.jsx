@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Shield, Network, Globe, Settings2, Database, Loader2, Bell, ChevronRight, Megaphone, Bot } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 
 import { settingService } from '../../services/settingService';
 import toast from 'react-hot-toast';
@@ -12,8 +13,10 @@ import TabVlanNetwork from './components/TabVlanNetwork';
 import TabMaintenance from './components/TabMaintenance';
 import TabAlertThresholds from './components/TabAlertThresholds';
 import TabDashboardAnnouncement from './components/TabDashboardAnnouncement';
+import TabAISettings from './components/TabAISettings';
 
 const GlobalSettings = () => {
+  const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState(() => localStorage.getItem('activeGlobalSettingsTab') || 'ADMINS');
 
   useEffect(() => {
@@ -23,7 +26,7 @@ const GlobalSettings = () => {
   const { data: rawSettings, isLoading } = useQuery({
     queryKey: ['settings'],
     queryFn: () => settingService.getSettings(),
-    onError: () => toast.error('ไม่สามารถดึงข้อมูลการตั้งค่าได้')
+    onError: () => toast.error(t('settings.loading_error') || 'ไม่สามารถดึงข้อมูลการตั้งค่าได้')
   });
 
   const settingsData = useMemo(() => {
@@ -33,14 +36,16 @@ const GlobalSettings = () => {
       MONITOR_IPS: [], 
       DEFAULT_NETWORKS: [], 
       ALERT_THRESHOLDS: null, 
-      DASHBOARD_ANNOUNCEMENT: ''
+      DASHBOARD_ANNOUNCEMENT: '',
+      GEMINI_AI_CONFIG: null
     };
     if (!rawSettings) return parsed;
 
     rawSettings.forEach(item => {
       const complexKeys = [
         'DEFAULT_NETWORKS', 
-        'ALERT_THRESHOLDS'
+        'ALERT_THRESHOLDS',
+        'GEMINI_AI_CONFIG'
       ];
 
       if (complexKeys.includes(item.key)) {
@@ -57,13 +62,14 @@ const GlobalSettings = () => {
   }, [rawSettings]);
 
   const tabs = [
-    { id: 'ADMINS', label: 'Router Admins', icon: Shield, color: 'text-blue-600', border: 'border-blue-600', bg: 'bg-blue-50' },
-    { id: 'NETWORKS', label: 'Management IPs', icon: Network, color: 'text-emerald-600', border: 'border-emerald-600', bg: 'bg-emerald-50' },
-    { id: 'PBR', label: 'PBR Targets', icon: Globe, color: 'text-orange-600', border: 'border-orange-600', bg: 'bg-orange-50' },
-    { id: 'DEFAULTS', label: 'Default LAN/VLAN', icon: Settings2, color: 'text-purple-600', border: 'border-purple-600', bg: 'bg-purple-50' },
-    { id: 'MAINTENANCE', label: 'Maintenance', icon: Database, color: 'text-rose-600', border: 'border-rose-600', bg: 'bg-rose-50' },
-    { id: 'ALERTS', label: 'Alert Thresholds', icon: Bell, color: 'text-rose-500', border: 'border-rose-500', bg: 'bg-rose-50' },
-    { id: 'ANNOUNCEMENT', label: 'Announcement', icon: Megaphone, color: 'text-blue-500', border: 'border-blue-500', bg: 'bg-blue-50' },
+    { id: 'ADMINS', label: t('settings.tabs.admins'), icon: Shield, color: 'text-blue-600', border: 'border-blue-600', bg: 'bg-blue-50' },
+    { id: 'NETWORKS', label: t('settings.tabs.networks'), icon: Network, color: 'text-emerald-600', border: 'border-emerald-600', bg: 'bg-emerald-50' },
+    { id: 'PBR', label: t('settings.tabs.pbr'), icon: Globe, color: 'text-orange-600', border: 'border-orange-600', bg: 'bg-orange-50' },
+    { id: 'DEFAULTS', label: t('settings.tabs.defaults'), icon: Settings2, color: 'text-purple-600', border: 'border-purple-600', bg: 'bg-purple-50' },
+    { id: 'MAINTENANCE', label: t('settings.tabs.maintenance'), icon: Database, color: 'text-rose-600', border: 'border-rose-600', bg: 'bg-rose-50' },
+    { id: 'ALERTS', label: t('settings.tabs.alerts'), icon: Bell, color: 'text-rose-500', border: 'border-rose-500', bg: 'bg-rose-50' },
+    { id: 'ANNOUNCEMENT', label: t('settings.tabs.announcement'), icon: Megaphone, color: 'text-blue-500', border: 'border-blue-500', bg: 'bg-blue-50' },
+    { id: 'AI', label: t('settings.tabs.ai'), icon: Bot, color: 'text-indigo-500', border: 'border-indigo-500', bg: 'bg-indigo-50' },
   ];
 
   return (
@@ -76,10 +82,10 @@ const GlobalSettings = () => {
           <div className="relative z-10">
             <h1 className="text-2xl font-bold text-slate-800 tracking-tight flex items-center gap-2">
               <Shield className="text-blue-600" size={28} /> 
-              Global System Settings
+              {t('settings.title')}
             </h1>
             <p className="text-sm text-slate-500 mt-1 font-medium italic">
-              ตั้งค่าพารามิเตอร์ส่วนกลาง ระบบแจ้งเตือน และการดูแลรักษา
+              {t('settings.subtitle')}
             </p>
           </div>
           {/* Accent Blur */}
@@ -90,7 +96,7 @@ const GlobalSettings = () => {
       {isLoading ? (
         <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-center items-center py-20">
           <Loader2 className="animate-spin text-blue-500 mb-4" size={48} />
-          <p className="text-slate-500 font-medium animate-pulse">กำลังโหลดข้อมูลการตั้งค่า...</p>
+          <p className="text-slate-500 font-medium animate-pulse">{t('settings.loading')}</p>
         </div>
       ) : (
         <div className="flex flex-col lg:flex-row gap-6">
@@ -124,10 +130,10 @@ const GlobalSettings = () => {
               <div className="relative z-10">
                 <h3 className="text-sm font-bold text-slate-800 mb-2 flex items-center gap-2">
                   <Settings2 size={16} className="text-blue-500" />
-                  Setting Tip
+                  {t('settings.tip_title')}
                 </h3>
                 <p className="text-xs text-slate-500 leading-relaxed font-medium">
-                  การตั้งค่าในหน้านี้จะมีผลกับอุปกรณ์ทุกเครื่องในระบบ โปรดตรวจสอบความถูกต้องก่อนบันทึกข้อมูล
+                  {t('settings.tip_desc')}
                 </p>
               </div>
               <div className="absolute -right-4 -bottom-4 w-16 h-16 bg-slate-50 rounded-full blur-xl group-hover:bg-blue-50 transition-colors"></div>
@@ -144,6 +150,7 @@ const GlobalSettings = () => {
               {activeTab === 'MAINTENANCE' && <TabMaintenance />}
               {activeTab === 'ALERTS' && <TabAlertThresholds initialData={settingsData.ALERT_THRESHOLDS} />}
               {activeTab === 'ANNOUNCEMENT' && <TabDashboardAnnouncement initialData={settingsData.DASHBOARD_ANNOUNCEMENT} />}
+              {activeTab === 'AI' && <TabAISettings initialData={settingsData.GEMINI_AI_CONFIG} />}
             </div>
           </div>
         </div>
