@@ -11,11 +11,12 @@ const ClientToSiteTab = () => {
     serverName: '',
     serverPublicKey: '',
     serverPublicIp: '',
+    officeLan: '192.168.88.0/24', // 🟢 Added for Split Tunnel
     listenPort: '',
     clientName: '',
     clientPrivateKey: '',
     clientPublicKey: '',
-    vpnSubnet: '',
+    vpnSubnet: '10.88.0.0',
     dns: '8.8.8.8',
     routingMode: 'full', // 'full', 'split', 'custom'
     customAllowedIPs: ''
@@ -34,7 +35,7 @@ const ClientToSiteTab = () => {
     if (target === 'server') {
         setFormData({...formData, serverPrivateKey: privateKey, serverPublicKey: publicKey});
     } else {
-        setFormData({...formData, clientPrivateKey: privateKey, clientPublicKey: publicKey});
+        setFormData({...formData, clientPrivateKey: privateKey, publicKey: publicKey});
         toast.success('Generated Client Keys Successfully');
     }
   };
@@ -53,14 +54,21 @@ const ClientToSiteTab = () => {
     const port = formData.listenPort || '51820';
     const cleanSubnet = formData.vpnSubnet.includes('/') ? formData.vpnSubnet.split('/')[0] : formData.vpnSubnet;
     const clientVpnIp = cleanSubnet.replace(/\.[0-9]+$/, '.2');
+    const vpnNetwork = `${cleanSubnet}/24`;
 
     const serverScript = `# --- Server Config: Add Client to WireGuard ---
 /interface wireguard peers
-add allowed-address=${clientVpnIp}/32 interface=${formData.serverName || 'wireguard1'} public-key="${formData.clientPublicKey}" comment="${formData.clientName || 'VPN-Client'}"`;
+add allowed-address=${clientVpnIp}/32 interface=${formData.serverName || 'wireguard1'} public-key="${formData.clientPublicKey}" comment="${formData.clientName || 'VPN-Client'}"
+
+# --- Firewall Rule: Allow VPN to Local LAN ---
+/ip firewall filter
+add action=accept chain=forward src-address=${vpnNetwork} dst-address=${formData.officeLan || '192.168.88.0/24'} comment="Allow WireGuard VPN to LAN" place-before=0
+add action=accept chain=input dst-port=${port} protocol=udp comment="Allow WireGuard Port" place-before=0`;
 
     let allowedIPs = '0.0.0.0/0';
     if (formData.routingMode === 'split') {
-        allowedIPs = `${cleanSubnet}/24`;
+        // 🟢 Automatically include both VPN subnet and Office LAN
+        allowedIPs = `${vpnNetwork}, ${formData.officeLan || '192.168.88.0/24'}`;
     } else if (formData.routingMode === 'custom') {
         allowedIPs = formData.customAllowedIPs || '0.0.0.0/0';
     }
@@ -166,9 +174,15 @@ PersistentKeepalive = 25`;
           </div>
           
           <div className="space-y-5">
-            <div className="space-y-2">
-                <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider ml-1">Public IP / DDNS Hostname</label>
-                <input type="text" value={formData.serverPublicIp} onChange={e => setFormData({...formData, serverPublicIp: e.target.value})} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-700 focus:bg-white focus:ring-4 focus:ring-blue-50 focus:border-blue-400 outline-none transition-all placeholder:text-slate-300" placeholder="hq.yourdomain.com" />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                <div className="space-y-2">
+                    <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider ml-1">Public IP / DDNS</label>
+                    <input type="text" value={formData.serverPublicIp} onChange={e => setFormData({...formData, serverPublicIp: e.target.value})} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-700 focus:bg-white focus:ring-4 focus:ring-blue-50 focus:border-blue-400 outline-none transition-all placeholder:text-slate-300" placeholder="hq.yourdomain.com" />
+                </div>
+                <div className="space-y-2">
+                    <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider ml-1">Local LAN Subnet</label>
+                    <input type="text" value={formData.officeLan} onChange={e => setFormData({...formData, officeLan: e.target.value})} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-700 focus:bg-white focus:ring-4 focus:ring-blue-50 focus:border-blue-400 outline-none transition-all placeholder:text-slate-300" placeholder="192.168.88.0/24" />
+                </div>
             </div>
 
             <div className="p-6 bg-slate-50/50 rounded-2xl border border-slate-100 space-y-4 shadow-inner">
@@ -186,45 +200,108 @@ PersistentKeepalive = 25`;
             </div>
 
             <div className="space-y-4 pt-2">
-               <label className="block text-[11px] font-bold text-blue-600 uppercase tracking-wider ml-1">Traffic Routing Mode</label>
-               <div className="flex flex-wrap gap-2">
-                  <StatusPill 
-                    active={formData.routingMode === 'full'}
-                    onClick={() => setFormData({...formData, routingMode: 'full'})}
-                    icon={Globe}
-                    label="Full Tunnel"
-                    activeClass="bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-500/20 scale-[1.02]"
-                    inactiveClass="bg-white border-slate-200 text-slate-400 hover:border-blue-300"
-                  />
-                  <StatusPill 
-                    active={formData.routingMode === 'split'}
-                    onClick={() => setFormData({...formData, routingMode: 'split'})}
-                    icon={Network}
-                    label="Split Tunnel"
-                    activeClass="bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-500/20 scale-[1.02]"
-                    inactiveClass="bg-white border-slate-200 text-slate-400 hover:border-blue-300"
-                  />
-                  <StatusPill 
-                    active={formData.routingMode === 'custom'}
-                    onClick={() => setFormData({...formData, routingMode: 'custom'})}
-                    icon={Settings2}
-                    label="Custom"
-                    activeClass="bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-500/20 scale-[1.02]"
-                    inactiveClass="bg-white border-slate-200 text-slate-400 hover:border-blue-300"
-                  />
-               </div>
-               
-               {formData.routingMode === 'custom' && (
-                  <div className="animate-in slide-in-from-top-2 duration-300">
-                     <input 
-                       type="text" 
-                       value={formData.customAllowedIPs} 
-                       onChange={e => setFormData({...formData, customAllowedIPs: e.target.value})} 
-                       className="w-full border border-blue-200 rounded-xl p-3 text-xs font-bold text-blue-700 bg-blue-50/30 focus:ring-4 focus:ring-blue-50 outline-none transition-all" 
-                       placeholder="เช่น 192.168.1.0/24, 10.0.88.0/24" 
-                     />
+               <div className="flex items-center justify-between ml-1">
+                  <label className="block text-[11px] font-bold text-blue-600 uppercase tracking-wider">Traffic Routing Mode</label>
+                  <div className="group relative">
+                     <Hash size={14} className="text-slate-300 cursor-help hover:text-blue-400 transition-colors" />
+                     <div className="absolute bottom-full right-0 mb-2 w-64 p-3 bg-slate-900 text-white text-[10px] rounded-xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 shadow-xl leading-relaxed">
+                        <p className="font-bold border-b border-white/10 pb-1 mb-1">Routing Mode คืออะไร?</p>
+                        เป็นการกำหนดว่าข้อมูลส่วนไหนจะให้วิ่งเข้า VPN บ้าง เพื่อความปลอดภัยหรือความเร็วที่เหมาะสม
+                     </div>
                   </div>
-               )}
+               </div>
+
+               <div className="grid grid-cols-1 gap-3">
+                  {/* Full Tunnel Option */}
+                  <button 
+                    onClick={() => setFormData({...formData, routingMode: 'full'})}
+                    className={`flex items-start gap-4 p-4 rounded-2xl border transition-all duration-300 text-left ${
+                        formData.routingMode === 'full' 
+                        ? 'bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-500/20 scale-[1.01]' 
+                        : 'bg-white border-slate-200 text-slate-600 hover:border-blue-300'
+                    }`}
+                  >
+                    <div className={`p-2 rounded-xl ${formData.routingMode === 'full' ? 'bg-white/20' : 'bg-blue-50 text-blue-600'}`}>
+                        <Globe size={20} />
+                    </div>
+                    <div>
+                        <p className="text-sm font-bold leading-none">Full Tunnel (Internet & LAN)</p>
+                        <p className={`text-[10px] mt-1.5 ${formData.routingMode === 'full' ? 'text-blue-50' : 'text-slate-400'}`}>
+                           ส่งข้อมูลทั้งหมดผ่าน VPN (ปลอดภัยสูงสุด / ป้องกันการดักฟังจาก Wi-Fi สาธารณะ)
+                        </p>
+                    </div>
+                  </button>
+
+                  {/* Split Tunnel Option */}
+                  <div className="space-y-3">
+                    <button 
+                        onClick={() => setFormData({...formData, routingMode: 'split'})}
+                        className={`w-full flex items-start gap-4 p-4 rounded-2xl border transition-all duration-300 text-left ${
+                            formData.routingMode === 'split' 
+                            ? 'bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-500/20 scale-[1.01]' 
+                            : 'bg-white border-slate-200 text-slate-600 hover:border-blue-300'
+                        }`}
+                    >
+                        <div className={`p-2 rounded-xl ${formData.routingMode === 'split' ? 'bg-white/20' : 'bg-blue-50 text-blue-600'}`}>
+                            <Network size={20} />
+                        </div>
+                        <div>
+                            <p className="text-sm font-bold leading-none">Split Tunnel (Office LAN Only)</p>
+                            <p className={`text-[10px] mt-1.5 ${formData.routingMode === 'split' ? 'text-blue-50' : 'text-slate-400'}`}>
+                               เข้าถึงแลนออฟฟิศได้ แต่การเข้าเน็ตปกติจะใช้เน็ตของเครื่องคุณเอง (ความเร็วสูง / ประหยัดเน็ตออฟฟิศ)
+                            </p>
+                        </div>
+                    </button>
+                    
+                    {formData.routingMode === 'split' && (
+                        <div className="animate-in slide-in-from-top-2 duration-300 ml-4 pl-4 border-l-2 border-blue-500/30 py-1">
+                            <label className="block text-[10px] font-bold text-blue-600 uppercase tracking-wider mb-2 ml-1">Office LAN Subnet ที่ต้องการเข้าถึง</label>
+                            <input 
+                                type="text" 
+                                value={formData.officeLan} 
+                                onChange={e => setFormData({...formData, officeLan: e.target.value})} 
+                                className="w-full px-4 py-2.5 bg-blue-50 border border-blue-200 rounded-xl text-xs font-bold text-blue-700 focus:bg-white focus:ring-4 focus:ring-blue-50 outline-none transition-all" 
+                                placeholder="เช่น 192.168.88.0/24" 
+                            />
+                        </div>
+                    )}
+                  </div>
+
+                  {/* Custom Option */}
+                  <div className="space-y-3">
+                    <button 
+                        onClick={() => setFormData({...formData, routingMode: 'custom'})}
+                        className={`w-full flex items-start gap-4 p-4 rounded-2xl border transition-all duration-300 text-left ${
+                            formData.routingMode === 'custom' 
+                            ? 'bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-500/20 scale-[1.01]' 
+                            : 'bg-white border-slate-200 text-slate-600 hover:border-blue-300'
+                        }`}
+                    >
+                        <div className={`p-2 rounded-xl ${formData.routingMode === 'custom' ? 'bg-white/20' : 'bg-blue-50 text-blue-600'}`}>
+                            <Settings2 size={20} />
+                        </div>
+                        <div>
+                            <p className="text-sm font-bold leading-none">Custom Configuration</p>
+                            <p className={`text-[10px] mt-1.5 ${formData.routingMode === 'custom' ? 'text-blue-50' : 'text-slate-400'}`}>
+                               กำหนดวงเน็ตเวิร์กที่ต้องการให้วิ่งผ่าน VPN ด้วยตัวเอง
+                            </p>
+                        </div>
+                    </button>
+                    
+                    {formData.routingMode === 'custom' && (
+                        <div className="animate-in slide-in-from-top-2 duration-300 ml-4 pl-4 border-l-2 border-blue-500/30 py-1">
+                            <label className="block text-[10px] font-bold text-blue-600 uppercase tracking-wider mb-2 ml-1">Allowed IPs (คั่นด้วยคอมม่า)</label>
+                            <input 
+                                type="text" 
+                                value={formData.customAllowedIPs} 
+                                onChange={e => setFormData({...formData, customAllowedIPs: e.target.value})} 
+                                className="w-full px-4 py-2.5 bg-blue-50 border border-blue-200 rounded-xl text-xs font-bold text-blue-700 focus:bg-white focus:ring-4 focus:ring-blue-50 outline-none transition-all" 
+                                placeholder="เช่น 10.0.0.0/8, 172.16.0.0/12" 
+                            />
+                        </div>
+                    )}
+                  </div>
+               </div>
             </div>
           </div>
         </div>
