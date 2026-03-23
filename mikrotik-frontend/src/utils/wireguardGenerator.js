@@ -59,12 +59,6 @@ add address=${serverAddress} interface=${interfaceName}
 
 /interface wireguard peers
 add allowed-address=${clientAddress} interface=${interfaceName} public-key="${clientPublicKey}" comment="${clientName}"
-
-# --- Firewall Rules (Placed at top to bypass any drop rules) ---
-/ip firewall filter
-add action=accept chain=input dst-port=${listenPort} protocol=udp comment="Allow WireGuard VPN Incoming" place-before=0
-add action=accept chain=forward src-address=${serverAddress} comment="Allow WireGuard Subnet Forwarding" place-before=0
-add action=accept chain=input src-address=${serverAddress} comment="Allow WireGuard Subnet to Router" place-before=0
 `;
 
   return { serverScript };

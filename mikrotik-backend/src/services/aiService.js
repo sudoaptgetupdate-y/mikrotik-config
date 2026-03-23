@@ -2,7 +2,7 @@ const axios = require('axios');
 const prisma = require('../config/prisma');
 
 /**
- * ดึงการตั้งค่า AI จาก Group (และ Fallback ไปที่ Global System Settings)
+ * ดึงการตั้งค่า AI จาก Group (ตัดระบบ Fallback ไปที่ Global System Settings ออกแล้ว)
  */
 const getAIConfig = async (groupId = null) => {
   let config = {
@@ -11,7 +11,7 @@ const getAIConfig = async (groupId = null) => {
     AI_SYSTEM_PROMPT: ''
   };
 
-  // 1. พยายามดึงจาก Group ก่อนถ้ามีการระบุ groupId
+  // ดึงข้อมูล AI เฉพาะจาก Device Group เท่านั้น
   if (groupId) {
     const group = await prisma.deviceGroup.findUnique({
       where: { id: parseInt(groupId) }
@@ -26,26 +26,7 @@ const getAIConfig = async (groupId = null) => {
     }
   }
 
-  // 2. ถ้าไม่มี groupId หรือใน Group ไม่มี Config ให้ไปดึงจาก Global (SystemSetting)
-  const keys = ['AI_ENABLED', 'AI_GEMINI_KEY', 'AI_SYSTEM_PROMPT'];
-  const settings = await prisma.systemSetting.findMany({
-    where: { key: { in: keys } }
-  });
-
-  settings.forEach(s => {
-    let parsed = s.value;
-    while (typeof parsed === 'string') {
-      try {
-        const next = JSON.parse(parsed);
-        if (next === parsed) break;
-        parsed = next;
-      } catch (e) {
-        break; 
-      }
-    }
-    config[s.key] = parsed;
-  });
-
+  // หากไม่มี groupId หรือไม่มีการตั้งค่าในกลุ่ม ให้ถือว่าปิดใช้งาน AI
   return config;
 };
 

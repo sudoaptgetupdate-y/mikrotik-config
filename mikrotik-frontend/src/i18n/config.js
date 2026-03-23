@@ -33,7 +33,8 @@ const resources = {
         yesDelete: "Yes, delete it!",
         yesRestore: "Yes, restore it!",
         yesHardDelete: "Yes, delete permanently!",
-        saveError: "Save failed"
+        saveError: "Save failed",
+        error_default: "An error occurred. Please try again."
       },
       sidebar: {
         dashboard: "Dashboard",
@@ -517,12 +518,21 @@ const resources = {
         search_placeholder: "Search in {{tab}}...",
         found_total: "Found {{count}} items",
         loading: "Loading users data...",
+        messages: {
+          fetch_error: "Failed to fetch users",
+          updating: "Updating user status...",
+          restoring: "Restoring user account...",
+          deleting: "Removing user...",
+          saving: "Saving user data...",
+          password_mismatch: "Passwords do not match!",
+          password_invalid: "Password does not meet requirements"
+        },
         table: {
-          name: "User / Username",
+          user_username: "User / Username",
           email: "Email",
           role: "Role",
           status: "Status",
-          created: "Created Date",
+          created_at: "Created Date",
           actions: "Actions",
           empty: "No data found in this list"
         },
@@ -530,6 +540,9 @@ const resources = {
           super_admin: "Super Admin",
           admin: "Admin",
           employee: "Employee",
+          super_admin_desc: "Super Admin (Full Access)",
+          admin_desc: "Admin (Manage Staff & Devices)",
+          employee_desc: "Employee (Standard Access)",
           desc_super: "Can manage everything",
           desc_admin: "Can manage Employees and Devices",
           desc_employee: "Can view and config own devices"
@@ -539,6 +552,14 @@ const resources = {
           inactive: "INACTIVE",
           archived: "ARCHIVED"
         },
+        tooltips: {
+          edit: "Edit User",
+          delete: "Move to Archive",
+          delete_permanent: "Delete Permanently",
+          restore: "Restore User",
+          deactivate: "Deactivate Account",
+          activate: "Activate Account"
+        },
         actions: {
           edit: "Edit",
           delete: "Delete",
@@ -546,22 +567,26 @@ const resources = {
           restore: "Restore User",
           deactivate: "Deactivate User",
           activate: "Activate User",
-          update_success: "User updated successfully"
+          update_success: "User updated successfully",
+          create_success: "User created successfully"
         },
         form: {
           edit_title: "Edit User Details",
-          create_title: "Add New User",
-          label_fname: "First Name *",
-          label_lname: "Last Name *",
-          label_email: "Email *",
-          label_username: "Username",
-          username_auto: "* Generated from email automatically",
-          label_role: "Role *",
-          label_status: "Status",
-          label_pass: "Password *",
-          label_pass_edit: "New Password (Leave blank to keep same)",
-          label_confirm: "Confirm Password *",
-          pass_rules_title: "Password Requirements:",
+          add_title: "Add New User",
+          first_name: "First Name *",
+          last_name: "Last Name *",
+          first_name_placeholder: "Enter first name",
+          last_name_placeholder: "Enter last name",
+          email: "Email *",
+          username: "Username",
+          username_placeholder: "auto-generated",
+          username_hint: "* Generated from email automatically",
+          role: "Role *",
+          status: "Status",
+          password_label: "Password *",
+          password_edit_label: "New Password (Leave blank to keep same)",
+          confirm_password: "Confirm Password *",
+          password_rules_header: "Password Requirements:",
           rules: {
             length: "At least 8 characters",
             upper: "Uppercase (A-Z)",
@@ -569,7 +594,7 @@ const resources = {
             number: "Number (0-9)",
             special: "Special character (@$!%*?&)"
           },
-          submit_create: "Create User",
+          create_button: "Create User",
           submit_save: "Save Changes"
         },
         delete_confirm: {
@@ -579,12 +604,15 @@ const resources = {
           text_perm: "Warning! \"{{name}}\" data will be permanently removed.",
           confirm: "Yes, delete it!",
           confirm_perm: "Yes, delete permanently!",
-          success: "User removed successfully"
+          success: "User removed successfully",
+          error: "Failed to remove user"
         },
         restore_confirm: {
           title: "Restore Account?",
           text: "Do you want to restore account for \"{{name}}\"?",
-          confirm: "Yes, restore it!"
+          confirm: "Yes, restore it!",
+          success: "User restored successfully",
+          error: "Failed to restore user"
         }
       },
       profile: {
@@ -651,7 +679,7 @@ const resources = {
           label_allowed_ips: "Allowed IPs (Comma separated)",
           section_client: "Client Device Settings",
           label_friendly_name: "Friendly Name",
-          label_virtual_ip: "VPN Virtual IP",
+          label_virtual_ip: "Tunnel IP (Inside VPN)",
           label_dns: "DNS Server (Optional)",
           section_keys: "Client Keypair",
           btn_new_keys: "Generate New",
@@ -663,7 +691,7 @@ const resources = {
             interface: "e.g. wireguard-mobile",
             server_key: "Public Key from MikroTik WireGuard interface",
             friendly_name: "e.g. iPhone-John",
-            virtual_ip: "e.g. 10.88.0.2/24",
+            virtual_ip: "e.g. 10.88.0.2/24 (Inside VPN)",
             dns: "e.g. 8.8.8.8, 1.1.1.1",
             client_private: "Auto-generated or paste your own",
             client_public: "Auto-generated from Private Key",
@@ -962,7 +990,8 @@ const resources = {
         yesDelete: "ใช่, ลบเลย!",
         yesRestore: "ใช่, กู้คืนเลย!",
         yesHardDelete: "ใช่, ลบถาวร!",
-        saveError: "บันทึกไม่สำเร็จ"
+        saveError: "บันทึกไม่สำเร็จ",
+        error_default: "เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง"
       },
       sidebar: {
         dashboard: "แดชบอร์ด",
@@ -1442,16 +1471,25 @@ const resources = {
         subtitle: "จัดการผู้ใช้งานระบบและกำหนดสิทธิ์การเข้าถึง (RBAC)",
         add_button: "เพิ่มผู้ใช้งานใหม่",
         tab_users: "รายชื่อผู้ใช้",
-        tab_archived: "จดหมายเหตุ",
+        tab_archived: "ผู้ใช้ที่ถูกลบ",
         search_placeholder: "ค้นหาใน {{tab}}...",
         found_total: "พบทั้งหมด {{count}} รายการ",
         loading: "กำลังโหลดข้อมูลผู้ใช้...",
+        messages: {
+          fetch_error: "ดึงข้อมูลผู้ใช้ไม่สำเร็จ",
+          updating: "กำลังอัปเดตสถานะผู้ใช้...",
+          restoring: "กำลังกู้คืนบัญชีผู้ใช้...",
+          deleting: "กำลังลบผู้ใช้...",
+          saving: "กำลังบันทึกข้อมูลผู้ใช้...",
+          password_mismatch: "รหัสผ่านไม่ตรงกัน!",
+          password_invalid: "รหัสผ่านไม่ตรงตามเงื่อนไขที่กำหนด"
+        },
         table: {
-          name: "ชื่อ / ชื่อผู้ใช้",
+          user_username: "ชื่อ / ชื่อผู้ใช้",
           email: "อีเมล",
           role: "บทบาท",
           status: "สถานะ",
-          created: "วันที่สร้าง",
+          created_at: "วันที่สร้าง",
           actions: "จัดการ",
           empty: "ไม่พบข้อมูลในรายการนี้"
         },
@@ -1459,6 +1497,9 @@ const resources = {
           super_admin: "Super Admin",
           admin: "Admin",
           employee: "Employee",
+          super_admin_desc: "Super Admin (จัดการได้ทุกอย่าง)",
+          admin_desc: "Admin (จัดการพนักงานและอุปกรณ์)",
+          employee_desc: "Employee (สิทธิ์ทั่วไป)",
           desc_super: "จัดการได้ทุกอย่าง",
           desc_admin: "จัดการพนักงานและอุปกรณ์ได้",
           desc_employee: "ดูและตั้งค่าอุปกรณ์ตัวเองได้"
@@ -1466,7 +1507,15 @@ const resources = {
         status: {
           active: "ACTIVE",
           inactive: "INACTIVE",
-          archived: "ARCHIVED"
+          archived: "ลบแล้ว"
+        },
+        tooltips: {
+          edit: "แก้ไขข้อมูลผู้ใช้",
+          delete: "ย้ายไปที่ถังขยะ",
+          delete_permanent: "ลบถาวร",
+          restore: "กู้คืนผู้ใช้",
+          deactivate: "ปิดใช้งานบัญชี",
+          activate: "เปิดใช้งานบัญชี"
         },
         actions: {
           edit: "แก้ไข",
@@ -1475,22 +1524,26 @@ const resources = {
           restore: "กู้คืนผู้ใช้",
           deactivate: "ปิดใช้งาน",
           activate: "เปิดใช้งาน",
-          update_success: "อัปเดตข้อมูลผู้ใช้สำเร็จ"
+          update_success: "อัปเดตข้อมูลผู้ใช้สำเร็จ",
+          create_success: "สร้างผู้ใช้งานใหม่สำเร็จ"
         },
         form: {
           edit_title: "แก้ไขข้อมูลผู้ใช้งาน",
-          create_title: "เพิ่มผู้ใช้งานใหม่",
-          label_fname: "ชื่อจริง *",
-          label_lname: "นามสกุล *",
-          label_email: "อีเมล *",
-          label_username: "ชื่อผู้ใช้",
-          username_auto: "* ระบบจะสร้างจากอีเมลอัตโนมัติ",
-          label_role: "ระดับสิทธิ์ *",
-          label_status: "สถานะการใช้งาน",
-          label_pass: "รหัสผ่าน *",
-          label_pass_edit: "รหัสผ่านใหม่ (เว้นว่างไว้ถ้าไม่ต้องการเปลี่ยน)",
-          label_confirm: "ยืนยันรหัสผ่าน *",
-          pass_rules_title: "เงื่อนไขรหัสผ่าน:",
+          add_title: "เพิ่มผู้ใช้งานใหม่",
+          first_name: "ชื่อจริง *",
+          last_name: "นามสกุล *",
+          first_name_placeholder: "กรอกชื่อจริง",
+          last_name_placeholder: "กรอกนามสกุล",
+          email: "อีเมล *",
+          username: "ชื่อผู้ใช้",
+          username_placeholder: "ระบบสร้างให้อัตโนมัติ",
+          username_hint: "* ระบบจะสร้างจากอีเมลอัตโนมัติ",
+          role: "ระดับสิทธิ์ *",
+          status: "สถานะการใช้งาน",
+          password_label: "รหัสผ่าน *",
+          password_edit_label: "รหัสผ่านใหม่ (เว้นว่างไว้ถ้าไม่ต้องการเปลี่ยน)",
+          confirm_password: "ยืนยันรหัสผ่าน *",
+          password_rules_header: "เงื่อนไขรหัสผ่าน:",
           rules: {
             length: "อย่างน้อย 8 ตัวอักษร",
             upper: "ตัวพิมพ์ใหญ่ (A-Z)",
@@ -1498,7 +1551,7 @@ const resources = {
             number: "ตัวเลข (0-9)",
             special: "อักขระพิเศษ (@$!%*?&)"
           },
-          submit_create: "สร้างผู้ใช้งาน",
+          create_button: "สร้างผู้ใช้งาน",
           submit_save: "บันทึกการเปลี่ยนแปลง"
         },
         delete_confirm: {
@@ -1508,12 +1561,15 @@ const resources = {
           text_perm: "ระวัง! ข้อมูลของ \"{{name}}\" จะถูกลบถาวรและกู้คืนไม่ได้",
           confirm: "ใช่, ลบเลย!",
           confirm_perm: "ใช่, ลบถาวร!",
-          success: "ลบผู้ใช้งานเรียบร้อยแล้ว"
+          success: "ลบผู้ใช้งานเรียบร้อยแล้ว",
+          error: "ลบผู้ใช้งานไม่สำเร็จ"
         },
         restore_confirm: {
           title: "กู้คืนบัญชีผู้ใช้?",
           text: "คุณต้องการกู้คืนบัญชีของ \"{{name}}\" ใช่หรือไม่?",
-          confirm: "ใช่, กู้คืนเลย!"
+          confirm: "ใช่, กู้คืนเลย!",
+          success: "กู้คืนบัญชีผู้ใช้สำเร็จ",
+          error: "กู้คืนบัญชีผู้ใช้ไม่สำเร็จ"
         }
       },
       profile: {
@@ -1580,7 +1636,7 @@ const resources = {
           label_allowed_ips: "Allowed IPs (คั่นด้วยคอมม่า)",
           section_client: "ข้อมูลฝั่ง Client (ผู้ใช้งาน)",
           label_friendly_name: "ชื่อเรียกอุปกรณ์",
-          label_virtual_ip: "VPN Virtual IP",
+          label_virtual_ip: "Tunnel IP (ภายในท่อ)",
           label_dns: "DNS Server (ถ้ามี)",
           section_keys: "Client Keypair",
           btn_new_keys: "สร้าง Key ใหม่",

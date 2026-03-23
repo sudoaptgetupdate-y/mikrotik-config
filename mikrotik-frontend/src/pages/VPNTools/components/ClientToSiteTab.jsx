@@ -171,15 +171,9 @@ PersistentKeepalive = 25`;
           </div>
           
           <div className="space-y-5">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                <div className="space-y-2">
-                    <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider ml-1">{t('vpn.c2s.label_public_ip')}</label>
-                    <input type="text" value={formData.serverPublicIp} onChange={e => setFormData({...formData, serverPublicIp: e.target.value})} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-700 focus:bg-white focus:ring-4 focus:ring-blue-50 focus:border-blue-400 outline-none transition-all placeholder:text-slate-300" placeholder={t('vpn.c2s.placeholders.public_ip')} />
-                </div>
-                <div className="space-y-2">
-                    <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider ml-1">{t('vpn.c2s.label_office_lan')}</label>
-                    <input type="text" value={formData.officeLan} onChange={e => setFormData({...formData, officeLan: e.target.value})} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-700 focus:bg-white focus:ring-4 focus:ring-blue-50 focus:border-blue-400 outline-none transition-all placeholder:text-slate-300" placeholder={t('vpn.c2s.placeholders.office_lan')} />
-                </div>
+            <div className="space-y-2">
+                <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider ml-1">{t('vpn.c2s.label_public_ip')}</label>
+                <input type="text" value={formData.serverPublicIp} onChange={e => setFormData({...formData, serverPublicIp: e.target.value})} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-700 focus:bg-white focus:ring-4 focus:ring-blue-50 focus:border-blue-400 outline-none transition-all placeholder:text-slate-300" placeholder={t('vpn.c2s.placeholders.public_ip')} />
             </div>
 
             <div className="p-6 bg-slate-50/50 rounded-2xl border border-slate-100 space-y-4 shadow-inner">
@@ -210,24 +204,39 @@ PersistentKeepalive = 25`;
 
                <div className="grid grid-cols-1 gap-3">
                   {/* Full Tunnel Option */}
-                  <button 
-                    onClick={() => setFormData({...formData, routingMode: 'full'})}
-                    className={`flex items-start gap-4 p-4 rounded-2xl border transition-all duration-300 text-left ${
-                        formData.routingMode === 'full' 
-                        ? 'bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-500/20 scale-[1.01]' 
-                        : 'bg-white border-slate-200 text-slate-600 hover:border-blue-300'
-                    }`}
-                  >
-                    <div className={`p-2 rounded-xl ${formData.routingMode === 'full' ? 'bg-white/20' : 'bg-blue-50 text-blue-600'}`}>
-                        <Globe size={20} />
-                    </div>
-                    <div>
-                        <p className="text-sm font-bold leading-none">{t('vpn.c2s.modes.full_title')}</p>
-                        <p className={`text-[10px] mt-1.5 ${formData.routingMode === 'full' ? 'text-blue-50' : 'text-slate-400'}`}>
-                           {t('vpn.c2s.modes.full_desc')}
-                        </p>
-                    </div>
-                  </button>
+                  <div className="space-y-3">
+                    <button 
+                        onClick={() => setFormData({...formData, routingMode: 'full'})}
+                        className={`w-full flex items-start gap-4 p-4 rounded-2xl border transition-all duration-300 text-left ${
+                            formData.routingMode === 'full' 
+                            ? 'bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-500/20 scale-[1.01]' 
+                            : 'bg-white border-slate-200 text-slate-600 hover:border-blue-300'
+                        }`}
+                    >
+                        <div className={`p-2 rounded-xl ${formData.routingMode === 'full' ? 'bg-white/20' : 'bg-blue-50 text-blue-600'}`}>
+                            <Globe size={20} />
+                        </div>
+                        <div>
+                            <p className="text-sm font-bold leading-none">{t('vpn.c2s.modes.full_title')}</p>
+                            <p className={`text-[10px] mt-1.5 ${formData.routingMode === 'full' ? 'text-blue-50' : 'text-slate-400'}`}>
+                            {t('vpn.c2s.modes.full_desc')}
+                            </p>
+                        </div>
+                    </button>
+
+                    {formData.routingMode === 'full' && (
+                        <div className="animate-in slide-in-from-top-2 duration-300 ml-4 pl-4 border-l-2 border-white/30 py-1">
+                            <label className="block text-[10px] font-bold text-blue-100 uppercase tracking-wider mb-2 ml-1">{t('vpn.c2s.label_office_lan')}</label>
+                            <input 
+                                type="text" 
+                                value={formData.officeLan} 
+                                onChange={e => setFormData({...formData, officeLan: e.target.value})} 
+                                className="w-full px-4 py-2.5 bg-white border border-blue-400 rounded-xl text-xs font-bold text-blue-700 placeholder:text-blue-300 outline-none focus:ring-4 focus:ring-blue-100 transition-all" 
+                                placeholder="e.g. 192.168.88.0/24, 10.0.0.0/24" 
+                            />
+                        </div>
+                    )}
+                  </div>
 
                   {/* Split Tunnel Option */}
                   <div className="space-y-3">

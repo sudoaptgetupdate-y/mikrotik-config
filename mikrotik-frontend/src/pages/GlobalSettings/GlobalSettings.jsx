@@ -13,11 +13,13 @@ import TabVlanNetwork from './components/TabVlanNetwork';
 import TabMaintenance from './components/TabMaintenance';
 import TabAlertThresholds from './components/TabAlertThresholds';
 import TabDashboardAnnouncement from './components/TabDashboardAnnouncement';
-import TabAISettings from './components/TabAISettings';
 
 const GlobalSettings = () => {
   const { t } = useTranslation();
-  const [activeTab, setActiveTab] = useState(() => localStorage.getItem('activeGlobalSettingsTab') || 'ADMINS');
+  const [activeTab, setActiveTab] = useState(() => {
+    const saved = localStorage.getItem('activeGlobalSettingsTab');
+    return (saved && saved !== 'AI') ? saved : 'ADMINS';
+  });
 
   useEffect(() => {
     localStorage.setItem('activeGlobalSettingsTab', activeTab);
@@ -36,16 +38,14 @@ const GlobalSettings = () => {
       MONITOR_IPS: [], 
       DEFAULT_NETWORKS: [], 
       ALERT_THRESHOLDS: null, 
-      DASHBOARD_ANNOUNCEMENT: '',
-      GEMINI_AI_CONFIG: null
+      DASHBOARD_ANNOUNCEMENT: ''
     };
     if (!rawSettings) return parsed;
 
     rawSettings.forEach(item => {
       const complexKeys = [
         'DEFAULT_NETWORKS', 
-        'ALERT_THRESHOLDS',
-        'GEMINI_AI_CONFIG'
+        'ALERT_THRESHOLDS'
       ];
 
       if (complexKeys.includes(item.key)) {
@@ -69,7 +69,6 @@ const GlobalSettings = () => {
     { id: 'MAINTENANCE', label: t('settings.tabs.maintenance'), icon: Database, color: 'text-rose-600', border: 'border-rose-600', bg: 'bg-rose-50' },
     { id: 'ALERTS', label: t('settings.tabs.alerts'), icon: Bell, color: 'text-rose-500', border: 'border-rose-500', bg: 'bg-rose-50' },
     { id: 'ANNOUNCEMENT', label: t('settings.tabs.announcement'), icon: Megaphone, color: 'text-blue-500', border: 'border-blue-500', bg: 'bg-blue-50' },
-    { id: 'AI', label: t('settings.tabs.ai'), icon: Bot, color: 'text-indigo-500', border: 'border-indigo-500', bg: 'bg-indigo-50' },
   ];
 
   return (
@@ -150,7 +149,6 @@ const GlobalSettings = () => {
               {activeTab === 'MAINTENANCE' && <TabMaintenance />}
               {activeTab === 'ALERTS' && <TabAlertThresholds initialData={settingsData.ALERT_THRESHOLDS} />}
               {activeTab === 'ANNOUNCEMENT' && <TabDashboardAnnouncement initialData={settingsData.DASHBOARD_ANNOUNCEMENT} />}
-              {activeTab === 'AI' && <TabAISettings initialData={settingsData.GEMINI_AI_CONFIG} />}
             </div>
           </div>
         </div>
