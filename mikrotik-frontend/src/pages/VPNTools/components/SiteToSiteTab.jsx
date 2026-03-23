@@ -12,8 +12,8 @@ const SiteToSiteTab = () => {
     
     const [formData, setFormData] = useState({
       listenPort: '',
-      sideA: { name: '', privateKey: '', publicKey: '', address: '', lan: '', endpoint: '', advertiseLan: false, autoRoute: true },
-      sideB: { name: '', privateKey: '', publicKey: '', address: '', lan: '', endpoint: '', advertiseLan: false, autoRoute: true }
+      sideA: { name: '', interfaceName: '', privateKey: '', publicKey: '', address: '', lan: '', endpoint: '', advertiseLan: false, autoRoute: true },
+      sideB: { name: '', interfaceName: '', privateKey: '', publicKey: '', address: '', lan: '', endpoint: '', advertiseLan: false, autoRoute: true }
     });
   
     const [generatedResult, setGeneratedResult] = useState(null);
@@ -22,7 +22,12 @@ const SiteToSiteTab = () => {
     useEffect(() => {
         if (setupMode === 'new') {
             const randomPort = Math.floor(Math.random() * (65000 - 10000 + 1)) + 10000;
-            setFormData(prev => ({...prev, listenPort: randomPort.toString()}));
+            setFormData(prev => ({
+                ...prev, 
+                listenPort: randomPort.toString(),
+                sideA: { ...prev.sideA, interfaceName: '' },
+                sideB: { ...prev.sideB, interfaceName: '' }
+            }));
         } else {
             setFormData(prev => ({...prev, listenPort: ''})); // Force manual for Expand
         }
@@ -120,33 +125,33 @@ const SiteToSiteTab = () => {
                 </div>
             </div>
             
-            <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-                {/* Port Input */}
-                <div className={`flex items-center gap-2 bg-slate-50 pl-3 pr-1 py-1.5 rounded-xl border transition-all shadow-inner ${!formData.listenPort && setupMode === 'add-branch' ? 'bg-red-50 border-red-200 ring-4 ring-red-50' : 'bg-slate-50 border-slate-200'}`}>
-                    <span className={`text-[10px] font-black uppercase tracking-wider ${!formData.listenPort && setupMode === 'add-branch' ? 'text-red-400' : 'text-slate-400'}`}>{t('vpn.s2s.port_label')}</span>
+            <div className="flex flex-wrap items-center gap-3 sm:gap-4">
+                {/* Port Input - Enlarged */}
+                <div className={`flex items-center gap-3 bg-slate-50 pl-4 pr-2 py-2.5 rounded-2xl border transition-all shadow-inner ${!formData.listenPort && setupMode === 'add-branch' ? 'bg-red-50 border-red-200 ring-4 ring-red-50' : 'bg-slate-50 border-slate-200'}`}>
+                    <span className={`text-[11px] font-black uppercase tracking-wider ${!formData.listenPort && setupMode === 'add-branch' ? 'text-red-500' : 'text-slate-500'}`}>{t('vpn.s2s.port_label')}</span>
                     <input 
                         type="text" 
                         value={formData.listenPort} 
                         onChange={e => setFormData({...formData, listenPort: e.target.value.replace(/[^0-9]/g, '')})} 
-                        className={`bg-transparent text-sm font-bold w-12 sm:w-16 outline-none h-5 placeholder:text-[9px] placeholder:font-bold text-center ${!formData.listenPort && setupMode === 'add-branch' ? 'text-red-600' : 'text-blue-600'}`}
+                        className={`bg-transparent text-base font-black w-16 sm:w-20 outline-none h-6 placeholder:text-[10px] placeholder:font-bold text-center ${!formData.listenPort && setupMode === 'add-branch' ? 'text-red-600' : 'text-blue-700'}`}
                         placeholder="Req"
                     />
                     {setupMode === 'new' && (
-                        <button onClick={handleGeneratePort} title={t('vpn.s2s.btn_keygen')} className="p-1 sm:p-1.5 hover:bg-white rounded-lg text-slate-400 hover:text-blue-600 transition-all"><Zap size={14} /></button>
+                        <button onClick={handleGeneratePort} title={t('vpn.s2s.btn_keygen')} className="p-2 hover:bg-white rounded-xl text-slate-400 hover:text-blue-600 transition-all shadow-sm"><Zap size={16} /></button>
                     )}
                 </div>
 
-                {/* Generate Action */}
+                {/* Generate Action - Enlarged and More Prominent */}
                 <button 
                     onClick={handleGenerate} 
                     disabled={isGenerateDisabled}
-                    className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 sm:px-6 py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider transition-all duration-300 ${
+                    className={`flex-1 sm:flex-none flex items-center justify-center gap-3 px-8 h-14 rounded-2xl font-black text-sm uppercase tracking-widest transition-all duration-300 ${
                         isGenerateDisabled 
                         ? 'bg-slate-100 text-slate-400 cursor-not-allowed border border-slate-200' 
-                        : 'bg-slate-900 text-white shadow-lg hover:bg-black hover:-translate-y-0.5 active:translate-y-0'
+                        : 'bg-slate-900 text-white shadow-[0_10px_20px_-5px_rgba(0,0,0,0.3)] hover:bg-black hover:-translate-y-1 hover:shadow-[0_15px_25px_-5px_rgba(0,0,0,0.4)] active:translate-y-0'
                     }`}
                 >
-                    <Terminal size={14} />
+                    <Terminal size={18} />
                     {t('vpn.s2s.btn_generate')}
                 </button>
             </div>
@@ -203,18 +208,48 @@ const SiteToSiteTab = () => {
                         <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider ml-1">{t('vpn.s2s.side_a.label_name')}</label>
                         <input type="text" value={formData.sideA.name} onChange={e => setFormData({...formData, sideA: {...formData.sideA, name: e.target.value}})} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-700 focus:bg-white focus:ring-4 focus:ring-blue-50 focus:border-blue-400 outline-none transition-all placeholder:text-slate-300" placeholder={t('vpn.s2s.placeholders.router_name')} />
                     </div>
-                    <div className="space-y-2">
+                    {setupMode === 'add-branch' ? (
+                        <div className="space-y-2 animate-in slide-in-from-right-2 duration-300">
+                            <label className="flex items-center gap-1.5 text-[11px] font-bold text-blue-600 uppercase tracking-wider ml-1">
+                                {t('vpn.s2s.side_a.label_interface')}
+                                <div className="group relative"><Info size={14} className="text-blue-300 cursor-help hover:text-blue-500 transition-colors"/><div className="absolute bottom-full right-0 mb-2 w-48 p-2 bg-slate-800 text-white text-[9px] rounded-lg opacity-0 group-hover:opacity-100 transition-opacity z-50 shadow-xl">{t('vpn.s2s.side_a.interface_help')}</div></div>
+                            </label>
+                            <input type="text" value={formData.sideA.interfaceName} onChange={e => setFormData({...formData, sideA: {...formData.sideA, interfaceName: e.target.value}})} className="w-full px-4 py-3 bg-blue-50 border border-blue-200 rounded-xl text-sm font-bold text-blue-700 focus:bg-white focus:ring-4 focus:ring-blue-100 focus:border-blue-400 outline-none transition-all placeholder:text-blue-200" placeholder="e.g. wireguard1" />
+                        </div>
+                    ) : (
+                        <div className="space-y-2">
+                            <label className="flex items-center gap-1.5 text-[11px] font-bold text-slate-500 uppercase tracking-wider ml-1">
+                                {t('vpn.s2s.side_a.label_tunnel_ip')}
+                                <div className="group relative"><Info size={14} className="text-slate-300 cursor-help hover:text-blue-500 transition-colors"/><div className="absolute bottom-full left-0 mb-2 w-48 p-2 bg-slate-800 text-white text-[9px] rounded-lg opacity-0 group-hover:opacity-100 transition-opacity z-50 shadow-xl">{t('vpn.s2s.side_a.tunnel_help')}</div></div>
+                            </label>
+                            <input type="text" value={formData.sideA.address} onChange={e => setFormData({...formData, sideA: {...formData.sideA, address: e.target.value}})} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl font-mono text-sm font-semibold text-slate-700 focus:bg-white focus:ring-4 focus:ring-blue-50 focus:border-blue-400 outline-none transition-all placeholder:text-slate-300" placeholder={t('vpn.s2s.placeholders.tunnel_ip')} />
+                        </div>
+                    )}
+                </div>
+
+                {setupMode === 'add-branch' && (
+                    <div className="space-y-2 animate-in slide-in-from-top-2 duration-300">
                         <label className="flex items-center gap-1.5 text-[11px] font-bold text-slate-500 uppercase tracking-wider ml-1">
                             {t('vpn.s2s.side_a.label_tunnel_ip')}
                             <div className="group relative"><Info size={14} className="text-slate-300 cursor-help hover:text-blue-500 transition-colors"/><div className="absolute bottom-full left-0 mb-2 w-48 p-2 bg-slate-800 text-white text-[9px] rounded-lg opacity-0 group-hover:opacity-100 transition-opacity z-50 shadow-xl">{t('vpn.s2s.side_a.tunnel_help')}</div></div>
                         </label>
                         <input type="text" value={formData.sideA.address} onChange={e => setFormData({...formData, sideA: {...formData.sideA, address: e.target.value}})} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl font-mono text-sm font-semibold text-slate-700 focus:bg-white focus:ring-4 focus:ring-blue-50 focus:border-blue-400 outline-none transition-all placeholder:text-slate-300" placeholder={t('vpn.s2s.placeholders.tunnel_ip')} />
                     </div>
-                </div>
+                )}
 
                 <div className="space-y-2">
-                    <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider ml-1">{t('vpn.s2s.side_a.label_endpoint')}</label>
+                    <label className="flex items-center gap-1.5 text-[11px] font-bold text-slate-500 uppercase tracking-wider ml-1">
+                        {t('vpn.s2s.side_a.label_endpoint')}
+                        <div className="group relative"><Info size={14} className="text-slate-300 cursor-help hover:text-blue-500 transition-colors"/><div className="absolute bottom-full left-0 mb-2 w-48 p-2 bg-slate-800 text-white text-[9px] rounded-lg opacity-0 group-hover:opacity-100 transition-opacity z-50 shadow-xl">{t('vpn.s2s.side_a.endpoint_help')}</div></div>
+                    </label>
                     <input type="text" value={formData.sideA.endpoint} onChange={e => setFormData({...formData, sideA: {...formData.sideA, endpoint: e.target.value}})} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-700 focus:bg-white focus:ring-4 focus:ring-blue-50 focus:border-blue-400 outline-none transition-all placeholder:text-slate-300" placeholder={t('vpn.s2s.placeholders.endpoint')} />
+                </div>
+
+                <div className="bg-blue-50/50 border border-blue-100 rounded-xl p-3 flex gap-3 items-start animate-in fade-in slide-in-from-top-1">
+                    <div className="shrink-0"><Info size={16} className="text-blue-600 mt-0.5" /></div>
+                    <p className="text-[11px] text-blue-800 leading-relaxed font-medium">
+                        {t('vpn.s2s.side_a.endpoint_tip')}
+                    </p>
                 </div>
 
                 <div className="bg-slate-50/50 p-6 rounded-2xl border border-slate-100 space-y-5 shadow-inner">

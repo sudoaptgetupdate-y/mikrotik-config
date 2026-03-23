@@ -66,10 +66,14 @@ add allowed-address=${clientAddress} interface=${interfaceName} public-key="${cl
 
 export const generateS2SConfig = (params) => {
   const {
-    sideA = { name: 'Site-A', privateKey: '', publicKey: '', address: '10.0.10.1/30', lan: '', endpoint: '', autoRoute: true },
-    sideB = { name: 'Site-B', privateKey: '', publicKey: '', address: '10.0.10.2/30', lan: '', endpoint: '', autoRoute: true },
+    sideA = { name: 'Site-A', interfaceName: '', privateKey: '', publicKey: '', address: '10.0.10.1/30', lan: '', endpoint: '', autoRoute: true },
+    sideB = { name: 'Site-B', interfaceName: '', privateKey: '', publicKey: '', address: '10.0.10.2/30', lan: '', endpoint: '', autoRoute: true },
     listenPort = 51820
   } = params;
+
+  // Interface names - use provided or default to 'wg-to-xxx'
+  const ifaceA = sideA.interfaceName || `wg-to-${sideB.name || 'SideB'}`;
+  const ifaceB = sideB.interfaceName || `wg-to-${sideA.name || 'SideA'}`;
 
   // 🟢 Helper to join addresses without trailing commas or spaces
   const getAllowedAddresses = (peer) => {
@@ -102,13 +106,13 @@ export const generateS2SConfig = (params) => {
   const scriptA = `
 # --- Configuration for ${sideA.name} (Side A) ---
 /interface wireguard
-add listen-port=${listenPort} name=wg-s2s-${sideB.name} private-key="${sideA.privateKey}"
+add listen-port=${listenPort} name=${ifaceA} private-key="${sideA.privateKey}"
 
 /ip address
-add address=${sideA.address} interface=wg-s2s-${sideB.name}
+add address=${sideA.address} interface=${ifaceA}
 
 /interface wireguard peers
-add allowed-address=${getAllowedAddresses(sideB)} endpoint-address="${sideB.endpoint}" endpoint-port=${listenPort} interface=wg-s2s-${sideB.name} public-key="${sideB.publicKey}" persistent-keepalive=25s comment="Peer to ${sideB.name}"
+add allowed-address=${getAllowedAddresses(sideB)} endpoint-address="${sideB.endpoint}" endpoint-port=${listenPort} interface=${ifaceA} public-key="${sideB.publicKey}" persistent-keepalive=25s comment="Peer to ${sideB.name}"
 
 ${generateRoutes(sideB.lan, (sideB.address || "").split('/')[0], sideB.name, sideB.autoRoute)}
 
@@ -121,13 +125,13 @@ ${generateForwardRules(sideB.lan, sideA.lan, sideB.name)}
   const scriptB = `
 # --- Configuration for ${sideB.name} (Side B) ---
 /interface wireguard
-add listen-port=${listenPort} name=wg-to-${sideA.name} private-key="${sideB.privateKey}"
+add listen-port=${listenPort} name=${ifaceB} private-key="${sideB.privateKey}"
 
 /ip address
-add address=${sideB.address} interface=wg-to-${sideA.name}
+add address=${sideB.address} interface=${ifaceB}
 
 /interface wireguard peers
-add allowed-address=${getAllowedAddresses(sideA)} endpoint-address="${sideA.endpoint}" endpoint-port=${listenPort} interface=wg-to-${sideA.name} public-key="${sideA.publicKey}" persistent-keepalive=25s comment="Peer to ${sideA.name}"
+add allowed-address=${getAllowedAddresses(sideA)} endpoint-address="${sideA.endpoint}" endpoint-port=${listenPort} interface=${ifaceB} public-key="${sideA.publicKey}" persistent-keepalive=25s comment="Peer to ${sideA.name}"
 
 ${generateRoutes(sideA.lan, (sideA.address || "").split('/')[0], sideA.name, sideA.autoRoute)}
 
