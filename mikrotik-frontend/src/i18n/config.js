@@ -691,6 +691,8 @@ const resources = {
           btn_generate: "Generate Scripts",
           btn_keygen: "Generate",
           section_security: "Security & Keys",
+          label_private_key: "Private Key (Keep Secret)",
+          label_public_key: "Public Key (For Peer)",
           modes: {
             new_title: "Full Connection Setup",
             new_desc: "Create new configuration for both routers (Ideal for new pairs)",
@@ -1598,6 +1600,10 @@ const resources = {
           subtitle: "เชื่อมต่อระหว่างเราเตอร์ 2 แห่งเข้าด้วยกัน",
           port_label: "Listen Port:",
           btn_generate: "สร้างชุดคำสั่ง",
+          btn_keygen: "สร้าง Key",
+          section_security: "ความปลอดภัยและคีย์",
+          label_private_key: "Private Key (เก็บเป็นความลับ)",
+          label_public_key: "Public Key (สำหรับ Peer)",
           modes: {
             new_title: "สร้างการเชื่อมต่อใหม่ (Full Connection)",
             new_desc: "สร้างชุดคำสั่งสำหรับเราเตอร์ทั้ง 2 ฝั่ง (เหมาะสำหรับการเริ่มใหม่)",

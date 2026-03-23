@@ -60,12 +60,7 @@ const ClientToSiteTab = () => {
 
     const serverScript = `# --- Server Config: Add Client to WireGuard ---
 /interface wireguard peers
-add allowed-address=${clientVpnIp}/32 interface=${formData.serverName || 'wireguard1'} public-key="${formData.clientPublicKey}" comment="${formData.clientName || 'VPN-Client'}"
-
-# --- Firewall Rule: Allow VPN to Local LAN ---
-/ip firewall filter
-add action=accept chain=forward src-address=${vpnNetwork} dst-address=${formData.officeLan || '192.168.88.0/24'} comment="Allow WireGuard VPN to LAN" place-before=0
-add action=accept chain=input dst-port=${port} protocol=udp comment="Allow WireGuard Port" place-before=0`;
+add allowed-address=${clientVpnIp}/32 interface=${formData.serverName || 'wireguard1'} public-key="${formData.clientPublicKey}" comment="${formData.clientName || 'VPN-Client'}"`;
 
     let allowedIPs = '0.0.0.0/0';
     if (formData.routingMode === 'split') {
