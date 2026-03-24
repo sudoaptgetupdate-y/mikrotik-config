@@ -16,6 +16,7 @@ const Step8_Summary = ({
   circuitId, 
   token, 
   apiHost,
+  heartbeatUrl,
   onSaveAndFinish,
   onFinish,
   mode
@@ -40,10 +41,22 @@ const Step8_Summary = ({
         globalSettings[s.key] = s.value;
       });
 
-      // 2. เตรียมข้อมูลทั้งหมด
+      // ดึง Heartbeat URL สำรองจาก Database (เผื่อกรณี Standalone หรือค่าใน Props ยังไม่มา)
+      let dbHeartbeatUrl = '';
+      if (globalSettings.SYSTEM_CONFIG) {
+        try {
+          const sys = typeof globalSettings.SYSTEM_CONFIG === 'string' 
+            ? JSON.parse(globalSettings.SYSTEM_CONFIG) 
+            : globalSettings.SYSTEM_CONFIG;
+          dbHeartbeatUrl = sys.heartbeatUrl;
+        } catch (e) { console.error("Error parsing SYSTEM_CONFIG in Step8", e); }
+      }
+
+      // 2. เตรียมข้อมูลทั้งหมด (Priority: Props > DB)
       let configData = {
         selectedModel, wanList, networks, portConfig, pbrConfig, wirelessConfig,
         dnsConfig, circuitId, token, apiHost,
+        heartbeatUrl: heartbeatUrl || dbHeartbeatUrl,
         managementIps: globalSettings.MANAGEMENT_IPS,
         monitorIps: globalSettings.MONITOR_IPS,
         adminUsers: globalSettings.ROUTER_ADMINS,

@@ -64,6 +64,7 @@ export const generateMikrotikScript = (config = {}) => {
     wirelessConfig = {},
     circuitId = 'MikroTik-Router', 
     token = '',
+    heartbeatUrl = '',
     managementIps = ['10.234.56.0/24'],
     monitorIps = ['1.1.1.1', '8.8.8.8', '208.67.222.222', '9.9.9.9', '8.26.56.26'],
     adminUsers = [{ username: 'ntadmin', password: 'ntadmin', group: 'full' }]
@@ -88,8 +89,16 @@ export const generateMikrotikScript = (config = {}) => {
     ? `http://${currentHost}:3000/api/devices/heartbeat`
     : `${currentProtocol}//${currentHost}/api/devices/heartbeat`;
 
-  // ถ้ามีการตั้ง VITE_HEARTBEAT_URL ใน .env ให้ใช้ค่านั้นก่อน ถ้าไม่มีให้ใช้ระบบ Auto-Detect
-  const finalApiUrl = import.meta.env?.VITE_HEARTBEAT_URL || dynamicApiUrl;
+  // ลำดับความสำคัญ: 1. Manual Set (heartbeatUrl) > 2. .env (VITE_HEARTBEAT_URL) > 3. Auto-Detect (dynamicApiUrl)
+  let finalApiUrl = dynamicApiUrl;
+  if (heartbeatUrl) {
+    const baseUrl = heartbeatUrl.replace(/\/$/, ""); // ตัด / ท้ายสุดออก (ถ้ามี)
+    finalApiUrl = baseUrl.endsWith("/api/devices/heartbeat") 
+      ? baseUrl 
+      : `${baseUrl}/api/devices/heartbeat`;
+  } else if (import.meta.env?.VITE_HEARTBEAT_URL) {
+    finalApiUrl = import.meta.env.VITE_HEARTBEAT_URL;
+  }
 
   const wanInterfaces = wanList.map(w => w.interface);
   const lanPorts = selectedModel?.ports?.filter(p => !wanInterfaces.includes(p.name) && p.type !== 'WLAN') || [];

@@ -53,6 +53,7 @@ const ConfigWizard = ({ mode = 'create', initialData, onFinish }) => {
   const [portConfig, setPortConfig] = useState({});
   const [pbrConfig, setPbrConfig] = useState({ enabled: false, mappings: {} });
   const [wirelessConfig, setWirelessConfig] = useState({}); 
+  const [systemConfig, setSystemConfig] = useState(null);
 
   const getActiveSteps = () => {
     const hasWLAN = selectedModel?.ports?.some(p => p.type === 'WLAN');
@@ -94,6 +95,18 @@ const ConfigWizard = ({ mode = 'create', initialData, onFinish }) => {
         
         const resSettings = await apiClient.get('/api/settings');
         const defaultNetSetting = resSettings.data.find(s => s.key === 'DEFAULT_NETWORKS');
+        const sysSetting = resSettings.data.find(s => s.key === 'SYSTEM_CONFIG');
+
+        if (sysSetting && sysSetting.value) {
+          try {
+            const parsed = typeof sysSetting.value === 'string' 
+              ? JSON.parse(sysSetting.value) 
+              : sysSetting.value;
+            setSystemConfig(parsed);
+          } catch (e) {
+            console.error("Error parsing SYSTEM_CONFIG:", e);
+          }
+        }
         
         let initialNetworks = [
           { id: 'net_10', name: 'vlan10Service1', vlanId: 10, ip: '192.168.10.1/24', type: 'network', dhcp: true, hotspot: false },
@@ -238,6 +251,7 @@ const ConfigWizard = ({ mode = 'create', initialData, onFinish }) => {
                 portConfig={portConfig}
                 wirelessConfig={wirelessConfig}
                 pbrConfig={pbrConfig}
+                heartbeatUrl={systemConfig?.heartbeatUrl}
                 onSaveAndFinish={mode === 'standalone' ? null : saveConfigToBackend}
                 onFinish={onFinish} 
                 mode={mode}

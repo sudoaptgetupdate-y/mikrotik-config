@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Shield, Network, Globe, Settings2, Database, Loader2, Bell, ChevronRight, Megaphone, Bot } from 'lucide-react';
+import { Shield, Network, Globe, Settings2, Database, Loader2, Bell, ChevronRight, Megaphone, Bot, Server } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 
@@ -13,6 +13,7 @@ import TabVlanNetwork from './components/TabVlanNetwork';
 import TabMaintenance from './components/TabMaintenance';
 import TabAlertThresholds from './components/TabAlertThresholds';
 import TabDashboardAnnouncement from './components/TabDashboardAnnouncement';
+import TabSystemSettings from './components/TabSystemSettings';
 
 const GlobalSettings = () => {
   const { t } = useTranslation();
@@ -38,14 +39,16 @@ const GlobalSettings = () => {
       MONITOR_IPS: [], 
       DEFAULT_NETWORKS: [], 
       ALERT_THRESHOLDS: null, 
-      DASHBOARD_ANNOUNCEMENT: ''
+      DASHBOARD_ANNOUNCEMENT: '',
+      SYSTEM_CONFIG: null
     };
     if (!rawSettings) return parsed;
 
     rawSettings.forEach(item => {
       const complexKeys = [
         'DEFAULT_NETWORKS', 
-        'ALERT_THRESHOLDS'
+        'ALERT_THRESHOLDS',
+        'SYSTEM_CONFIG'
       ];
 
       if (complexKeys.includes(item.key)) {
@@ -69,6 +72,7 @@ const GlobalSettings = () => {
     { id: 'MAINTENANCE', label: t('settings.tabs.maintenance'), icon: Database, color: 'text-rose-600', border: 'border-rose-600', bg: 'bg-rose-50' },
     { id: 'ALERTS', label: t('settings.tabs.alerts'), icon: Bell, color: 'text-rose-500', border: 'border-rose-500', bg: 'bg-rose-50' },
     { id: 'ANNOUNCEMENT', label: t('settings.tabs.announcement'), icon: Megaphone, color: 'text-blue-500', border: 'border-blue-500', bg: 'bg-blue-50' },
+    { id: 'SYSTEM', label: t('settings.tabs.system') || 'System', icon: Server, color: 'text-slate-600', border: 'border-slate-600', bg: 'bg-slate-50' },
   ];
 
   return (
@@ -149,6 +153,7 @@ const GlobalSettings = () => {
               {activeTab === 'MAINTENANCE' && <TabMaintenance />}
               {activeTab === 'ALERTS' && <TabAlertThresholds initialData={settingsData.ALERT_THRESHOLDS} />}
               {activeTab === 'ANNOUNCEMENT' && <TabDashboardAnnouncement initialData={settingsData.DASHBOARD_ANNOUNCEMENT} />}
+              {activeTab === 'SYSTEM' && <TabSystemSettings />}
             </div>
           </div>
         </div>

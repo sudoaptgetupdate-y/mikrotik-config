@@ -734,6 +734,8 @@ const resources = {
             label_name: "Router Name",
             label_interface: "Existing WG Interface",
             interface_help: "Name of the WireGuard interface already configured on this router",
+            label_existing_pubkey: "Existing Server Public Key",
+            how_to_get_key: "How to get this Key?",
             label_tunnel_ip: "Tunnel IP",
             tunnel_help: "IP for internal VPN communication (e.g. 10.0.10.1/30)",
             label_endpoint: "Public IP / Endpoint Hostname",
@@ -763,6 +765,7 @@ const resources = {
             tunnel_ip: "e.g. 10.0.10.1/30",
             endpoint: "e.g. hq.dyndns.org",
             endpoint_optional: "Optional: Public IP of Branch",
+            existing_pubkey: "Paste Public Key from your MikroTik here...",
             local_subnets: "e.g. 192.168.1.0/24, 192.168.2.0/24"
           },
           results: {
@@ -897,6 +900,21 @@ const resources = {
           preview_empty: "Sample text will appear here...",
           save_button: "Save Announcement",
           toast_success: "Announcement saved!"
+        },
+        system: {
+          title: "System Settings",
+          subtitle: "Configure global system parameters",
+          info_title: "Heartbeat URL Guidance:",
+          info_desc: "If left blank, the system uses <strong>Auto-Detect</strong> with your current URL (e.g. {{url}})",
+          info_note: "* Recommended if Backend is behind a Proxy or has a dedicated API domain",
+          label_server: "Server Address (Domain or IP)",
+          placeholder_server: "e.g. https://nms.yourdomain.com or http://103.x.x.x",
+          hint_path: "Provide Protocol and Domain/IP (Path <span class=\"text-blue-500\">/api/devices/heartbeat</span> will be appended automatically)",
+          preview_title: "Final Heartbeat URL Preview",
+          preview_manual: "MANUAL",
+          preview_auto: "AUTO-DETECT",
+          preview_hint: "* This URL will be embedded in your MikroTik scripts",
+          save_success: "System settings saved successfully!"
         },
         ai: {
           title: "Google Gemini AI Assistant",
@@ -1677,6 +1695,8 @@ const resources = {
             label_name: "ชื่อเราเตอร์",
             label_interface: "ชื่อ WG Interface เดิม",
             interface_help: "ชื่อของ WireGuard Interface ที่มีอยู่แล้วบนเราเตอร์เครื่องนี้",
+            label_existing_pubkey: "Public Key เดิมของ Server",
+            how_to_get_key: "จะเอา Key นี้มาจากไหน?",
             label_tunnel_ip: "Tunnel IP",
             tunnel_help: "IP สำหรับคุยกันภายในท่อ VPN (เช่น 10.0.10.1/30)",
             label_endpoint: "Public IP / Endpoint Hostname",
@@ -1701,10 +1721,14 @@ const resources = {
             auto_route_help: "เขียนเส้นทางรับ-ส่งข้อมูลบน MikroTik ให้อัตโนมัติ",
             label_local_subnets: "วงแลนที่ต้องการแชร์ (Local Subnets)"
           },
-          results: {
-            server_title: "ชุดคำสั่งฝั่ง Server (Side A)",
-            branch_title: "ชุดคำสั่งฝั่ง Branch (Side B)"
-          }
+          placeholders: {
+            router_name: "เช่น HQ-Router",
+            tunnel_ip: "เช่น 10.0.10.1/30",
+            endpoint: "เช่น hq.dyndns.org",
+            endpoint_optional: "เลือกได้: Public IP ของสาขา",
+            existing_pubkey: "คัดลอก Public Key จาก MikroTik มาวางที่นี่...",
+            local_subnets: "เช่น 192.168.1.0/24, 192.168.2.0/24"
+          },
         }
       },
       settings: {
@@ -1828,6 +1852,21 @@ const resources = {
           preview_empty: "ข้อความตัวอย่างจะแสดงที่นี่...",
           save_button: "บันทึกประกาศ",
           toast_success: "บันทึกประกาศเรียบร้อย!"
+        },
+        system: {
+          title: "ตั้งค่าระบบส่วนกลาง",
+          subtitle: "กำหนดพารามิเตอร์พื้นฐานของระบบ",
+          info_title: "แนะนำเรื่อง Heartbeat URL:",
+          info_desc: "หากคุณปล่อยว่างไว้ ระบบจะใช้งาน <strong>Auto-Detect</strong> โดยใช้ URL ปัจจุบันของคุณ (เช่น {{url}})",
+          info_note: "* แนะนำให้ระบุหาก Backend ของคุณทำงานอยู่หลัง Reverse Proxy หรือมี Domain แยกสำหรับ API",
+          label_server: "ที่อยู่เซิร์ฟเวอร์ (Domain หรือ IP)",
+          placeholder_server: "เช่น https://nms.yourdomain.com หรือ http://103.x.x.x",
+          hint_path: "ระบุเฉพาะ Protocol และ Domain/IP (ระบบจะเติม <span class=\"text-blue-500\">/api/devices/heartbeat</span> ให้โดยอัตโนมัติ)",
+          preview_title: "ตัวอย่าง URL ที่จะใช้จริง",
+          preview_manual: "ตั้งค่าเอง",
+          preview_auto: "ตรวจพบอัตโนมัติ",
+          preview_hint: "* นี่คือ URL ที่จะถูกระบุลงใน MikroTik Script ของคุณ",
+          save_success: "บันทึกการตั้งค่าระบบสำเร็จ!"
         },
         ai: {
           title: "ผู้ช่วย Google Gemini AI",

@@ -286,16 +286,47 @@ const SiteToSiteTab = () => {
                 <div className="space-y-4 pt-2">
                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-50 pb-2 flex items-center gap-2"><ShieldCheck size={14}/> {t('vpn.s2s.section_security')}</p>
                     <div className="space-y-4">
-                        <div className="space-y-2">
-                            <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider ml-1">{t('vpn.s2s.label_private_key')}</label>
-                            <div className="flex gap-2">
-                                <input type="text" value={formData.sideA.privateKey} onChange={e => setFormData({...formData, sideA: {...formData.sideA, privateKey: e.target.value}})} className="flex-1 px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono shadow-sm focus:bg-white focus:ring-4 focus:ring-blue-50 focus:border-blue-400 transition-all outline-none min-w-0" />
-                                <button onClick={() => handleGenerateKey('A')} className="flex items-center gap-1.5 px-3 sm:px-4 bg-slate-800 text-white rounded-xl text-[10px] font-bold uppercase hover:bg-blue-600 transition-all shadow-md shrink-0">
-                                    <RefreshCw size={12} /> <span className="hidden sm:inline">{t('vpn.s2s.btn_keygen')}</span>
-                                </button>
+                        {setupMode === 'new' ? (
+                            <>
+                                <div className="space-y-2">
+                                    <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider ml-1">{t('vpn.s2s.label_private_key')}</label>
+                                    <div className="flex gap-2">
+                                        <input type="text" value={formData.sideA.privateKey} onChange={e => setFormData({...formData, sideA: {...formData.sideA, privateKey: e.target.value}})} className="flex-1 px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono shadow-sm focus:bg-white focus:ring-4 focus:ring-blue-50 focus:border-blue-400 transition-all outline-none min-w-0" />
+                                        <button onClick={() => handleGenerateKey('A')} className="flex items-center gap-1.5 px-3 sm:px-4 bg-slate-800 text-white rounded-xl text-[10px] font-bold uppercase hover:bg-blue-600 transition-all shadow-md shrink-0">
+                                            <RefreshCw size={12} /> <span className="hidden sm:inline">{t('vpn.s2s.btn_keygen')}</span>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div className="space-y-2"><label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider ml-1">{t('vpn.s2s.label_public_key')}</label><input type="text" value={formData.sideA.publicKey} onChange={e => setFormData({...formData, sideA: {...formData.sideA, publicKey: e.target.value}})} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono shadow-sm focus:bg-white transition-all outline-none" /></div>
+                            </>
+                        ) : (
+                            <div className="space-y-4 animate-in fade-in slide-in-from-top-2 duration-300">
+                                <div className="space-y-2">
+                                    <label className="flex items-center gap-2 text-[11px] font-bold text-slate-500 uppercase tracking-wider ml-1">
+                                        <ShieldCheck size={14} className="text-blue-600" />
+                                        {t('vpn.s2s.side_a.label_existing_pubkey')}
+                                    </label>
+                                    <input 
+                                        type="text" 
+                                        value={formData.sideA.publicKey} 
+                                        onChange={e => setFormData({...formData, sideA: {...formData.sideA, publicKey: e.target.value}})} 
+                                        className="w-full px-4 py-3.5 bg-white border border-slate-200 border-l-4 border-l-blue-600 rounded-xl text-xs font-mono font-bold text-slate-700 focus:ring-4 focus:ring-blue-50 focus:border-blue-400 outline-none transition-all shadow-sm placeholder:text-slate-300" 
+                                        placeholder={t('vpn.s2s.placeholders.existing_pubkey')} 
+                                    />
+                                </div>
+                                <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 border-dashed">
+                                    <div className="flex gap-3 items-start">
+                                        <div className="p-2 bg-white text-blue-600 rounded-lg shrink-0 shadow-sm border border-slate-100"><Terminal size={16} /></div>
+                                        <div className="space-y-1">
+                                            <p className="text-[11px] font-bold text-slate-700 uppercase tracking-wider">{t('vpn.s2s.side_a.how_to_get_key')}</p>
+                                            <p className="text-[10px] text-slate-500 leading-relaxed font-medium">
+                                                Winbox &gt; WireGuard &gt; Double Click Interface &gt; <span className="text-blue-600 font-bold underline decoration-blue-200 underline-offset-2">Copy Public Key</span>
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
-                        </div>
-                        <div className="space-y-2"><label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider ml-1">{t('vpn.s2s.label_public_key')}</label><input type="text" value={formData.sideA.publicKey} onChange={e => setFormData({...formData, sideA: {...formData.sideA, publicKey: e.target.value}})} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono shadow-sm focus:bg-white transition-all outline-none" /></div>
+                        )}
                     </div>
                 </div>
             </div>
