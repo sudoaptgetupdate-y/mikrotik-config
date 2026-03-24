@@ -793,7 +793,8 @@ const resources = {
           maintenance: "Maintenance",
           alerts: "Alert Thresholds",
           announcement: "Announcement",
-          ai: "AI Settings"
+          ai: "AI Settings",
+          system: "System"
         },
         admins: {
           title: "Default Router Admins",
@@ -1745,7 +1746,8 @@ const resources = {
           maintenance: "การดูแลรักษา",
           alerts: "เกณฑ์แจ้งเตือน",
           announcement: "ประกาศระบบ",
-          ai: "ตั้งค่า AI"
+          ai: "ตั้งค่า AI",
+          system: "ตั้งค่าระบบ"
         },
         admins: {
           title: "ผู้ดูแลเราเตอร์เริ่มต้น (Default Admins)",

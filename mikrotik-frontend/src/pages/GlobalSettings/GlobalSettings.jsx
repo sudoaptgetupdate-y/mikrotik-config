@@ -72,7 +72,7 @@ const GlobalSettings = () => {
     { id: 'MAINTENANCE', label: t('settings.tabs.maintenance'), icon: Database, color: 'text-rose-600', border: 'border-rose-600', bg: 'bg-rose-50' },
     { id: 'ALERTS', label: t('settings.tabs.alerts'), icon: Bell, color: 'text-rose-500', border: 'border-rose-500', bg: 'bg-rose-50' },
     { id: 'ANNOUNCEMENT', label: t('settings.tabs.announcement'), icon: Megaphone, color: 'text-blue-500', border: 'border-blue-500', bg: 'bg-blue-50' },
-    { id: 'SYSTEM', label: t('settings.tabs.system') || 'System', icon: Server, color: 'text-slate-600', border: 'border-slate-600', bg: 'bg-slate-50' },
+    { id: 'SYSTEM', label: t('settings.tabs.system'), icon: Server, color: 'text-slate-600', border: 'border-slate-600', bg: 'bg-slate-50' },
   ];
 
   return (
