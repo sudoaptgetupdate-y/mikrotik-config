@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { 
   Server, Activity, Menu, X, 
   Database, LayoutDashboard, Users, LogOut, User, Settings, FolderKanban, Wand2, ShieldCheck,
-  ChevronLeft, ChevronRight, Globe
+  ChevronLeft, ChevronRight, Globe, BookOpen, FileText
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext'; 
 import Footer from '../components/Footer';
@@ -34,6 +34,7 @@ const MainLayout = () => {
       title: t('sidebar.cat_main', 'Main'),
       items: [
         { to: '/dashboard', icon: LayoutDashboard, label: t('sidebar.dashboard'), roles: ['SUPER_ADMIN', 'ADMIN', 'EMPLOYEE'] },
+        { to: '/knowledge-base', icon: BookOpen, label: t('sidebar.knowledge_base', 'Knowledge Base'), roles: ['SUPER_ADMIN', 'ADMIN', 'EMPLOYEE'] },
       ]
     },
     {
@@ -49,6 +50,7 @@ const MainLayout = () => {
     {
       title: t('sidebar.cat_system', 'System Administration'),
       items: [
+        { to: '/knowledge-base/admin', icon: FileText, label: t('sidebar.article_mgmt', 'Manage Articles'), roles: ['SUPER_ADMIN'] },
         { to: '/audit-logs', icon: Activity, label: t('sidebar.audit_logs'), roles: ['SUPER_ADMIN', 'ADMIN'] },
         { to: '/users', icon: Users, label: t('sidebar.user_management'), roles: ['SUPER_ADMIN', 'ADMIN'] },
         { to: '/settings', icon: Settings, label: t('sidebar.global_settings'), roles: ['SUPER_ADMIN'] },

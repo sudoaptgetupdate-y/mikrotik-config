@@ -6,13 +6,19 @@ const JWT_SECRET = process.env.JWT_SECRET;
 
 // 1. ฟังก์ชันตรวจ Token (หน้าเว็บ)
 exports.verifyToken = async (req, res, next) => { 
+  let token = null;
   const authHeader = req.headers.authorization;
 
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return res.status(401).json({ error: 'Access denied. No token provided.' });
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    token = authHeader.split(' ')[1];
+  } else if (req.query && req.query.token) {
+    // 🆕 รองรับการส่ง Token ผ่าน Query String สำหรับรูปภาพ
+    token = req.query.token;
   }
 
-  const token = authHeader.split(' ')[1];
+  if (!token) {
+    return res.status(401).json({ error: 'Access denied. No token provided.' });
+  }
 
   try {
     // 🛡️ เช็คก่อนเลยว่า Token นี้ถูกแบน (Blacklist) ไปหรือยัง

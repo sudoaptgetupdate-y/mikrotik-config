@@ -16,6 +16,11 @@ import UserManagement from './pages/UserManagement/UserManagement';
 import UserProfile from './pages/UserProfile';
 import GlobalSettings from './pages/GlobalSettings/GlobalSettings';
 
+// --- Knowledge Base ---
+import ArticleList from './pages/KnowledgeBase/ArticleList';
+import ArticleDetail from './pages/KnowledgeBase/ArticleDetail';
+import ArticleManager from './pages/KnowledgeBase/Admin/ArticleManager';
+
 
 // --- Features (ระบบ Wizard แยกเฉพาะ) ---
 import ConfigWizard from './pages/ConfigWizard/ConfigWizard';
@@ -70,6 +75,8 @@ function App() {
             <Route path="profile" element={<UserProfile />} />
             <Route path="config-builder" element={<StandaloneConfigPage />} />
             <Route path="vpn-tools" element={<VPNTools />} />
+            <Route path="knowledge-base" element={<ArticleList />} />
+            <Route path="knowledge-base/:slug" element={<ArticleDetail />} />
 
 
             {/*หน้าที่ถูกล็อค เข้าได้เฉพาะ SUPER_ADMIN และ ADMIN เท่านั้น */}
@@ -84,6 +91,7 @@ function App() {
             {/* หน้าที่เข้าได้เฉพาะ SUPER_ADMIN เท่านั้น*/}
             <Route element={<ProtectedRoute allowedRoles={['SUPER_ADMIN']} />}>
               <Route path="settings" element={<GlobalSettings />} />
+              <Route path="knowledge-base/admin" element={<ArticleManager />} />
             </Route>
 
             {/* Catch-all Route: ถ้า URL ไม่ตรง ให้กลับไปหน้า dashboard */}

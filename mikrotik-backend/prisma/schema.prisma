@@ -23,6 +23,7 @@ model User {
   logs           ActivityLog[]
   configs        Config[]
   managedDevices ManagedDevice[]
+  articles       Article[]
 }
 
 model DeviceModel {
@@ -179,6 +180,66 @@ model ManagedDevice {
   @@index([userId], map: "ManagedDevice_userId_fkey")
 }
 
+model Article {
+  id          Int            @id @default(autoincrement())
+  title       String
+  slug        String         @unique
+  content     String         @db.LongText
+  excerpt     String?        @db.Text
+  thumbnail   String?        @db.Text
+  
+  categoryId  Int?
+  category    ArticleCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  
+  tags        ArticleTag[]
+  
+  status      ArticleStatus  @default(DRAFT)
+  viewCount   Int            @default(0)
+  authorId    Int
+  author      User           @relation(fields: [authorId], references: [id])
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  images      ArticleImage[]
+
+  @@index([authorId])
+  @@index([categoryId])
+}
+
+model ArticleCategory {
+  id          Int       @id @default(autoincrement())
+  name        String    @unique
+  slug        String    @unique
+  description String?
+  articles    Article[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model ArticleTag {
+  id        Int       @id @default(autoincrement())
+  name      String    @unique
+  slug      String    @unique
+  articles  Article[]
+  createdAt DateTime  @default(now())
+}
+
+model ArticleImage {
+  id        Int      @id @default(autoincrement())
+  url       String   @db.Text
+  filename  String
+  articleId Int?
+  article   Article? @relation(fields: [articleId], references: [id], onDelete: SetNull)
+  createdAt DateTime @default(now())
+
+  @@index([articleId])
+}
+
+enum ArticleStatus {
+  DRAFT
+  PUBLISHED
+  HIDDEN
+}
+
 enum UserRole {
   SUPER_ADMIN
   ADMIN
@@ -212,6 +273,15 @@ enum ActionType {
   CREATE_MODEL
   UPDATE_MODEL
   DELETE_MODEL
+  CREATE_ARTICLE
+  UPDATE_ARTICLE
+  DELETE_ARTICLE
+  UPLOAD_ARTICLE_IMAGE
+  CREATE_CATEGORY
+  UPDATE_CATEGORY
+  DELETE_CATEGORY
+  CREATE_TAG
+  DELETE_TAG
 }
 
 model RevokedToken {

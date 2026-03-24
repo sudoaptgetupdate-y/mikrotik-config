@@ -18,6 +18,7 @@ const userRoutes = require('./routes/userRoutes');
 const authRoutes = require('./routes/authRoutes');
 const settingRoutes = require('./routes/settingRoutes');
 const telegramRoutes = require('./routes/telegramRoutes');
+const articleRoutes = require('./routes/articleRoutes');
 require('./services/cronJobs');
 
 // นำเข้า Error Middleware
@@ -43,7 +44,9 @@ app.set('trust proxy', ['loopback', 'linklocal', 'uniquelocal', '192.168.191.0/2
 // ==========================================
 // 🛡️ 1. Security Headers (Helmet)
 // ==========================================
-app.use(helmet());
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: "cross-origin" }
+}));
 
 // ==========================================
 // 🛡️ 2. CORS (Cross-Origin Resource Sharing)
@@ -100,6 +103,7 @@ app.use('/api/users', userRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/settings', settingRoutes);
 app.use('/api/telegram', telegramRoutes);
+app.use('/api/articles', articleRoutes);
 
 // ==========================================
 // 🛑 Base Route

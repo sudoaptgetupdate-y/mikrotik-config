@@ -1,0 +1,406 @@
+import React, { useState, useEffect, useRef } from 'react';
+import { 
+  X, Save, AlertCircle, Upload, Tag as TagIcon, 
+  Layout, Settings, Image as ImageIcon, CheckCircle, ChevronLeft, Search, Plus, Loader2
+} from 'lucide-react';
+import Quill from 'quill';
+import 'quill/dist/quill.snow.css';
+import articleService from '../../../../services/articleService';
+import { useTranslation } from 'react-i18next';
+import Swal from 'sweetalert2';
+import { getToken } from '../../../../utils/apiClient';
+
+const ArticleFormModal = ({ isOpen, onClose, articleId, onSaveSuccess }) => {
+  const { t } = useTranslation();
+  const editorRef = useRef(null);
+  const quillInstance = useRef(null);
+  const contentInjected = useRef(false);
+
+  const [formData, setFormData] = useState({
+    title: '', content: '', excerpt: '', thumbnail: '', 
+    categoryId: '', status: 'DRAFT', slug: '', tagNames: []
+  });
+
+  const [tagInput, setTagInput] = useState('');
+  const [allTags, setAllTags] = useState([]);
+  const [suggestions, setSuggestions] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [fetching, setFetching] = useState(false);
+
+  // 1. Initial Data Fetching
+  useEffect(() => {
+    if (isOpen) {
+      fetchInitialData();
+      contentInjected.current = false;
+      if (articleId) {
+        fetchArticle();
+      } else {
+        setFormData({
+          title: '', content: '', excerpt: '', thumbnail: '', 
+          categoryId: '', status: 'DRAFT', slug: '', tagNames: []
+        });
+        if (quillInstance.current) {
+          quillInstance.current.root.innerHTML = '';
+        }
+      }
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+  }, [isOpen, articleId]);
+
+  const fetchInitialData = async () => {
+    try {
+      const [cats, tags] = await Promise.all([
+        articleService.getCategories(),
+        articleService.getTags()
+      ]);
+      setCategories(cats);
+      setAllTags(tags);
+    } catch (error) {
+      console.error('Failed to fetch metadata:', error);
+    }
+  };
+
+  const fetchArticle = async () => {
+    try {
+      setFetching(true);
+      const articles = await articleService.getArticles();
+      const article = articles.find(a => a.id === parseInt(articleId));
+      if (article) {
+        const token = getToken();
+        let content = article.content || '';
+        if (token && content) {
+          const tempDiv = document.createElement('div');
+          tempDiv.innerHTML = content;
+          tempDiv.querySelectorAll('img').forEach(img => {
+            if (img.src.includes('/api/articles/images/')) {
+              const separator = img.src.includes('?') ? '&' : '?';
+              if (!img.src.includes('token=')) img.src = `${img.src}${separator}token=${token}`;
+            }
+          });
+          content = tempDiv.innerHTML;
+        }
+        
+        setFormData({
+          title: article.title || '',
+          content: content,
+          excerpt: article.excerpt || '',
+          thumbnail: article.thumbnail || '',
+          categoryId: article.categoryId || '',
+          status: article.status || 'DRAFT',
+          slug: article.slug || '',
+          tagNames: article.tags ? article.tags.map(t => t.name) : []
+        });
+      }
+    } catch (error) {
+      console.error('Failed to fetch article:', error);
+    } finally {
+      setFetching(false);
+    }
+  };
+
+  // 2. Quill Initialization (Only once per open)
+  useEffect(() => {
+    if (isOpen && editorRef.current && !quillInstance.current) {
+      const container = editorRef.current;
+      
+      // Clean up any existing quill elements inside
+      container.innerHTML = '';
+      const parent = container.parentElement;
+      const oldToolbar = parent.querySelector('.ql-toolbar');
+      if (oldToolbar) oldToolbar.remove();
+
+      const quill = new Quill(container, {
+        theme: 'snow',
+        modules: {
+          toolbar: [
+            [{ 'header': [1, 2, 3, 4, false] }],
+            ['bold', 'italic', 'underline', 'strike'],
+            [{ 'list': 'ordered' }, { 'list': 'bullet' }],
+            [{ 'color': [] }, { 'background': [] }],
+            ['blockquote', 'code-block'],
+            ['link', 'image'],
+            ['clean']
+          ]
+        }
+      });
+
+      quill.getModule('toolbar').addHandler('image', imageHandler);
+
+      quill.on('text-change', () => {
+        const html = quill.root.innerHTML;
+        const cleanContent = (html === '<p><br></p>' || html === '') ? '' : html;
+        setFormData(prev => ({ ...prev, content: cleanContent }));
+      });
+
+      quillInstance.current = quill;
+    }
+
+    return () => {
+      if (!isOpen && quillInstance.current) {
+        quillInstance.current = null;
+      }
+    };
+  }, [isOpen]);
+
+  // 3. Inject Content into Quill when data is ready
+  useEffect(() => {
+    if (!fetching && quillInstance.current && formData.content && !contentInjected.current) {
+      quillInstance.current.root.innerHTML = formData.content;
+      contentInjected.current = true;
+    }
+  }, [fetching, formData.content]);
+
+  const handleThumbnailUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const formDataUpload = new FormData();
+    formDataUpload.append('image', file);
+    if (articleId) formDataUpload.append('articleId', articleId);
+    try {
+      setLoading(true);
+      const res = await articleService.uploadImage(formDataUpload);
+      setFormData(prev => ({ ...prev, thumbnail: res.url }));
+    } catch (error) {
+      Swal.fire({
+        title: t('common.error'),
+        text: t('common.error_default'),
+        icon: 'error',
+        buttonsStyling: false,
+        customClass: {
+          popup: 'rounded-[32px] p-8 border border-slate-100 shadow-2xl',
+          title: 'text-2xl font-black text-slate-800 tracking-tight',
+          htmlContainer: 'text-sm text-slate-500 font-medium mt-3',
+          confirmButton: 'bg-slate-900 hover:bg-black text-white px-8 py-3 rounded-2xl text-sm font-black uppercase tracking-widest shadow-lg shadow-slate-200 transition-all active:scale-95'
+        }
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const imageHandler = () => {
+    const input = document.createElement('input');
+    input.setAttribute('type', 'file'); input.setAttribute('accept', 'image/*'); input.click();
+    input.onchange = async () => {
+      const file = input.files[0];
+      const formDataUpload = new FormData();
+      formDataUpload.append('image', file);
+      if (articleId) formDataUpload.append('articleId', articleId);
+      try {
+        const res = await articleService.uploadImage(formDataUpload);
+        if (quillInstance.current) {
+          const range = quillInstance.current.getSelection();
+          quillInstance.current.insertEmbed(range?.index || 0, 'image', res.url);
+        }
+      } catch (error) {
+        Swal.fire({
+          title: t('common.error'),
+          text: t('common.error_default'),
+          icon: 'error',
+          buttonsStyling: false,
+          customClass: {
+            popup: 'rounded-[32px] p-8 border border-slate-100 shadow-2xl',
+            title: 'text-2xl font-black text-slate-800 tracking-tight',
+            htmlContainer: 'text-sm text-slate-500 font-medium mt-3',
+            confirmButton: 'bg-slate-900 hover:bg-black text-white px-8 py-3 rounded-2xl text-sm font-black uppercase tracking-widest shadow-lg shadow-slate-200 transition-all active:scale-95'
+          }
+        });
+      }
+    };
+  };
+
+  const handleTagInputChange = (value) => {
+    setTagInput(value);
+    if (value.trim()) {
+      const filtered = allTags.filter(tag => 
+        tag.name.toLowerCase().includes(value.toLowerCase()) && 
+        !formData.tagNames.includes(tag.name)
+      ).slice(0, 5);
+      setSuggestions(filtered);
+    } else {
+      setSuggestions([]);
+    }
+  };
+
+  const addTag = (tagName) => {
+    const value = tagName.trim();
+    if (value && !formData.tagNames.includes(value)) {
+      setFormData(prev => ({ ...prev, tagNames: [...prev.tagNames, value] }));
+    }
+    setTagInput('');
+    setSuggestions([]);
+  };
+
+  const handleTagKeyDown = (e) => {
+    if (e.key === 'Enter' || e.key === ',') {
+      e.preventDefault();
+      addTag(tagInput);
+    }
+  };
+
+  const removeTag = (tagToRemove) => {
+    setFormData(prev => ({ ...prev, tagNames: prev.tagNames.filter(t => t !== tagToRemove) }));
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!formData.title || !formData.content) {
+      return Swal.fire({
+        title: t('common.error'),
+        text: t('articles.content_editor') + ' ' + t('common.required'),
+        icon: 'warning',
+        buttonsStyling: false,
+        customClass: {
+          popup: 'rounded-[32px] p-8 border border-slate-100 shadow-2xl',
+          title: 'text-2xl font-black text-slate-800 tracking-tight',
+          htmlContainer: 'text-sm text-slate-500 font-medium mt-3',
+          confirmButton: 'bg-slate-900 hover:bg-black text-white px-8 py-3 rounded-2xl text-sm font-black uppercase tracking-widest shadow-lg shadow-slate-200 transition-all active:scale-95'
+        }
+      });
+    }
+    try {
+      setLoading(true);
+      if (articleId) {
+        await articleService.updateArticle(articleId, formData);
+        Swal.fire({
+          title: t('articles.toast.updated'),
+          icon: 'success',
+          timer: 1500,
+          showConfirmButton: false,
+          buttonsStyling: false,
+          customClass: { popup: 'rounded-[32px] p-8 border border-slate-100 shadow-2xl', title: 'text-2xl font-black text-slate-800 tracking-tight' }
+        });
+      } else {
+        await articleService.createArticle(formData);
+        Swal.fire({
+          title: t('articles.toast.created'),
+          icon: 'success',
+          timer: 1500,
+          showConfirmButton: false,
+          buttonsStyling: false,
+          customClass: { popup: 'rounded-[32px] p-8 border border-slate-100 shadow-2xl', title: 'text-2xl font-black text-slate-800 tracking-tight' }
+        });
+      }
+      onSaveSuccess();
+      onClose();
+    } catch (error) {
+      Swal.fire({
+        title: t('common.error'),
+        text: t('common.error_default'),
+        icon: 'error',
+        buttonsStyling: false,
+        customClass: {
+          popup: 'rounded-[32px] p-8 border border-slate-100 shadow-2xl',
+          title: 'text-2xl font-black text-slate-800 tracking-tight',
+          htmlContainer: 'text-sm text-slate-500 font-medium mt-3',
+          confirmButton: 'bg-slate-900 hover:bg-black text-white px-8 py-3 rounded-2xl text-sm font-black uppercase tracking-widest shadow-lg shadow-slate-200 transition-all active:scale-95'
+        }
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const formatImageUrlPreview = (url) => {
+    if (!url) return '';
+    if (url.includes('/api/articles/images/')) {
+      const token = getToken();
+      const separator = url.includes('?') ? '&' : '?';
+      return url.includes('token=') ? url : `${url}${separator}token=${token}`;
+    }
+    return url;
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className={`fixed inset-0 z-50 flex items-center justify-center p-4 transition-all duration-300 ${isOpen ? 'opacity-100 visible' : 'opacity-0 pointer-events-none invisible'}`}>
+      <div className={`absolute inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity duration-300 ${isOpen ? 'opacity-100' : 'opacity-0'}`} onClick={onClose} />
+      <div className={`bg-white rounded-[40px] shadow-2xl w-full max-w-6xl max-h-[95vh] overflow-hidden relative z-10 transition-all duration-300 transform flex flex-col ${isOpen ? 'scale-100 translate-y-0' : 'scale-95 translate-y-4'}`} onClick={(e) => e.stopPropagation()}>
+        
+        <div className="flex justify-between items-center p-5 sm:p-6 border-b border-slate-100 bg-slate-50">
+          <div className="flex items-center gap-3">
+            <Layout size={20} className="text-blue-600" />
+            <h3 className="font-bold text-lg text-slate-800 tracking-tight">
+              {articleId ? t('articles.edit_article') : t('articles.create_new')}
+            </h3>
+          </div>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 bg-white hover:bg-slate-100 p-1.5 rounded-full transition shadow-sm border border-slate-100"><X size={20} /></button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-5 sm:p-8 bg-slate-50/30 custom-scrollbar">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 text-slate-900">
+            <div className="lg:col-span-2 space-y-6">
+              <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm space-y-4">
+                <div className="space-y-1.5">
+                  <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-wider ml-1 flex items-center gap-2"><div className="w-1 h-3 bg-blue-500 rounded-full"></div>{t('articles.article_title')}</h4>
+                  <input type="text" className="w-full px-5 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all font-bold text-lg text-slate-700" placeholder={t('articles.article_title') + "..."} value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})} required />
+                </div>
+              </div>
+              
+              <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden flex flex-col min-h-[550px]">
+                <div className="px-6 py-4 bg-slate-50/50 border-b border-slate-100 flex items-center justify-between">
+                  <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-wider flex items-center gap-2"><div className="w-1 h-3 bg-indigo-500 rounded-full"></div>{t('articles.content_editor')}</h4>
+                  <div className="flex items-center gap-2 text-[9px] font-bold text-blue-400 bg-blue-50 px-2.5 py-1 rounded-lg"><AlertCircle size={12} />{t('articles.editor_hint')}</div>
+                </div>
+                <div className="flex-1 p-2 relative">
+                  {fetching && (
+                    <div className="absolute inset-0 bg-white/80 backdrop-blur-sm z-10 flex flex-col items-center justify-center">
+                       <Loader2 className="animate-spin text-blue-600 mb-2" size={32} />
+                       <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">{t('common.loading')}</span>
+                    </div>
+                  )}
+                  <div ref={editorRef} style={{ border: 'none', minHeight: '450px' }} className="text-slate-900" />
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-6">
+              <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm space-y-5">
+                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2"><div className="w-1 h-3 bg-emerald-500 rounded-full"></div>{t('articles.publish_settings')}</h4>
+                <div className="space-y-5">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">{t('devices.table.colStatus')}</label>
+                    <div className="grid grid-cols-2 gap-2">{['DRAFT', 'PUBLISHED'].map(s => (<button key={s} type="button" onClick={() => setFormData({...formData, status: s})} className={`py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all ${formData.status === s ? 'bg-slate-900 text-white shadow-md' : 'bg-slate-50 text-slate-400 border border-slate-100 hover:bg-slate-100'}`}>{t(`articles.status.${s.toLowerCase()}`)}</button>))}</div>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">{t('articles.category')}</label>
+                    <select className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 transition-all font-bold" value={formData.categoryId} onChange={e => setFormData({...formData, categoryId: e.target.value})}><option value="">{t('articles.no_category')}</option>{categories.map(cat => <option key={cat.id} value={cat.id}>{cat.name}</option>)}</select>
+                  </div>
+                </div>
+              </div>
+              <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm space-y-5">
+                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2"><div className="w-1 h-3 bg-purple-500 rounded-full"></div>{t('articles.tags')}</h4>
+                <div className="space-y-4">
+                  <div className="flex flex-wrap gap-1.5">{formData.tagNames.map(tag => (<span key={tag} className="flex items-center gap-1 bg-indigo-50 text-indigo-600 pl-3 pr-1 py-1 rounded-lg text-[10px] font-bold border border-indigo-100">#{tag}<button type="button" onClick={() => removeTag(tag)} className="p-0.5 hover:bg-white rounded-md transition-all"><X size={10} /></button></span>))}</div>
+                  <div className="relative"><input type="text" className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold outline-none focus:ring-2 focus:ring-blue-100 transition-all font-bold" placeholder={t('articles.tags_placeholder')} value={tagInput} onChange={e => handleTagInputChange(e.target.value)} onKeyDown={handleTagKeyDown} />{suggestions.length > 0 && (<div className="absolute left-0 right-0 mt-2 bg-white border border-slate-200 rounded-2xl shadow-xl z-20 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">{suggestions.map(tag => (<button key={tag.id} type="button" onClick={() => addTag(tag.name)} className="w-full text-left px-4 py-2.5 text-xs font-bold text-slate-600 hover:bg-indigo-50 hover:text-indigo-600 transition-colors flex justify-between items-center border-b border-slate-50 last:border-0"><span>#{tag.name}</span><Plus size={12} className="opacity-40" /></button>))}</div>)}</div>
+                </div>
+              </div>
+              <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm space-y-5">
+                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2"><div className="w-1 h-3 bg-orange-500 rounded-full"></div>{t('articles.thumbnail_image')}</h4>
+                <div className="space-y-4">
+                  {formData.thumbnail && (<div className="relative group aspect-video rounded-2xl overflow-hidden border-2 border-slate-100 bg-slate-50 shadow-inner"><img src={formatImageUrlPreview(formData.thumbnail)} className="w-full h-full object-cover" alt="Thumbnail" /><div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center backdrop-blur-sm"><button type="button" onClick={() => setFormData({...formData, thumbnail: ''})} className="p-2 bg-red-500 text-white rounded-xl hover:bg-red-600 shadow-lg active:scale-90"><X size={20} /></button></div></div>)}
+                  <div className="flex gap-2">
+                    <input type="text" className="flex-1 px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-xs text-slate-700 outline-none focus:ring-2 focus:ring-blue-100 transition-all" placeholder={t('articles.thumbnail_hint')} value={formData.thumbnail} onChange={e => setFormData({...formData, thumbnail: e.target.value})} />
+                    <label className="cursor-pointer size-10 bg-blue-600 text-white rounded-xl flex items-center justify-center hover:bg-blue-700 transition-all shadow-md active:scale-90 shrink-0">{loading ? <Loader2 className="animate-spin" size={18} /> : <Upload size={18} />}<input type="file" className="hidden" accept="image/*" onChange={handleThumbnailUpload} disabled={loading} /></label>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </form>
+
+        <div className="p-5 border-t border-slate-100 bg-white flex justify-end gap-3 rounded-b-[40px]">
+          <button type="button" onClick={onClose} className="px-6 py-2.5 rounded-xl text-slate-400 hover:bg-slate-100 transition text-sm font-bold uppercase tracking-widest">{t('common.cancel')}</button>
+          <button type="button" disabled={loading} onClick={handleSubmit} className="px-10 py-2.5 rounded-xl bg-slate-900 text-white hover:bg-black transition-all text-sm font-bold shadow-lg shadow-slate-200 flex items-center gap-2 active:scale-95 disabled:opacity-50">{loading ? <Loader2 className="animate-spin" size={18} /> : <CheckCircle size={18} />}{articleId ? t('common.save_changes') : t('articles.create_new')}</button>
+        </div>
+      </div>
+      <style dangerouslySetInnerHTML={{ __html: `.ql-container.ql-snow { border: none !important; font-family: 'Inter', sans-serif; font-size: 16px; } .ql-toolbar.ql-snow { border: none !important; border-bottom: 1px solid #f1f5f9 !important; background: #f8fafc; padding: 0.75rem 1.25rem !important; } .ql-editor { min-height: 400px; color: #1e293b; padding: 1.25rem !important; line-height: 1.7; } .ql-editor.ql-blank::before { color: #cbd5e1; font-style: normal; font-weight: 600; left: 1.25rem !important; } .ql-editor pre.ql-syntax { background-color: #0f172a !important; color: #f8fafc !important; border-radius: 1rem !important; padding: 1rem !important; margin: 1rem 0 !important; font-family: 'Fira Code', monospace; }` }} />
+    </div>
+  );
+};
+
+export default ArticleFormModal;
