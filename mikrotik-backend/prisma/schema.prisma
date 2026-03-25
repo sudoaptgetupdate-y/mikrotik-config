@@ -25,6 +25,7 @@ model User {
   managedDevices ManagedDevice[]
   articles       Article[]
   favoriteArticles FavoriteArticle[]
+  comments       Comment[]
 }
 
 model DeviceModel {
@@ -202,6 +203,7 @@ model Article {
   updatedAt   DateTime       @updatedAt
   images      ArticleImage[]
   favoritedBy FavoriteArticle[]
+  comments    Comment[]
 
   @@index([authorId])
   @@index([categoryId])
@@ -296,6 +298,8 @@ enum ActionType {
   DELETE_CATEGORY
   CREATE_TAG
   DELETE_TAG
+  CREATE_COMMENT
+  DELETE_COMMENT
 }
 
 model RevokedToken {
@@ -305,4 +309,27 @@ model RevokedToken {
   createdAt DateTime @default(now())
 
   @@index([expiresAt]) // ทำ Index เพื่อให้ค้นหาและลบได้เร็วขึ้น
+}
+
+model Comment {
+  id        Int      @id @default(autoincrement())
+  content   String   @db.Text
+  
+  articleId Int
+  article   Article  @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // สำหรับระบบ Reply (Threaded Comments)
+  parentId  Int?
+  parent    Comment? @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies   Comment[] @relation("CommentReplies")
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([articleId])
+  @@index([userId])
+  @@index([parentId])
 }
