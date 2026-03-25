@@ -39,8 +39,13 @@ const ArticleManager = () => {
   const [previewArticleId, setPreviewArticleId] = useState(null);
 
   useEffect(() => {
-    fetchArticles();
-  }, [currentPage, itemsPerPage]);
+    // Debounce the search
+    const delayDebounceFn = setTimeout(() => {
+      fetchArticles();
+    }, 300);
+
+    return () => clearTimeout(delayDebounceFn);
+  }, [currentPage, itemsPerPage, searchTerm]);
 
   const fetchArticles = async () => {
     try {
@@ -51,6 +56,10 @@ const ArticleManager = () => {
         page: currentPage,
         limit: itemsPerPage
       };
+
+      if (searchTerm) {
+        params.search = searchTerm;
+      }
       
       const response = await articleService.getArticles(params);
       
@@ -137,12 +146,6 @@ const ArticleManager = () => {
     } catch (error) {}
   };
 
-  const filteredArticles = articles.filter(article => 
-    article.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    article.author?.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    article.category?.name?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
   const totalPages = Math.ceil(totalItems / itemsPerPage) || 1;
   const from = totalItems > 0 ? (currentPage - 1) * itemsPerPage + 1 : 0;
   const to = Math.min(currentPage * itemsPerPage, totalItems);
@@ -212,7 +215,7 @@ const ArticleManager = () => {
             <Loader2 size={36} className="animate-spin text-blue-600 mb-4" />
             <p className="font-medium text-sm">{t('common.loading')}</p>
           </div>
-        ) : filteredArticles.length === 0 ? (
+        ) : articles.length === 0 ? (
           <div className="flex-1 flex flex-col items-center justify-center text-center p-8">
             <div className="bg-slate-50 p-5 rounded-full mb-4">
               <BookOpen size={48} className="text-slate-300" />
@@ -235,7 +238,7 @@ const ArticleManager = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 bg-white">
-                  {filteredArticles.map((article) => (
+                  {articles.map((article) => (
                     <tr key={article.id} className="hover:bg-slate-50/50 transition-colors group">
                       <td className="p-4 pl-6">
                         <div className="flex flex-col">

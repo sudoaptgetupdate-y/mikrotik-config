@@ -51,4 +51,9 @@ router.put('/:id', verifyToken, requireRole(['SUPER_ADMIN']), articleController.
 router.delete('/:id', verifyToken, requireRole(['SUPER_ADMIN']), articleController.deleteArticle);
 router.post('/upload', verifyToken, requireRole(['SUPER_ADMIN']), upload.single('image'), articleController.uploadImage);
 
+// --- Comment Routes ---
+router.get('/:id/comments', verifyToken, articleController.getComments);
+router.post('/:id/comments', verifyToken, articleController.createComment);
+router.delete('/comments/:commentId', verifyToken, articleController.deleteComment);
+
 module.exports = router;

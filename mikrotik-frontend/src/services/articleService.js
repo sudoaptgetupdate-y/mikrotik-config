@@ -77,6 +77,22 @@ const articleService = {
     const response = await apiClient.get(`/api/articles/favorites/${id}/status`);
     return response.data;
   },
+
+  // --- Comment Methods ---
+  getComments: async (articleId) => {
+    const response = await apiClient.get(`/api/articles/${articleId}/comments`);
+    return response.data;
+  },
+
+  createComment: async (articleId, data) => {
+    const response = await apiClient.post(`/api/articles/${articleId}/comments`, data);
+    return response.data;
+  },
+
+  deleteComment: async (commentId) => {
+    const response = await apiClient.delete(`/api/articles/comments/${commentId}`);
+    return response.data;
+  },
 };
 
 export default articleService;

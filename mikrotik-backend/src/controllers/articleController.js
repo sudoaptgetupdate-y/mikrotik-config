@@ -269,3 +269,71 @@ exports.getFavoriteStatus = async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 };
+
+exports.getComments = async (req, res) => {
+  const { id } = req.params; // articleId
+  try {
+    const comments = await articleService.getCommentsByArticle(id);
+    res.status(200).json(comments);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+exports.createComment = async (req, res) => {
+  const { id } = req.params; // articleId
+  const { content, parentId } = req.body;
+
+  if (!content) {
+    return res.status(400).json({ error: 'Content is required' });
+  }
+
+  try {
+    const comment = await articleService.createComment({
+      content,
+      articleId: id,
+      userId: req.user.id,
+      parentId
+    });
+
+    try {
+      await logService.createActivityLog({
+        userId: req.user.id,
+        action: 'CREATE_COMMENT',
+        details: `Commented on article ID: ${id}`,
+        ipAddress: req.ip
+      });
+    } catch (logErr) {
+      console.error("Logging error:", logErr.message);
+    }
+
+    res.status(201).json(comment);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+exports.deleteComment = async (req, res) => {
+  const { commentId } = req.params;
+  try {
+    const result = await articleService.deleteComment(commentId, req.user.id, req.user.role);
+    if (result.error) {
+      return res.status(result.status).json({ error: result.error });
+    }
+
+    try {
+      await logService.createActivityLog({
+        userId: req.user.id,
+        action: 'DELETE_COMMENT',
+        details: `Deleted comment ID: ${commentId}`,
+        ipAddress: req.ip
+      });
+    } catch (logErr) {
+      console.error("Logging error:", logErr.message);
+    }
+
+    res.status(200).json({ message: 'Comment deleted' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};

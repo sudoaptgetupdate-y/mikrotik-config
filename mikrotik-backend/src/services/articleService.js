@@ -9,11 +9,35 @@ exports.getAllArticles = async (filters = {}) => {
   if (authorId) where.authorId = parseInt(authorId);
   
   if (search) {
-    where.OR = [
-      { title: { contains: search } },
-      { content: { contains: search } },
-      { excerpt: { contains: search } }
+    const searchCondition = { contains: search };
+    const searchConditions = [
+      { title: searchCondition },
+      { content: searchCondition },
+      { excerpt: searchCondition },
+      {
+        tags: {
+          some: {
+            name: searchCondition
+          }
+        }
+      }
     ];
+
+    // If search starts with #, also search for the tag name without #
+    if (search.startsWith('#')) {
+      const tagSearch = search.substring(1);
+      if (tagSearch) {
+        searchConditions.push({
+          tags: {
+            some: {
+              name: { contains: tagSearch }
+            }
+          }
+        });
+      }
+    }
+
+    where.OR = searchConditions;
   }
 
   if (tag) {
@@ -218,4 +242,80 @@ exports.getFavoriteStatus = async (userId, articleId) => {
     }
   });
   return { isFavorited: !!favorite };
+};
+
+exports.getCommentsByArticle = async (articleId) => {
+  return await prisma.comment.findMany({
+    where: {
+      articleId: parseInt(articleId),
+      parentId: null // Get only top-level comments first
+    },
+    include: {
+      user: {
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          username: true,
+          role: true
+        }
+      },
+      replies: {
+        include: {
+          user: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              username: true,
+              role: true
+            }
+          }
+        },
+        orderBy: { createdAt: 'asc' }
+      }
+    },
+    orderBy: { createdAt: 'desc' }
+  });
+};
+
+exports.createComment = async (data) => {
+  const { content, articleId, userId, parentId } = data;
+  return await prisma.comment.create({
+    data: {
+      content,
+      articleId: parseInt(articleId),
+      userId: parseInt(userId),
+      parentId: parentId ? parseInt(parentId) : null
+    },
+    include: {
+      user: {
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          username: true
+        }
+      }
+    }
+  });
+};
+
+exports.deleteComment = async (id, userId, userRole) => {
+  const comment = await prisma.comment.findUnique({
+    where: { id: parseInt(id) }
+  });
+
+  if (!comment) return { error: 'Comment not found', status: 404 };
+
+  // Allow owner or SUPER_ADMIN to delete
+  if (comment.userId !== userId && userRole !== 'SUPER_ADMIN') {
+    return { error: 'Unauthorized', status: 403 };
+  }
+
+  await prisma.comment.delete({
+    where: { id: parseInt(id) }
+  });
+
+  return { success: true };
 };
