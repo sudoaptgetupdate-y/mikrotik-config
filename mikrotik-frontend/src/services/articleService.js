@@ -66,6 +66,17 @@ const articleService = {
     const response = await apiClient.delete(`/api/articles/tags/${id}`);
     return response.data;
   },
+
+  // Favorites Management
+  toggleFavorite: async (id) => {
+    const response = await apiClient.post(`/api/articles/favorites/${id}`);
+    return response.data;
+  },
+
+  getFavoriteStatus: async (id) => {
+    const response = await apiClient.get(`/api/articles/favorites/${id}/status`);
+    return response.data;
+  },
 };
 
 export default articleService;

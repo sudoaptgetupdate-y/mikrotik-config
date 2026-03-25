@@ -3,15 +3,17 @@ import { Link, useNavigate } from 'react-router-dom';
 import { 
   Plus, Edit, Trash2, Eye, EyeOff, Search, 
   FileText, Calendar, User, BookOpen,
-  FolderTree, RefreshCw, Loader2, ChevronLeft, ChevronRight,
-  MoreVertical
+  FolderTree, RefreshCw, Loader2, MoreVertical
 } from 'lucide-react';
 import articleService from '../../../services/articleService';
 import { useTranslation } from 'react-i18next';
 import { format } from 'date-fns';
 import Swal from 'sweetalert2';
+import toast from 'react-hot-toast';
 import ArticleFormModal from './components/ArticleFormModal';
 import ArticleTaxonomyModal from './components/ArticleTaxonomyModal';
+import ArticlePreviewModal from './components/ArticlePreviewModal';
+import Pagination from '../../../components/Pagination';
 
 const PAGE_SIZES = [5, 10, 20, 50];
 
@@ -20,31 +22,48 @@ const ArticleManager = () => {
   const navigate = useNavigate();
   
   const [articles, setArticles] = useState([]);
+  const [totalItems, setTotalItems] = useState(0);
   const [loading, setLoading] = useState(true);
   const [isFetching, setIsFetching] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
 
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(PAGE_SIZES[0]);
+  const [itemsPerPage, setItemsPerPage] = useState(PAGE_SIZES[0]); // Default to 5
 
   // Modal States
   const [isArticleModalOpen, setIsArticleModalOpen] = useState(false);
   const [selectedArticleId, setSelectedArticleId] = useState(null);
   const [isTaxonomyModalOpen, setIsTaxonomyModalOpen] = useState(false);
+  const [isViewModalOpen, setIsViewModalOpen] = useState(false);
+  const [previewArticleId, setPreviewArticleId] = useState(null);
 
   useEffect(() => {
     fetchArticles();
-  }, []);
+  }, [currentPage, itemsPerPage]);
 
   const fetchArticles = async () => {
     try {
       setIsFetching(true);
       if (articles.length === 0) setLoading(true);
-      const data = await articleService.getArticles();
-      setArticles(data);
+      
+      const params = {
+        page: currentPage,
+        limit: itemsPerPage
+      };
+      
+      const response = await articleService.getArticles(params);
+      
+      if (response && response.articles) {
+        setArticles(response.articles);
+        setTotalItems(response.total);
+      } else if (Array.isArray(response)) {
+        setArticles(response);
+        setTotalItems(response.length);
+      }
     } catch (error) {
       console.error('Failed to fetch articles:', error);
+      setArticles([]);
     } finally {
       setLoading(false);
       setIsFetching(false);
@@ -83,19 +102,8 @@ const ArticleManager = () => {
     if (result.isConfirmed) {
       try {
         await articleService.deleteArticle(id);
-        setArticles(articles.filter(a => a.id !== id));
-        Swal.fire({
-          title: t('common.finish'),
-          text: t('articles.toast.deleted'),
-          icon: 'success',
-          buttonsStyling: false,
-          customClass: {
-            popup: 'rounded-[32px] p-8 border border-slate-100 shadow-2xl',
-            title: 'text-2xl font-black text-slate-800 tracking-tight',
-            htmlContainer: 'text-sm text-slate-500 font-medium mt-3',
-            confirmButton: 'bg-slate-900 hover:bg-black text-white px-8 py-3 rounded-2xl text-sm font-black uppercase tracking-widest shadow-lg shadow-slate-200 transition-all active:scale-95'
-          }
-        });
+        toast.success(t('articles.toast.deleted'));
+        fetchArticles();
       } catch (error) {
         Swal.fire({
           title: t('common.error'),
@@ -115,31 +123,34 @@ const ArticleManager = () => {
 
   const toggleStatus = async (article) => {
     const newStatus = article.status === 'PUBLISHED' ? 'HIDDEN' : 'PUBLISHED';
+    const updatePromise = articleService.updateArticle(article.id, { status: newStatus });
+    
+    toast.promise(updatePromise, {
+      loading: t('common.saving'),
+      success: t('articles.toast.updated'),
+      error: t('common.error_default')
+    });
+
     try {
-      await articleService.updateArticle(article.id, { status: newStatus });
+      await updatePromise;
       setArticles(articles.map(a => a.id === article.id ? { ...a, status: newStatus } : a));
-    } catch (error) {
-      Swal.fire(t('common.error'), t('common.error_default'), 'error');
-    }
+    } catch (error) {}
   };
 
   const filteredArticles = articles.filter(article => 
     article.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    article.author?.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    article.category?.name.toLowerCase().includes(searchTerm.toLowerCase())
+    article.author?.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    article.category?.name?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  // Pagination Logic
-  const totalItems = filteredArticles.length;
-  const totalPages = Math.ceil(totalItems / itemsPerPage);
+  const totalPages = Math.ceil(totalItems / itemsPerPage) || 1;
   const from = totalItems > 0 ? (currentPage - 1) * itemsPerPage + 1 : 0;
   const to = Math.min(currentPage * itemsPerPage, totalItems);
-  const currentArticles = filteredArticles.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   return (
-    <div className="max-w-6xl mx-auto space-y-6 animate-in fade-in duration-500 my-4 sm:my-8 px-4">
+    <div className="max-w-6xl mx-auto space-y-6 animate-in fade-in duration-500 my-4 sm:my-8 px-4 pb-28">
       
-      {/* 1. Page Header Section (Island Card style from AuditLog/DeviceList) */}
+      {/* 1. Page Header Section */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm relative overflow-hidden group">
         <div className="relative z-10">
           <h1 className="text-2xl font-bold text-slate-800 tracking-tight flex items-center gap-2">
@@ -169,11 +180,10 @@ const ArticleManager = () => {
           </button>
         </div>
 
-        {/* Accent Blur */}
         <div className="absolute right-0 top-0 w-48 h-48 bg-blue-50/50 rounded-full blur-3xl -mr-16 -mt-16 group-hover:bg-blue-100/50 transition-colors duration-700"></div>
       </div>
 
-      {/* 2. Control Toolbar (Search style from AuditLog) */}
+      {/* 2. Control Toolbar */}
       <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col gap-4">
         <div className="flex flex-col md:flex-row md:items-center gap-4">
           <div className="relative flex-1 w-full">
@@ -195,14 +205,14 @@ const ArticleManager = () => {
         </div>
       </div>
 
-      {/* 3. Content Area (Table style from DeviceList) */}
+      {/* 3. Content Area */}
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col min-h-[450px]">
         {loading ? (
           <div className="flex-1 flex flex-col items-center justify-center p-8 text-slate-400">
             <Loader2 size={36} className="animate-spin text-blue-600 mb-4" />
             <p className="font-medium text-sm">{t('common.loading')}</p>
           </div>
-        ) : currentArticles.length === 0 ? (
+        ) : filteredArticles.length === 0 ? (
           <div className="flex-1 flex flex-col items-center justify-center text-center p-8">
             <div className="bg-slate-50 p-5 rounded-full mb-4">
               <BookOpen size={48} className="text-slate-300" />
@@ -225,7 +235,7 @@ const ArticleManager = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 bg-white">
-                  {currentArticles.map((article) => (
+                  {filteredArticles.map((article) => (
                     <tr key={article.id} className="hover:bg-slate-50/50 transition-colors group">
                       <td className="p-4 pl-6">
                         <div className="flex flex-col">
@@ -263,14 +273,16 @@ const ArticleManager = () => {
                       </td>
                       <td className="p-4 text-right pr-6">
                         <div className="flex items-center justify-end gap-1">
-                          <Link 
-                            to={`/knowledge-base/${article.slug}`}
-                            target="_blank"
+                          <button 
+                            onClick={() => {
+                              setPreviewArticleId(article.id);
+                              setIsViewModalOpen(true);
+                            }}
                             className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all active:scale-95"
-                            title={t('common.search')}
+                            title={t('common.view')}
                           >
                             <Eye size={18} />
-                          </Link>
+                          </button>
                           <button 
                             onClick={() => handleEdit(article.id)}
                             className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all active:scale-95"
@@ -293,7 +305,7 @@ const ArticleManager = () => {
               </table>
             </div>
             
-            {/* Table Footer (style from DeviceTable) */}
+            {/* Table Footer */}
             <div className="bg-slate-50 border-t border-slate-100 p-4 flex flex-col sm:flex-row justify-between items-center gap-4 text-xs mt-auto">
               <div className="flex items-center gap-2">
                 <span className="text-slate-500 font-medium">{t('devices.table.itemsPerPage')}</span>
@@ -320,32 +332,11 @@ const ArticleManager = () => {
         )}
       </div>
 
-      {/* Pagination Controls */}
-      {totalPages > 1 && (
-        <div className="flex justify-center mt-6">
-          <div className="flex items-center gap-1 p-1 bg-white border border-slate-200 rounded-xl shadow-sm">
-            <button 
-              onClick={() => setCurrentPage(p => Math.max(1, p - 1))} 
-              disabled={currentPage === 1} 
-              className="p-2 rounded-lg text-slate-400 hover:bg-slate-50 disabled:opacity-30 transition-all"
-            >
-              <ChevronLeft size={18} />
-            </button>
-            <div className="flex items-center px-2">
-               <span className="text-sm font-bold text-slate-700">{currentPage}</span>
-               <span className="mx-2 text-slate-300 text-xs">/</span>
-               <span className="text-sm font-medium text-slate-400">{totalPages}</span>
-            </div>
-            <button 
-              onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} 
-              disabled={currentPage === totalPages} 
-              className="p-2 rounded-lg text-slate-400 hover:bg-slate-50 disabled:opacity-30 transition-all"
-            >
-              <ChevronRight size={18} />
-            </button>
-          </div>
-        </div>
-      )}
+      <Pagination 
+        currentPage={currentPage} 
+        totalPages={totalPages} 
+        setCurrentPage={setCurrentPage} 
+      />
 
       {/* Article Form Modal */}
       <ArticleFormModal 
@@ -359,6 +350,13 @@ const ArticleManager = () => {
       <ArticleTaxonomyModal 
         isOpen={isTaxonomyModalOpen}
         onClose={() => setIsTaxonomyModalOpen(false)}
+      />
+
+      {/* Preview Modal */}
+      <ArticlePreviewModal 
+        isOpen={isViewModalOpen}
+        onClose={() => setIsViewModalOpen(false)}
+        articleId={previewArticleId}
       />
     </div>
   );

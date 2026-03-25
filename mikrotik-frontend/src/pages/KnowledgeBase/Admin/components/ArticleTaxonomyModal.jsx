@@ -6,6 +6,7 @@ import {
 import articleService from '../../../../services/articleService';
 import { useTranslation } from 'react-i18next';
 import Swal from 'sweetalert2';
+import toast from 'react-hot-toast';
 
 const ArticleTaxonomyModal = ({ isOpen, onClose }) => {
   const { t } = useTranslation();
@@ -57,50 +58,35 @@ const ArticleTaxonomyModal = ({ isOpen, onClose }) => {
 
   const handleCategorySubmit = async (e) => {
     e.preventDefault();
+    
+    // Check for duplicates
+    const isDuplicate = categories.some(cat => 
+      cat.name.toLowerCase().trim() === currentCategory.name.toLowerCase().trim() && 
+      (!isEditing || cat.id !== currentCategory.id)
+    );
+
+    if (isDuplicate) {
+      toast.error(t('articles.error_duplicate'));
+      return;
+    }
+
+    const savePromise = isEditing 
+      ? articleService.updateCategory(currentCategory.id, currentCategory)
+      : articleService.createCategory(currentCategory);
+
+    toast.promise(savePromise, {
+      loading: t('common.saving'),
+      success: isEditing ? t('articles.toast.cat_updated') : t('articles.toast.cat_created'),
+      error: t('common.error_default')
+    });
+
     try {
-      if (isEditing) {
-        await articleService.updateCategory(currentCategory.id, currentCategory);
-        Swal.fire({
-          title: t('articles.toast.cat_updated'),
-          icon: 'success',
-          timer: 1500,
-          showConfirmButton: false,
-          buttonsStyling: false,
-          customClass: {
-            popup: 'rounded-[32px] p-8 border border-slate-100 shadow-2xl',
-            title: 'text-2xl font-black text-slate-800 tracking-tight'
-          }
-        });
-      } else {
-        await articleService.createCategory(currentCategory);
-        Swal.fire({
-          title: t('articles.toast.cat_created'),
-          icon: 'success',
-          timer: 1500,
-          showConfirmButton: false,
-          buttonsStyling: false,
-          customClass: {
-            popup: 'rounded-[32px] p-8 border border-slate-100 shadow-2xl',
-            title: 'text-2xl font-black text-slate-800 tracking-tight'
-          }
-        });
-      }
+      await savePromise;
       setIsCategoryModalOpen(false);
       setCurrentCategory({ name: '', description: '' });
       fetchData();
     } catch (error) {
-      Swal.fire({
-        title: t('common.error'),
-        text: t('common.error_default'),
-        icon: 'error',
-        buttonsStyling: false,
-        customClass: {
-          popup: 'rounded-[32px] p-8 border border-slate-100 shadow-2xl',
-          title: 'text-2xl font-black text-slate-800 tracking-tight',
-          htmlContainer: 'text-sm text-slate-500 font-medium mt-3',
-          confirmButton: 'bg-slate-900 hover:bg-black text-white px-8 py-3 rounded-2xl text-sm font-black uppercase tracking-widest shadow-lg shadow-slate-200 transition-all active:scale-95'
-        }
-      });
+      console.error('Failed to save category:', error);
     }
   };
 
@@ -127,16 +113,7 @@ const ArticleTaxonomyModal = ({ isOpen, onClose }) => {
       try {
         await articleService.deleteCategory(id);
         fetchData();
-        Swal.fire({
-          title: t('common.finish'),
-          icon: 'success',
-          buttonsStyling: false,
-          customClass: {
-            popup: 'rounded-[32px] p-8 border border-slate-100 shadow-2xl',
-            title: 'text-2xl font-black text-slate-800 tracking-tight',
-            confirmButton: 'bg-slate-900 hover:bg-black text-white px-8 py-3 rounded-2xl text-sm font-black uppercase tracking-widest shadow-lg shadow-slate-200 transition-all active:scale-95'
-          }
-        });
+        toast.success(t('articles.toast.deleted'));
       } catch (error) {
         Swal.fire({
           title: t('common.error'),
@@ -177,18 +154,7 @@ const ArticleTaxonomyModal = ({ isOpen, onClose }) => {
       try {
         await articleService.deleteTag(id);
         fetchData();
-        Swal.fire({
-          title: t('common.finish'),
-          text: t('articles.toast.tag_deleted'),
-          icon: 'success',
-          buttonsStyling: false,
-          customClass: {
-            popup: 'rounded-[32px] p-8 border border-slate-100 shadow-2xl',
-            title: 'text-2xl font-black text-slate-800 tracking-tight',
-            htmlContainer: 'text-sm text-slate-500 font-medium mt-3',
-            confirmButton: 'bg-slate-900 hover:bg-black text-white px-8 py-3 rounded-2xl text-sm font-black uppercase tracking-widest shadow-lg shadow-slate-200 transition-all active:scale-95'
-          }
-        });
+        toast.success(t('articles.toast.tag_deleted'));
       } catch (error) {
         Swal.fire({
           title: t('common.error'),

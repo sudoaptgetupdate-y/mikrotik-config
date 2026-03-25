@@ -3,6 +3,7 @@ const taxonomyService = require('../services/articleTaxonomyService');
 const logService = require('../services/logService');
 const path = require('path');
 const fs = require('fs');
+const sharp = require('sharp');
 
 // Helper: Generate Slug
 const slugify = (text) => {
@@ -29,15 +30,26 @@ const cleanUrl = (url) => {
 };
 
 exports.getArticles = async (req, res) => {
-  const { categoryId, authorId, tag } = req.query;
-  
-  const filters = { categoryId, authorId, tag };
+  const { categoryId, authorId, tag, favoritedByUserId, page = 1, limit = 6, search } = req.query;
+
+  const skip = (parseInt(page) - 1) * parseInt(limit);
+
+  const filters = { 
+    categoryId, 
+    authorId, 
+    tag, 
+    favoritedByUserId,
+    limit: parseInt(limit),
+    skip: skip,
+    search: search
+  };
+
   if (req.user.role !== 'SUPER_ADMIN') {
     filters.status = 'PUBLISHED';
   }
-
-  const articles = await articleService.getAllArticles(filters);
-  res.status(200).json(articles);
+  
+  const { articles, total } = await articleService.getAllArticles(filters);
+  res.status(200).json({ articles, total, page: parseInt(page), limit: parseInt(limit) });
 };
 
 exports.getArticle = async (req, res) => {
@@ -184,31 +196,45 @@ exports.uploadImage = async (req, res) => {
   }
 
   const { articleId } = req.body;
-  const filename = req.file.filename;
-
-  const protocol = req.protocol;
-  const host = req.get('host');
-  const fullBaseUrl = `${protocol}://${host}`;
-
-  const baseUrl = `${fullBaseUrl}/api/articles/images/${filename}`;
-
-  const authHeader = req.headers.authorization;
-  const token = authHeader?.split(' ')[1];
-  const previewUrl = `${baseUrl}${token ? `?token=${token}` : ''}`;
+  const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+  const filename = `article-${uniqueSuffix}.webp`;
+  const uploadDir = path.join(__dirname, '../../uploads/articles/');
+  const filePath = path.join(uploadDir, filename);
 
   try {
-    await articleService.logArticleImage(articleId, filename, baseUrl);
-    await logService.createActivityLog({
-      userId: req.user.id,
-      action: 'UPLOAD_ARTICLE_IMAGE',
-      details: `Uploaded image: ${filename}`,
-      ipAddress: req.ip
-    });
-  } catch (logError) {
-    console.error("Non-critical logging error during upload:", logError.message);
-  }
+    // Process and save image with Sharp
+    await sharp(req.file.buffer)
+      .resize(1200, null, { withoutEnlargement: true }) // Resize to max 1200px width
+      .webp({ quality: 80 }) // Convert to WebP with 80% quality
+      .toFile(filePath);
 
-  res.status(200).json({ url: previewUrl });
+    const protocol = req.protocol;
+    const host = req.get('host');
+    const fullBaseUrl = `${protocol}://${host}`;
+
+    const baseUrl = `${fullBaseUrl}/api/articles/images/${filename}`;
+
+    const authHeader = req.headers.authorization;
+    const token = authHeader?.split(' ')[1];
+    const previewUrl = `${baseUrl}${token ? `?token=${token}` : ''}`;
+
+    try {
+      await articleService.logArticleImage(articleId, filename, baseUrl);
+      await logService.createActivityLog({
+        userId: req.user.id,
+        action: 'UPLOAD_ARTICLE_IMAGE',
+        details: `Uploaded and processed image: ${filename}`,
+        ipAddress: req.ip
+      });
+    } catch (logError) {
+      console.error("Non-critical logging error during upload:", logError.message);
+    }
+
+    res.status(200).json({ url: previewUrl });
+  } catch (error) {
+    console.error("Error processing image with sharp:", error);
+    res.status(500).json({ error: "Failed to process image" });
+  }
 };
 
 exports.serveImage = (req, res) => {
@@ -219,5 +245,27 @@ exports.serveImage = (req, res) => {
     res.sendFile(filePath);
   } else {
     res.status(404).json({ error: 'Image not found' });
+  }
+};
+
+exports.toggleFavorite = async (req, res) => {
+  try {
+    const { id } = req.params; // articleId
+    const result = await articleService.toggleFavorite(req.user.id, id);
+    res.status(200).json(result);
+  } catch (error) {
+    console.error("Error toggling favorite:", error.message);
+    res.status(500).json({ error: "Internal server error" });
+  }
+};
+
+exports.getFavoriteStatus = async (req, res) => {
+  try {
+    const { id } = req.params; // articleId
+    const result = await articleService.getFavoriteStatus(req.user.id, id);
+    res.status(200).json(result);
+  } catch (error) {
+    console.error("Error fetching favorite status:", error.message);
+    res.status(500).json({ error: "Internal server error" });
   }
 };

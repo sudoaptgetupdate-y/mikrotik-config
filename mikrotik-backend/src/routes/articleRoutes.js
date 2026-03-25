@@ -13,15 +13,7 @@ if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }
 
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, uploadDir);
-  },
-  filename: function (req, file, cb) {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
-  }
-});
+const storage = multer.memoryStorage();
 
 const upload = multer({ 
   storage: storage,
@@ -47,7 +39,11 @@ router.delete('/tags/:id', verifyToken, requireRole(['SUPER_ADMIN']), taxonomyCo
 // --- Article Routes ---
 router.get('/', verifyToken, articleController.getArticles);
 router.get('/view/:slug', verifyToken, articleController.getArticle);
-router.get('/images/:filename', verifyToken, articleController.serveImage);
+router.get('/images/:filename', articleController.serveImage); // Publicly accessible
+
+// Favorites
+router.post('/favorites/:id', verifyToken, articleController.toggleFavorite);
+router.get('/favorites/:id/status', verifyToken, articleController.getFavoriteStatus);
 
 // Super Admin Only
 router.post('/', verifyToken, requireRole(['SUPER_ADMIN']), articleController.createArticle);

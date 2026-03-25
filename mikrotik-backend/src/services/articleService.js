@@ -1,34 +1,57 @@
 const prisma = require('../config/prisma');
 
 exports.getAllArticles = async (filters = {}) => {
-  const { status, categoryId, authorId, tag } = filters;
+  const { status, categoryId, authorId, tag, favoritedByUserId, limit, skip, search } = filters;
   
   const where = {};
   if (status) where.status = status;
   if (categoryId) where.categoryId = parseInt(categoryId);
   if (authorId) where.authorId = parseInt(authorId);
+  
+  if (search) {
+    where.OR = [
+      { title: { contains: search } },
+      { content: { contains: search } },
+      { excerpt: { contains: search } }
+    ];
+  }
+
   if (tag) {
     where.tags = {
       some: { name: tag }
     };
   }
+  
+  if (favoritedByUserId) {
+    where.favoritedBy = {
+      some: { userId: parseInt(favoritedByUserId) }
+    };
+  }
 
-  return await prisma.article.findMany({
-    where,
-    orderBy: { createdAt: 'desc' },
-    include: {
-      category: true,
-      tags: true,
-      author: {
-        select: {
-          id: true,
-          firstName: true,
-          lastName: true,
-          username: true
+  const [articles, total] = await Promise.all([
+    prisma.article.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+      skip: skip ? parseInt(skip) : undefined,
+      take: limit ? parseInt(limit) : undefined,
+      include: {
+        category: true,
+        tags: true,
+        author: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            username: true,
+            role: true
+          }
         }
       }
-    }
-  });
+    }),
+    prisma.article.count({ where })
+  ]);
+
+  return { articles, total };
 };
 
 exports.getArticleBySlug = async (slug) => {
@@ -42,7 +65,8 @@ exports.getArticleBySlug = async (slug) => {
           id: true,
           firstName: true,
           lastName: true,
-          username: true
+          username: true,
+          role: true
         }
       }
     }
@@ -70,7 +94,8 @@ exports.getArticleById = async (id) => {
             id: true,
             firstName: true,
             lastName: true,
-            username: true
+            username: true,
+            role: true
           }
         }
       }
@@ -150,4 +175,47 @@ exports.logArticleImage = async (articleId, filename, url) => {
     // ถึงแม้จะบันทึกลง DB ไม่สำเร็จ แต่ไฟล์ถูกบันทึกไปแล้ว เราควรปล่อยผ่านเพื่อให้ Editor ใช้งานต่อได้
     return { url, filename }; 
   }
+};
+
+exports.toggleFavorite = async (userId, articleId) => {
+  const favorite = await prisma.favoriteArticle.findUnique({
+    where: {
+      userId_articleId: {
+        userId: parseInt(userId),
+        articleId: parseInt(articleId)
+      }
+    }
+  });
+
+  if (favorite) {
+    await prisma.favoriteArticle.delete({
+      where: {
+        userId_articleId: {
+          userId: parseInt(userId),
+          articleId: parseInt(articleId)
+        }
+      }
+    });
+    return { isFavorited: false };
+  } else {
+    await prisma.favoriteArticle.create({
+      data: {
+        userId: parseInt(userId),
+        articleId: parseInt(articleId)
+      }
+    });
+    return { isFavorited: true };
+  }
+};
+
+exports.getFavoriteStatus = async (userId, articleId) => {
+  const favorite = await prisma.favoriteArticle.findUnique({
+    where: {
+      userId_articleId: {
+        userId: parseInt(userId),
+        articleId: parseInt(articleId)
+      }
+    }
+  });
+  return { isFavorited: !!favorite };
 };

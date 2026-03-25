@@ -8,6 +8,7 @@ import 'quill/dist/quill.snow.css';
 import articleService from '../../../../services/articleService';
 import { useTranslation } from 'react-i18next';
 import Swal from 'sweetalert2';
+import toast from 'react-hot-toast';
 import { getToken } from '../../../../utils/apiClient';
 
 const ArticleFormModal = ({ isOpen, onClose, articleId, onSaveSuccess }) => {
@@ -21,6 +22,8 @@ const ArticleFormModal = ({ isOpen, onClose, articleId, onSaveSuccess }) => {
     categoryId: '', status: 'DRAFT', slug: '', tagNames: []
   });
 
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [previewUrl, setPreviewUrl] = useState('');
   const [tagInput, setTagInput] = useState('');
   const [allTags, setAllTags] = useState([]);
   const [suggestions, setSuggestions] = useState([]);
@@ -33,6 +36,8 @@ const ArticleFormModal = ({ isOpen, onClose, articleId, onSaveSuccess }) => {
     if (isOpen) {
       fetchInitialData();
       contentInjected.current = false;
+      setSelectedFile(null);
+      setPreviewUrl('');
       if (articleId) {
         fetchArticle();
       } else {
@@ -47,6 +52,9 @@ const ArticleFormModal = ({ isOpen, onClose, articleId, onSaveSuccess }) => {
       document.body.style.overflow = 'hidden';
     } else {
       document.body.style.overflow = 'unset';
+      if (previewUrl) {
+        URL.revokeObjectURL(previewUrl);
+      }
     }
   }, [isOpen, articleId]);
 
@@ -66,26 +74,13 @@ const ArticleFormModal = ({ isOpen, onClose, articleId, onSaveSuccess }) => {
   const fetchArticle = async () => {
     try {
       setFetching(true);
-      const articles = await articleService.getArticles();
+      const response = await articleService.getArticles();
+      const articles = response.articles || [];
       const article = articles.find(a => a.id === parseInt(articleId));
       if (article) {
-        const token = getToken();
-        let content = article.content || '';
-        if (token && content) {
-          const tempDiv = document.createElement('div');
-          tempDiv.innerHTML = content;
-          tempDiv.querySelectorAll('img').forEach(img => {
-            if (img.src.includes('/api/articles/images/')) {
-              const separator = img.src.includes('?') ? '&' : '?';
-              if (!img.src.includes('token=')) img.src = `${img.src}${separator}token=${token}`;
-            }
-          });
-          content = tempDiv.innerHTML;
-        }
-        
         setFormData({
           title: article.title || '',
-          content: content,
+          content: article.content || '',
           excerpt: article.excerpt || '',
           thumbnail: article.thumbnail || '',
           categoryId: article.categoryId || '',
@@ -153,32 +148,18 @@ const ArticleFormModal = ({ isOpen, onClose, articleId, onSaveSuccess }) => {
     }
   }, [fetching, formData.content]);
 
-  const handleThumbnailUpload = async (e) => {
+  const handleThumbnailUpload = (e) => {
     const file = e.target.files[0];
     if (!file) return;
-    const formDataUpload = new FormData();
-    formDataUpload.append('image', file);
-    if (articleId) formDataUpload.append('articleId', articleId);
-    try {
-      setLoading(true);
-      const res = await articleService.uploadImage(formDataUpload);
-      setFormData(prev => ({ ...prev, thumbnail: res.url }));
-    } catch (error) {
-      Swal.fire({
-        title: t('common.error'),
-        text: t('common.error_default'),
-        icon: 'error',
-        buttonsStyling: false,
-        customClass: {
-          popup: 'rounded-[32px] p-8 border border-slate-100 shadow-2xl',
-          title: 'text-2xl font-black text-slate-800 tracking-tight',
-          htmlContainer: 'text-sm text-slate-500 font-medium mt-3',
-          confirmButton: 'bg-slate-900 hover:bg-black text-white px-8 py-3 rounded-2xl text-sm font-black uppercase tracking-widest shadow-lg shadow-slate-200 transition-all active:scale-95'
-        }
-      });
-    } finally {
-      setLoading(false);
+
+    // Remove old preview URL if exists
+    if (previewUrl) {
+      URL.revokeObjectURL(previewUrl);
     }
+
+    const localUrl = URL.createObjectURL(file);
+    setPreviewUrl(localUrl);
+    setSelectedFile(file);
   };
 
   const imageHandler = () => {
@@ -263,42 +244,37 @@ const ArticleFormModal = ({ isOpen, onClose, articleId, onSaveSuccess }) => {
     }
     try {
       setLoading(true);
-      if (articleId) {
-        await articleService.updateArticle(articleId, formData);
-        Swal.fire({
-          title: t('articles.toast.updated'),
-          icon: 'success',
-          timer: 1500,
-          showConfirmButton: false,
-          buttonsStyling: false,
-          customClass: { popup: 'rounded-[32px] p-8 border border-slate-100 shadow-2xl', title: 'text-2xl font-black text-slate-800 tracking-tight' }
-        });
-      } else {
-        await articleService.createArticle(formData);
-        Swal.fire({
-          title: t('articles.toast.created'),
-          icon: 'success',
-          timer: 1500,
-          showConfirmButton: false,
-          buttonsStyling: false,
-          customClass: { popup: 'rounded-[32px] p-8 border border-slate-100 shadow-2xl', title: 'text-2xl font-black text-slate-800 tracking-tight' }
-        });
+      
+      let finalThumbnailUrl = formData.thumbnail;
+
+      // Upload image if a new file was selected
+      if (selectedFile) {
+        const formDataUpload = new FormData();
+        formDataUpload.append('image', selectedFile);
+        if (articleId) formDataUpload.append('articleId', articleId);
+        
+        const res = await articleService.uploadImage(formDataUpload);
+        finalThumbnailUrl = res.url;
       }
+
+      const submissionData = { ...formData, thumbnail: finalThumbnailUrl };
+      const savePromise = articleId 
+        ? articleService.updateArticle(articleId, submissionData)
+        : articleService.createArticle(submissionData);
+
+      toast.promise(savePromise, {
+        loading: t('common.saving'),
+        success: articleId ? t('articles.toast.updated') : t('articles.toast.created'),
+        error: t('common.error_default')
+      });
+
+      await savePromise;
       onSaveSuccess();
       onClose();
     } catch (error) {
-      Swal.fire({
-        title: t('common.error'),
-        text: t('common.error_default'),
-        icon: 'error',
-        buttonsStyling: false,
-        customClass: {
-          popup: 'rounded-[32px] p-8 border border-slate-100 shadow-2xl',
-          title: 'text-2xl font-black text-slate-800 tracking-tight',
-          htmlContainer: 'text-sm text-slate-500 font-medium mt-3',
-          confirmButton: 'bg-slate-900 hover:bg-black text-white px-8 py-3 rounded-2xl text-sm font-black uppercase tracking-widest shadow-lg shadow-slate-200 transition-all active:scale-95'
-        }
-      });
+      if (error?.response?.data?.error) {
+        toast.error(error.response.data.error);
+      }
     } finally {
       setLoading(false);
     }
@@ -306,11 +282,7 @@ const ArticleFormModal = ({ isOpen, onClose, articleId, onSaveSuccess }) => {
 
   const formatImageUrlPreview = (url) => {
     if (!url) return '';
-    if (url.includes('/api/articles/images/')) {
-      const token = getToken();
-      const separator = url.includes('?') ? '&' : '?';
-      return url.includes('token=') ? url : `${url}${separator}token=${token}`;
-    }
+    if (url.startsWith('blob:')) return url; // Local preview URL
     return url;
   };
 
@@ -382,9 +354,23 @@ const ArticleFormModal = ({ isOpen, onClose, articleId, onSaveSuccess }) => {
               <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm space-y-5">
                 <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2"><div className="w-1 h-3 bg-orange-500 rounded-full"></div>{t('articles.thumbnail_image')}</h4>
                 <div className="space-y-4">
-                  {formData.thumbnail && (<div className="relative group aspect-video rounded-2xl overflow-hidden border-2 border-slate-100 bg-slate-50 shadow-inner"><img src={formatImageUrlPreview(formData.thumbnail)} className="w-full h-full object-cover" alt="Thumbnail" /><div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center backdrop-blur-sm"><button type="button" onClick={() => setFormData({...formData, thumbnail: ''})} className="p-2 bg-red-500 text-white rounded-xl hover:bg-red-600 shadow-lg active:scale-90"><X size={20} /></button></div></div>)}
+                  {(previewUrl || formData.thumbnail) && (
+                    <div className="relative group aspect-video rounded-2xl overflow-hidden border-2 border-slate-100 bg-slate-50 shadow-inner">
+                      <img src={formatImageUrlPreview(previewUrl || formData.thumbnail)} className="w-full h-full object-cover" alt="Thumbnail" />
+                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center backdrop-blur-sm">
+                        <button type="button" onClick={() => {
+                          setFormData({...formData, thumbnail: ''});
+                          setSelectedFile(null);
+                          if (previewUrl) {
+                            URL.revokeObjectURL(previewUrl);
+                            setPreviewUrl('');
+                          }
+                        }} className="p-2 bg-red-500 text-white rounded-xl hover:bg-red-600 shadow-lg active:scale-90"><X size={20} /></button>
+                      </div>
+                    </div>
+                  )}
                   <div className="flex gap-2">
-                    <input type="text" className="flex-1 px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-xs text-slate-700 outline-none focus:ring-2 focus:ring-blue-100 transition-all" placeholder={t('articles.thumbnail_hint')} value={formData.thumbnail} onChange={e => setFormData({...formData, thumbnail: e.target.value})} />
+                    <input type="text" className="flex-1 px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-xs text-slate-700 outline-none focus:ring-2 focus:ring-blue-100 transition-all" placeholder={t('articles.thumbnail_hint')} value={selectedFile ? selectedFile.name : formData.thumbnail} onChange={e => setFormData({...formData, thumbnail: e.target.value})} />
                     <label className="cursor-pointer size-10 bg-blue-600 text-white rounded-xl flex items-center justify-center hover:bg-blue-700 transition-all shadow-md active:scale-90 shrink-0">{loading ? <Loader2 className="animate-spin" size={18} /> : <Upload size={18} />}<input type="file" className="hidden" accept="image/*" onChange={handleThumbnailUpload} disabled={loading} /></label>
                   </div>
                 </div>
