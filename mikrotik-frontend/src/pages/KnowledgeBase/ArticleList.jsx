@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { BookOpen, Search, Filter, Calendar, User, Eye, Loader2, Tag as TagIcon, Heart, LayoutGrid } from 'lucide-react';
+import { BookOpen, Search, Filter, Calendar, User, Eye, Loader2, Tag as TagIcon, Heart, LayoutGrid, Pin } from 'lucide-react';
 import articleService from '../../services/articleService';
 import { useTranslation } from 'react-i18next';
 import { format } from 'date-fns';
@@ -236,7 +236,11 @@ const ArticleList = () => {
                   <Link 
                     key={article.id} 
                     to={`/knowledge-base/${article.slug}`}
-                    className="group flex flex-col h-full bg-white border border-slate-100 rounded-[32px] overflow-hidden hover:shadow-2xl hover:shadow-blue-900/10 transition-all duration-500 hover:-translate-y-2 border-b-4 border-b-slate-100 hover:border-b-blue-500 shadow-sm"
+                    className={`group flex flex-col h-full bg-white border rounded-[32px] overflow-hidden hover:shadow-2xl hover:shadow-blue-900/10 transition-all duration-500 hover:-translate-y-2 border-b-4 shadow-sm ${
+                      article.isPinned 
+                      ? 'border-blue-500/50 border-b-blue-600 ring-4 ring-blue-500/5' 
+                      : 'border-slate-100 border-b-slate-100 hover:border-b-blue-500'
+                    }`}
                   >
                     {/* Thumbnail */}
                     <div className="aspect-[16/10] bg-slate-50 relative overflow-hidden shrink-0">
@@ -252,7 +256,13 @@ const ArticleList = () => {
                         </div>
                       )}
                       
-                      <div className="absolute top-4 left-4">
+                      <div className="absolute top-4 left-4 flex gap-2">
+                        {article.isPinned && (
+                          <span className="backdrop-blur-md bg-blue-600/90 text-white text-[10px] font-black px-3 py-1.5 rounded-xl uppercase tracking-widest shadow-lg flex items-center gap-1.5 border border-blue-400/30 animate-pulse">
+                            <Pin size={12} fill="currentColor" />
+                            {t('articles.pin_article')}
+                          </span>
+                        )}
                         <span className="backdrop-blur-md bg-white/90 text-blue-600 text-[10px] font-black px-3 py-1.5 rounded-xl uppercase tracking-widest shadow-sm border border-white/20">
                           {article.category?.name || t('articles.uncategorized')}
                         </span>

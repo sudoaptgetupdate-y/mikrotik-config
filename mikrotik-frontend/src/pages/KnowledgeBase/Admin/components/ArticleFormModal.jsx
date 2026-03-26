@@ -8,19 +8,21 @@ import Quill from 'quill';
 import 'quill/dist/quill.snow.css';
 import articleService from '../../../../services/articleService';
 import { useTranslation } from 'react-i18next';
+import { useAuth } from '../../../../context/AuthContext';
 import Swal from 'sweetalert2';
 import toast from 'react-hot-toast';
 import { getToken } from '../../../../utils/apiClient';
 
 const ArticleFormModal = ({ isOpen, onClose, articleId, onSaveSuccess }) => {
   const { t } = useTranslation();
+  const { user } = useAuth();
   const editorRef = useRef(null);
   const quillInstance = useRef(null);
   const contentInjected = useRef(false);
 
   const [formData, setFormData] = useState({
     title: '', content: '', excerpt: '', thumbnail: '', 
-    categoryId: '', status: 'DRAFT', slug: '', tagNames: []
+    categoryId: '', status: 'DRAFT', slug: '', tagNames: [], isPinned: false
   });
 
   const [selectedFile, setSelectedFile] = useState(null);
@@ -44,7 +46,7 @@ const ArticleFormModal = ({ isOpen, onClose, articleId, onSaveSuccess }) => {
       } else {
         setFormData({
           title: '', content: '', excerpt: '', thumbnail: '', 
-          categoryId: '', status: 'DRAFT', slug: '', tagNames: []
+          categoryId: '', status: 'DRAFT', slug: '', tagNames: [], isPinned: false
         });
         if (quillInstance.current) {
           quillInstance.current.root.innerHTML = '';
@@ -75,9 +77,7 @@ const ArticleFormModal = ({ isOpen, onClose, articleId, onSaveSuccess }) => {
   const fetchArticle = async () => {
     try {
       setFetching(true);
-      const response = await articleService.getArticles();
-      const articles = response.articles || [];
-      const article = articles.find(a => a.id === parseInt(articleId));
+      const article = await articleService.getArticleById(articleId);
       if (article) {
         setFormData({
           title: article.title || '',
@@ -87,7 +87,8 @@ const ArticleFormModal = ({ isOpen, onClose, articleId, onSaveSuccess }) => {
           categoryId: article.categoryId || '',
           status: article.status || 'DRAFT',
           slug: article.slug || '',
-          tagNames: article.tags ? article.tags.map(t => t.name) : []
+          tagNames: article.tags ? article.tags.map(t => t.name) : [],
+          isPinned: article.isPinned || false
         });
       }
     } catch (error) {
@@ -364,6 +365,26 @@ const ArticleFormModal = ({ isOpen, onClose, articleId, onSaveSuccess }) => {
                     <label className="text-[10px] font-bold text-slate-400 uppercase ml-1">{t('articles.category')}</label>
                     <select className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 transition-all font-bold" value={formData.categoryId} onChange={e => setFormData({...formData, categoryId: e.target.value})}><option value="">{t('articles.no_category')}</option>{categories.map(cat => <option key={cat.id} value={cat.id}>{cat.name}</option>)}</select>
                   </div>
+
+                  {user?.role === 'SUPER_ADMIN' && (
+                    <div className="pt-4 border-t border-slate-50">
+                      <label className="flex items-center gap-3 cursor-pointer group">
+                        <div className="relative inline-flex items-center">
+                          <input 
+                            type="checkbox" 
+                            className="sr-only peer"
+                            checked={formData.isPinned}
+                            onChange={(e) => setFormData({...formData, isPinned: e.target.checked})}
+                          />
+                          <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                        </div>
+                        <span className="text-xs font-bold text-slate-600 group-hover:text-blue-600 transition-colors uppercase tracking-widest">{t('articles.pin_article')}</span>
+                      </label>
+                      <p className="text-[10px] text-slate-400 mt-2 ml-14 font-medium italic leading-tight">
+                        {t('articles.pin_hint')}
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
               <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm space-y-5">

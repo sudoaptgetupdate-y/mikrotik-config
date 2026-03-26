@@ -39,6 +39,7 @@ router.delete('/tags/:id', verifyToken, requireRole(['SUPER_ADMIN']), taxonomyCo
 // --- Article Routes ---
 router.get('/', verifyToken, articleController.getArticles);
 router.get('/view/:slug', verifyToken, articleController.getArticle);
+router.get('/:id', verifyToken, articleController.getArticleById);
 router.get('/images/:filename', articleController.serveImage); // Publicly accessible
 
 // Favorites

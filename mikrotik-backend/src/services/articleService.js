@@ -55,7 +55,10 @@ exports.getAllArticles = async (filters = {}) => {
   const [articles, total] = await Promise.all([
     prisma.article.findMany({
       where,
-      orderBy: { createdAt: 'desc' },
+      orderBy: [
+        { isPinned: 'desc' },
+        { createdAt: 'desc' }
+      ],
       skip: skip ? parseInt(skip) : undefined,
       take: limit ? parseInt(limit) : undefined,
       include: {
@@ -141,7 +144,7 @@ exports.getArticleById = async (id) => {
 };
 
 exports.createArticle = async (data, authorId) => {
-  const { title, slug, content, excerpt, thumbnail, categoryId, status, tags } = data;
+  const { title, slug, content, excerpt, thumbnail, categoryId, status, tags, isPinned } = data;
   
   return await prisma.article.create({
     data: {
@@ -151,6 +154,7 @@ exports.createArticle = async (data, authorId) => {
       excerpt,
       thumbnail,
       status: status || 'DRAFT',
+      isPinned: !!isPinned,
       authorId: parseInt(authorId),
       categoryId: categoryId ? parseInt(categoryId) : null,
       tags: {
@@ -161,10 +165,11 @@ exports.createArticle = async (data, authorId) => {
 };
 
 exports.updateArticle = async (id, data) => {
-  const { tags, categoryId, ...rest } = data;
+  const { tags, categoryId, isPinned, ...rest } = data;
   
   const updateData = { ...rest };
   if (categoryId !== undefined) updateData.categoryId = categoryId ? parseInt(categoryId) : null;
+  if (isPinned !== undefined) updateData.isPinned = !!isPinned;
   if (tags) {
     updateData.tags = {
       set: tags.map(tagId => ({ id: parseInt(tagId) }))

@@ -67,8 +67,19 @@ exports.getArticle = async (req, res) => {
   res.status(200).json(article);
 };
 
+exports.getArticleById = async (req, res) => {
+  const { id } = req.params;
+  const article = await articleService.getArticleById(id);
+
+  if (!article) {
+    return res.status(404).json({ error: 'Article not found' });
+  }
+
+  res.status(200).json(article);
+};
+
 exports.createArticle = async (req, res) => {
-  const { title, content, excerpt, thumbnail, categoryId, status, tagNames } = req.body;
+  const { title, content, excerpt, thumbnail, categoryId, status, tagNames, isPinned } = req.body;
   
   if (!title || !content) {
     return res.status(400).json({ error: 'Title and content are required' });
@@ -95,6 +106,7 @@ exports.createArticle = async (req, res) => {
     thumbnail: cleanUrl(thumbnail), 
     categoryId, 
     status,
+    isPinned,
     tags: tagIds
   };
   
@@ -116,7 +128,7 @@ exports.createArticle = async (req, res) => {
 
 exports.updateArticle = async (req, res) => {
   const { id } = req.params;
-  const { title, content, excerpt, thumbnail, categoryId, status, slug, tagNames } = req.body;
+  const { title, content, excerpt, thumbnail, categoryId, status, slug, tagNames, isPinned } = req.body;
 
   const article = await articleService.getArticleById(id);
   if (!article) {
@@ -138,6 +150,7 @@ exports.updateArticle = async (req, res) => {
     categoryId, 
     status, 
     slug,
+    isPinned,
     tags: tagIds
   };
   

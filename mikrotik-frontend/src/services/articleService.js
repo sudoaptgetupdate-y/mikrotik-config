@@ -11,6 +11,11 @@ const articleService = {
     return response.data;
   },
 
+  getArticleById: async (id) => {
+    const response = await apiClient.get(`/api/articles/${id}`);
+    return response.data;
+  },
+
   createArticle: async (data) => {
     const response = await apiClient.post('/api/articles', data);
     return response.data;
