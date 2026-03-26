@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   X, Save, AlertCircle, Upload, Tag as TagIcon, 
-  Layout, Settings, Image as ImageIcon, CheckCircle, ChevronLeft, Search, Plus, Loader2
+  Layout, Settings, Image as ImageIcon, CheckCircle, ChevronLeft, Search, Plus, Loader2,
+  Terminal, Code as CodeIcon
 } from 'lucide-react';
 import Quill from 'quill';
 import 'quill/dist/quill.snow.css';
@@ -110,17 +111,34 @@ const ArticleFormModal = ({ isOpen, onClose, articleId, onSaveSuccess }) => {
       const quill = new Quill(container, {
         theme: 'snow',
         modules: {
-          toolbar: [
-            [{ 'header': [1, 2, 3, 4, false] }],
-            ['bold', 'italic', 'underline', 'strike'],
-            [{ 'list': 'ordered' }, { 'list': 'bullet' }],
-            [{ 'color': [] }, { 'background': [] }],
-            ['blockquote', 'code-block'],
-            ['link', 'image'],
-            ['clean']
-          ]
+          toolbar: {
+            container: [
+              [{ 'header': [1, 2, 3, 4, false] }],
+              ['bold', 'italic', 'underline', 'strike'],
+              ['code', 'code-block'], // Standard code and code-block
+              [{ 'list': 'ordered' }, { 'list': 'bullet' }],
+              [{ 'color': [] }, { 'background': [] }],
+              ['blockquote'],
+              ['link', 'image'],
+              ['clean']
+            ]
+          }
         }
       });
+
+      // Customize icons for code and code-block to be clearer
+      const toolbar = quill.getModule('toolbar');
+      const codeButton = toolbar.container.querySelector('.ql-code');
+      const codeBlockButton = toolbar.container.querySelector('.ql-code-block');
+      
+      if (codeButton) {
+        codeButton.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>';
+        codeButton.title = "Inline Code";
+      }
+      if (codeBlockButton) {
+        codeBlockButton.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"></polyline><line x1="12" y1="19" x2="20" y2="19"></line></svg>';
+        codeBlockButton.title = "Script Block (MikroTik)";
+      }
 
       quill.getModule('toolbar').addHandler('image', imageHandler);
 
@@ -384,7 +402,7 @@ const ArticleFormModal = ({ isOpen, onClose, articleId, onSaveSuccess }) => {
           <button type="button" disabled={loading} onClick={handleSubmit} className="px-10 py-2.5 rounded-xl bg-slate-900 text-white hover:bg-black transition-all text-sm font-bold shadow-lg shadow-slate-200 flex items-center gap-2 active:scale-95 disabled:opacity-50">{loading ? <Loader2 className="animate-spin" size={18} /> : <CheckCircle size={18} />}{articleId ? t('common.save_changes') : t('articles.create_new')}</button>
         </div>
       </div>
-      <style dangerouslySetInnerHTML={{ __html: `.ql-container.ql-snow { border: none !important; font-family: 'Inter', sans-serif; font-size: 16px; } .ql-toolbar.ql-snow { border: none !important; border-bottom: 1px solid #f1f5f9 !important; background: #f8fafc; padding: 0.75rem 1.25rem !important; } .ql-editor { min-height: 400px; color: #1e293b; padding: 1.25rem !important; line-height: 1.7; } .ql-editor.ql-blank::before { color: #cbd5e1; font-style: normal; font-weight: 600; left: 1.25rem !important; } .ql-editor pre.ql-syntax { background-color: #0f172a !important; color: #f8fafc !important; border-radius: 1rem !important; padding: 1rem !important; margin: 1rem 0 !important; font-family: 'Fira Code', monospace; }` }} />
+      <style dangerouslySetInnerHTML={{ __html: `.ql-container.ql-snow { border: none !important; font-family: 'Inter', sans-serif; font-size: 16px; } .ql-toolbar.ql-snow { border: none !important; border-bottom: 1px solid #f1f5f9 !important; background: #f8fafc; padding: 0.75rem 1.25rem !important; } .ql-editor { min-height: 400px; color: #1e293b; padding: 1.25rem !important; line-height: 1.7; } .ql-editor.ql-blank::before { color: #cbd5e1; font-style: normal; font-weight: 600; left: 1.25rem !important; } .ql-editor pre.ql-syntax, .ql-editor .ql-code-block-container { background-color: #0f172a !important; color: #f8fafc !important; border-radius: 1rem !important; padding: 1rem !important; margin: 1rem 0 !important; font-family: 'Fira Code', monospace; } .ql-editor .ql-code-block { white-space: pre !important; }` }} />
     </div>
   );
 };

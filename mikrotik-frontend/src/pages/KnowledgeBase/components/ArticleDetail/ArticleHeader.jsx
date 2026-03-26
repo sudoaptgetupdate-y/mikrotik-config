@@ -16,7 +16,7 @@ const ArticleHeader = ({
   if (!article) return null;
 
   return (
-    <header className="relative min-h-[450px] sm:min-h-[550px] md:min-h-[600px] group flex flex-col justify-end overflow-hidden">
+    <header className="relative min-h-[350px] sm:min-h-[450px] md:min-h-[500px] group flex flex-col justify-end overflow-hidden">
       {article.thumbnail ? (
         <img 
           src={formatImageUrl(article.thumbnail)} 
@@ -32,7 +32,7 @@ const ArticleHeader = ({
       <div className="absolute inset-0 bg-gradient-to-r from-slate-950/40 to-transparent" />
       
       {/* 1. Title & Category Area */}
-      <div className="relative z-10 px-8 sm:px-12 pt-20 pb-8 mt-auto space-y-6">
+      <div className="relative z-10 px-8 sm:px-12 pt-16 pb-8 mt-auto space-y-4">
         <div className="flex items-center gap-3 animate-in fade-in slide-in-from-left-4 duration-700 delay-100">
           {article.category && (
             <span className="inline-block bg-blue-600 text-white text-[10px] font-black px-4 py-2 rounded-xl uppercase tracking-widest shadow-2xl shadow-blue-600/40">

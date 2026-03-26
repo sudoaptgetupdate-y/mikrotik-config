@@ -14,6 +14,107 @@ import RelatedArticles from './components/ArticleDetail/RelatedArticles';
 import ArticleToc from './components/ArticleDetail/ArticleToc';
 import ShareModal from './components/ArticleDetail/ShareModal';
 
+// Memoized Content Component to prevent unnecessary re-renders on scroll
+const ArticleContentRenderer = React.memo(({ content, loading }) => {
+  const contentRef = useRef(null);
+
+  useEffect(() => {
+    if (!content || loading) return;
+
+    const timer = setTimeout(() => {
+      const codeBlocks = document.querySelectorAll('.article-content pre, .article-content .ql-syntax, .article-content .ql-code-block-container');
+      
+      codeBlocks.forEach(block => {
+        if (block.querySelector('.copy-btn-article')) return;
+        
+        let codeContent = '';
+        if (block.classList.contains('ql-code-block-container')) {
+          const lines = block.querySelectorAll('.ql-code-block');
+          codeContent = lines.length > 0 
+            ? Array.from(lines).map(line => line.innerText).join('\n')
+            : block.innerText;
+        } else {
+          codeContent = block.innerText;
+        }
+
+        block.style.setProperty('position', 'relative', 'important');
+        block.classList.add('group/article-code');
+        
+        const btn = document.createElement('button');
+        btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg> Copy';
+        btn.className = 'copy-btn-article absolute top-3 right-3 bg-slate-800/90 hover:bg-slate-700 text-white/80 hover:text-white text-[10px] font-black px-3 py-1.5 rounded-xl transition-all border border-slate-700/50 flex items-center gap-2 z-[100] uppercase tracking-widest shadow-xl backdrop-blur-md';
+        
+        btn.onclick = (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          navigator.clipboard.writeText(codeContent);
+          
+          btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg> Copied!';
+          btn.className = 'copy-btn-article absolute top-3 right-3 bg-emerald-500 text-white text-[10px] font-black px-3 py-1.5 rounded-xl z-[100] uppercase tracking-widest flex items-center gap-2 shadow-lg shadow-emerald-500/20 border border-emerald-400';
+          
+          setTimeout(() => {
+            btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg> Copy';
+            btn.className = 'copy-btn-article absolute top-3 right-3 bg-slate-800/90 hover:bg-slate-700 text-white/80 hover:text-white text-[10px] font-black px-3 py-1.5 rounded-xl transition-all border border-slate-700/50 flex items-center gap-2 z-[100] uppercase tracking-widest shadow-xl backdrop-blur-md';
+          }, 2000);
+        };
+        
+        block.appendChild(btn);
+
+        const label = document.createElement('div');
+        label.innerText = 'CONFIG / SCRIPT';
+        label.className = 'absolute bottom-4 right-4 text-[9px] font-black text-slate-500 uppercase tracking-widest opacity-30 pointer-events-none z-10';
+        block.appendChild(label);
+
+        // --- NEW: Expand/Collapse Logic for long code blocks ---
+        const lineCount = codeContent.split('\n').length;
+        if (lineCount > 8) {
+          block.style.maxHeight = '280px';
+          block.style.overflow = 'hidden';
+          block.style.transition = 'max-height 0.5s ease-in-out';
+          
+          const expandWrapper = document.createElement('div');
+          expandWrapper.className = 'absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-slate-950 via-slate-950/80 to-transparent z-20 flex items-end justify-center pb-4 transition-opacity duration-300';
+          
+          let isExpanded = false;
+          const expandBtn = document.createElement('button');
+          expandBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2"><path d="m7 15 5 5 5-5"/><path d="m7 9 5-5 5 5"/></svg> SHOW FULL CODE';
+          expandBtn.className = 'bg-white/10 hover:bg-white/20 text-white text-[10px] font-black px-6 py-2.5 rounded-full border border-white/10 backdrop-blur-md transition-all shadow-xl uppercase tracking-[0.2em] flex items-center group-active:scale-95';
+          
+          expandBtn.onclick = () => {
+            isExpanded = !isExpanded;
+            if (isExpanded) {
+              block.style.maxHeight = 'none';
+              expandWrapper.classList.remove('h-24', 'bg-gradient-to-t', 'from-slate-950', 'via-slate-950/80');
+              expandWrapper.classList.add('h-14', 'bg-transparent', 'mt-4');
+              expandBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2"><path d="m17 11-5-5-5 5"/><path d="m17 17-5-5-5 5"/></svg> COLLAPSE CODE';
+              expandBtn.className = 'bg-slate-800/50 hover:bg-slate-700 text-white/50 hover:text-white text-[10px] font-black px-6 py-2.5 rounded-full border border-white/5 backdrop-blur-sm transition-all uppercase tracking-[0.2em] flex items-center mx-auto';
+              // Scroll slightly to keep the top of the block in view if needed
+            } else {
+              block.style.maxHeight = '280px';
+              expandWrapper.classList.add('h-24', 'bg-gradient-to-t', 'from-slate-950', 'via-slate-950/80');
+              expandWrapper.classList.remove('h-14', 'bg-transparent', 'mt-4');
+              expandBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2"><path d="m7 15 5 5 5-5"/><path d="m7 9 5-5 5 5"/></svg> SHOW FULL CODE';
+              expandBtn.className = 'bg-white/10 hover:bg-white/20 text-white text-[10px] font-black px-6 py-2.5 rounded-full border border-white/10 backdrop-blur-md transition-all shadow-xl uppercase tracking-[0.2em] flex items-center group-active:scale-95';
+              
+              // Smooth scroll back to the top of the block when collapsing
+              block.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }
+          };
+          
+          expandWrapper.appendChild(expandBtn);
+          block.appendChild(expandWrapper);
+        }
+      });
+    }, 150);
+
+    return () => clearTimeout(timer);
+  }, [content, loading]);
+
+  return (
+    <div ref={contentRef} className="article-content" dangerouslySetInnerHTML={{ __html: content }} />
+  );
+});
+
 const ArticleDetail = () => {
   const { slug } = useParams();
   const navigate = useNavigate();
@@ -327,8 +428,8 @@ const ArticleDetail = () => {
 
           <div className="relative">
             <main className="max-w-5xl mx-auto px-8 sm:px-12 md:px-16 py-16 sm:py-24">
-              <article className="article-content prose prose-slate max-w-none prose-headings:font-black prose-p:text-slate-600 prose-p:leading-[1.8] prose-a:text-blue-600 prose-blockquote:border-blue-500 prose-pre:bg-slate-900 prose-pre:rounded-3xl">
-                <div ref={contentRef} dangerouslySetInnerHTML={{ __html: article.content }} />
+              <article className="prose prose-slate max-w-none prose-headings:font-black prose-p:text-slate-600 prose-p:leading-[1.8] prose-a:text-blue-600 prose-blockquote:border-blue-500 prose-pre:bg-slate-900 prose-pre:rounded-3xl">
+                <ArticleContentRenderer content={article.content} loading={loading} />
               </article>
 
               <div className="my-20 flex items-center gap-8">
@@ -390,9 +491,43 @@ const ArticleDetail = () => {
         .article-content p { margin-bottom: 1.75rem; }
         .article-content img { max-width: 100%; height: auto; margin: 3rem auto; border-radius: 2.5rem; box-shadow: 0 30px 60px -12px rgba(0, 0, 0, 0.12); border: 8px solid white; }
         .article-content blockquote { border-left: 6px solid #3b82f6; padding: 2rem 2.5rem; font-style: italic; color: #0f172a; margin: 3rem 0; background: #f8fafc; border-radius: 0 2.5rem 2.5rem 0; font-size: 1.25rem; line-height: 1.6; }
-        .article-content pre { background: #0f172a; color: #f8fafc; padding: 2.5rem; border-radius: 2rem; overflow-x: auto; margin: 3rem 0; font-family: 'Fira Code', monospace; font-size: 0.9rem; position: relative; box-shadow: 0 30px 60px -12px rgba(0, 0, 0, 0.25); line-height: 1.7; }
-        .article-content code { background: #f1f5f9; color: #3b82f6; padding: 0.25rem 0.5rem; border-radius: 0.75rem; font-size: 0.85em; font-weight: 800; }
-        .article-content pre code { background: transparent; color: inherit; padding: 0; font-weight: 400; font-size: inherit; }
+        
+        /* Code Block Styling (Quill .ql-syntax and Quill 2.0 .ql-code-block-container) */
+        .article-content pre, 
+        .article-content .ql-syntax,
+        .article-content .ql-code-block-container { 
+          background: #0f172a !important; 
+          color: #f8fafc !important; 
+          padding: 2.5rem !important; 
+          border-radius: 2rem !important; 
+          overflow-x: auto !important; 
+          margin: 3rem 0 !important; 
+          font-family: 'Fira Code', monospace !important; 
+          font-size: 0.9rem !important; 
+          position: relative !important; 
+          box-shadow: 0 30px 60px -12px rgba(0, 0, 0, 0.25) !important; 
+          line-height: 1.7 !important; 
+        }
+
+        .article-content .ql-code-block {
+          white-space: pre !important;
+        }
+
+        /* Inline Code Styling */
+        .article-content code { 
+          background: #f1f5f9 !important; 
+          color: #3b82f6 !important; 
+          padding: 0.25rem 0.5rem !important; 
+          border-radius: 0.75rem !important; 
+          font-size: 0.85em !important; 
+          font-weight: 800 !important;
+          font-family: 'Fira Code', monospace !important;
+        }
+        
+        /* Remove prose default backticks for code */
+        .prose code::before, .prose code::after { content: "" !important; }
+
+        .article-content pre code { background: transparent !important; color: inherit !important; padding: 0 !important; font-weight: 400 !important; font-size: inherit !important; }
         .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }

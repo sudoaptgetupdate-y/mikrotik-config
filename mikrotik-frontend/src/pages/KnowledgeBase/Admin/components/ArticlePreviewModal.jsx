@@ -10,6 +10,102 @@ import { format } from 'date-fns';
 import { getToken } from '../../../../utils/apiClient';
 import { Link } from 'react-router-dom';
 
+const ArticlePreviewRenderer = React.memo(({ content, loading }) => {
+  const contentRef = useRef(null);
+
+  useEffect(() => {
+    if (!content || loading) return;
+
+    const timer = setTimeout(() => {
+      const codeBlocks = document.querySelectorAll('.article-preview-content pre, .article-preview-content .ql-syntax, .article-preview-content .ql-code-block-container');
+      
+      codeBlocks.forEach(block => {
+        if (block.querySelector('.copy-btn-article')) return;
+        
+        let codeContent = '';
+        if (block.classList.contains('ql-code-block-container')) {
+          const lines = block.querySelectorAll('.ql-code-block');
+          codeContent = lines.length > 0 
+            ? Array.from(lines).map(line => line.innerText).join('\n')
+            : block.innerText;
+        } else {
+          codeContent = block.innerText;
+        }
+
+        block.style.setProperty('position', 'relative', 'important');
+        block.classList.add('group/article-code');
+        
+        const btn = document.createElement('button');
+        btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg> Copy';
+        btn.className = 'copy-btn-article absolute top-3 right-3 bg-slate-800/90 hover:bg-slate-700 text-white/80 hover:text-white text-[10px] font-black px-3 py-1.5 rounded-xl transition-all border border-slate-700/50 flex items-center gap-2 z-[100] uppercase tracking-widest shadow-xl backdrop-blur-md';
+        
+        btn.onclick = (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          navigator.clipboard.writeText(codeContent);
+          
+          btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg> Copied!';
+          btn.className = 'copy-btn-article absolute top-3 right-3 bg-emerald-500 text-white text-[10px] font-black px-3 py-1.5 rounded-xl z-[100] uppercase tracking-widest flex items-center gap-2 shadow-lg shadow-emerald-500/20 border border-emerald-400';
+          
+          setTimeout(() => {
+            btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg> Copy';
+            btn.className = 'copy-btn-article absolute top-3 right-3 bg-slate-800/90 hover:bg-slate-700 text-white/80 hover:text-white text-[10px] font-black px-3 py-1.5 rounded-xl transition-all border border-slate-700/50 flex items-center gap-2 z-[100] uppercase tracking-widest shadow-xl backdrop-blur-md';
+          }, 2000);
+        };
+        
+        block.appendChild(btn);
+
+        const label = document.createElement('div');
+        label.innerText = 'CONFIG / SCRIPT';
+        label.className = 'absolute bottom-4 right-4 text-[9px] font-black text-slate-500 uppercase tracking-widest opacity-30 pointer-events-none z-10';
+        block.appendChild(label);
+
+        // Expand/Collapse Logic
+        const lineCount = codeContent.split('\n').length;
+        if (lineCount > 8) {
+          block.style.maxHeight = '280px';
+          block.style.overflow = 'hidden';
+          block.style.transition = 'max-height 0.5s ease-in-out';
+          
+          const expandWrapper = document.createElement('div');
+          expandWrapper.className = 'absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-slate-950 via-slate-950/80 to-transparent z-20 flex items-end justify-center pb-4 transition-opacity duration-300';
+          
+          let isExpanded = false;
+          const expandBtn = document.createElement('button');
+          expandBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2"><path d="m7 15 5 5 5-5"/><path d="m7 9 5-5 5 5"/></svg> SHOW FULL CODE';
+          expandBtn.className = 'bg-white/10 hover:bg-white/20 text-white text-[10px] font-black px-6 py-2.5 rounded-full border border-white/10 backdrop-blur-md transition-all shadow-xl uppercase tracking-[0.2em] flex items-center active:scale-95';
+          
+          expandBtn.onclick = () => {
+            isExpanded = !isExpanded;
+            if (isExpanded) {
+              block.style.maxHeight = 'none';
+              expandWrapper.classList.remove('h-24', 'bg-gradient-to-t', 'from-slate-950', 'via-slate-950/80');
+              expandWrapper.classList.add('h-14', 'bg-transparent', 'mt-4');
+              expandBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2"><path d="m17 11-5-5-5 5"/><path d="m17 17-5-5-5 5"/></svg> COLLAPSE CODE';
+              expandBtn.className = 'bg-slate-800/50 hover:bg-slate-700 text-white/50 hover:text-white text-[10px] font-black px-6 py-2.5 rounded-full border border-white/5 backdrop-blur-sm transition-all uppercase tracking-[0.2em] flex items-center mx-auto';
+            } else {
+              block.style.maxHeight = '280px';
+              expandWrapper.classList.add('h-24', 'bg-gradient-to-t', 'from-slate-950', 'via-slate-950/80');
+              expandWrapper.classList.remove('h-14', 'bg-transparent', 'mt-4');
+              expandBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2"><path d="m7 15 5 5 5-5"/><path d="m7 9 5-5 5 5"/></svg> SHOW FULL CODE';
+              expandBtn.className = 'bg-white/10 hover:bg-white/20 text-white text-[10px] font-black px-6 py-2.5 rounded-full border border-white/10 backdrop-blur-md transition-all shadow-xl uppercase tracking-[0.2em] flex items-center active:scale-95';
+              block.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }
+          };
+          
+          expandWrapper.appendChild(expandBtn);
+          block.appendChild(expandWrapper);
+        }
+      });
+    }, 100);
+    return () => clearTimeout(timer);
+  }, [content, loading]);
+
+  return (
+    <div ref={contentRef} dangerouslySetInnerHTML={{ __html: content }} />
+  );
+});
+
 const ArticlePreviewModal = ({ isOpen, onClose, articleId }) => {
   const { t } = useTranslation();
   const [article, setArticle] = useState(null);
@@ -48,29 +144,6 @@ const ArticlePreviewModal = ({ isOpen, onClose, articleId }) => {
     if (!url) return null;
     return url;
   };
-
-  useEffect(() => {
-    if (!article) return;
-    const codeBlocks = document.querySelectorAll('.article-preview-content pre');
-    codeBlocks.forEach(block => {
-      if (block.querySelector('.copy-btn')) return;
-      const btn = document.createElement('button');
-      btn.innerHTML = 'Copy';
-      btn.className = 'copy-btn absolute top-3 right-3 bg-white/10 hover:bg-white/20 text-white text-[10px] font-black px-3 py-1.5 rounded-lg transition-all backdrop-blur-md border border-white/10 z-10 uppercase tracking-widest';
-      block.style.position = 'relative';
-      btn.onclick = () => {
-        const text = block.innerText.replace('Copy', '');
-        navigator.clipboard.writeText(text);
-        btn.innerHTML = 'Copied!';
-        btn.className = 'copy-btn absolute top-3 right-3 bg-emerald-500 text-white text-[10px] font-black px-3 py-1.5 rounded-lg z-10 uppercase tracking-widest';
-        setTimeout(() => {
-          btn.innerHTML = 'Copy';
-          btn.className = 'copy-btn absolute top-3 right-3 bg-white/10 hover:bg-white/20 text-white text-[10px] font-black px-3 py-1.5 rounded-lg transition-all backdrop-blur-md border border-white/10 z-10 uppercase tracking-widest';
-        }, 2000);
-      };
-      block.appendChild(btn);
-    });
-  }, [article, loading]);
 
   if (!isOpen) return null;
 
@@ -193,7 +266,7 @@ const ArticlePreviewModal = ({ isOpen, onClose, articleId }) => {
               {/* 3. Article Content Section */}
               <main className="p-8 sm:p-10 md:p-12">
                 <article className="article-preview-content prose prose-slate max-w-none">
-                  <div ref={contentRef} dangerouslySetInnerHTML={{ __html: article.content }} />
+                  <ArticlePreviewRenderer content={article.content} loading={loading} />
                 </article>
               </main>
             </div>
@@ -225,7 +298,9 @@ const ArticlePreviewModal = ({ isOpen, onClose, articleId }) => {
         .article-preview-content p { margin-bottom: 1.5rem; }
         .article-preview-content img { max-width: 100%; height: auto; margin: 2rem auto; border-radius: 1.5rem; box-shadow: 0 20px 40px -8px rgba(0, 0, 0, 0.08); border: 4px solid white; }
         .article-preview-content blockquote { border-left: 4px solid #3b82f6; padding: 1.5rem 2rem; font-style: italic; color: #0f172a; margin: 2.5rem 0; background: #f8fafc; border-radius: 0 1.5rem 1.5rem 0; font-size: 1.125rem; }
-        .article-preview-content pre { 
+        .article-preview-content pre,
+        .article-preview-content .ql-syntax,
+        .article-preview-content .ql-code-block-container { 
           background: #0f172a; 
           color: #f8fafc; 
           padding: 2rem; 
@@ -237,6 +312,9 @@ const ArticlePreviewModal = ({ isOpen, onClose, articleId }) => {
           position: relative;
           box-shadow: 0 20px 40px -8px rgba(0, 0, 0, 0.2);
           line-height: 1.6;
+        }
+        .article-preview-content .ql-code-block {
+          white-space: pre !important;
         }
         .article-preview-content code { background: #f1f5f9; color: #3b82f6; padding: 0.2rem 0.4rem; border-radius: 0.5rem; font-size: 0.85em; font-weight: 800; }
         .article-preview-content pre code { background: transparent; color: inherit; padding: 0; font-weight: 400; font-size: inherit; }
