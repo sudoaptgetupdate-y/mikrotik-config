@@ -44,7 +44,8 @@ const resources = {
         yesRestore: "Yes, restore it!",
         yesHardDelete: "Yes, delete permanently!",
         saveError: "Save failed",
-        error_default: "An error occurred. Please try again."
+        error_default: "An error occurred. Please try again.",
+        required: "Required"
       },
       sidebar: {
         dashboard: "Dashboard",
@@ -56,7 +57,8 @@ const resources = {
         audit_logs: "Audit Logs",
         user_management: "User Management",
         global_settings: "Global Settings",
-        knowledge_base: "Knowledge Base",
+        knowledge_base: "Articles & Insights",
+        article_mgmt: "Article Management",
         my_profile: "My Profile",
         logout: "Sign Out",
         cat_main: "Main",
@@ -993,8 +995,8 @@ const resources = {
         footer_rights: "MikroTik Management. All rights reserved."
       },
       articles: {
-        kb_title: "Knowledge Base",
-        kb_subtitle: "Guides, tutorials, and technical notes for MikroTik & Networking",
+        kb_title: "Articles",
+        kb_subtitle: "Guides, tutorials, and technical notes for users",
         tab_all: "Explore All",
         tab_favorites: "My Favorites",
         mgmt_title: "Article Management",
@@ -1064,6 +1066,11 @@ const resources = {
         delete_article_confirm: "You are about to delete article",
         delete_cat_confirm: "Are you sure you want to delete category",
         delete_tag_confirm: "Are you sure you want to delete tag",
+        validation: {
+          title_required: "Article title is required",
+          content_required: "Article content is required",
+          title_content_required: "Both title and content are required"
+        },
         toast: {
           created: "Article created successfully",
           updated: "Article updated successfully",
@@ -1113,7 +1120,8 @@ const resources = {
         yesRestore: "ใช่, กู้คืนเลย!",
         yesHardDelete: "ใช่, ลบถาวร!",
         saveError: "บันทึกไม่สำเร็จ",
-        error_default: "เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง"
+        error_default: "เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง",
+        required: "จำเป็น"
       },
       sidebar: {
         dashboard: "แดชบอร์ด",
@@ -1125,7 +1133,8 @@ const resources = {
         audit_logs: "ประวัติการใช้งาน",
         user_management: "จัดการผู้ใช้งาน",
         global_settings: "ตั้งค่าระบบ",
-        knowledge_base: "คลังความรู้",
+        knowledge_base: "บทความ",
+        article_mgmt: "จัดการบทความ",
         my_profile: "โปรไฟล์ของฉัน",
         logout: "ออกจากระบบ",
         cat_main: "เมนูหลัก",
@@ -2035,8 +2044,8 @@ const resources = {
         footer_rights: "ระบบบริหารจัดการไมโครติก สงวนลิขสิทธิ์"
       },
       articles: {
-        kb_title: "คลังความรู้ (Knowledge Base)",
-        kb_subtitle: "คู่มือ เทคนิค และบันทึกทางเทคนิคสำหรับ MikroTik และระบบเครือข่าย",
+        kb_title: "บทความและเทคนิค",
+        kb_subtitle: "คลังข้อมูลสนับสนุนทางเทคนิคเพื่อการเพิ่มประสิทธิภาพและการจัดการปัญหาอย่างเป็นระบบ",
         tab_all: "สำรวจทั้งหมด",
         tab_favorites: "รายการโปรดของฉัน",
         mgmt_title: "จัดการบทความ",
@@ -2106,6 +2115,11 @@ const resources = {
         delete_article_confirm: "คุณกำลังจะลบบทความ",
         delete_cat_confirm: "คุณแน่ใจหรือไม่ว่าต้องการลบหมวดหมู่",
         delete_tag_confirm: "คุณแน่ใจหรือไม่ว่าต้องการลบแท็ก",
+        validation: {
+          title_required: "กรุณาระบุหัวข้อบทความ",
+          content_required: "กรุณาระบุเนื้อหาบทความ",
+          title_content_required: "กรุณาระบุทั้งหัวข้อและเนื้อหาบทความ"
+        },
         toast: {
           created: "สร้างบทความเรียบร้อยแล้ว",
           updated: "อัปเดตบทความเรียบร้อยแล้ว",

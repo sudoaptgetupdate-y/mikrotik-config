@@ -247,9 +247,13 @@ const ArticleFormModal = ({ isOpen, onClose, articleId, onSaveSuccess }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!formData.title || !formData.content) {
+      let errorMsg = t('articles.validation.title_content_required');
+      if (!formData.title && formData.content) errorMsg = t('articles.validation.title_required');
+      if (formData.title && !formData.content) errorMsg = t('articles.validation.content_required');
+
       return Swal.fire({
         title: t('common.error'),
-        text: t('articles.content_editor') + ' ' + t('common.required'),
+        text: errorMsg,
         icon: 'warning',
         buttonsStyling: false,
         customClass: {

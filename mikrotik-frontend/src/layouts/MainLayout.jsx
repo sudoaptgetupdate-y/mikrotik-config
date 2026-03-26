@@ -142,6 +142,7 @@ const MainLayout = () => {
                     <NavLink 
                       key={item.to} 
                       to={item.to}
+                      end={item.to === '/knowledge-base'}
                       title={isSidebarCollapsed ? item.label : ''}
                       onClick={() => setIsMobileMenuOpen(false)}
                       className={({ isActive }) => `
