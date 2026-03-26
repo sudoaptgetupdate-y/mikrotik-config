@@ -97,11 +97,25 @@ exports.getArticleBySlug = async (slug) => {
   });
 
   if (article) {
-    // Increment view count
-    await prisma.article.update({
+    // Increment view count and get the updated version
+    const updatedArticle = await prisma.article.update({
       where: { id: article.id },
-      data: { viewCount: { increment: 1 } }
+      data: { viewCount: { increment: 1 } },
+      include: {
+        category: true,
+        tags: true,
+        author: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            username: true,
+            role: true
+          }
+        }
+      }
     });
+    return updatedArticle;
   }
 
   return article;

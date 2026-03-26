@@ -20,6 +20,7 @@ const resources = {
         back: "Back",
         found: "Found",
         items: "items",
+        views: "views",
         error: "Error",
         copied: "Copied to clipboard!",
         next: "Next Step",
@@ -32,6 +33,8 @@ const resources = {
         page_n: "Page {{num}}",
         issue: "Issue",
         note: "Note",
+        comments: "Comments",
+        send: "Send",
         unknown: "Unknown",
         yesDelete: "Yes, delete it!",
         yesRestore: "Yes, restore it!",
@@ -1063,7 +1066,9 @@ const resources = {
           deleted: "Article has been deleted",
           cat_created: "Category created successfully",
           cat_updated: "Category updated successfully",
-          tag_deleted: "Tag deleted successfully"
+          tag_deleted: "Tag deleted successfully",
+          favorite_added: "Added to favorites",
+          favorite_removed: "Removed from favorites"
         }
       }
     }
@@ -2103,7 +2108,9 @@ const resources = {
           deleted: "ลบบทความเรียบร้อยแล้ว",
           cat_created: "สร้างหมวดหมู่สำเร็จ",
           cat_updated: "อัปเดตหมวดหมู่สำเร็จ",
-          tag_deleted: "ลบแท็กสำเร็จ"
+          tag_deleted: "ลบแท็กสำเร็จ",
+          favorite_added: "เพิ่มในรายการโปรดแล้ว",
+          favorite_removed: "นำออกจากรายการโปรดแล้ว"
         }
       }
     }
