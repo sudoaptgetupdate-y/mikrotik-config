@@ -88,8 +88,8 @@ app.use('/api', globalLimiter);
 // ==========================================
 // 🛡️ 4. Body Parser & Payload Limit
 // ==========================================
-app.use(express.json({ limit: '500kb' }));
-app.use(express.urlencoded({ extended: true, limit: '500kb' }));
+app.use(express.json({ limit: '5MB' }));
+app.use(express.urlencoded({ extended: true, limit: '5MB' }));
 app.use(cookieParser());
 
 // ==========================================

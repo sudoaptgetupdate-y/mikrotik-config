@@ -171,6 +171,16 @@ const ArticleFormModal = ({ isOpen, onClose, articleId, onSaveSuccess }) => {
     const file = e.target.files[0];
     if (!file) return;
 
+    // Check file size (5MB limit)
+    if (file.size > 5 * 1024 * 1024) {
+      return Swal.fire({
+        title: t('common.error'),
+        text: "ไฟล์รูปภาพต้องมีขนาดไม่เกิน 5MB",
+        icon: 'error',
+        confirmButtonText: 'ตกลง'
+      });
+    }
+
     // Remove old preview URL if exists
     if (previewUrl) {
       URL.revokeObjectURL(previewUrl);
@@ -186,6 +196,18 @@ const ArticleFormModal = ({ isOpen, onClose, articleId, onSaveSuccess }) => {
     input.setAttribute('type', 'file'); input.setAttribute('accept', 'image/*'); input.click();
     input.onchange = async () => {
       const file = input.files[0];
+      if (!file) return;
+
+      // Check file size (5MB limit)
+      if (file.size > 5 * 1024 * 1024) {
+        return Swal.fire({
+          title: t('common.error'),
+          text: "ไฟล์รูปภาพต้องมีขนาดไม่เกิน 5MB",
+          icon: 'error',
+          confirmButtonText: 'ตกลง'
+        });
+      }
+
       const formDataUpload = new FormData();
       formDataUpload.append('image', file);
       if (articleId) formDataUpload.append('articleId', articleId);
@@ -196,9 +218,18 @@ const ArticleFormModal = ({ isOpen, onClose, articleId, onSaveSuccess }) => {
           quillInstance.current.insertEmbed(range?.index || 0, 'image', res.url);
         }
       } catch (error) {
+        console.error("Upload error:", error);
+        let errorText = t('common.error_default');
+        
+        if (error.response?.status === 413) {
+          errorText = "ไฟล์มีขนาดใหญ่เกินไป (จำกัด 5MB) หรือ Server ไม่รองรับขนาดไฟล์นี้";
+        } else if (error.response?.data?.error) {
+          errorText = error.response.data.error;
+        }
+
         Swal.fire({
           title: t('common.error'),
-          text: t('common.error_default'),
+          text: errorText,
           icon: 'error',
           buttonsStyling: false,
           customClass: {
@@ -276,8 +307,19 @@ const ArticleFormModal = ({ isOpen, onClose, articleId, onSaveSuccess }) => {
         formDataUpload.append('image', selectedFile);
         if (articleId) formDataUpload.append('articleId', articleId);
         
-        const res = await articleService.uploadImage(formDataUpload);
-        finalThumbnailUrl = res.url;
+        try {
+          const res = await articleService.uploadImage(formDataUpload);
+          finalThumbnailUrl = res.url;
+        } catch (uploadError) {
+          console.error("Thumbnail upload error:", uploadError);
+          let errorText = "ไม่สามารถอัปโหลดรูปภาพหน้าปกได้";
+          if (uploadError.response?.status === 413) {
+            errorText += " (ไฟล์มีขนาดใหญ่เกินไป จำกัด 5MB)";
+          } else if (uploadError.response?.data?.error) {
+            errorText = uploadError.response.data.error;
+          }
+          throw new Error(errorText);
+        }
       }
 
       const submissionData = { ...formData, thumbnail: finalThumbnailUrl };
@@ -288,7 +330,7 @@ const ArticleFormModal = ({ isOpen, onClose, articleId, onSaveSuccess }) => {
       toast.promise(savePromise, {
         loading: t('common.saving'),
         success: articleId ? t('articles.toast.updated') : t('articles.toast.created'),
-        error: t('common.error_default')
+        error: (err) => err.message || t('common.error_default')
       });
 
       await savePromise;
@@ -297,6 +339,10 @@ const ArticleFormModal = ({ isOpen, onClose, articleId, onSaveSuccess }) => {
     } catch (error) {
       if (error?.response?.data?.error) {
         toast.error(error.response.data.error);
+      } else if (error.message) {
+        toast.error(error.message);
+      } else {
+        toast.error(t('common.error_default'));
       }
     } finally {
       setLoading(false);
