@@ -393,96 +393,94 @@ const ArticleDetail = () => {
   };
 
   // 🟢 เปลี่ยนมาใช้โครงสร้างที่สมดุลกับ Dashboard (ลบ max-w-[1400px] ออก)
-  return (
-    <div className="w-full px-4 py-12 space-y-8 mx-auto">
-      <div className="bg-white p-12 rounded-[48px] border border-slate-200 animate-pulse h-96"></div>
+  if (loading) return (
+    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <div className="bg-white p-8 rounded-3xl border border-slate-200 animate-pulse h-[600px] shadow-sm"></div>
     </div>
   );
 
   if (!article) return (
-    <div className="flex flex-col items-center justify-center py-32 text-center px-4">
-      <div className="bg-slate-50 p-8 rounded-[40px] mb-6 border border-slate-100"><BookOpen size={64} className="text-slate-200" /></div>
+    <div className="flex flex-col items-center justify-center py-20 text-center px-4">
+      <div className="bg-slate-100 p-8 rounded-3xl mb-6 border border-slate-200"><BookOpen size={64} className="text-slate-300" /></div>
       <h2 className="text-2xl font-black text-slate-800 tracking-tight">{t('articles.no_articles')}</h2>
       <button onClick={() => navigate('/knowledge-base')} className="bg-slate-900 text-white px-8 py-3 rounded-2xl font-black uppercase mt-8 text-xs">{t('articles.back_to_kb')}</button>
     </div>
   );
 
   return (
-    <div className="min-h-screen bg-slate-50/50 pb-20 text-slate-900 selection:bg-blue-100 selection:text-blue-900">
-      <div className="fixed top-0 left-0 w-full h-1.5 z-[110] bg-white/20 backdrop-blur-sm">
+    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">
+      <div className="fixed top-0 left-0 w-full h-1 z-[110] bg-white/20 backdrop-blur-sm pointer-events-none">
         <div className="h-full bg-blue-500 transition-all duration-150 shadow-[0_0_10px_rgba(59,130,246,0.5)]" style={{ width: `${readingProgress}%` }} />
       </div>
 
-      <div className="w-full pt-10">
-        <div className="bg-white rounded-[48px] border border-slate-200 shadow-2xl shadow-slate-200/50 overflow-hidden">
-          
-          <ArticleHeader 
-            article={article} 
-            commentsCount={comments.length}
-            isFavorited={isFavorited}
-            togglingFavorite={togglingFavorite}
-            handleToggleFavorite={handleToggleFavorite}
-            handleShare={handleShare}
-            t={t}
-            formatImageUrl={(url) => url}
-          />
+      <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+        
+        <ArticleHeader 
+          article={article} 
+          commentsCount={comments.length}
+          isFavorited={isFavorited}
+          togglingFavorite={togglingFavorite}
+          handleToggleFavorite={handleToggleFavorite}
+          handleShare={handleShare}
+          t={t}
+          formatImageUrl={(url) => url}
+        />
 
-          <div className="relative">
-            <main className="max-w-5xl mx-auto px-8 sm:px-12 md:px-16 py-16 sm:py-24">
-              <article className="prose prose-slate max-w-none prose-headings:font-black prose-p:text-slate-600 prose-p:leading-[1.8] prose-a:text-blue-600 prose-blockquote:border-blue-500 prose-pre:bg-slate-900 prose-pre:rounded-3xl">
-                <ArticleContentRenderer content={article.content} loading={loading} />
-              </article>
+        <div className="relative">
+          <main className="max-w-4xl mx-auto px-6 sm:px-10 md:px-12 py-12 sm:py-16">
+            <article className="prose prose-slate max-w-none prose-headings:font-black prose-p:text-slate-600 prose-p:leading-[1.8] prose-a:text-blue-600 prose-blockquote:border-blue-500 prose-pre:bg-slate-900 prose-pre:rounded-2xl">
+              <ArticleContentRenderer content={article.content} loading={loading} />
+            </article>
 
-              <div className="my-20 flex items-center gap-8">
-                <div className="h-px flex-1 bg-gradient-to-r from-transparent via-slate-200 to-transparent" />
-                <BookOpen size={32} className="text-slate-200" />
-                <div className="h-px flex-1 bg-gradient-to-r from-transparent via-slate-200 to-transparent" />
-              </div>
-
-              <CommentSection 
-                user={user}
-                comments={comments}
-                commentText={commentText}
-                setCommentText={setCommentText}
-                submittingComment={submittingComment}
-                replyTo={replyTo}
-                setReplyTo={setReplyTo}
-                isEmojiPickerOpen={isEmojiPickerOpen}
-                setIsEmojiPickerOpen={setIsEmojiPickerOpen}
-                handlePostComment={handlePostComment}
-                handleDeleteComment={handleDeleteComment}
-                insertFormatting={insertFormatting}
-                insertEmoji={insertEmoji}
-                textareaRef={textareaRef}
-                emojiPickerRef={emojiPickerRef}
-                emojis={emojis}
-                t={t}
-              />
-            </main>
-          </div>
-
-          <RelatedArticles relatedArticles={relatedArticles} t={t} formatImageUrl={(url) => url} />
-
-          <footer className="bg-slate-950 border-t border-white/5 p-8 sm:p-12 flex flex-col sm:flex-row items-center justify-between gap-8">
-            <div className="text-center sm:text-left space-y-2">
-              <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">{t('articles.last_updated')}</p>
-              <div className="text-white font-bold text-sm flex items-center gap-2">
-                <Clock size={14} className="text-blue-500" /> {format(new Date(article.updatedAt), 'dd MMMM yyyy')}
-              </div>
+            <div className="my-16 flex items-center gap-6">
+              <div className="h-px flex-1 bg-gradient-to-r from-transparent via-slate-200 to-transparent" />
+              <BookOpen size={24} className="text-slate-300" />
+              <div className="h-px flex-1 bg-gradient-to-r from-transparent via-slate-200 to-transparent" />
             </div>
-            <div className="flex gap-4">
-              <button onClick={() => navigate('/knowledge-base')} className="px-8 py-4 bg-white/5 text-white hover:bg-white/10 rounded-2xl font-black uppercase tracking-widest text-[10px] border border-white/10 transition-all active:scale-95">{t('articles.back_to_kb')}</button>
-              <button onClick={scrollToTop} className="px-8 py-4 bg-blue-600 text-white hover:bg-blue-500 rounded-2xl font-black uppercase tracking-widest text-[10px] transition-all shadow-2xl shadow-blue-600/20 active:scale-95 flex items-center gap-3">{t('articles.back_to_top')} <ArrowUp size={16} /></button>
-            </div>
-          </footer>
+
+            <CommentSection 
+              user={user}
+              comments={comments}
+              commentText={commentText}
+              setCommentText={setCommentText}
+              submittingComment={submittingComment}
+              replyTo={replyTo}
+              setReplyTo={setReplyTo}
+              isEmojiPickerOpen={isEmojiPickerOpen}
+              setIsEmojiPickerOpen={setIsEmojiPickerOpen}
+              handlePostComment={handlePostComment}
+              handleDeleteComment={handleDeleteComment}
+              insertFormatting={insertFormatting}
+              insertEmoji={insertEmoji}
+              textareaRef={textareaRef}
+              emojiPickerRef={emojiPickerRef}
+              emojis={emojis}
+              t={t}
+            />
+          </main>
         </div>
+
+        <RelatedArticles relatedArticles={relatedArticles} t={t} formatImageUrl={(url) => url} />
+
+        <footer className="bg-slate-50 border-t border-slate-200 p-6 sm:p-10 flex flex-col sm:flex-row items-center justify-between gap-6">
+          <div className="text-center sm:text-left space-y-1">
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{t('articles.last_updated')}</p>
+            <div className="text-slate-700 font-bold text-sm flex items-center gap-2 justify-center sm:justify-start">
+              <Clock size={14} className="text-blue-500" /> {format(new Date(article.updatedAt), 'dd MMMM yyyy')}
+            </div>
+          </div>
+          <div className="flex gap-3">
+            <button onClick={() => navigate('/knowledge-base')} className="px-6 py-3 bg-white text-slate-700 hover:bg-slate-50 rounded-xl font-black uppercase tracking-widest text-[10px] border border-slate-200 transition-all active:scale-95">{t('articles.back_to_kb')}</button>
+            <button onClick={scrollToTop} className="px-6 py-3 bg-blue-600 text-white hover:bg-blue-500 rounded-xl font-black uppercase tracking-widest text-[10px] transition-all shadow-lg shadow-blue-600/20 active:scale-95 flex items-center gap-2">{t('articles.back_to_top')} <ArrowUp size={14} /></button>
+          </div>
+        </footer>
       </div>
 
       <ArticleToc isTocOpen={isTocOpen} setIsTocOpen={setIsTocOpen} toc={toc} activeId={activeId} scrollToSection={scrollToSection} readingProgress={readingProgress} commentsCount={comments.length} t={t} />
       <ShareModal isShareModalOpen={isShareModalOpen} setIsShareModalOpen={setIsShareModalOpen} handleShare={handleShare} t={t} />
 
-      <button onClick={scrollToTop} className={`fixed bottom-10 right-10 size-14 sm:size-16 bg-slate-950 text-white rounded-[24px] flex items-center justify-center shadow-2xl transition-all duration-500 z-50 hover:bg-blue-600 hover:-translate-y-2 active:scale-90 shadow-blue-900/20 border border-white/10 ${showScrollTop ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10 pointer-events-none'}`}>
-        <ArrowUp size={24} />
+      <button onClick={scrollToTop} className={`fixed bottom-8 right-8 size-12 sm:size-14 bg-slate-900 text-white rounded-2xl flex items-center justify-center shadow-xl transition-all duration-500 z-50 hover:bg-blue-600 hover:-translate-y-1 active:scale-95 border border-white/10 ${showScrollTop ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10 pointer-events-none'}`}>
+        <ArrowUp size={20} />
       </button>
 
       <style dangerouslySetInnerHTML={{ __html: `
