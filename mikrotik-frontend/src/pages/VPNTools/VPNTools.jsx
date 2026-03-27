@@ -8,8 +8,9 @@ const VPNTools = () => {
   const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState('c2s');
 
+  // 🟢 เปลี่ยนมาใช้โครงสร้างที่สมดุลกับ Dashboard (ลบ max-w-6xl และ Margin ที่ซ้ำซ้อนออก)
   return (
-    <div className="max-w-6xl mx-auto space-y-6 animate-in fade-in duration-500 my-4 sm:my-8">
+    <div className="w-full space-y-6 animate-in fade-in duration-500 pb-10">
       {/* Header (Simplified to match Wizard flow) */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm relative overflow-hidden group">
         <div className="relative z-10">

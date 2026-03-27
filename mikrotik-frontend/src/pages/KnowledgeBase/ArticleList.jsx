@@ -112,8 +112,9 @@ const ArticleList = () => {
 
   const totalPages = Math.ceil(totalItems / itemsPerPage) || 1;
 
+  // 🟢 เปลี่ยนมาใช้โครงสร้างที่สมดุลกับ Dashboard (ลบ Margin และ Padding ที่ซ้ำซ้อนออก)
   return (
-    <div className="max-w-7xl mx-auto space-y-6 animate-in fade-in duration-500 my-4 sm:my-8 px-4 text-slate-900 pb-28">
+    <div className="w-full space-y-6 animate-in fade-in duration-500 pb-10">
       
       {/* 1. Page Header Section (Island Card) */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm relative overflow-hidden group">

@@ -75,8 +75,9 @@ const GlobalSettings = () => {
     { id: 'SYSTEM', label: t('settings.tabs.system'), icon: Server, color: 'text-slate-600', border: 'border-slate-600', bg: 'bg-slate-50' },
   ];
 
+  // 🟢 เปลี่ยนมาใช้โครงสร้างที่สมดุลกับ Dashboard (ลบ max-w-6xl และ Margin ที่ซ้ำซ้อนออก)
   return (
-    <div className="max-w-6xl mx-auto space-y-6 animate-in fade-in duration-500 my-4 sm:my-8">
+    <div className="w-full space-y-6 animate-in fade-in duration-500 pb-10">
       
       {/* 1. Page Header Section (Island Card) */}
       <div className="space-y-4">

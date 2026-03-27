@@ -392,8 +392,9 @@ const ArticleDetail = () => {
     }
   };
 
-  if (loading) return (
-    <div className="w-full px-4 py-12 space-y-8 max-w-[1400px] mx-auto">
+  // 🟢 เปลี่ยนมาใช้โครงสร้างที่สมดุลกับ Dashboard (ลบ max-w-[1400px] ออก)
+  return (
+    <div className="w-full px-4 py-12 space-y-8 mx-auto">
       <div className="bg-white p-12 rounded-[48px] border border-slate-200 animate-pulse h-96"></div>
     </div>
   );
@@ -412,7 +413,7 @@ const ArticleDetail = () => {
         <div className="h-full bg-blue-500 transition-all duration-150 shadow-[0_0_10px_rgba(59,130,246,0.5)]" style={{ width: `${readingProgress}%` }} />
       </div>
 
-      <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 pt-10">
+      <div className="w-full pt-10">
         <div className="bg-white rounded-[48px] border border-slate-200 shadow-2xl shadow-slate-200/50 overflow-hidden">
           
           <ArticleHeader 

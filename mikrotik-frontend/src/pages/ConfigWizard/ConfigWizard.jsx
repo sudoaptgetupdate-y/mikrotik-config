@@ -203,10 +203,11 @@ const ConfigWizard = ({ mode = 'create', initialData, onFinish }) => {
     return true;
   };
 
+  // 🟢 เปลี่ยนมาใช้โครงสร้างที่สมดุลกับ Dashboard (ลบ max-w-6xl และ Margin ที่ซ้ำซ้อนออก)
   return (
-    <div className="max-w-6xl mx-auto p-4 sm:p-6 bg-white sm:rounded-xl shadow-sm border-0 sm:border border-slate-200 my-4 sm:my-8">
-      
-      <div className="relative mb-8 sm:mb-10">
+    <div className="w-full bg-white sm:rounded-xl shadow-sm border-0 sm:border border-slate-200 pb-10">
+      <div className="p-4 sm:p-6">
+
         <div className="absolute top-[1.25rem] sm:top-[1.25rem] left-0 w-full h-1 bg-slate-100 hidden sm:block" /> 
         
         <div className="flex items-start justify-between gap-4 sm:gap-0 overflow-x-auto px-1 sm:px-4 md:px-10 pb-2 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">

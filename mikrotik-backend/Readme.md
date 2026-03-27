@@ -120,3 +120,51 @@ app.set('trust proxy', ['loopback', 'linklocal', 'uniquelocal', '192.168.191.0/2
 Bash
 
 pm2 restart all
+
+-------------------------------------------
+
+[[3]] การตั้งค่าขนาดการอัพโหลดรูปภาพ (Image Upload Size)
+
+หากต้องการเพิ่มขีดจำกัดการอัพโหลดรูปภาพ (เช่น 5MB) ต้องตั้งค่าทั้ง 3 ส่วนดังนี้:
+
+🛠️ ส่วนที่ 1: เครื่อง Reverse Proxy (ด่านแรก)
+แก้ไขไฟล์ Nginx ในเครื่องที่รับ Traffic จากภายนอก เพิ่ม `client_max_body_size` ใน `server` block:
+Nginx
+server {
+    server_name yourdomain.com;
+    client_max_body_size 5M; # ✅ อนุญาตให้ส่งไฟล์ขนาด 5MB ผ่าน Proxy ได้
+    
+    # ... config อื่นๆ ...
+}
+
+🛠️ ส่วนที่ 2: เครื่อง Web Server (เครื่องที่รัน Backend)
+แก้ไขไฟล์ Nginx ในเครื่องที่รัน Node.js เพิ่ม `client_max_body_size` ใน `location /api/`:
+Nginx
+server {
+    # ...
+    location /api/ {
+        client_max_body_size 5M; # ✅ อนุญาตให้ API รับไฟล์ขนาด 5MB
+        proxy_pass http://localhost:3000/api/;
+        # ...
+    }
+}
+
+🛠️ ส่วนที่ 3: Backend (app.js)
+ตรวจสอบให้แน่ใจว่า Body Parser ใน `app.js` รองรับขนาดที่ต้องการ:
+JavaScript
+// 🛡️ 4. Body Parser & Payload Limit
+app.use(express.json({ limit: '5MB' }));
+app.use(express.urlencoded({ extended: true, limit: '5MB' }));
+
+และตรวจสอบขีดจำกัดใน `multer` (เช่นใน `src/routes/articleRoutes.js`):
+JavaScript
+const upload = multer({ 
+  storage: storage,
+  limits: { fileSize: 5 * 1024 * 1024 }, // ✅ 5MB
+  // ...
+});
+
+บันทึกและตรวจสอบ Syntax Nginx ก่อน Restart เสมอ:
+Bash
+sudo nginx -t
+sudo systemctl reload nginx

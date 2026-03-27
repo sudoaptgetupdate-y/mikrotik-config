@@ -111,8 +111,9 @@ const UserProfile = () => {
   // ==========================================
   if (loading) return <div className="flex justify-center items-center h-64"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600"></div></div>;
 
+  // 🟢 เปลี่ยนมาใช้โครงสร้างที่สมดุลกับ Dashboard (ลบ max-w-6xl และ Margin ที่ซ้ำซ้อนออก)
   return (
-    <div className="max-w-6xl mx-auto space-y-6 animate-in fade-in duration-500 my-4 sm:my-8">
+    <div className="w-full space-y-6 animate-in fade-in duration-500 pb-10">
       
       {/* Profile Header Card */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden group relative">
