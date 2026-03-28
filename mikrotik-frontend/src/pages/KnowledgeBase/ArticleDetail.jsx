@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { ChevronLeft, BookOpen, Loader2, ArrowUp, List, Clock } from 'lucide-react';
+import { BookOpen, ArrowUp, Clock } from 'lucide-react';
 import articleService from '../../services/articleService';
 import { useTranslation } from 'react-i18next';
 import { format } from 'date-fns';
 import { useAuth } from '../../context/AuthContext';
 import Swal from 'sweetalert2';
+import 'quill/dist/quill.snow.css';
 
 // Sub-components
 import ArticleHeader from './components/ArticleDetail/ArticleHeader';
@@ -14,7 +15,7 @@ import RelatedArticles from './components/ArticleDetail/RelatedArticles';
 import ArticleToc from './components/ArticleDetail/ArticleToc';
 import ShareModal from './components/ArticleDetail/ShareModal';
 
-// Memoized Content Component to prevent unnecessary re-renders on scroll
+// Memoized Content Component
 const ArticleContentRenderer = React.memo(({ content, loading }) => {
   const contentRef = useRef(null);
 
@@ -65,7 +66,6 @@ const ArticleContentRenderer = React.memo(({ content, loading }) => {
         label.className = 'absolute bottom-4 right-4 text-[9px] font-black text-slate-500 uppercase tracking-widest opacity-30 pointer-events-none z-10';
         block.appendChild(label);
 
-        // --- NEW: Expand/Collapse Logic for long code blocks ---
         const lineCount = codeContent.split('\n').length;
         if (lineCount > 8) {
           block.style.maxHeight = '280px';
@@ -88,15 +88,12 @@ const ArticleContentRenderer = React.memo(({ content, loading }) => {
               expandWrapper.classList.add('h-14', 'bg-transparent', 'mt-4');
               expandBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2"><path d="m17 11-5-5-5 5"/><path d="m17 17-5-5-5 5"/></svg> COLLAPSE CODE';
               expandBtn.className = 'bg-slate-800/50 hover:bg-slate-700 text-white/50 hover:text-white text-[10px] font-black px-6 py-2.5 rounded-full border border-white/5 backdrop-blur-sm transition-all uppercase tracking-[0.2em] flex items-center mx-auto';
-              // Scroll slightly to keep the top of the block in view if needed
             } else {
               block.style.maxHeight = '280px';
               expandWrapper.classList.add('h-24', 'bg-gradient-to-t', 'from-slate-950', 'via-slate-950/80');
               expandWrapper.classList.remove('h-14', 'bg-transparent', 'mt-4');
               expandBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2"><path d="m7 15 5 5 5-5"/><path d="m7 9 5-5 5 5"/></svg> SHOW FULL CODE';
               expandBtn.className = 'bg-white/10 hover:bg-white/20 text-white text-[10px] font-black px-6 py-2.5 rounded-full border border-white/10 backdrop-blur-md transition-all shadow-xl uppercase tracking-[0.2em] flex items-center group-active:scale-95';
-              
-              // Smooth scroll back to the top of the block when collapsing
               block.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
             }
           };
@@ -111,7 +108,9 @@ const ArticleContentRenderer = React.memo(({ content, loading }) => {
   }, [content, loading]);
 
   return (
-    <div ref={contentRef} className="article-content" dangerouslySetInnerHTML={{ __html: content }} />
+    <div className="ql-container ql-snow" style={{ border: 'none' }}>
+      <div ref={contentRef} className="article-content ql-editor article-render-container" style={{ padding: 0, minHeight: 'auto' }} dangerouslySetInnerHTML={{ __html: content }} />
+    </div>
   );
 });
 
@@ -121,29 +120,23 @@ const ArticleDetail = () => {
   const { t } = useTranslation();
   const { user } = useAuth();
   
-  // Article State
   const [article, setArticle] = useState(null);
   const [relatedArticles, setRelatedArticles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isFavorited, setIsFavorited] = useState(false);
   const [togglingFavorite, setTogglingFavorite] = useState(false);
-  
-  // UI State
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [readingProgress, setReadingProgress] = useState(0);
   const [toc, setToc] = useState([]);
   const [activeId, setActiveId] = useState('');
   const [isTocOpen, setIsTocOpen] = useState(true);
-  
-  // Comment State
   const [comments, setComments] = useState([]);
   const [commentText, setCommentText] = useState('');
   const [submittingComment, setSubmittingComment] = useState(false);
   const [replyTo, setReplyTo] = useState(null);
   const [isEmojiPickerOpen, setIsEmojiPickerOpen] = useState(false);
 
-  // Refs
   const contentRef = useRef(null);
   const textareaRef = useRef(null);
   const emojiPickerRef = useRef(null);
@@ -161,7 +154,6 @@ const ArticleDetail = () => {
   useEffect(() => {
     const mainElement = document.querySelector('main');
     const handleScroll = () => {
-      const element = mainElement || window;
       const scrollTop = mainElement ? mainElement.scrollTop : window.scrollY;
       const scrollHeight = mainElement ? mainElement.scrollHeight : document.documentElement.scrollHeight;
       const clientHeight = mainElement ? mainElement.clientHeight : window.innerHeight;
@@ -287,22 +279,7 @@ const ArticleDetail = () => {
         } else {
           setComments(prev => prev.filter(c => c.id !== id));
         }
-        
-        const Toast = Swal.mixin({
-          toast: true,
-          position: 'top-end',
-          showConfirmButton: false,
-          timer: 3000,
-          timerProgressBar: true,
-          background: '#ffffff',
-          color: '#0f172a',
-          iconColor: '#f43f5e'
-        });
-
-        Toast.fire({
-          icon: 'success',
-          title: t('articles.delete_comment_success')
-        });
+        Swal.fire({ toast: true, position: 'top-end', showConfirmButton: false, timer: 3000, icon: 'success', title: t('articles.delete_comment_success') });
       } catch (e) {}
     }
   };
@@ -313,8 +290,7 @@ const ArticleDetail = () => {
       setTogglingFavorite(true);
       const res = await articleService.toggleFavorite(article.id);
       setIsFavorited(res.isFavorited);
-      const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 3000, timerProgressBar: true, background: '#ffffff', color: '#0f172a', iconColor: res.isFavorited ? '#f43f5e' : '#64748b' });
-      Toast.fire({ icon: res.isFavorited ? 'success' : 'info', title: res.isFavorited ? t('articles.toast.favorite_added') : t('articles.toast.favorite_removed') });
+      Swal.fire({ toast: true, position: 'top-end', showConfirmButton: false, timer: 3000, icon: res.isFavorited ? 'success' : 'info', title: res.isFavorited ? t('articles.toast.favorite_added') : t('articles.toast.favorite_removed') });
     } catch (e) {} finally {
       setTogglingFavorite(false);
     }
@@ -325,8 +301,7 @@ const ArticleDetail = () => {
     const title = article?.title || 'Check out this article';
     if (platform === 'copy') {
       navigator.clipboard.writeText(url);
-      const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 2500, timerProgressBar: true, background: '#ffffff', color: '#0f172a', iconColor: '#3b82f6' });
-      Toast.fire({ icon: 'success', title: t('common.copied') });
+      Swal.fire({ toast: true, position: 'top-end', showConfirmButton: false, timer: 2500, icon: 'success', title: t('common.copied') });
       setIsShareModalOpen(false);
       return;
     }
@@ -392,146 +367,124 @@ const ArticleDetail = () => {
     }
   };
 
-  // 🟢 เปลี่ยนมาใช้โครงสร้างที่สมดุลกับ Dashboard (ลบ max-w-[1400px] ออก)
   if (loading) return (
-    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <div className="bg-white p-8 rounded-3xl border border-slate-200 animate-pulse h-[600px] shadow-sm"></div>
+    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 bg-slate-50 min-h-screen p-10">
+      <div className="bg-white p-8 rounded-3xl border border-slate-100 animate-pulse h-[600px] shadow-sm"></div>
     </div>
   );
 
   if (!article) return (
-    <div className="flex flex-col items-center justify-center py-20 text-center px-4">
-      <div className="bg-slate-100 p-8 rounded-3xl mb-6 border border-slate-200"><BookOpen size={64} className="text-slate-300" /></div>
+    <div className="flex flex-col items-center justify-center py-20 text-center px-4 bg-slate-50 min-h-screen">
+      <div className="bg-white p-8 rounded-3xl mb-6 border border-slate-100"><BookOpen size={64} className="text-slate-200" /></div>
       <h2 className="text-2xl font-black text-slate-800 tracking-tight">{t('articles.no_articles')}</h2>
       <button onClick={() => navigate('/knowledge-base')} className="bg-slate-900 text-white px-8 py-3 rounded-2xl font-black uppercase mt-8 text-xs">{t('articles.back_to_kb')}</button>
     </div>
   );
 
   return (
-    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">
-      <div className="fixed top-0 left-0 w-full h-1 z-[110] bg-white/20 backdrop-blur-sm pointer-events-none">
-        <div className="h-full bg-blue-500 transition-all duration-150 shadow-[0_0_10px_rgba(59,130,246,0.5)]" style={{ width: `${readingProgress}%` }} />
+    <div className="animate-in fade-in slide-in-from-bottom-4 duration-700 pb-20 bg-slate-50 min-h-screen">
+      {/* 1. Progress Bar */}
+      <div className="fixed top-0 left-0 w-full h-1.5 z-[110] bg-white/10 backdrop-blur-md pointer-events-none">
+        <div className="h-full bg-gradient-to-r from-blue-600 via-cyan-400 to-blue-600 bg-[length:200%_auto] animate-marquee transition-all duration-300 shadow-[0_0_20px_rgba(59,130,246,0.4)]" style={{ width: `${readingProgress}%` }} />
       </div>
 
-      <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+      {/* 2. Unified Light-Cream Header Stage */}
+      <div className="relative overflow-hidden pt-8 pb-20 bg-slate-50">
+        {/* Subtle Glow Effects - Very Light */}
+        <div className="absolute top-0 right-0 w-[1000px] h-[1000px] bg-blue-400/[0.03] blur-[180px] rounded-full -translate-y-1/2 translate-x-1/4 pointer-events-none" />
+        <div className="absolute bottom-0 left-0 w-[600px] h-[600px] bg-cyan-300/[0.03] blur-[150px] rounded-full translate-y-1/2 -translate-x-1/4 pointer-events-none" />
         
-        <ArticleHeader 
-          article={article} 
-          commentsCount={comments.length}
-          isFavorited={isFavorited}
-          togglingFavorite={togglingFavorite}
-          handleToggleFavorite={handleToggleFavorite}
-          handleShare={handleShare}
-          t={t}
-          formatImageUrl={(url) => url}
-        />
-
-        <div className="relative">
-          <main className="max-w-4xl mx-auto px-6 sm:px-10 md:px-12 py-12 sm:py-16">
-            <article className="prose prose-slate max-w-none prose-headings:font-black prose-p:text-slate-600 prose-p:leading-[1.8] prose-a:text-blue-600 prose-blockquote:border-blue-500 prose-pre:bg-slate-900 prose-pre:rounded-2xl">
-              <ArticleContentRenderer content={article.content} loading={loading} />
-            </article>
-
-            <div className="my-16 flex items-center gap-6">
-              <div className="h-px flex-1 bg-gradient-to-r from-transparent via-slate-200 to-transparent" />
-              <BookOpen size={24} className="text-slate-300" />
-              <div className="h-px flex-1 bg-gradient-to-r from-transparent via-slate-200 to-transparent" />
+        <div className="px-4 sm:px-6 lg:px-8">
+          <div className="max-w-6xl mx-auto">
+            <div className="rounded-[48px] overflow-hidden border border-slate-100 shadow-[0_30px_80px_-20px_rgba(0,0,0,0.05)] bg-white relative">
+              <ArticleHeader 
+                article={article} 
+                commentsCount={comments.length}
+                isFavorited={isFavorited}
+                togglingFavorite={togglingFavorite}
+                handleToggleFavorite={handleToggleFavorite}
+                handleShare={handleShare}
+                t={t}
+                formatImageUrl={(url) => url}
+              />
             </div>
-
-            <CommentSection 
-              user={user}
-              comments={comments}
-              commentText={commentText}
-              setCommentText={setCommentText}
-              submittingComment={submittingComment}
-              replyTo={replyTo}
-              setReplyTo={setReplyTo}
-              isEmojiPickerOpen={isEmojiPickerOpen}
-              setIsEmojiPickerOpen={setIsEmojiPickerOpen}
-              handlePostComment={handlePostComment}
-              handleDeleteComment={handleDeleteComment}
-              insertFormatting={insertFormatting}
-              insertEmoji={insertEmoji}
-              textareaRef={textareaRef}
-              emojiPickerRef={emojiPickerRef}
-              emojis={emojis}
-              t={t}
-            />
-          </main>
+          </div>
         </div>
+      </div>
 
-        <RelatedArticles relatedArticles={relatedArticles} t={t} formatImageUrl={(url) => url} />
+      {/* 3. Floating Elevated Content Section - Tighter Overlap */}
+      <div className="relative -mt-16 z-20 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-6xl mx-auto">
+          {/* Main Card - Crisp White Floating on Slate-50 */}
+          <div className="bg-white rounded-[60px] shadow-[0_40px_100px_-30px_rgba(0,0,0,0.06),0_10px_40px_-20px_rgba(0,0,0,0.03)] border border-slate-100 overflow-hidden">
+            <main className="px-6 sm:px-12 md:px-20 lg:px-24 pt-12 sm:pt-16 pb-20">
+              <div className="article-detail-content max-w-none">
+                <ArticleContentRenderer content={article.content} loading={loading} />
+              </div>
 
-        <footer className="bg-slate-50 border-t border-slate-200 p-6 sm:p-10 flex flex-col sm:flex-row items-center justify-between gap-6">
-          <div className="text-center sm:text-left space-y-1">
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{t('articles.last_updated')}</p>
-            <div className="text-slate-700 font-bold text-sm flex items-center gap-2 justify-center sm:justify-start">
-              <Clock size={14} className="text-blue-500" /> {format(new Date(article.updatedAt), 'dd MMMM yyyy')}
-            </div>
+              {/* Divider */}
+              <div className="my-28 flex items-center gap-12">
+                <div className="h-px flex-1 bg-gradient-to-r from-transparent via-slate-200 to-transparent" />
+                <div className="relative">
+                  <div className="absolute inset-0 bg-blue-600/5 blur-xl rounded-full" />
+                  <div className="relative size-14 rounded-2xl bg-white border border-slate-100 flex items-center justify-center text-blue-600 shadow-sm">
+                    <BookOpen size={28} strokeWidth={1.5} />
+                  </div>
+                </div>
+                <div className="h-px flex-1 bg-gradient-to-r from-transparent via-slate-200 to-transparent" />
+              </div>
+
+              {/* Comment Section */}
+              <div className="max-w-4xl mx-auto">
+                <CommentSection 
+                  user={user}
+                  comments={comments}
+                  commentText={commentText}
+                  setCommentText={setCommentText}
+                  submittingComment={submittingComment}
+                  replyTo={replyTo}
+                  setReplyTo={setReplyTo}
+                  isEmojiPickerOpen={isEmojiPickerOpen}
+                  setIsEmojiPickerOpen={setIsEmojiPickerOpen}
+                  handlePostComment={handlePostComment}
+                  handleDeleteComment={handleDeleteComment}
+                  insertFormatting={insertFormatting}
+                  insertEmoji={insertEmoji}
+                  textareaRef={textareaRef}
+                  emojiPickerRef={emojiPickerRef}
+                  emojis={emojis}
+                  t={t}
+                />
+              </div>
+            </main>
+
+            <RelatedArticles relatedArticles={relatedArticles} t={t} formatImageUrl={(url) => url} />
+
+            <footer className="bg-slate-50/50 backdrop-blur-md border-t border-slate-100 p-8 sm:p-12 flex flex-col sm:flex-row items-center justify-between gap-8">
+              <div className="text-center sm:text-left space-y-2">
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">{t('articles.last_updated')}</p>
+                <div className="text-slate-800 font-black text-base flex items-center gap-3 justify-center sm:justify-start">
+                  <div className="size-8 bg-white rounded-lg flex items-center justify-center border border-slate-200 shadow-sm text-blue-600">
+                    <Clock size={16} />
+                  </div>
+                  {format(new Date(article.updatedAt), 'dd MMMM yyyy')}
+                </div>
+              </div>
+              <div className="flex gap-4">
+                <button onClick={() => navigate('/knowledge-base')} className="px-8 py-4 bg-white text-slate-700 hover:bg-slate-50 rounded-2xl font-black uppercase tracking-widest text-[10px] border border-slate-200 transition-all active:scale-95 shadow-sm">{t('articles.back_to_kb')}</button>
+                <button onClick={scrollToTop} className="px-8 py-4 bg-slate-900 text-white hover:bg-blue-600 rounded-2xl font-black uppercase tracking-widest text-[10px] transition-all shadow-xl shadow-slate-900/20 active:scale-95 flex items-center gap-3">{t('articles.back_to_top')} <ArrowUp size={16} /></button>
+              </div>
+            </footer>
           </div>
-          <div className="flex gap-3">
-            <button onClick={() => navigate('/knowledge-base')} className="px-6 py-3 bg-white text-slate-700 hover:bg-slate-50 rounded-xl font-black uppercase tracking-widest text-[10px] border border-slate-200 transition-all active:scale-95">{t('articles.back_to_kb')}</button>
-            <button onClick={scrollToTop} className="px-6 py-3 bg-blue-600 text-white hover:bg-blue-500 rounded-xl font-black uppercase tracking-widest text-[10px] transition-all shadow-lg shadow-blue-600/20 active:scale-95 flex items-center gap-2">{t('articles.back_to_top')} <ArrowUp size={14} /></button>
-          </div>
-        </footer>
+        </div>
       </div>
 
       <ArticleToc isTocOpen={isTocOpen} setIsTocOpen={setIsTocOpen} toc={toc} activeId={activeId} scrollToSection={scrollToSection} readingProgress={readingProgress} commentsCount={comments.length} t={t} />
       <ShareModal isShareModalOpen={isShareModalOpen} setIsShareModalOpen={setIsShareModalOpen} handleShare={handleShare} t={t} />
 
-      <button onClick={scrollToTop} className={`fixed bottom-8 right-8 size-12 sm:size-14 bg-slate-900 text-white rounded-2xl flex items-center justify-center shadow-xl transition-all duration-500 z-50 hover:bg-blue-600 hover:-translate-y-1 active:scale-95 border border-white/10 ${showScrollTop ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10 pointer-events-none'}`}>
-        <ArrowUp size={20} />
+      <button onClick={scrollToTop} className={`fixed bottom-10 right-10 size-14 sm:size-16 bg-slate-950 text-white rounded-[24px] flex items-center justify-center shadow-2xl transition-all duration-500 z-50 hover:bg-blue-600 hover:-translate-y-2 active:scale-95 border border-white/10 group ${showScrollTop ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10 pointer-events-none'}`}>
+        <ArrowUp size={24} className="group-hover:animate-bounce" />
       </button>
-
-      <style dangerouslySetInnerHTML={{ __html: `
-        .article-content { font-family: 'Inter', system-ui, -apple-system, sans-serif; line-height: 1.8; color: #334155; font-size: 1.125rem; }
-        .article-content h2 { margin-top: 4.5rem; margin-bottom: 2rem; font-weight: 900; font-size: 2.25rem; color: #0f172a; letter-spacing: -0.04em; border-left: 6px solid #3b82f6; padding-left: 1.5rem; scroll-margin-top: 120px; }
-        .article-content h3 { margin-top: 3.5rem; margin-bottom: 1.5rem; font-weight: 800; font-size: 1.75rem; color: #1e293b; scroll-margin-top: 120px; }
-        .article-content p { margin-bottom: 1.75rem; }
-        .article-content img { max-width: 100%; height: auto; margin: 3rem auto; border-radius: 2.5rem; box-shadow: 0 30px 60px -12px rgba(0, 0, 0, 0.12); border: 8px solid white; }
-        .article-content blockquote { border-left: 6px solid #3b82f6; padding: 2rem 2.5rem; font-style: italic; color: #0f172a; margin: 3rem 0; background: #f8fafc; border-radius: 0 2.5rem 2.5rem 0; font-size: 1.25rem; line-height: 1.6; }
-        
-        /* Code Block Styling (Quill .ql-syntax and Quill 2.0 .ql-code-block-container) */
-        .article-content pre, 
-        .article-content .ql-syntax,
-        .article-content .ql-code-block-container { 
-          background: #0f172a !important; 
-          color: #f8fafc !important; 
-          padding: 2.5rem !important; 
-          border-radius: 2rem !important; 
-          overflow-x: auto !important; 
-          margin: 3rem 0 !important; 
-          font-family: 'Fira Code', monospace !important; 
-          font-size: 0.9rem !important; 
-          position: relative !important; 
-          box-shadow: 0 30px 60px -12px rgba(0, 0, 0, 0.25) !important; 
-          line-height: 1.7 !important; 
-        }
-
-        .article-content .ql-code-block {
-          white-space: pre !important;
-        }
-
-        /* Inline Code Styling */
-        .article-content code { 
-          background: #f1f5f9 !important; 
-          color: #3b82f6 !important; 
-          padding: 0.25rem 0.5rem !important; 
-          border-radius: 0.75rem !important; 
-          font-size: 0.85em !important; 
-          font-weight: 800 !important;
-          font-family: 'Fira Code', monospace !important;
-        }
-        
-        /* Remove prose default backticks for code */
-        .prose code::before, .prose code::after { content: "" !important; }
-
-        .article-content pre code { background: transparent !important; color: inherit !important; padding: 0 !important; font-weight: 400 !important; font-size: inherit !important; }
-        .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
-      ` }} />
     </div>
   );
 };

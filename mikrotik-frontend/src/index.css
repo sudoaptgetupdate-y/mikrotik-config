@@ -23,3 +23,44 @@
     font-family: inherit;
   }
 }
+
+@layer components {
+  /* สไตล์สำหรับเนื้อหาบทความที่ดึงมาจาก Editor */
+  .article-render-container {
+    @apply leading-[1.7] text-slate-600 font-["Plus_Jakarta_Sans",_sans-serif] text-[1.15rem];
+  }
+
+  .article-render-container p,
+  .article-render-container div,
+  .article-render-container blockquote {
+    @apply m-0 p-0 leading-[1.7];
+    /* จัดการเคสการกด Enter (ย่อหน้าว่าง) ให้มีความสูงเท่าบรรทัดปกติ */
+    min-height: 1.7em;
+  }
+
+  .article-render-container h2 {
+    @apply mt-10 mb-5 font-black text-[2.5rem] text-slate-900 flex items-center gap-6;
+  }
+
+  .article-render-container h2::before {
+    content: "";
+    @apply block w-2 h-10 bg-blue-600 rounded-full;
+  }
+
+  .article-render-container h3 {
+    @apply mt-8 mb-4 font-extrabold text-[1.85rem] text-slate-900;
+  }
+
+  .article-render-container a {
+    @apply text-blue-600 no-underline font-semibold border-b border-blue-600/20 hover:bg-blue-600/5 hover:border-blue-600 transition-all;
+  }
+
+  .article-render-container strong {
+    @apply text-slate-900 font-[800];
+  }
+
+  /* จัดการรูปภาพในบทความ */
+  .article-render-container img {
+    @apply rounded-3xl border-[6px] border-white shadow-lg mt-4 mb-8 mx-auto block max-w-full h-auto;
+  }
+}
