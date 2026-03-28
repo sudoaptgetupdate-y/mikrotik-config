@@ -18,11 +18,13 @@ import OfflineDevices from './components/OfflineDevices';
 import TopUptimeDevices from './components/TopUptimeDevices';
 import EventSummaryCard from './components/EventSummaryCard';
 import TopTroubleDevices from './components/TopTroubleDevices';
+import { useOutletContext } from 'react-router-dom';
 
 const Dashboard = () => {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { openWizard } = useOutletContext(); // ดึงฟังก์ชันเปิด Wizard จาก Layout
 // ฟังก์ชันช่วยแปลง Uptime ของ MikroTik ให้เป็นวินาทีเพื่อใช้ในการเรียงลำดับ
 const uptimeToSeconds = (uptimeStr) => {
   if (!uptimeStr || uptimeStr === 'N/A') return 0;
@@ -278,7 +280,7 @@ const uptimeToSeconds = (uptimeStr) => {
         {/* Column 3: Performance & Tools */}
         <div className="space-y-6">
           <TopUptimeDevices devices={topUptimeDevices} />
-          <QuickActions />
+          <QuickActions openWizard={openWizard} />
         </div>
 
       </div>

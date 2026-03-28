@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Plus, Router, Database, Users, ArrowRight } from 'lucide-react';
 
-const QuickActions = () => {
+const QuickActions = ({ openWizard }) => {
   const { t } = useTranslation();
   const navigate = useNavigate();
 
@@ -16,8 +16,10 @@ const QuickActions = () => {
       
       <div className="grid gap-3">
         {/* 1. Add New Device */}
-        <button onClick={() => navigate('/add-device')} className="flex items-center justify-between w-full p-4 bg-white border border-slate-200 hover:border-blue-300 hover:shadow-md rounded-2xl transition-all group text-left">
-          <div className="flex items-center gap-3">
+        <button 
+          onClick={() => openWizard?.('create')} 
+          className="flex items-center justify-between w-full p-4 bg-white border border-slate-200 hover:border-blue-300 hover:shadow-md rounded-2xl transition-all group text-left"
+        >          <div className="flex items-center gap-3">
             <div className="p-2.5 bg-blue-50 text-blue-600 rounded-xl group-hover:bg-blue-600 group-hover:text-white transition-colors"><Plus size={20} /></div>
             <div>
               <h4 className="text-sm font-bold text-slate-800 group-hover:text-blue-600 transition">{t('sidebar.config_wizard')}</h4>

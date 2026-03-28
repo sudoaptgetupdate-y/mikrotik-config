@@ -8,13 +8,30 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext'; 
 import Footer from '../components/Footer';
+import ConfigWizardModal from '../pages/ConfigWizard/ConfigWizardModal';
 
 const MainLayout = () => {
   const { t, i18n } = useTranslation();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  
+  // --- Global Wizard State ---
+  const [wizardState, setWizardState] = useState({
+    isOpen: false,
+    mode: 'create',
+    initialData: null
+  });
+
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+
+  const openWizard = (mode = 'create', initialData = null) => {
+    setWizardState({ isOpen: true, mode, initialData });
+  };
+
+  const closeWizard = () => {
+    setWizardState(prev => ({ ...prev, isOpen: false }));
+  };
 
   const toggleLanguage = () => {
     const nextLang = i18n.language === 'en' ? 'th' : 'en';
@@ -68,6 +85,14 @@ const MainLayout = () => {
   // ==========================================
   return (
     <div className="flex h-screen bg-slate-50 overflow-hidden text-slate-900">
+      
+      {/* 🧙‍♂️ Global Config Wizard Modal */}
+      <ConfigWizardModal 
+        isOpen={wizardState.isOpen} 
+        onClose={closeWizard} 
+        mode={wizardState.mode} 
+        initialData={wizardState.initialData} 
+      />
 
       {/* 📱 Mobile Menu Button */}
       <div className="md:hidden fixed top-4 right-4 z-50">
@@ -138,6 +163,30 @@ const MainLayout = () => {
               <div className="space-y-1">
                 {filterMenuItems(category.items).map((item) => {
                   const Icon = item.icon;
+                  // Special case for Config Builder to open as Modal
+                  if (item.to === '/config-builder') {
+                    return (
+                      <button 
+                        key={item.to}
+                        onClick={() => {
+                          setIsMobileMenuOpen(false);
+                          openWizard('standalone');
+                        }}
+                        title={isSidebarCollapsed ? item.label : ''}
+                        className={`
+                          w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 group relative
+                          ${isSidebarCollapsed ? 'md:justify-center md:px-0' : ''}
+                          text-slate-400 hover:text-white hover:bg-slate-800/50
+                        `}
+                      >
+                        <Icon size={20} className="shrink-0 text-slate-500 group-hover:text-blue-400 transition-colors" />
+                        <span className={`truncate transition-all duration-300 ${isSidebarCollapsed ? 'md:hidden opacity-0 w-0' : 'opacity-100 w-auto'}`}>
+                          {item.label}
+                        </span>
+                      </button>
+                    );
+                  }
+
                   return (
                     <NavLink 
                       key={item.to} 
@@ -224,7 +273,7 @@ const MainLayout = () => {
 
         {/* 1. ส่วนเนื้อหาหลัก */}
         <div className="p-4 md:p-8 max-w-7xl mx-auto w-full">
-          <Outlet /> 
+          <Outlet context={{ openWizard }} /> 
         </div>
 
         {/* 2. ส่วน Footer */}

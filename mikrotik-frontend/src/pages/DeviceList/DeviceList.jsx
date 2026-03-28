@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, useOutletContext } from 'react-router-dom';
 import { Activity, Plus, ChevronRight, ChevronLeft } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import toast from 'react-hot-toast';
@@ -27,6 +27,7 @@ const DeviceList = () => {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
+  const { openWizard } = useOutletContext(); // ดึงฟังก์ชันเปิด Wizard จาก Layout
   const { user } = useAuth(); 
   const canEdit = user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN';
   
@@ -180,8 +181,8 @@ const DeviceList = () => {
   // Handlers (Actions)
   // ==========================================
   const handleRefresh = () => refetch();
-  const handleAddClick = () => navigate('/add-device');
-  const handleEditClick = (device) => navigate(`/edit-device/${device.id}`, { state: { deviceData: device } });
+  const handleAddClick = () => openWizard('create');
+  const handleEditClick = (device) => openWizard('edit', device);
 
   const handleDeleteClick = async (device) => {
     const result = await Swal.fire({
