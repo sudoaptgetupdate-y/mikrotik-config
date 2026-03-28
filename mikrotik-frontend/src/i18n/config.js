@@ -1135,6 +1135,7 @@ const resources = {
         device_groups: "กลุ่มอุปกรณ์",
         hardware_models: "รุ่นฮาร์ดแวร์",
         vpn_tools: "ตั้งค่า VPN",
+        config_builder: "สร้างคอนฟิก",
         config_wizard: "ตัวช่วยตั้งค่า",
         audit_logs: "ประวัติการใช้งาน",
         user_management: "จัดการผู้ใช้งาน",

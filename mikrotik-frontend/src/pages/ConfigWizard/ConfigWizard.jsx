@@ -203,25 +203,25 @@ const ConfigWizard = ({ mode = 'create', initialData, onFinish }) => {
     return true;
   };
 
-  // 🟢 เปลี่ยนมาใช้โครงสร้างที่สมดุลกับ Dashboard (ลบ max-w-6xl และ Margin ที่ซ้ำซ้อนออก)
+  // 🟢 ปรับโครงสร้างให้ดูเป็น Card ที่ลอยเด่น (Balanced & Premium)
   return (
-    <div className="w-full bg-white sm:rounded-xl shadow-sm border-0 sm:border border-slate-200 pb-10">
-      <div className="p-4 sm:p-6">
-
-        <div className="absolute top-[1.25rem] sm:top-[1.25rem] left-0 w-full h-1 bg-slate-100 hidden sm:block" /> 
+    <div className="max-w-5xl mx-auto w-full bg-white sm:rounded-3xl shadow-[0_20px_50px_-12px_rgba(0,0,0,0.05),0_10px_20px_-10px_rgba(0,0,0,0.02)] border-0 sm:border border-slate-100 overflow-hidden pb-10">
+      {/* 1. Header & Stepper Area */}
+      <div className="p-6 sm:p-10 bg-slate-50/50 border-b border-slate-100 relative">
+        <div className="absolute top-[2.4rem] sm:top-[3.4rem] left-0 w-full h-1 bg-slate-200/50 hidden sm:block" /> 
         
-        <div className="flex items-start justify-between gap-4 sm:gap-0 overflow-x-auto px-1 sm:px-4 md:px-10 pb-2 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+        <div className="flex items-start justify-between gap-4 sm:gap-0 overflow-x-auto px-1 sm:px-4 pb-2 relative z-10 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
           {activeSteps.map((step, idx) => {
             const stepNum = idx + 1;
             const isActive = currentStepIndex >= idx;
             return (
-              <div key={step.id} className="flex flex-col items-center relative z-10 bg-white px-2 min-w-[64px] sm:min-w-[80px]">
-                <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center text-xs sm:text-base font-bold transition-all duration-300 border-2 ${
-                  isActive ? 'bg-blue-600 border-blue-600 text-white' : 'bg-white border-slate-200 text-slate-400'
-                } ${currentStepIndex === idx ? 'ring-4 ring-blue-100' : ''}`}>
-                  {isActive ? (currentStepIndex > idx ? <CheckCircle size={16} className="sm:w-5 sm:h-5" /> : stepNum) : stepNum}
+              <div key={step.id} className="flex flex-col items-center min-w-[64px] sm:min-w-[80px]">
+                <div className={`w-9 h-9 sm:w-12 sm:h-12 rounded-[14px] sm:rounded-[18px] flex items-center justify-center text-xs sm:text-base font-black transition-all duration-500 border-2 bg-white ${
+                  isActive ? 'border-blue-600 text-blue-600 shadow-lg shadow-blue-600/10' : 'border-slate-200 text-slate-300'
+                } ${currentStepIndex === idx ? 'ring-4 ring-blue-100 !bg-blue-600 !text-white !border-blue-600 scale-110' : ''}`}>
+                  {isActive && currentStepIndex > idx ? <CheckCircle size={20} strokeWidth={2.5} /> : stepNum}
                 </div>
-                <span className={`text-[10px] sm:text-xs mt-2 font-medium text-center leading-tight ${isActive ? 'text-blue-600' : 'text-slate-400'}`}>
+                <span className={`text-[10px] sm:text-[11px] mt-3 font-black uppercase tracking-wider text-center leading-tight ${isActive ? 'text-blue-600' : 'text-slate-400'}`}>
                   {step.label}
                 </span>
               </div>
@@ -230,11 +230,15 @@ const ConfigWizard = ({ mode = 'create', initialData, onFinish }) => {
         </div>
       </div>
 
-      <div className="min-h-[300px] sm:min-h-[450px]">
+      {/* 2. Content Area */}
+      <div className="min-h-[350px] sm:min-h-[500px] px-6 sm:px-12 py-10">
         {loading ? (
-          <div className="text-center py-20 text-slate-400 font-medium italic">{t('common.loading')}</div>
+          <div className="flex flex-col items-center justify-center py-20 gap-4">
+             <div className="size-12 border-4 border-blue-600/20 border-t-blue-600 rounded-full animate-spin" />
+             <div className="text-slate-400 font-black uppercase tracking-widest text-xs">{t('common.loading')}</div>
+          </div>
         ) : (
-          <>
+          <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
             {currentStepData.id === 'model' && <Step1_ModelSelect models={models} selectedModel={selectedModel} setSelectedModel={setSelectedModel} deviceMeta={deviceMeta} setDeviceMeta={setDeviceMeta} mode={mode} />}
             {currentStepData.id === 'wan' && <Step2_WANSetup selectedModel={selectedModel} wanList={wanList} setWanList={setWanList} />}
             {currentStepData.id === 'dns' && <Step3_DNSSettings dnsConfig={dnsConfig} setDnsConfig={setDnsConfig} />}
@@ -258,25 +262,26 @@ const ConfigWizard = ({ mode = 'create', initialData, onFinish }) => {
                 mode={mode}
               />
             )}
-          </>
+          </div>
         )}
       </div>
 
-      <div className="flex flex-col-reverse sm:flex-row justify-between items-center mt-8 pt-6 border-t border-slate-100 gap-3">
+      {/* 3. Navigation Buttons */}
+      <div className="flex flex-col-reverse sm:flex-row justify-between items-center px-6 sm:px-12 pt-8 border-t border-slate-50 gap-4">
         <button 
           onClick={prevStep} 
           disabled={currentStepIndex === 0} 
-          className="w-full sm:w-auto flex justify-center items-center gap-2 px-6 py-2.5 text-slate-600 font-medium hover:bg-slate-50 border border-slate-200 sm:border-transparent rounded-lg disabled:opacity-50 transition"
+          className="w-full sm:w-auto flex justify-center items-center gap-2 px-8 py-3.5 text-slate-500 font-black uppercase tracking-widest text-[11px] hover:bg-slate-50 rounded-2xl disabled:opacity-30 transition-all active:scale-95"
         >
-          <ArrowLeft size={18} /> {t('common.back')}
+          <ArrowLeft size={16} /> {t('common.back')}
         </button>
         {currentStepIndex < activeSteps.length - 1 && (
           <button 
             onClick={nextStep} 
             disabled={!canGoNext()} 
-            className="w-full sm:w-auto flex justify-center items-center gap-2 px-8 py-2.5 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed transition shadow-sm"
+            className="w-full sm:w-auto flex justify-center items-center gap-3 px-12 py-3.5 bg-blue-600 text-white font-black uppercase tracking-widest text-[11px] rounded-2xl hover:bg-blue-700 disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed transition-all shadow-xl shadow-blue-600/20 active:scale-95"
           >
-            {t('common.next')} <ArrowRight size={18} />
+            {t('common.next')} <ArrowRight size={16} />
           </button>
         )}
       </div>
