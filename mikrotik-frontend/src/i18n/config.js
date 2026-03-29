@@ -807,7 +807,19 @@ const resources = {
           alerts: "Alert Thresholds",
           announcement: "Announcement",
           ai: "AI Settings",
-          system: "System"
+          system: "System",
+          audit: "Audit Notifications"
+        },
+        audit: {
+          title: "Telegram Audit Log Notifications",
+          subtitle: "Get notified when important system actions occur (e.g. Logins, Setting changes)",
+          label_enabled: "Enable Audit Notifications",
+          label_bot_token: "Telegram Bot Token",
+          label_chat_id: "Telegram Chat ID",
+          placeholder_bot_token: "Paste Bot Token here...",
+          placeholder_chat_id: "Paste Chat ID or Group ID here...",
+          save_success: "Audit settings saved successfully!",
+          info_desc: "The system will send notifications to Telegram for critical activities such as Logins, User/Group management, and System setting changes."
         },
         admins: {
           title: "Default Router Admins",
@@ -1863,7 +1875,19 @@ const resources = {
           alerts: "เกณฑ์แจ้งเตือน",
           announcement: "ประกาศระบบ",
           ai: "ตั้งค่า AI",
-          system: "ตั้งค่าระบบ"
+          system: "ตั้งค่าระบบ",
+          audit: "แจ้งเตือน Audit"
+        },
+        audit: {
+          title: "การแจ้งเตือน Audit Log ผ่าน Telegram",
+          subtitle: "รับแจ้งเตือนเมื่อมีการ Login หรือแก้ไขการตั้งค่าที่สำคัญของระบบ",
+          label_enabled: "เปิดใช้งานการแจ้งเตือน Audit",
+          label_bot_token: "Telegram Bot Token",
+          label_chat_id: "Telegram Chat ID",
+          placeholder_bot_token: "วาง Bot Token ที่นี่...",
+          placeholder_chat_id: "วาง Chat ID หรือ Group ID ที่นี่...",
+          save_success: "บันทึกการตั้งค่า Audit สำเร็จ",
+          info_desc: "ระบบจะส่งข้อความแจ้งเตือนไปยัง Telegram เมื่อมีการทำกิจกรรมสำคัญ เช่น Login, แก้ไข User, แก้ไข Group หรือเปลี่ยนการตั้งค่าระบบ"
         },
         admins: {
           title: "ผู้ดูแลเราเตอร์เริ่มต้น (Default Admins)",

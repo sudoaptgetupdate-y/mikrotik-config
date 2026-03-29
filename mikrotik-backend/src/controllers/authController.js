@@ -1,4 +1,5 @@
 const authService = require('../services/authService');
+const logService = require('../services/logService');
 
 exports.login = async (req, res) => {
   const { identifier, password } = req.body;
@@ -6,6 +7,14 @@ exports.login = async (req, res) => {
 
   const result = await authService.login(identifier, password);
   
+  // ✅ บันทึก Audit Log เมื่อ Login สำเร็จ
+  await logService.createActivityLog({
+    userId: result.user.id,
+    action: 'LOGIN',
+    details: `User logged in: ${result.user.username} (IP: ${req.ip})`,
+    ipAddress: req.ip
+  });
+
   // ✅ ฝัง Refresh Token ลงใน HTTP-Only Cookie
   res.cookie('refreshToken', result.refreshToken, {
     httpOnly: true, // JavaScript ของฝั่ง Frontend จะอ่านคุกกี้นี้ไม่ได้ (กันโดนแฮก)

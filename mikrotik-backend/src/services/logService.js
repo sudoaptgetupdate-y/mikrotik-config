@@ -1,8 +1,9 @@
 const prisma = require('../config/prisma');
+const { sendTelegramAlert } = require('../utils/telegramUtil');
 
 exports.createActivityLog = async ({ userId, action, details, ipAddress }) => {
   try {
-    return await prisma.activityLog.create({
+    const log = await prisma.activityLog.create({
       data: {
         userId,
         action,
@@ -10,9 +11,65 @@ exports.createActivityLog = async ({ userId, action, details, ipAddress }) => {
         ipAddress
       }
     });
+
+    // 📢 ส่งแจ้งเตือนผ่าน Telegram สำหรับ Audit Log ที่สำคัญ (ไม่ต้องรอให้เสร็จก็ได้)
+    triggerAuditNotification(log).catch(err => console.error("Audit Notify Error:", err));
+
+    return log;
   } catch (error) {
     console.error('Failed to create activity log:', error);
     // ไม่ throw error เพื่อไม่ให้ขัดจังหวะการทำงานหลักของระบบ
+  }
+};
+
+const triggerAuditNotification = async (log) => {
+  try {
+    // กำหนดประเภท Action ที่จะให้แจ้งเตือน
+    const notifyActions = [
+      'LOGIN', 'UPDATE_SETTING', 'CREATE_USER', 'DELETE_USER', 
+      'CREATE_GROUP', 'DELETE_GROUP', 'TOGGLE_USER_STATUS',
+      'CREATE_MODEL', 'DELETE_MODEL', 'UPDATE_MODEL'
+    ];
+    
+    if (!notifyActions.includes(log.action)) return;
+
+    // ดึงค่าการตั้งค่า Telegram Audit จาก Database
+    const setting = await prisma.systemSetting.findUnique({ where: { key: 'AUDIT_TELEGRAM_CONFIG' } });
+    if (!setting || !setting.value) return;
+
+    let config = setting.value;
+    if (typeof config === 'string') {
+      try { config = JSON.parse(config); } catch (e) { return; }
+    }
+
+    if (!config.enabled || !config.botToken || !config.chatId) return;
+
+    // ดึงข้อมูล User เพื่อเอามาใส่ในข้อความ
+    const user = await prisma.user.findUnique({ 
+      where: { id: log.userId }, 
+      select: { username: true, firstName: true, lastName: true } 
+    });
+    const userName = user ? `${user.firstName} ${user.lastName} (@${user.username})` : 'System';
+    
+    const emojiMap = {
+      LOGIN: '🔑',
+      UPDATE_SETTING: '⚙️',
+      CREATE_USER: '👤',
+      DELETE_USER: '🗑️',
+      CREATE_GROUP: '📁',
+      DELETE_GROUP: '📂',
+      TOGGLE_USER_STATUS: '🔒',
+      CREATE_MODEL: '📦',
+      DELETE_MODEL: '🗑️',
+      UPDATE_MODEL: '✏️'
+    };
+
+    const emoji = emojiMap[log.action] || '📝';
+    const message = `${emoji} <b><u>[ AUDIT LOG ALERT ]</u></b>\n━━━━━━━━━━━━━━━━━━\n<b>กิจกรรม:</b> <code>${log.action}</code>\n<b>ผู้ดำเนินการ:</b> <b>${userName}</b>\n<b>รายละเอียด:</b> <i>${log.details || '-'}</i>\n<b>IP Address:</b> <code>${log.ipAddress || '-'}</code>\n<b>เวลา:</b> <code>${new Date().toLocaleString('th-TH')}</code>\n━━━━━━━━━━━━━━━━━━`;
+
+    await sendTelegramAlert(config.botToken, config.chatId, message);
+  } catch (err) {
+    console.error('❌ triggerAuditNotification failed:', err.message);
   }
 };
 

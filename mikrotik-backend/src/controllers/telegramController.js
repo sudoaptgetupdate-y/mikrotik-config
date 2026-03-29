@@ -591,3 +591,23 @@ exports.initRealtimeMonitorCron = () => {
     } catch (error) { console.error("❌ Offline Monitor Cron Error:", error); }
   });
 };
+
+exports.testTelegramConnection = async (req, res) => {
+  const { botToken, chatId, message } = req.body;
+  
+  if (!botToken || !chatId) {
+    return res.status(400).json({ error: "Bot Token and Chat ID are required" });
+  }
+
+  try {
+    const msgId = await sendTelegramAlert(botToken, chatId, message || "🔔 Telegram Test Connection Successful!");
+    if (msgId) {
+      res.json({ success: true, messageId: msgId });
+    } else {
+      res.status(400).json({ error: "Failed to send message. Please check your Token and Chat ID." });
+    }
+  } catch (error) {
+    console.error("❌ Telegram Test Error:", error);
+    res.status(500).json({ error: error.message });
+  }
+};

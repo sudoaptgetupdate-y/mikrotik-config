@@ -14,6 +14,7 @@ import TabMaintenance from './components/TabMaintenance';
 import TabAlertThresholds from './components/TabAlertThresholds';
 import TabDashboardAnnouncement from './components/TabDashboardAnnouncement';
 import TabSystemSettings from './components/TabSystemSettings';
+import TabAuditNotification from './components/TabAuditNotification';
 
 const GlobalSettings = () => {
   const { t } = useTranslation();
@@ -71,6 +72,7 @@ const GlobalSettings = () => {
     { id: 'DEFAULTS', label: t('settings.tabs.defaults'), icon: Settings2, color: 'text-purple-600', border: 'border-purple-600', bg: 'bg-purple-50' },
     { id: 'MAINTENANCE', label: t('settings.tabs.maintenance'), icon: Database, color: 'text-rose-600', border: 'border-rose-600', bg: 'bg-rose-50' },
     { id: 'ALERTS', label: t('settings.tabs.alerts'), icon: Bell, color: 'text-rose-500', border: 'border-rose-500', bg: 'bg-rose-50' },
+    { id: 'AUDIT', label: t('settings.tabs.audit'), icon: Bell, color: 'text-indigo-600', border: 'border-indigo-600', bg: 'bg-indigo-50' },
     { id: 'ANNOUNCEMENT', label: t('settings.tabs.announcement'), icon: Megaphone, color: 'text-blue-500', border: 'border-blue-500', bg: 'bg-blue-50' },
     { id: 'SYSTEM', label: t('settings.tabs.system'), icon: Server, color: 'text-slate-600', border: 'border-slate-600', bg: 'bg-slate-50' },
   ];
@@ -153,6 +155,7 @@ const GlobalSettings = () => {
               {activeTab === 'DEFAULTS' && <TabVlanNetwork initialData={settingsData.DEFAULT_NETWORKS} />}
               {activeTab === 'MAINTENANCE' && <TabMaintenance />}
               {activeTab === 'ALERTS' && <TabAlertThresholds initialData={settingsData.ALERT_THRESHOLDS} />}
+              {activeTab === 'AUDIT' && <TabAuditNotification />}
               {activeTab === 'ANNOUNCEMENT' && <TabDashboardAnnouncement initialData={settingsData.DASHBOARD_ANNOUNCEMENT} />}
               {activeTab === 'SYSTEM' && <TabSystemSettings />}
             </div>

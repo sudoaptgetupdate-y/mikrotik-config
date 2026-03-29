@@ -3,17 +3,26 @@ import { X } from 'lucide-react';
 import ConfigWizard from './ConfigWizard';
 
 const ConfigWizardModal = ({ isOpen, onClose, mode = 'create', initialData }) => {
-  // Prevent body scroll when modal is open
+  // Prevent body scroll when modal is open and handle ESC key
   useEffect(() => {
+    const handleEsc = (event) => {
+      if (event.key === 'Escape' && mode === 'create') {
+        onClose();
+      }
+    };
+
     if (isOpen) {
       document.body.style.overflow = 'hidden';
+      window.addEventListener('keydown', handleEsc);
     } else {
       document.body.style.overflow = 'unset';
     }
+
     return () => {
       document.body.style.overflow = 'unset';
+      window.removeEventListener('keydown', handleEsc);
     };
-  }, [isOpen]);
+  }, [isOpen, onClose, mode]);
 
   if (!isOpen) return null;
 
