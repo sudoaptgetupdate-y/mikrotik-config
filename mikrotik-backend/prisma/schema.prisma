@@ -271,6 +271,7 @@ enum PortType {
 
 enum ActionType {
   LOGIN
+  LOGIN_FAIL
   LOGOUT
   CREATE_DEVICE
   UPDATE_DEVICE

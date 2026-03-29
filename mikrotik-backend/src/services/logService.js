@@ -26,7 +26,7 @@ const triggerAuditNotification = async (log) => {
   try {
     // กำหนดประเภท Action ที่จะให้แจ้งเตือน
     const notifyActions = [
-      'LOGIN', 'UPDATE_SETTING', 'CREATE_USER', 'DELETE_USER', 
+      'LOGIN', 'LOGIN_FAIL', 'UPDATE_SETTING', 'CREATE_USER', 'DELETE_USER', 
       'CREATE_GROUP', 'DELETE_GROUP', 'UPDATE_GROUP', 'MANAGE_GROUP_DEVICES',
       'TOGGLE_USER_STATUS', 'CREATE_MODEL', 'DELETE_MODEL', 'UPDATE_MODEL'
     ];
@@ -56,10 +56,16 @@ const triggerAuditNotification = async (log) => {
       where: { id: log.userId }, 
       select: { username: true, firstName: true, lastName: true } 
     });
-    const userName = user ? `${user.firstName} ${user.lastName} (@${user.username})` : 'System';
+    let userName = user ? `${user.firstName} ${user.lastName} (@${user.username})` : 'System';
+    
+    // กรณี LOGIN_FAIL และไม่เจอ User ในระบบ (อาจพิมพ์ username ผิด)
+    if (log.action === 'LOGIN_FAIL' && !user) {
+      userName = 'Guest / Unknown User';
+    }
     
     const emojiMap = {
       LOGIN: '🔑',
+      LOGIN_FAIL: '🚫',
       UPDATE_SETTING: '⚙️',
       CREATE_USER: '👤',
       DELETE_USER: '🗑️',
