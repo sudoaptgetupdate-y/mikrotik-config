@@ -73,17 +73,31 @@ const corsOptions = {
 app.use(cors(corsOptions));
 
 // ==========================================
-// 🛡️ 3. Rate Limiting (จำกัดการยิง API รวม)
+// 🛡️ 3. Rate Limiting (จำกัดการยิง API)
 // ==========================================
+
+// --- จำกัดการยิง API รวม ---
 const globalLimiter = rateLimit({
-  windowMs: 1 * 60 * 1000, // ปรับลดกรอบเวลาเหลือแค่ 1 นาที (จากเดิม 15 นาที)
-  max: 300, // ให้ยิงได้ 300 ครั้งต่อนาที (เฉลี่ย 5 ครั้งต่อวินาที เพียงพอสำหรับ Dashboard)
+  windowMs: 1 * 60 * 1000, 
+  max: 300, 
   message: { error: 'Too many requests from this IP, please try again after 1 minute' },
   standardHeaders: true, 
   legacyHeaders: false,
 });
 
+// --- จำกัดการ Login (Brute Force Protection) ---
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 นาที
+  max: 5, // ให้ลองได้ 5 ครั้งต่อ 15 นาที
+  message: { error: 'Too many login attempts, please try again after 15 minutes' },
+  standardHeaders: true,
+  legacyHeaders: false,
+  // ข้ามการนับถ้าเป็น IP ใน Local (Optional)
+  skip: (req) => req.ip === '127.0.0.1' || req.ip === '::1'
+});
+
 app.use('/api', globalLimiter);
+app.use('/api/auth/login', loginLimiter);
 
 // ==========================================
 // 🛡️ 4. Body Parser & Payload Limit
