@@ -27,8 +27,8 @@ const triggerAuditNotification = async (log) => {
     // กำหนดประเภท Action ที่จะให้แจ้งเตือน
     const notifyActions = [
       'LOGIN', 'UPDATE_SETTING', 'CREATE_USER', 'DELETE_USER', 
-      'CREATE_GROUP', 'DELETE_GROUP', 'TOGGLE_USER_STATUS',
-      'CREATE_MODEL', 'DELETE_MODEL', 'UPDATE_MODEL'
+      'CREATE_GROUP', 'DELETE_GROUP', 'UPDATE_GROUP', 'MANAGE_GROUP_DEVICES',
+      'TOGGLE_USER_STATUS', 'CREATE_MODEL', 'DELETE_MODEL', 'UPDATE_MODEL'
     ];
     
     if (!notifyActions.includes(log.action)) return;
@@ -37,12 +37,19 @@ const triggerAuditNotification = async (log) => {
     const setting = await prisma.systemSetting.findUnique({ where: { key: 'AUDIT_TELEGRAM_CONFIG' } });
     if (!setting || !setting.value) return;
 
+    // แก้ไขปัญหา Double Stringify โดยการ Parse จนกว่าจะได้ Object
     let config = setting.value;
-    if (typeof config === 'string') {
-      try { config = JSON.parse(config); } catch (e) { return; }
+    while (typeof config === 'string') {
+      try {
+        config = JSON.parse(config);
+      } catch (e) {
+        break;
+      }
     }
 
-    if (!config.enabled || !config.botToken || !config.chatId) return;
+    if (!config || typeof config !== 'object' || !config.enabled || !config.botToken || !config.chatId) {
+      return;
+    }
 
     // ดึงข้อมูล User เพื่อเอามาใส่ในข้อความ
     const user = await prisma.user.findUnique({ 
@@ -58,6 +65,8 @@ const triggerAuditNotification = async (log) => {
       DELETE_USER: '🗑️',
       CREATE_GROUP: '📁',
       DELETE_GROUP: '📂',
+      UPDATE_GROUP: '✏️',
+      MANAGE_GROUP_DEVICES: '🔗',
       TOGGLE_USER_STATUS: '🔒',
       CREATE_MODEL: '📦',
       DELETE_MODEL: '🗑️',
