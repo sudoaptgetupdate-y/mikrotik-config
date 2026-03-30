@@ -1,7 +1,7 @@
 const prisma = require('../config/prisma');
 const { sendTelegramAlert } = require('../utils/telegramUtil');
 
-exports.createActivityLog = async ({ userId, action, details, ipAddress }) => {
+exports.createActivityLog = async ({ userId, action, details, ipAddress, userNameOverride }) => {
   try {
     const log = await prisma.activityLog.create({
       data: {
@@ -13,7 +13,7 @@ exports.createActivityLog = async ({ userId, action, details, ipAddress }) => {
     });
 
     // 📢 ส่งแจ้งเตือนผ่าน Telegram สำหรับ Audit Log ที่สำคัญ (ไม่ต้องรอให้เสร็จก็ได้)
-    triggerAuditNotification(log).catch(err => console.error("Audit Notify Error:", err));
+    triggerAuditNotification(log, userNameOverride).catch(err => console.error("Audit Notify Error:", err));
 
     return log;
   } catch (error) {
@@ -22,7 +22,7 @@ exports.createActivityLog = async ({ userId, action, details, ipAddress }) => {
   }
 };
 
-const triggerAuditNotification = async (log) => {
+const triggerAuditNotification = async (log, userNameOverride) => {
   try {
     // กำหนดประเภท Action ที่จะให้แจ้งเตือน
     const notifyActions = [
@@ -56,10 +56,14 @@ const triggerAuditNotification = async (log) => {
       where: { id: log.userId }, 
       select: { username: true, firstName: true, lastName: true } 
     });
+    
     let userName = user ? `${user.firstName} ${user.lastName} (@${user.username})` : 'System';
     
-    // กรณี LOGIN_FAIL และไม่เจอ User ในระบบ (อาจพิมพ์ username ผิด)
-    if (log.action === 'LOGIN_FAIL' && !user) {
+    // หากมี override ให้ใช้ override ก่อน
+    if (userNameOverride) {
+      userName = userNameOverride;
+    } else if (log.action === 'LOGIN_FAIL' && !user) {
+      // กรณี LOGIN_FAIL และไม่เจอ User ในระบบ (อาจพิมพ์ username ผิด)
       userName = 'Guest / Unknown User';
     }
     

@@ -35,10 +35,11 @@ exports.login = async (req, res) => {
       });
 
       await logService.createActivityLog({
-        userId: user ? user.id : 1, // ถ้าไม่เจอ user ให้ใช้ id: 1 (มักเป็น System/Admin ตัวแรก)
+        userId: user ? user.id : 1, // ถ้าไม่เจอ user ให้ใช้ id: 1 (มักเป็น System/Admin ตัวแรก) เพื่อให้ผ่าน Relation check
         action: 'LOGIN_FAIL',
         details: `Login failed for: ${identifier} (IP: ${req.ip}) - Reason: ${error.message}`,
-        ipAddress: req.ip
+        ipAddress: req.ip,
+        userNameOverride: user ? null : 'Guest / Unknown User'
       });
     } catch (logError) {
       console.error("Failed to log LOGIN_FAIL:", logError.message);
