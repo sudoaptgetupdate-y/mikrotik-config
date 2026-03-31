@@ -1,27 +1,12 @@
-import { useState, useEffect } from 'react';
+import React, { useState, Fragment } from 'react';
 import { X, Activity, ArrowUpCircle, ArrowDownCircle, AlertTriangle, Loader2, Search, Filter } from 'lucide-react';
+import { Dialog, Transition } from '@headlessui/react';
 import { useTranslation } from 'react-i18next';
 
 const EventLogModal = ({ isOpen, onClose, device, events, loading }) => {
   const { t, i18n } = useTranslation();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
-
-  useEffect(() => {
-    const handleEsc = (e) => {
-      if (e.key === 'Escape') onClose();
-    };
-    if (isOpen) {
-      window.addEventListener('keydown', handleEsc);
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = 'unset';
-    }
-    return () => {
-      window.removeEventListener('keydown', handleEsc);
-      document.body.style.overflow = 'unset';
-    };
-  }, [isOpen, onClose]);
 
   // ✅ เปลี่ยน UP เป็น ONLINE และ DOWN เป็น OFFLINE
   const getEventIcon = (type) => {
@@ -56,117 +41,126 @@ const EventLogModal = ({ isOpen, onClose, device, events, loading }) => {
   });
 
   return (
-    <div 
-      className={`fixed inset-0 z-50 flex items-center justify-center p-4 transition-all duration-300 ${
-        isOpen ? 'opacity-100 visible' : 'opacity-0 pointer-events-none invisible'
-      }`}
-    >
-      {/* Backdrop */}
-      <div 
-        className={`absolute inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity duration-300 ${
-          isOpen ? 'opacity-100' : 'opacity-0'
-        }`}
-        onClick={onClose}
-      />
+    <Transition show={isOpen} as={Fragment}>
+      <Dialog as="div" className="relative z-50" onClose={onClose}>
+        <Transition.Child
+          as={Fragment}
+          enter="ease-out duration-300"
+          enterFrom="opacity-0"
+          enterTo="opacity-100"
+          leave="ease-in duration-200"
+          leaveFrom="opacity-100"
+          leaveTo="opacity-0"
+        >
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity" />
+        </Transition.Child>
 
-      <div 
-        className={`bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[85vh] relative z-10 transition-all duration-300 transform ${
-          isOpen ? 'scale-100 translate-y-0' : 'scale-95 translate-y-4'
-        }`}
-        onClick={(e) => e.stopPropagation()}
-      >
-        
-        {/* Header */}
-        <div className="p-5 border-b border-slate-100 flex justify-between items-center bg-white shrink-0">
-          <div className="flex items-center gap-4">
-            <div className="p-2.5 bg-orange-50 text-orange-600 rounded-2xl">
-              <Activity size={24} />
-            </div>
-            <div>
-              <h3 className="font-black text-xl text-slate-800 tracking-tight">{t('devices.events.title', 'Event History Logs')}</h3>
-              <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">{t('devices.events.deviceName', 'Device:')} {device?.name}</p>
-            </div>
-          </div>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 hover:bg-slate-100 p-2 rounded-xl transition-all">
-            <X size={24} />
-          </button>
-        </div>
-
-        {/* Search & Filter Toolbar */}
-        <div className="px-4 sm:px-6 py-3 border-b border-slate-100 bg-white shrink-0 flex flex-col sm:flex-row gap-3">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-            <input 
-              type="text"
-              placeholder={t('devices.events.search_placeholder', 'Search by date or details...')}
-              className="w-full pl-9 pr-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </div>
-          <div className="relative sm:w-1/3">
-            <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-            <select 
-              className="w-full pl-9 pr-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 appearance-none bg-white transition cursor-pointer text-slate-700 font-medium"
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
+        <div className="fixed inset-0 overflow-y-auto">
+          <div className="flex min-h-full items-center justify-center p-4 text-center sm:p-0">
+            <Transition.Child
+              as={Fragment}
+              enter="ease-out duration-300"
+              enterFrom="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
+              enterTo="opacity-100 translate-y-0 sm:scale-100"
+              leave="ease-in duration-200"
+              leaveFrom="opacity-100 translate-y-0 sm:scale-100"
+              leaveTo="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
             >
-              <option value="ALL">{t('devices.events.allStatuses', 'All Statuses')}</option>
-              <option value="ONLINE">🟢 {t('devices.events.online', 'Online')}</option>
-              <option value="OFFLINE">🔴 {t('devices.events.offline', 'Offline')}</option>
-              <option value="WARNING">🟠 {t('devices.events.warning', 'Warning')}</option>
-            </select>
-          </div>
-        </div>
-        
-        {/* Body (Timeline) */}
-        <div className="p-4 sm:p-6 overflow-y-auto flex-1 bg-slate-50/50">
-          {loading ? (
-            <div className="py-10 flex flex-col items-center justify-center text-slate-400">
-              <Loader2 size={32} className="animate-spin text-blue-500 mb-3" />
-              <p className="text-sm font-medium">{t('devices.events.loading', 'Loading events...')}</p>
-            </div>
-          ) : events.length === 0 ? (
-            <div className="py-10 text-center text-slate-400 bg-white rounded-xl border border-dashed border-slate-200">
-              {t('devices.events.noHistory', 'No event history found')}
-            </div>
-          ) : filteredEvents.length === 0 ? (
-            <div className="py-10 text-center text-slate-400 bg-white rounded-xl border border-dashed border-slate-200">
-              {t('devices.events.noResults', 'No results matching')} "<span className="text-slate-600 font-bold">{searchTerm}</span>"
-            </div>
-          ) : (
-            <div className="relative border-l-2 border-slate-200 ml-3 space-y-5">
-              {filteredEvents.map((ev, i) => (
-                <div key={ev.id || i} className="relative pl-6">
-                  {/* Dot/Icon */}
-                  <div className="absolute -left-[11px] top-0.5 bg-white rounded-full shadow-sm">
-                    {getEventIcon(ev.eventType)}
-                  </div>
-                  
-                  {/* Content */}
-                  <div className={`p-3.5 rounded-xl border shadow-sm ${getEventColor(ev.eventType)} hover:shadow-md transition-shadow bg-white`}>
-                    <div className="flex justify-between items-start mb-1 gap-2">
-                      <span className={`font-black text-sm ${
-                        ev.eventType === 'ONLINE' ? 'text-emerald-700' : 
-                        ev.eventType === 'OFFLINE' ? 'text-rose-700' : 
-                        ev.eventType === 'WARNING' ? 'text-orange-700' : 'text-slate-700'
-                      }`}>
-                        {t(`devices.events.${ev.eventType.toLowerCase()}`, ev.eventType)}
-                      </span>
-                      <span className="text-xs font-bold text-slate-500 whitespace-nowrap bg-white/60 px-2 py-0.5 rounded-md border border-slate-200/50">
-                        {new Date(ev.createdAt).toLocaleString(i18n.language, { dateStyle: 'short', timeStyle: 'short' })}
-                      </span>
+              <Dialog.Panel className="relative transform overflow-hidden rounded-3xl bg-white text-left shadow-2xl transition-all sm:my-8 w-full max-w-lg flex flex-col max-h-[85vh]">
+                {/* Header */}
+                <div className="p-5 border-b border-slate-100 flex justify-between items-center bg-white shrink-0">
+                  <div className="flex items-center gap-4">
+                    <div className="p-2.5 bg-orange-50 text-orange-600 rounded-2xl">
+                      <Activity size={24} />
                     </div>
-                    <p className="text-xs font-medium text-slate-600 mt-1 leading-relaxed">{ev.details}</p>
+                    <div>
+                      <Dialog.Title as="h3" className="font-black text-xl text-slate-800 tracking-tight">{t('devices.events.title', 'Event History Logs')}</Dialog.Title>
+                      <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">{t('devices.events.deviceName', 'Device:')} {device?.name}</p>
+                    </div>
+                  </div>
+                  <button onClick={onClose} className="text-slate-400 hover:text-slate-600 hover:bg-slate-100 p-2 rounded-xl transition-all">
+                    <X size={24} />
+                  </button>
+                </div>
+
+                {/* Search & Filter Toolbar */}
+                <div className="px-4 sm:px-6 py-3 border-b border-slate-100 bg-white shrink-0 flex flex-col sm:flex-row gap-3">
+                  <div className="relative flex-1">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                    <input 
+                      type="text"
+                      placeholder={t('devices.events.search_placeholder', 'Search by date or details...')}
+                      className="w-full pl-9 pr-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition"
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                    />
+                  </div>
+                  <div className="relative sm:w-1/3">
+                    <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                    <select 
+                      className="w-full pl-9 pr-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 appearance-none bg-white transition cursor-pointer text-slate-700 font-medium"
+                      value={statusFilter}
+                      onChange={(e) => setStatusFilter(e.target.value)}
+                    >
+                      <option value="ALL">{t('devices.events.allStatuses', 'All Statuses')}</option>
+                      <option value="ONLINE">🟢 {t('devices.events.online', 'Online')}</option>
+                      <option value="OFFLINE">🔴 {t('devices.events.offline', 'Offline')}</option>
+                      <option value="WARNING">🟠 {t('devices.events.warning', 'Warning')}</option>
+                    </select>
                   </div>
                 </div>
-              ))}
-            </div>
-          )}
+                
+                {/* Body (Timeline) */}
+                <div className="p-4 sm:p-6 overflow-y-auto flex-1 bg-slate-50/50">
+                  {loading ? (
+                    <div className="py-10 flex flex-col items-center justify-center text-slate-400">
+                      <Loader2 size={32} className="animate-spin text-blue-500 mb-3" />
+                      <p className="text-sm font-medium">{t('devices.events.loading', 'Loading events...')}</p>
+                    </div>
+                  ) : events.length === 0 ? (
+                    <div className="py-10 text-center text-slate-400 bg-white rounded-xl border border-dashed border-slate-200">
+                      {t('devices.events.noHistory', 'No event history found')}
+                    </div>
+                  ) : filteredEvents.length === 0 ? (
+                    <div className="py-10 text-center text-slate-400 bg-white rounded-xl border border-dashed border-slate-200">
+                      {t('devices.events.noResults', 'No results matching')} "<span className="text-slate-600 font-bold">{searchTerm}</span>"
+                    </div>
+                  ) : (
+                    <div className="relative border-l-2 border-slate-200 ml-3 space-y-5">
+                      {filteredEvents.map((ev, i) => (
+                        <div key={ev.id || i} className="relative pl-6">
+                          {/* Dot/Icon */}
+                          <div className="absolute -left-[11px] top-0.5 bg-white rounded-full shadow-sm">
+                            {getEventIcon(ev.eventType)}
+                          </div>
+                          
+                          {/* Content */}
+                          <div className={`p-3.5 rounded-xl border shadow-sm ${getEventColor(ev.eventType)} hover:shadow-md transition-shadow bg-white`}>
+                            <div className="flex justify-between items-start mb-1 gap-2">
+                              <span className={`font-black text-sm ${
+                                ev.eventType === 'ONLINE' ? 'text-emerald-700' : 
+                                ev.eventType === 'OFFLINE' ? 'text-rose-700' : 
+                                ev.eventType === 'WARNING' ? 'text-orange-700' : 'text-slate-700'
+                              }`}>
+                                {t(`devices.events.${ev.eventType.toLowerCase()}`, ev.eventType)}
+                              </span>
+                              <span className="text-xs font-bold text-slate-500 whitespace-nowrap bg-white/60 px-2 py-0.5 rounded-md border border-slate-200/50">
+                                {new Date(ev.createdAt).toLocaleString(i18n.language, { dateStyle: 'short', timeStyle: 'short' })}
+                              </span>
+                            </div>
+                            <p className="text-xs font-medium text-slate-600 mt-1 leading-relaxed">{ev.details}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </Dialog.Panel>
+            </Transition.Child>
+          </div>
         </div>
-
-      </div>
-    </div>
+      </Dialog>
+    </Transition>
   );
 };
 

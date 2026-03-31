@@ -9,6 +9,7 @@ import {
 import { useAuth } from '../context/AuthContext'; 
 import Footer from '../components/Footer';
 import ConfigWizardModal from '../pages/ConfigWizard/ConfigWizardModal';
+import VPNToolsModal from '../pages/VPNTools/VPNToolsModal';
 
 const MainLayout = () => {
   const { t, i18n } = useTranslation();
@@ -21,6 +22,9 @@ const MainLayout = () => {
     mode: 'create',
     initialData: null
   });
+
+  // --- VPN Tools Modal State ---
+  const [isVPNModalOpen, setIsVPNModalOpen] = useState(false);
 
   const { user, logout } = useAuth();
   const navigate = useNavigate();
@@ -94,6 +98,12 @@ const MainLayout = () => {
         initialData={wizardState.initialData} 
       />
 
+      {/* 🛡️ VPN Tools Modal */}
+      <VPNToolsModal 
+        isOpen={isVPNModalOpen} 
+        onClose={() => setIsVPNModalOpen(false)} 
+      />
+
       {/* 📱 Mobile Menu Button */}
       <div className="md:hidden fixed top-4 right-4 z-50">
         <button 
@@ -163,14 +173,16 @@ const MainLayout = () => {
               <div className="space-y-1">
                 {filterMenuItems(category.items).map((item) => {
                   const Icon = item.icon;
-                  // Special case for Config Builder to open as Modal
-                  if (item.to === '/config-builder') {
+                  
+                  // Special case for Config Builder or VPN Tools to open as Modal
+                  if (item.to === '/config-builder' || item.to === '/vpn-tools') {
                     return (
                       <button 
                         key={item.to}
                         onClick={() => {
                           setIsMobileMenuOpen(false);
-                          openWizard('standalone');
+                          if (item.to === '/config-builder') openWizard('standalone');
+                          else setIsVPNModalOpen(true);
                         }}
                         title={isSidebarCollapsed ? item.label : ''}
                         className={`

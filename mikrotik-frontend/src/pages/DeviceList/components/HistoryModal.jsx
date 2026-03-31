@@ -1,4 +1,5 @@
-import React, { useEffect } from 'react';
+import React, { Fragment } from 'react';
+import { Dialog, Transition } from '@headlessui/react';
 import { X, Download, Clock, FileText, Loader2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { generateMikrotikScript } from '../../../utils/mikrotikGenerator';
@@ -8,22 +9,6 @@ import apiClient from '../../../utils/apiClient';
 
 const HistoryModal = ({ isOpen, onClose, device, history, loading }) => {
   const { t, i18n } = useTranslation();
-
-  useEffect(() => {
-    const handleEsc = (e) => {
-      if (e.key === 'Escape') onClose();
-    };
-    if (isOpen) {
-      window.addEventListener('keydown', handleEsc);
-      document.body.style.overflow = 'hidden'; // ป้องกันการ scroll พื้นหลัง
-    } else {
-      document.body.style.overflow = 'unset';
-    }
-    return () => {
-      window.removeEventListener('keydown', handleEsc);
-      document.body.style.overflow = 'unset';
-    };
-  }, [isOpen, onClose]);
 
   const handleDownload = async (configEntry) => { 
     // 🟢 1. ถามเวอร์ชัน
@@ -79,106 +64,119 @@ const HistoryModal = ({ isOpen, onClose, device, history, loading }) => {
   };
 
   return (
-    <div 
-      className={`fixed inset-0 z-50 flex items-center justify-center p-4 transition-all duration-300 ${
-        isOpen ? 'opacity-100 visible' : 'opacity-0 pointer-events-none invisible'
-      }`}
-    >
-      {/* Backdrop */}
-      <div 
-        className={`absolute inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity duration-300 ${
-          isOpen ? 'opacity-100' : 'opacity-0'
-        }`}
-        onClick={onClose}
-      />
+    <Transition show={isOpen} as={Fragment}>
+      <Dialog as="div" className="relative z-50" onClose={onClose}>
+        {/* Backdrop */}
+        <Transition.Child
+          as={Fragment}
+          enter="ease-out duration-300"
+          enterFrom="opacity-0"
+          enterTo="opacity-100"
+          leave="ease-in duration-200"
+          leaveFrom="opacity-100"
+          leaveTo="opacity-0"
+        >
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity" />
+        </Transition.Child>
 
-      {/* Modal Container */}
-      <div 
-        className={`bg-white rounded-3xl w-full max-w-3xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh] relative z-10 transition-all duration-300 transform ${
-          isOpen ? 'scale-100 translate-y-0' : 'scale-95 translate-y-4'
-        }`}
-        onClick={(e) => e.stopPropagation()}
-      >
-        
-        {/* Header */}
-        <div className="bg-white border-b border-slate-100 p-5 flex justify-between items-center shrink-0">
-          <div className="flex items-center gap-4">
-            <div className="p-2.5 bg-blue-50 text-blue-600 rounded-2xl">
-              <Clock size={24} />
-            </div>
-            <div>
-              <h3 className="font-black text-xl text-slate-800 tracking-tight">{t('devices.history.title', 'Config History')}</h3>
-              <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">{t('devices.history.deviceName', 'Device:')} {device?.name}</p>
-            </div>
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          <div className="flex min-h-full items-center justify-center p-4 text-center sm:p-0">
+            <Transition.Child
+              as={Fragment}
+              enter="ease-out duration-300"
+              enterFrom="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
+              enterTo="opacity-100 translate-y-0 sm:scale-100"
+              leave="ease-in duration-200"
+              leaveFrom="opacity-100 translate-y-0 sm:scale-100"
+              leaveTo="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
+            >
+              <Dialog.Panel className="relative transform overflow-hidden rounded-3xl bg-white text-left shadow-2xl transition-all w-full max-w-3xl flex flex-col max-h-[85vh]">
+                
+                {/* Header */}
+                <div className="bg-white border-b border-slate-100 p-5 flex justify-between items-center shrink-0">
+                  <div className="flex items-center gap-4">
+                    <div className="p-2.5 bg-blue-50 text-blue-600 rounded-2xl">
+                      <Clock size={24} />
+                    </div>
+                    <div>
+                      <Dialog.Title as="h3" className="font-black text-xl text-slate-800 tracking-tight">
+                        {t('devices.history.title', 'Config History')}
+                      </Dialog.Title>
+                      <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">{t('devices.history.deviceName', 'Device:')} {device?.name}</p>
+                    </div>
+                  </div>
+                  <button onClick={onClose} className="text-slate-400 hover:text-slate-600 hover:bg-slate-100 p-2 rounded-xl transition-all">
+                    <X size={24} />
+                  </button>
+                </div>
+
+                {/* Content */}
+                <div className="flex-1 overflow-y-auto p-0 bg-slate-50">
+                  {loading ? (
+                    <div className="flex flex-col items-center justify-center h-64 text-slate-400 gap-3">
+                      <Loader2 size={32} className="animate-spin text-blue-500" />
+                      <p>{t('devices.history.loading', 'Loading history records...')}</p>
+                    </div>
+                  ) : history.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center h-64 text-slate-400 gap-3">
+                      <FileText size={48} className="text-slate-300" />
+                      <p>{t('devices.history.noHistory', 'No history found for this device.')}</p>
+                    </div>
+                  ) : (
+                    <table className="w-full text-left border-collapse">
+                      <thead className="bg-white text-xs uppercase text-slate-500 font-semibold sticky top-0 shadow-sm z-10">
+                        <tr>
+                          <th className="p-4 border-b">{t('devices.history.colDate', 'Saved Date')}</th>
+                          <th className="p-4 border-b">{t('devices.history.colModel', 'Model')}</th>
+                          <th className="p-4 border-b">{t('devices.history.colUser', 'User')}</th>
+                          <th className="p-4 border-b text-right">{t('devices.history.colActions', 'Restore / Download')}</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-200 bg-white">
+                        {history.map((item) => (
+                          <tr key={item.id} className="hover:bg-blue-50 transition group">
+                            <td className="p-4 text-sm text-slate-700">
+                              <div className="font-medium">
+                                {new Date(item.createdAt).toLocaleDateString(i18n.language)}
+                              </div>
+                              <div className="text-xs text-slate-500">
+                                {new Date(item.createdAt).toLocaleTimeString(i18n.language)}
+                              </div>
+                            </td>
+                            <td className="p-4 text-sm text-slate-600">
+                              {item.deviceModel?.name || 'Unknown'}
+                            </td>
+                            <td className="p-4 text-sm text-slate-600">
+                              {item.user?.username || `User #${item.userId}`}
+                            </td>
+                            <td className="p-4 text-right">
+                              <button 
+                                onClick={() => handleDownload(item)}
+                                className="inline-flex items-center gap-2 text-xs font-bold px-3 py-1.5 bg-slate-100 text-slate-600 rounded-lg hover:bg-blue-600 hover:text-white transition-all shadow-sm"
+                              >
+                                <Download size={14} /> {t('devices.history.downloadButton', 'Download .rsc')}
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
+                </div>
+                
+                {/* Footer */}
+                <div className="p-4 border-t border-slate-200 bg-white text-right shrink-0">
+                    <button onClick={onClose} className="px-5 py-2 bg-white border border-slate-300 rounded-lg text-slate-600 hover:bg-slate-50 text-sm font-medium transition shadow-sm">
+                        {t('common.close', 'Close')}
+                    </button>
+                </div>
+
+              </Dialog.Panel>
+            </Transition.Child>
           </div>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 hover:bg-slate-100 p-2 rounded-xl transition-all">
-            <X size={24} />
-          </button>
         </div>
-
-        {/* Content */}
-        <div className="flex-1 overflow-y-auto p-0 bg-slate-50">
-          {loading ? (
-            <div className="flex flex-col items-center justify-center h-64 text-slate-400 gap-3">
-              <Loader2 size={32} className="animate-spin text-blue-500" />
-              <p>{t('devices.history.loading', 'Loading history records...')}</p>
-            </div>
-          ) : history.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-64 text-slate-400 gap-3">
-              <FileText size={48} className="text-slate-300" />
-              <p>{t('devices.history.noHistory', 'No history found for this device.')}</p>
-            </div>
-          ) : (
-            <table className="w-full text-left border-collapse">
-              <thead className="bg-white text-xs uppercase text-slate-500 font-semibold sticky top-0 shadow-sm z-10">
-                <tr>
-                  <th className="p-4 border-b">{t('devices.history.colDate', 'Saved Date')}</th>
-                  <th className="p-4 border-b">{t('devices.history.colModel', 'Model')}</th>
-                  <th className="p-4 border-b">{t('devices.history.colUser', 'User')}</th>
-                  <th className="p-4 border-b text-right">{t('devices.history.colActions', 'Restore / Download')}</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-200 bg-white">
-                {history.map((item) => (
-                  <tr key={item.id} className="hover:bg-blue-50 transition group">
-                    <td className="p-4 text-sm text-slate-700">
-                      <div className="font-medium">
-                        {new Date(item.createdAt).toLocaleDateString(i18n.language)}
-                      </div>
-                      <div className="text-xs text-slate-500">
-                        {new Date(item.createdAt).toLocaleTimeString(i18n.language)}
-                      </div>
-                    </td>
-                    <td className="p-4 text-sm text-slate-600">
-                      {item.deviceModel?.name || 'Unknown'}
-                    </td>
-                    <td className="p-4 text-sm text-slate-600">
-                      {item.user?.username || `User #${item.userId}`}
-                    </td>
-                    <td className="p-4 text-right">
-                      <button 
-                        onClick={() => handleDownload(item)}
-                        className="inline-flex items-center gap-2 text-xs font-bold px-3 py-1.5 bg-slate-100 text-slate-600 rounded-lg hover:bg-blue-600 hover:text-white transition-all shadow-sm"
-                      >
-                        <Download size={14} /> {t('devices.history.downloadButton', 'Download .rsc')}
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </div>
-        
-        {/* Footer */}
-        <div className="p-4 border-t border-slate-200 bg-white text-right shrink-0">
-            <button onClick={onClose} className="px-5 py-2 bg-white border border-slate-300 rounded-lg text-slate-600 hover:bg-slate-50 text-sm font-medium transition shadow-sm">
-                {t('common.close', 'Close')}
-            </button>
-        </div>
-
-      </div>
-    </div>
+      </Dialog>
+    </Transition>
   );
 };
 
