@@ -6,7 +6,7 @@ const ConfigWizardModal = ({ isOpen, onClose, mode = 'create', initialData }) =>
   // Prevent body scroll when modal is open and handle ESC key
   useEffect(() => {
     const handleEsc = (event) => {
-      if (event.key === 'Escape' && mode === 'create') {
+      if (event.key === 'Escape' && (mode === 'create' || mode === 'standalone')) {
         onClose();
       }
     };

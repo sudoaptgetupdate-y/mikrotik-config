@@ -117,13 +117,13 @@ const ManageDevicesModal = ({ isOpen, onClose, group, allDevices, loadingDevices
             </div>
         </div>
 
-        <div className="flex-1 overflow-hidden p-4 sm:p-6 bg-slate-50/50">
+        <div className="flex-1 overflow-y-auto md:overflow-hidden p-4 sm:p-6 bg-slate-50/50">
           {loadingDevices ? (
             <div className="text-center py-20 text-slate-400 text-sm">{t('groups.manage.loading')}</div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-8 h-full">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-8 h-auto md:h-full">
               {/* ฝั่งซ้าย: อุปกรณ์อื่นๆ */}
-              <div className="flex flex-col h-full bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+              <div className="flex flex-col h-[400px] md:h-full bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
                 <div className="p-3 bg-slate-100 border-b border-slate-200 font-bold text-sm text-slate-700 flex justify-between items-center shrink-0">
                   <span>{t('groups.manage.others_title')}</span>
                   <span className="bg-white border border-slate-200 text-slate-500 px-2 py-0.5 rounded-md text-xs">{availableDevices.length}</span>
@@ -155,7 +155,7 @@ const ManageDevicesModal = ({ isOpen, onClose, group, allDevices, loadingDevices
               </div>
 
               {/* ฝั่งขวา: อยู่ในกลุ่ม */}
-              <div className="flex flex-col h-full bg-white border border-blue-200 rounded-2xl overflow-hidden shadow-sm ring-1 ring-blue-50">
+              <div className="flex flex-col h-[400px] md:h-full bg-white border border-blue-200 rounded-2xl overflow-hidden shadow-sm ring-1 ring-blue-50">
                 <div className="p-3 bg-blue-50 border-b border-blue-100 font-bold text-sm text-blue-800 flex justify-between items-center shrink-0">
                   <span>{t('groups.manage.members_title')}</span>
                   <span className="bg-white border border-blue-200 text-blue-600 px-2 py-0.5 rounded-md text-xs">{assignedDevices.length}</span>

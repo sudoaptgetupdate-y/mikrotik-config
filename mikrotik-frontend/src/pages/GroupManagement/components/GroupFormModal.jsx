@@ -57,12 +57,12 @@ const GroupFormModal = ({ isOpen, onClose, isEditMode, formData, setFormData, on
       />
 
       <div 
-        className={`bg-white rounded-3xl shadow-2xl w-full max-w-4xl overflow-hidden relative z-10 transition-all duration-300 transform ${
+        className={`bg-white rounded-3xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden relative z-10 transition-all duration-300 transform ${
           isOpen ? 'scale-100 translate-y-0' : 'scale-95 translate-y-4'
         }`}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex justify-between items-center p-5 sm:p-6 border-b border-slate-100 bg-slate-50">
+        <div className="flex justify-between items-center p-5 sm:p-6 border-b border-slate-100 bg-slate-50 shrink-0">
           <h3 className="font-bold text-lg text-slate-800 flex items-center gap-2">
             {isEditMode ? <Edit size={20} className="text-blue-600" /> : <Plus size={20} className="text-blue-600" />}
             {isEditMode ? t('groups.form.edit_title') : t('groups.form.create_title')}
@@ -70,8 +70,8 @@ const GroupFormModal = ({ isOpen, onClose, isEditMode, formData, setFormData, on
           <button onClick={onClose} className="text-slate-400 hover:text-slate-600 bg-white hover:bg-slate-100 p-1.5 rounded-full transition"><X size={20} /></button>
         </div>
         
-        <form onSubmit={onSubmit}>
-          <div className="p-5 sm:p-6 space-y-6 max-h-[80vh] overflow-y-auto bg-slate-50/30">
+        <form onSubmit={onSubmit} className="flex-1 flex flex-col overflow-hidden">
+          <div className="p-5 sm:p-6 space-y-6 flex-1 overflow-y-auto bg-slate-50/30">
             {/* 1. Group Details (Full Width) */}
             <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm space-y-4">
               <h4 className="text-xs font-black text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-2">

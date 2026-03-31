@@ -106,13 +106,13 @@ const AcknowledgeModal = ({
       />
 
       <div 
-        className={`bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden flex flex-col relative z-10 transition-all duration-300 transform ${
+        className={`bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden flex flex-col max-h-[90vh] relative z-10 transition-all duration-300 transform ${
           isOpen ? 'scale-100 translate-y-0' : 'scale-95 translate-y-4'
         }`}
         onClick={(e) => e.stopPropagation()}
       >
         
-        <div className="p-5 border-b border-slate-100 flex justify-between items-center bg-white">
+        <div className="p-5 border-b border-slate-100 flex justify-between items-center bg-white shrink-0">
           <div className="flex items-center gap-4">
             <div className="p-2.5 bg-orange-50 text-orange-600 rounded-2xl">
               <AlertTriangle size={24} />
@@ -127,55 +127,71 @@ const AcknowledgeModal = ({
           </button>
         </div>
         
-        <div className="p-4 sm:p-6 space-y-4">
-          <div>
-            <label className="block text-sm font-bold text-slate-700 mb-1">
-              {t('devices.ack.deviceName', 'Device:')} <span className="text-blue-600">{device?.name}</span>
-            </label>
+        <div className="flex-1 overflow-hidden flex flex-col">
+          {/* Sticky Input Section */}
+          <div className="p-4 sm:p-6 pb-2 space-y-4 shrink-0 bg-white z-20 border-b border-slate-50">
+            <div>
+              <label className="block text-sm font-bold text-slate-700 mb-1">
+                {t('devices.ack.deviceName', 'Device:')} <span className="text-blue-600">{device?.name}</span>
+              </label>
 
-            <div className="bg-orange-50 text-orange-700 p-3 rounded-lg text-sm border border-orange-200 mt-2 mb-3 flex items-center gap-2 font-medium">
-               <AlertTriangle size={16}/> 
-               {t('devices.ack.currentIssue', 'Current Issue:')} <span className="font-bold text-red-600">{currentWarning}</span>
-            </div>
-
-            <p className="text-xs text-slate-500">{t('devices.ack.instruction', 'Please provide a reason or note for acknowledging this status.')}</p>
-          </div>
-          
-          <textarea
-            className="w-full p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-sm transition"
-            rows="3"
-            placeholder={t('devices.ack.placeholder', 'e.g. Device is running backup causing full storage / Power outage in progress...')}
-            value={ackReason}
-            onChange={(e) => setAckReason(e.target.value)}
-          ></textarea>
-
-          {modalAckHistory && modalAckHistory.length > 0 && (
-            <div className="mt-4 pt-4 border-t border-slate-100">
-              <h4 className="text-xs font-bold text-slate-500 uppercase mb-2 flex items-center gap-1">
-                <History size={14} /> {t('devices.ack.previousAcks', 'Previous Acknowledges')}
-              </h4>
-              <div className="max-h-32 overflow-y-auto space-y-2 pr-2">
-                {modalAckHistory.slice().reverse().map((h, i) => (
-                  <div key={i} className="bg-slate-50 p-2.5 rounded-lg border border-slate-200 text-xs">
-                    <div className="flex justify-between items-start mb-1">
-                      <span className="font-bold text-slate-700 flex items-center gap-1 flex-wrap">
-                        <User size={12} className="text-blue-500"/> {h.userName || t('devices.ack.unknownUser', 'Unknown User')}
-                        {h.warningData && (
-                          <span className="ml-1 bg-red-100 text-red-600 px-1.5 py-0.5 rounded text-[10px] font-black tracking-wide">
-                            {h.warningData}
-                          </span>
-                        )}
-                      </span>
-                      <span className="text-slate-400 flex items-center gap-1 font-medium whitespace-nowrap">
-                        <Clock size={12}/> {new Date(h.timestamp).toLocaleString(i18n.language, { dateStyle: 'short', timeStyle: 'short' })}
-                      </span>
-                    </div>
-                    <p className="text-slate-600 mt-1">{h.reason}</p>
-                  </div>
-                ))}
+              <div className="bg-orange-50 text-orange-700 p-3 rounded-lg text-sm border border-orange-200 mt-2 mb-3 flex items-center gap-2 font-medium">
+                 <AlertTriangle size={16}/> 
+                 {t('devices.ack.currentIssue', 'Current Issue:')} <span className="font-bold text-red-600">{currentWarning}</span>
               </div>
+
+              <p className="text-xs text-slate-500">{t('devices.ack.instruction', 'Please provide a reason or note for acknowledging this status.')}</p>
             </div>
-          )}
+            
+            <textarea
+              className="w-full p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-sm transition"
+              rows="3"
+              placeholder={t('devices.ack.placeholder', 'e.g. Device is running backup causing full storage / Power outage in progress...')}
+              value={ackReason}
+              onChange={(e) => setAckReason(e.target.value)}
+            ></textarea>
+          </div>
+
+          {/* Scrollable History Section */}
+          <div className="p-4 sm:p-6 pt-2 overflow-y-auto flex-1 bg-slate-50/30">
+            {modalAckHistory && modalAckHistory.length > 0 && (
+              <div className="space-y-4">
+                <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-2">
+                  <History size={14} /> {t('devices.ack.previousAcks', 'Previous Acknowledges')}
+                </h4>
+                <div className="space-y-3">
+                  {modalAckHistory.slice().reverse().map((h, i) => (
+                    <div key={i} className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm text-xs group hover:border-blue-200 transition-all">
+                      <div className="flex justify-between items-start mb-2">
+                        <span className="font-bold text-slate-700 flex items-center gap-2 flex-wrap">
+                          <div className="size-6 bg-blue-50 text-blue-600 rounded-lg flex items-center justify-center font-black">
+                            {(h.userName || 'U').charAt(0)}
+                          </div>
+                          {h.userName || t('devices.ack.unknownUser', 'Unknown User')}
+                          {h.warningData && (
+                            <span className="ml-1 bg-red-100 text-red-600 px-2 py-0.5 rounded-md text-[9px] font-black tracking-widest uppercase">
+                              {h.warningData}
+                            </span>
+                          )}
+                        </span>
+                        <span className="text-slate-400 flex items-center gap-1 font-bold tracking-tighter">
+                          <Clock size={12}/> {new Date(h.timestamp).toLocaleString(i18n.language, { dateStyle: 'short', timeStyle: 'short' })}
+                        </span>
+                      </div>
+                      <p className="text-slate-600 mt-1 leading-relaxed bg-slate-50 p-2.5 rounded-xl border border-slate-100">{h.reason}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            
+            {(!modalAckHistory || modalAckHistory.length === 0) && (
+              <div className="h-full flex flex-col items-center justify-center py-10 text-slate-300">
+                <History size={32} className="mb-2 opacity-20" />
+                <p className="text-[10px] font-bold uppercase tracking-widest">{t('devices.ack.noHistory', 'No previous history')}</p>
+              </div>
+            )}
+          </div>
         </div>
 
         <div className="p-4 sm:p-6 border-t border-slate-100 bg-slate-50 flex justify-end gap-3">

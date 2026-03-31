@@ -5,6 +5,22 @@ const ShareModal = ({ isShareModalOpen, setIsShareModalOpen, handleShare, t }) =
   const [copied, setCopied] = React.useState(false);
   const currentUrl = typeof window !== 'undefined' ? window.location.href : '';
 
+  React.useEffect(() => {
+    const handleEsc = (e) => {
+      if (e.key === 'Escape') setIsShareModalOpen(false);
+    };
+    if (isShareModalOpen) {
+      window.addEventListener('keydown', handleEsc);
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+    return () => {
+      window.removeEventListener('keydown', handleEsc);
+      document.body.style.overflow = 'unset';
+    };
+  }, [isShareModalOpen, setIsShareModalOpen]);
+
   if (!isShareModalOpen) return null;
 
   const onCopy = () => {
@@ -22,10 +38,10 @@ const ShareModal = ({ isShareModalOpen, setIsShareModalOpen, handleShare, t }) =
       />
       
       {/* Modal Card */}
-      <div className="bg-white rounded-[32px] shadow-2xl w-full max-w-[420px] relative z-10 overflow-hidden animate-in zoom-in-95 slide-in-from-bottom-10 duration-500 border border-slate-200">
+      <div className="bg-white rounded-[32px] shadow-2xl w-full max-w-[420px] max-h-[90vh] flex flex-col relative z-10 overflow-hidden animate-in zoom-in-95 slide-in-from-bottom-10 duration-500 border border-slate-200">
         
         {/* Header */}
-        <div className="px-6 py-5 border-b border-slate-100 flex justify-between items-center bg-slate-50/30">
+        <div className="px-6 py-5 border-b border-slate-100 flex justify-between items-center bg-slate-50/30 shrink-0">
           <div className="flex items-center gap-3">
             <div className="size-8 bg-blue-600 rounded-lg flex items-center justify-center text-white shadow-lg shadow-blue-200">
               <Share2 size={16} />
@@ -43,7 +59,7 @@ const ShareModal = ({ isShareModalOpen, setIsShareModalOpen, handleShare, t }) =
         </div>
 
         {/* Social Options */}
-        <div className="p-8">
+        <div className="p-8 overflow-y-auto flex-1">
           <div className="grid grid-cols-3 gap-4 mb-8">
             <button 
               onClick={() => handleShare('facebook')}

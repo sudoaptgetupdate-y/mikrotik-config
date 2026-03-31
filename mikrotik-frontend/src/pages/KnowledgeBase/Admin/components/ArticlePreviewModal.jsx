@@ -113,14 +113,22 @@ const ArticlePreviewModal = ({ isOpen, onClose, articleId }) => {
   const contentRef = useRef(null);
 
   useEffect(() => {
+    const handleEsc = (e) => {
+      if (e.key === 'Escape') onClose();
+    };
     if (isOpen && articleId) {
       fetchArticle();
+      window.addEventListener('keydown', handleEsc);
       document.body.style.overflow = 'hidden';
     } else {
       document.body.style.overflow = 'unset';
       if (!isOpen) setArticle(null);
     }
-  }, [isOpen, articleId]);
+    return () => {
+      window.removeEventListener('keydown', handleEsc);
+      document.body.style.overflow = 'unset';
+    };
+  }, [isOpen, articleId, onClose]);
 
   const fetchArticle = async () => {
     try {

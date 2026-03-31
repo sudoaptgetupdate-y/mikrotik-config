@@ -36,6 +36,9 @@ const ArticleFormModal = ({ isOpen, onClose, articleId, onSaveSuccess }) => {
 
   // 1. Initial Data Fetching
   useEffect(() => {
+    const handleEsc = (e) => {
+      if (e.key === 'Escape') onClose();
+    };
     if (isOpen) {
       fetchInitialData();
       contentInjected.current = false;
@@ -52,6 +55,7 @@ const ArticleFormModal = ({ isOpen, onClose, articleId, onSaveSuccess }) => {
           quillInstance.current.root.innerHTML = '';
         }
       }
+      window.addEventListener('keydown', handleEsc);
       document.body.style.overflow = 'hidden';
     } else {
       document.body.style.overflow = 'unset';
@@ -59,7 +63,11 @@ const ArticleFormModal = ({ isOpen, onClose, articleId, onSaveSuccess }) => {
         URL.revokeObjectURL(previewUrl);
       }
     }
-  }, [isOpen, articleId]);
+    return () => {
+      window.removeEventListener('keydown', handleEsc);
+      document.body.style.overflow = 'unset';
+    };
+  }, [isOpen, articleId, onClose]);
 
   const fetchInitialData = async () => {
     try {
@@ -382,14 +390,14 @@ const ArticleFormModal = ({ isOpen, onClose, articleId, onSaveSuccess }) => {
                 </div>
               </div>
               
-              <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden flex flex-col min-h-[550px]">
-                <div className="px-6 py-4 bg-slate-50/50 border-b border-slate-100 flex items-center justify-between">
+              <div className="bg-white rounded-3xl border border-slate-100 shadow-sm flex flex-col min-h-[550px]">
+                <div className="px-6 py-4 bg-slate-50/50 border-b border-slate-100 flex items-center justify-between rounded-t-3xl">
                   <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-wider flex items-center gap-2"><div className="w-1 h-3 bg-indigo-500 rounded-full"></div>{t('articles.content_editor')}</h4>
                   <div className="flex items-center gap-2 text-[9px] font-bold text-blue-400 bg-blue-50 px-2.5 py-1 rounded-lg"><AlertCircle size={12} />{t('articles.editor_hint')}</div>
                 </div>
                 <div className="flex-1 p-2 relative">
                   {fetching && (
-                    <div className="absolute inset-0 bg-white/80 backdrop-blur-sm z-10 flex flex-col items-center justify-center">
+                    <div className="absolute inset-0 bg-white/80 backdrop-blur-sm z-10 flex flex-col items-center justify-center rounded-b-3xl">
                        <Loader2 className="animate-spin text-blue-600 mb-2" size={32} />
                        <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">{t('common.loading')}</span>
                     </div>
@@ -399,7 +407,7 @@ const ArticleFormModal = ({ isOpen, onClose, articleId, onSaveSuccess }) => {
               </div>
             </div>
 
-            <div className="space-y-6">
+            <div className="space-y-6 lg:sticky lg:top-[-20px] h-fit">
               <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm space-y-5">
                 <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2"><div className="w-1 h-3 bg-emerald-500 rounded-full"></div>{t('articles.publish_settings')}</h4>
                 <div className="space-y-5">
@@ -473,7 +481,7 @@ const ArticleFormModal = ({ isOpen, onClose, articleId, onSaveSuccess }) => {
           <button type="button" disabled={loading} onClick={handleSubmit} className="px-10 py-2.5 rounded-xl bg-slate-900 text-white hover:bg-black transition-all text-sm font-bold shadow-lg shadow-slate-200 flex items-center gap-2 active:scale-95 disabled:opacity-50">{loading ? <Loader2 className="animate-spin" size={18} /> : <CheckCircle size={18} />}{articleId ? t('common.save_changes') : t('articles.create_new')}</button>
         </div>
       </div>
-      <style dangerouslySetInnerHTML={{ __html: `.ql-container.ql-snow { border: none !important; font-family: 'Inter', sans-serif; font-size: 16px; } .ql-toolbar.ql-snow { border: none !important; border-bottom: 1px solid #f1f5f9 !important; background: #f8fafc; padding: 0.75rem 1.25rem !important; } .ql-editor { min-height: 400px; color: #1e293b; padding: 1.25rem !important; line-height: 1.7; } .ql-editor.ql-blank::before { color: #cbd5e1; font-style: normal; font-weight: 600; left: 1.25rem !important; } .ql-editor pre.ql-syntax, .ql-editor .ql-code-block-container { background-color: #0f172a !important; color: #f8fafc !important; border-radius: 1rem !important; padding: 1rem !important; margin: 1rem 0 !important; font-family: 'Fira Code', monospace; } .ql-editor .ql-code-block { white-space: pre !important; }` }} />
+      <style dangerouslySetInnerHTML={{ __html: `.ql-container.ql-snow { border: none !important; font-family: 'Inter', sans-serif; font-size: 16px; } .ql-toolbar.ql-snow { border: none !important; border-bottom: 1px solid #f1f5f9 !important; background: #f8fafc; padding: 0.75rem 1.25rem !important; position: sticky; top: 0; z-index: 20; } .ql-editor { min-height: 400px; color: #1e293b; padding: 1.25rem !important; line-height: 1.7; } .ql-editor.ql-blank::before { color: #cbd5e1; font-style: normal; font-weight: 600; left: 1.25rem !important; } .ql-editor pre.ql-syntax, .ql-editor .ql-code-block-container { background-color: #0f172a !important; color: #f8fafc !important; border-radius: 1rem !important; padding: 1rem !important; margin: 1rem 0 !important; font-family: 'Fira Code', monospace; } .ql-editor .ql-code-block { white-space: pre !important; }` }} />
     </div>
   );
 };

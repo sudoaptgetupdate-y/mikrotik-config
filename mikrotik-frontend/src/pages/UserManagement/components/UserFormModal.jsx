@@ -61,8 +61,8 @@ const UserFormModal = ({
           </div>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition p-2 hover:bg-slate-100 rounded-lg"><X size={20} /></button>
         </div>
-        <form onSubmit={handleSubmit} className="flex flex-col overflow-hidden">
-          <div className="p-4 sm:p-6 space-y-4 sm:space-y-5 overflow-y-auto">
+        <form onSubmit={handleSubmit} className="flex-1 flex flex-col overflow-hidden">
+          <div className="p-4 sm:p-6 space-y-4 sm:space-y-5 flex-1 overflow-y-auto">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div><label className="block text-xs font-bold text-slate-700 mb-1">{t('users.form.first_name')} *</label><input required type="text" name="firstName" value={formData.firstName} onChange={handleInputChange} className="w-full border border-slate-200 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-100" placeholder={t('users.form.first_name_placeholder')} /></div>
               <div><label className="block text-xs font-bold text-slate-700 mb-1">{t('users.form.last_name')} *</label><input required type="text" name="lastName" value={formData.lastName} onChange={handleInputChange} className="w-full border border-slate-200 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-100" placeholder={t('users.form.last_name_placeholder')} /></div>
