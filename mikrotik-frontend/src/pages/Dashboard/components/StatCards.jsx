@@ -1,12 +1,12 @@
 import React from 'react';
-import { Router, Wifi, Radio, Bell, CheckCircle, AlertTriangle } from 'lucide-react';
+import { Router, Wifi, Radio, Bell, CheckCircle, AlertTriangle, Server } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 const StatCards = ({ stats, onlinePercentage, onCardClick }) => {
   const { t } = useTranslation();
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
       {/* Total Devices */}
       <div onClick={() => onCardClick('ACTIVE_ONLY')} className="relative bg-white p-5 rounded-2xl border border-slate-200 shadow-sm hover:border-blue-300 hover:shadow-lg hover:shadow-blue-500/10 hover:-translate-y-1 transition-all duration-300 cursor-pointer group overflow-hidden">
         <Router size={76} className="absolute -bottom-4 -right-2 text-blue-50 opacity-60 group-hover:scale-110 group-hover:rotate-12 transition-transform duration-500" />
@@ -43,6 +43,18 @@ const StatCards = ({ stats, onlinePercentage, onCardClick }) => {
           </div>
           <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wide group-hover:text-rose-600 transition-colors">{t('dashboard.stats.offline')}</p>
           <h3 className="text-3xl font-black text-slate-800 mt-0.5">{stats.offlineDevices}</h3>
+        </div>
+      </div>
+
+      {/* Pending Devices */}
+      <div onClick={() => onCardClick('PENDING')} className="relative bg-white p-5 rounded-2xl border border-slate-200 shadow-sm hover:border-amber-400 hover:shadow-lg hover:shadow-amber-500/10 hover:-translate-y-1 transition-all duration-300 cursor-pointer group overflow-hidden">
+        <Server size={76} className="absolute -bottom-4 -right-2 text-amber-50 opacity-60 group-hover:scale-110 group-hover:rotate-12 transition-transform duration-500" />
+        <div className="relative z-10">
+          <div className="w-10 h-10 bg-amber-50 text-amber-600 rounded-xl flex items-center justify-center mb-3 group-hover:bg-amber-600 group-hover:text-white transition-colors duration-300 shadow-inner">
+            <Server size={20} />
+          </div>
+          <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wide group-hover:text-amber-600 transition-colors">{t('dashboard.stats.pending', 'Pending')}</p>
+          <h3 className="text-3xl font-black text-slate-800 mt-0.5">{stats.pendingDevices}</h3>
         </div>
       </div>
 

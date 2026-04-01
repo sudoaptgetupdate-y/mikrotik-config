@@ -125,9 +125,13 @@ const formatTimeAgo = (minutes) => {
 
 const generateGroupReportText = (group, isDaily = false, thresholds) => {
   const devices = group.devices || [];
-  let onlineHealthy = [], warningUnack = [], warningAck = [], offlineUnack = [], offlineAck = [];
+  let onlineHealthy = [], warningUnack = [], warningAck = [], offlineUnack = [], offlineAck = [], pending = [];
   devices.forEach(d => {
-    const diffMinutes = d.lastSeen ? (new Date() - new Date(d.lastSeen)) / 1000 / 60 : 999;
+    if (!d.lastSeen) {
+      pending.push(d);
+      return;
+    }
+    const diffMinutes = (new Date() - new Date(d.lastSeen)) / 1000 / 60;
     if (diffMinutes > 3) {
       if (d.isAcknowledged) offlineAck.push(d); else offlineUnack.push(d);
       return;
@@ -149,6 +153,8 @@ const generateGroupReportText = (group, isDaily = false, thresholds) => {
   const separator = "━━━━━━━━━━━━━━━━━━";
   let msg = `${title}\n<code>กลุ่ม: ${group.name}</code>\n${separator}\n\n📍 <b><u>สรุปสถานะอุปกรณ์</u></b>\n📦 ทั้งหมด: <b>${devices.length}</b> รายการ\n✅ Online: <b>${totalOnline}</b> รายการ\n      ├ ปกติ: <code>${onlineHealthy.length}</code>\n      └ ปัญหา: <code>${totalWarning}</code> ${warningAck.length > 0 ? `<i>(Ack: ${warningAck.length})</i>` : ''}\n🛑 Offline: <b>${totalOffline}</b> รายการ\n`;
   if (totalOffline > 0) { msg += `      ├ 🚨 ใหม่: <code>${offlineUnack.length}</code>\n      └ ⌛ รับทราบ: <code>${offlineAck.length}</code>\n`; }
+  if (pending.length > 0) { msg += `⏳ Pending: <b>${pending.length}</b> รายการ <i>(รอเชื่อมต่อ)</i>\n`; }
+  
   msg += `\n${separator}\n🚨 <b><u>ปัญหาที่ต้องตรวจสอบด่วน</u></b>\n`;
   if (warningUnack.length === 0 && offlineUnack.length === 0) msg += `✅ <i>ระบบทำงานปกติ ไม่พบปัญหาใหม่</i>\n`;
   else {
@@ -569,7 +575,14 @@ exports.initRealtimeMonitorCron = () => {
     try {
       const threeMinsAgo = new Date(Date.now() - 3 * 60 * 1000);
       const deadDevices = await prisma.managedDevice.findMany({
-        where: { status: { not: 'DELETED' }, lastSeen: { lt: threeMinsAgo }, isOfflineAlerted: false },
+        where: { 
+          status: { not: 'DELETED' }, 
+          lastSeen: { 
+            not: null, // 🚀 เพิ่มตรงนี้: ต้องเคยออนไลน์มาแล้วเท่านั้นถึงจะนับว่า Offline
+            lt: threeMinsAgo 
+          }, 
+          isOfflineAlerted: false 
+        },
         include: { groups: true }
       });
       for (const device of deadDevices) {

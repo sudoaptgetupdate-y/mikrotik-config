@@ -129,6 +129,7 @@ const DeviceList = () => {
       if (statusFilter === 'ONLINE') return statusObj.state === 'online' && matchesSearch;
       if (statusFilter === 'WARNING') return statusObj.state === 'warning' && matchesSearch;
       if (statusFilter === 'OFFLINE') return statusObj.state === 'offline' && matchesSearch;
+      if (statusFilter === 'PENDING') return statusObj.state === 'pending' && matchesSearch;
       if (statusFilter === 'DELETED') return statusObj.state === 'deleted' && matchesSearch;
       return matchesSearch; 
     });
@@ -144,8 +145,9 @@ const DeviceList = () => {
           'offline': 1,
           'warning': 2,
           'online': 3,
-          'acknowledged': 4,
-          'deleted': 5
+          'pending': 4,
+          'acknowledged': 5,
+          'deleted': 6
         };
         
         const rankA = priority[stateA] || 99;

@@ -54,6 +54,7 @@ const resources = {
         hardware_models: "Hardware Models",
         vpn_tools: "VPN Configuration",
         config_builder: "Config Builder",
+        config_wizard: "Create Device",
         audit_logs: "Audit Logs",
         user_management: "User Management",
         global_settings: "Global Settings",

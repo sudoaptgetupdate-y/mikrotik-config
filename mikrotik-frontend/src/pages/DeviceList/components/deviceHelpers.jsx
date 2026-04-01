@@ -4,7 +4,16 @@ export const getDeviceStatus = (device, thresholds = { cpu: 85, ram: 85, storage
   if (device.status === 'DELETED') {
       return { state: 'deleted', color: 'bg-slate-100 text-slate-500 border-slate-200', icon: <Archive size={14}/>, label: t ? t('devices.status.deleted') : 'Inactive' };
   }
-  if (!device.lastSeen) return { state: 'offline', color: 'bg-red-50 text-red-600 border-red-200', icon: <XCircle size={14}/>, label: t ? t('devices.status.offline') : 'Offline' };
+  
+  // ⏳ สถานะ Pending: ใช้สีเหลืองอำพัน (ทึบปกติ)
+  if (!device.lastSeen) {
+    return { 
+      state: 'pending', 
+      color: 'bg-amber-50 text-amber-600 border-amber-200', 
+      icon: <Server size={14}/>, 
+      label: t ? t('devices.status.pending', 'Pending') : 'Pending' 
+    };
+  }
   
   const diffMinutes = (new Date() - new Date(device.lastSeen)) / 1000 / 60;
   if (diffMinutes > 3) return { state: 'offline', color: 'bg-red-50 text-red-600 border-red-200', icon: <XCircle size={14}/>, label: t ? t('devices.status.offline') : 'Offline' };
@@ -49,6 +58,7 @@ export const getFilterOptions = (t) => [
   { value: 'ONLINE', label: t('devices.filters.ONLINE'), icon: CheckCircle, color: 'text-green-600', bg: 'bg-green-100' },
   { value: 'WARNING', label: t('devices.filters.WARNING'), icon: AlertTriangle, color: 'text-orange-500', bg: 'bg-orange-100' },
   { value: 'OFFLINE', label: t('devices.filters.OFFLINE'), icon: XCircle, color: 'text-red-500', bg: 'bg-red-100' },
+  { value: 'PENDING', label: t('devices.filters.PENDING', 'Pending'), icon: Server, color: 'text-slate-500', bg: 'bg-slate-100' },
   { value: 'DELETED', label: t('devices.filters.DELETED'), icon: Archive, color: 'text-slate-500', bg: 'bg-slate-200' },
   { value: 'ALL', label: t('devices.filters.ALL'), icon: Server, color: 'text-slate-600', bg: 'bg-slate-100' },
 ];

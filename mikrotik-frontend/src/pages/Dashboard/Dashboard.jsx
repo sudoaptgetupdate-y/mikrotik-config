@@ -93,17 +93,23 @@ const uptimeToSeconds = (uptimeStr) => {
 
       const activeDevices = (allDevices || []).filter(device => device.status !== 'DELETED');
       
-      let onlineCount = 0; let offlineCount = 0; let alertCount = 0;
+      let onlineCount = 0; let offlineCount = 0; let alertCount = 0; let pendingCount = 0;
       let highLoadList = []; 
       let offlineList = [];
+      let pendingList = [];
       let uptimeList = [...activeDevices];
 
       activeDevices.forEach(device => {
-        let isOnline = false;
-        if (device.lastSeen) {
-            const diffMinutes = (new Date() - new Date(device.lastSeen)) / 1000 / 60;
-            isOnline = diffMinutes <= 3;
+        // ⏳ อุปกรณ์ใหม่ที่ยังไม่เคยเชื่อมต่อเลย
+        if (!device.lastSeen) {
+          pendingCount++;
+          pendingList.push(device);
+          return;
         }
+
+        let isOnline = false;
+        const diffMinutes = (new Date() - new Date(device.lastSeen)) / 1000 / 60;
+        isOnline = diffMinutes <= 3;
 
         const cpuVal = parseFloat(device.cpu || device.cpuLoad) || 0;
         const ramVal = parseFloat(device.ram || device.memoryUsage) || 0;
@@ -155,10 +161,12 @@ const uptimeToSeconds = (uptimeStr) => {
           totalModels: (models || []).length,
           onlineDevices: onlineCount,
           offlineDevices: offlineCount,
+          pendingDevices: pendingCount,
           activeAlerts: alertCount
         },
         topHighLoadDevices: highLoadList.slice(0, 5),
         offlineDevicesList: offlineList.slice(0, 5),
+        pendingDevicesList: pendingList.slice(0, 5),
         topUptimeDevices: uptimeList.slice(0, 5),
         thresholds,
         announcement
