@@ -1,6 +1,15 @@
 const prisma = require('../config/prisma');
 const { sendTelegramAlert } = require('../utils/telegramUtil');
 
+// 🛡️ Helper: Sanitize HTML for Telegram
+const sanitizeHTML = (text) => {
+  if (!text) return "";
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+};
+
 exports.createActivityLog = async ({ userId, action, details, ipAddress, userNameOverride, deviceId }) => {
   try {
     const log = await prisma.activityLog.create({
@@ -125,7 +134,7 @@ const triggerAuditNotification = async (log, userNameOverride) => {
     };
 
     const emoji = emojiMap[log.action] || '📝';
-    const message = `${emoji} <b><u>[ AUDIT LOG ALERT ]</u></b>\n━━━━━━━━━━━━━━━━━━\n<b>กิจกรรม:</b> <code>${log.action}</code>\n<b>ผู้ดำเนินการ:</b> <b>${userName}</b>\n<b>รายละเอียด:</b> <i>${log.details || '-'}</i>\n<b>IP Address:</b> <code>${log.ipAddress || '-'}</code>\n<b>เวลา:</b> <code>${new Date().toLocaleString('th-TH')}</code>\n━━━━━━━━━━━━━━━━━━`;
+    const message = `${emoji} <b><u>[ AUDIT LOG ALERT ]</u></b>\n━━━━━━━━━━━━━━━━━━\n<b>กิจกรรม:</b> <code>${log.action}</code>\n<b>ผู้ดำเนินการ:</b> <b>${userName}</b>\n<b>รายละเอียด:</b> <i>${sanitizeHTML(log.details) || '-'}</i>\n<b>IP Address:</b> <code>${log.ipAddress || '-'}</code>\n<b>เวลา:</b> <code>${new Date().toLocaleString('th-TH')}</code>\n━━━━━━━━━━━━━━━━━━`;
 
     await sendTelegramAlert(config.botToken, config.chatId, message);
   } catch (err) {

@@ -1,7 +1,8 @@
 const app = require('./app');
 const prisma = require('./config/prisma'); 
-const logger = require('./utils/logger'); // ✅ นำเข้า logger
+const logger = require('./utils/logger'); 
 const telegramController = require('./controllers/telegramController');
+const cronJobs = require('./services/cronJobs'); // 🚀 เพิ่มการนำเข้า Cron Jobs
 
 const PORT = process.env.PORT || 3000;
 
@@ -14,10 +15,10 @@ async function startServer() {
       logger.info(`🚀 Server running on port ${PORT}`); 
       
       // ✅ เริ่มการทำงานของ Cron Job สำหรับส่งรายงาน Telegram ประจำวัน (07:30)
-      telegramController.initDailyReportCron();
+      cronJobs.initDailyReportCron();
       
       // 🟢 เริ่มการทำงานของ Cron Job สำหรับตรวจจับอุปกรณ์ Offline ทุกๆ 1 นาที
-      telegramController.initRealtimeMonitorCron();
+      cronJobs.initRealtimeMonitorCron();
     });
   } catch (error) {
     logger.error('❌ Failed to start server:', error); 
