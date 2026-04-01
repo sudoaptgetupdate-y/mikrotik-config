@@ -153,7 +153,7 @@ const generateGroupReportText = (group, isDaily = false, thresholds) => {
   const separator = "━━━━━━━━━━━━━━━━━━";
   let msg = `${title}\n<code>กลุ่ม: ${group.name}</code>\n${separator}\n\n📍 <b><u>สรุปสถานะอุปกรณ์</u></b>\n📦 ทั้งหมด: <b>${devices.length}</b> รายการ\n✅ Online: <b>${totalOnline}</b> รายการ\n      ├ ปกติ: <code>${onlineHealthy.length}</code>\n      └ ปัญหา: <code>${totalWarning}</code> ${warningAck.length > 0 ? `<i>(Ack: ${warningAck.length})</i>` : ''}\n🛑 Offline: <b>${totalOffline}</b> รายการ\n`;
   if (totalOffline > 0) { msg += `      ├ 🚨 ใหม่: <code>${offlineUnack.length}</code>\n      └ ⌛ รับทราบ: <code>${offlineAck.length}</code>\n`; }
-  if (pending.length > 0) { msg += `⏳ Pending: <b>${pending.length}</b> รายการ <i>(รอเชื่อมต่อ)</i>\n`; }
+  if (pending.length > 0) { msg += `⏳ Pending: <b>${pending.length}</b> รายการ <i>(รอติดตั้ง)</i>\n`; }
   
   msg += `\n${separator}\n🚨 <b><u>ปัญหาที่ต้องตรวจสอบด่วน</u></b>\n`;
   if (warningUnack.length === 0 && offlineUnack.length === 0) msg += `✅ <i>ระบบทำงานปกติ ไม่พบปัญหาใหม่</i>\n`;
@@ -161,6 +161,13 @@ const generateGroupReportText = (group, isDaily = false, thresholds) => {
     offlineUnack.forEach(o => msg += `• <b>${o.name}</b>\n  └ 🛑 <b><code>[ OFFLINE ]</code></b> ขาดการติดต่อ\n`);
     warningUnack.forEach(p => msg += `• <b>${p.name}</b>\n  └ ⚠️ <code>${p.issues}</code>\n`);
   }
+
+  // 🛠 เพิ่มส่วนรายการอุปกรณ์ที่รอติดตั้ง
+  if (pending.length > 0) {
+    msg += `\n⏳ <b><u>อุปกรณ์ที่รอการติดตั้ง</u></b>\n`;
+    pending.forEach(p => msg += `• <b>${p.name}</b>\n  └ 📦 <i>รอนำไปติดตั้งในพื้นที่</i>\n`);
+  }
+
   if (warningAck.length > 0 || offlineAck.length > 0) {
     msg += `\n⌛ <b><u>อยู่ระหว่างดำเนินการ (Ack)</u></b>\n`;
     offlineAck.forEach(o => msg += `• <b>${o.name}</b>\n  └ 🛑 <b><code>[ OFFLINE ]</code></b> รับทราบแล้ว\n`);
