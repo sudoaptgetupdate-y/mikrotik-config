@@ -23,7 +23,8 @@ exports.createDevice = async (req, res, next) => {
       userId: req.user.id,
       action: 'CREATE_DEVICE',
       details: `เพิ่มอุปกรณ์ใหม่: ${name} (Circuit: ${circuitId || 'N/A'})`,
-      ipAddress: req.ip
+      ipAddress: req.ip,
+      deviceId: result.id // 🚀 เพิ่มตรงนี้เพื่อให้ Log Service เอาไปหาข้อมูลกลุ่มต่อได้
     });
 
     res.status(201).json({ success: true, ...result });

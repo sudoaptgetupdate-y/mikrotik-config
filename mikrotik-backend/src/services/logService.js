@@ -1,7 +1,7 @@
 const prisma = require('../config/prisma');
 const { sendTelegramAlert } = require('../utils/telegramUtil');
 
-exports.createActivityLog = async ({ userId, action, details, ipAddress, userNameOverride }) => {
+exports.createActivityLog = async ({ userId, action, details, ipAddress, userNameOverride, deviceId }) => {
   try {
     const log = await prisma.activityLog.create({
       data: {
@@ -12,13 +12,51 @@ exports.createActivityLog = async ({ userId, action, details, ipAddress, userNam
       }
     });
 
-    // 📢 ส่งแจ้งเตือนผ่าน Telegram สำหรับ Audit Log ที่สำคัญ (ไม่ต้องรอให้เสร็จก็ได้)
+    // 📢 1. ส่งแจ้งเตือนผ่าน Telegram สำหรับ Audit Log กลาง (Group Admin ส่วนกลาง)
     triggerAuditNotification(log, userNameOverride).catch(err => console.error("Audit Notify Error:", err));
+
+    // 📢 2. ส่งแจ้งเตือนเข้า Telegram ของกลุ่มอุปกรณ์ (Device Group) หากเป็นกิจกรรมเกี่ยวกับอุปกรณ์
+    if (deviceId && (action === 'CREATE_DEVICE' || action === 'DELETE_DEVICE')) {
+      triggerDeviceNotification(deviceId, action, userId, userNameOverride).catch(err => console.error("Device Group Notify Error:", err));
+    }
 
     return log;
   } catch (error) {
     console.error('Failed to create activity log:', error);
-    // ไม่ throw error เพื่อไม่ให้ขัดจังหวะการทำงานหลักของระบบ
+  }
+};
+
+const triggerDeviceNotification = async (deviceId, action, userId, userNameOverride) => {
+  try {
+    // 1. ดึงข้อมูลอุปกรณ์พร้อมกลุ่มที่สังกัด
+    const device = await prisma.managedDevice.findUnique({
+      where: { id: deviceId },
+      include: { 
+        groups: { 
+          where: { isNotifyEnabled: true, telegramBotToken: { not: null }, telegramChatId: { not: null } } 
+        } 
+      }
+    });
+
+    if (!device || !device.groups || device.groups.length === 0) return;
+
+    // 2. ดึงข้อมูลผู้ดำเนินการ
+    const user = await prisma.user.findUnique({ where: { id: userId }, select: { username: true, firstName: true, lastName: true } });
+    const userName = userNameOverride || (user ? `${user.firstName} ${user.lastName}` : 'System');
+
+    // 3. เตรียมข้อความแจ้งเตือน
+    const emoji = action === 'CREATE_DEVICE' ? '🆕' : '🗑️';
+    const actionText = action === 'CREATE_DEVICE' ? 'เพิ่มอุปกรณ์ใหม่เข้าในกลุ่ม' : 'ลบอุปกรณ์ออกจากกลุ่ม';
+    const statusText = action === 'CREATE_DEVICE' ? '⏳ <b>รอการติดตั้ง</b>' : '❌ Inactive';
+
+    const message = `${emoji} <b><u>[ ${actionText} ]</u></b>\n━━━━━━━━━━━━━━━━━━\n🖥 <b>ชื่อ:</b> <b>${device.name}</b>\n✨ <b>วงจร:</b> <code>${device.circuitId || '-'}</code>\n🏷️ <b>รุ่น:</b> <code>${device.boardName || '-'}</code>\n📊 <b>สถานะเริ่มต้น:</b> ${statusText}\n\n👤 <b>ผู้ดำเนินการ:</b> ${userName}\n📅 <b>เวลา:</b> <code>${new Date().toLocaleString('th-TH')}</code>\n━━━━━━━━━━━━━━━━━━\n📦 <i>กรุณานำ Script ไปรันที่ตัวอุปกรณ์เพื่อเริ่มการเชื่อมต่อ</i>`;
+
+    // 4. ส่งเข้าทุกกลุ่มที่อุปกรณ์นี้สังกัดอยู่
+    for (const group of device.groups) {
+      await sendTelegramAlert(group.telegramBotToken, group.telegramChatId, message);
+    }
+  } catch (error) {
+    console.error('❌ triggerDeviceNotification failed:', error.message);
   }
 };
 
@@ -28,7 +66,8 @@ const triggerAuditNotification = async (log, userNameOverride) => {
     const notifyActions = [
       'LOGIN', 'LOGIN_FAIL', 'UPDATE_SETTING', 'CREATE_USER', 'DELETE_USER', 
       'CREATE_GROUP', 'DELETE_GROUP', 'UPDATE_GROUP', 'MANAGE_GROUP_DEVICES',
-      'TOGGLE_USER_STATUS', 'CREATE_MODEL', 'DELETE_MODEL', 'UPDATE_MODEL'
+      'TOGGLE_USER_STATUS', 'CREATE_MODEL', 'DELETE_MODEL', 'UPDATE_MODEL',
+      'GENERATE_CONFIG', 'GENERATE_VPN'
     ];
     
     if (!notifyActions.includes(log.action)) return;
@@ -80,7 +119,9 @@ const triggerAuditNotification = async (log, userNameOverride) => {
       TOGGLE_USER_STATUS: '🔒',
       CREATE_MODEL: '📦',
       DELETE_MODEL: '🗑️',
-      UPDATE_MODEL: '✏️'
+      UPDATE_MODEL: '✏️',
+      GENERATE_CONFIG: '🛠️',
+      GENERATE_VPN: '🛡️'
     };
 
     const emoji = emojiMap[log.action] || '📝';
