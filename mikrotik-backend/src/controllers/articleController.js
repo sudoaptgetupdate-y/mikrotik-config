@@ -1,253 +1,103 @@
 const articleService = require('../services/articleService');
-const taxonomyService = require('../services/articleTaxonomyService');
-const logService = require('../services/logService');
 const path = require('path');
 const fs = require('fs');
-const sharp = require('sharp');
 
-// Helper: Generate Slug
-const slugify = (text) => {
-  return text
-    .toString()
-    .toLowerCase()
-    .trim()
-    .replace(/\s+/g, '-')
-    .replace(/[^\w\u0E00-\u0E7F-]+/g, '')
-    .replace(/--+/g, '-');
-};
+/**
+ * 🎯 [Slim Controller] จัดการบทความ (Articles)
+ */
 
-// Helper: Clean URL
-const cleanUrl = (url) => {
-  if (!url) return url;
+exports.getArticles = async (req, res, next) => {
   try {
-    if (url.startsWith('data:')) return url;
-    const urlObj = new URL(url, 'http://localhost'); 
-    urlObj.searchParams.delete('token');
-    return url.startsWith('http') ? urlObj.toString() : urlObj.pathname;
-  } catch (e) {
-    return url.split('?')[0];
-  }
-};
+    const { page = 1, limit = 6, ...filters } = req.query;
+    const skip = (parseInt(page) - 1) * parseInt(limit);
 
-exports.getArticles = async (req, res) => {
-  const { categoryId, authorId, tag, favoritedByUserId, page = 1, limit = 6, search } = req.query;
+    const queryFilters = { 
+      ...filters, 
+      limit: parseInt(limit), 
+      skip 
+    };
 
-  const skip = (parseInt(page) - 1) * parseInt(limit);
-
-  const filters = { 
-    categoryId, 
-    authorId, 
-    tag, 
-    favoritedByUserId,
-    limit: parseInt(limit),
-    skip: skip,
-    search: search
-  };
-
-  if (req.user.role !== 'SUPER_ADMIN') {
-    filters.status = 'PUBLISHED';
-  }
-  
-  const { articles, total } = await articleService.getAllArticles(filters);
-  res.status(200).json({ articles, total, page: parseInt(page), limit: parseInt(limit) });
-};
-
-exports.getArticle = async (req, res) => {
-  const { slug } = req.params;
-  const article = await articleService.getArticleBySlug(slug);
-
-  if (!article) {
-    return res.status(404).json({ error: 'Article not found' });
-  }
-
-  if (article.status !== 'PUBLISHED' && req.user.role !== 'SUPER_ADMIN') {
-    return res.status(403).json({ error: 'Access denied' });
-  }
-
-  res.status(200).json(article);
-};
-
-exports.getArticleById = async (req, res) => {
-  const { id } = req.params;
-  const article = await articleService.getArticleById(id);
-
-  if (!article) {
-    return res.status(404).json({ error: 'Article not found' });
-  }
-
-  res.status(200).json(article);
-};
-
-exports.createArticle = async (req, res) => {
-  const { title, content, excerpt, thumbnail, categoryId, status, tagNames, isPinned } = req.body;
-  
-  if (!title || !content) {
-    return res.status(400).json({ error: 'Title and content are required' });
-  }
-
-  let slug = slugify(title);
-  const existing = await articleService.getArticleBySlug(slug);
-  if (existing) {
-    slug = `${slug}-${Date.now()}`;
-  }
-
-  // Handle Tags
-  let tagIds = [];
-  if (tagNames && Array.isArray(tagNames)) {
-    const tags = await taxonomyService.getOrCreateTags(tagNames);
-    tagIds = tags.map(t => t.id);
-  }
-
-  const articleData = { 
-    title, 
-    slug, 
-    content, 
-    excerpt, 
-    thumbnail: cleanUrl(thumbnail), 
-    categoryId, 
-    status,
-    isPinned,
-    tags: tagIds
-  };
-  
-  const newArticle = await articleService.createArticle(articleData, req.user.id);
-
-  try {
-    await logService.createActivityLog({
-      userId: req.user.id,
-      action: 'CREATE_ARTICLE',
-      details: `Created article: ${title}`,
-      ipAddress: req.ip
-    });
-  } catch (err) {
-    console.error("Non-critical logging error during article creation:", err.message);
-  }
-
-  res.status(201).json(newArticle);
-};
-
-exports.updateArticle = async (req, res) => {
-  const { id } = req.params;
-  const { title, content, excerpt, thumbnail, categoryId, status, slug, tagNames, isPinned } = req.body;
-
-  const article = await articleService.getArticleById(id);
-  if (!article) {
-    return res.status(404).json({ error: 'Article not found' });
-  }
-
-  // Handle Tags
-  let tagIds = undefined;
-  if (tagNames && Array.isArray(tagNames)) {
-    const tags = await taxonomyService.getOrCreateTags(tagNames);
-    tagIds = tags.map(t => t.id);
-  }
-
-  const updatedData = { 
-    title, 
-    content, 
-    excerpt, 
-    thumbnail: cleanUrl(thumbnail), 
-    categoryId, 
-    status, 
-    slug,
-    isPinned,
-    tags: tagIds
-  };
-  
-  if (title && title !== article.title && !slug) {
-    let newSlug = slugify(title);
-    const existing = await articleService.getArticleBySlug(newSlug);
-    if (existing && existing.id !== parseInt(id)) {
-        newSlug = `${newSlug}-${Date.now()}`;
+    if (req.user.role !== 'SUPER_ADMIN') {
+      queryFilters.status = 'PUBLISHED';
     }
-    updatedData.slug = newSlug;
-  }
-
-  const updatedArticle = await articleService.updateArticle(id, updatedData);
-
-  try {
-    await logService.createActivityLog({
-      userId: req.user.id,
-      action: 'UPDATE_ARTICLE',
-      details: `Updated article: ${updatedArticle.title}`,
-      ipAddress: req.ip
-    });
-  } catch (err) {
-    console.error("Non-critical logging error during article update:", err.message);
-  }
-
-  res.status(200).json(updatedArticle);
+    
+    const { articles, total } = await articleService.getAllArticles(queryFilters);
+    res.status(200).json({ articles, total, page: parseInt(page), limit: parseInt(limit) });
+  } catch (error) { next(error); }
 };
 
-exports.deleteArticle = async (req, res) => {
-  const { id } = req.params;
-  const article = await articleService.getArticleById(id);
-
-  if (!article) {
-    return res.status(404).json({ error: 'Article not found' });
-  }
-
-  await articleService.deleteArticle(id);
-
+exports.getArticle = async (req, res, next) => {
   try {
-    await logService.createActivityLog({
-      userId: req.user.id,
-      action: 'DELETE_ARTICLE',
-      details: `Deleted article: ${article.title}`,
-      ipAddress: req.ip
-    });
-  } catch (err) {
-    console.error("Non-critical logging error during article deletion:", err.message);
-  }
+    const { slug } = req.params;
+    const article = await articleService.getArticleBySlug(slug);
 
-  res.status(200).json({ message: 'Article deleted successfully' });
+    if (!article) return res.status(404).json({ error: 'Article not found' });
+    if (article.status !== 'PUBLISHED' && req.user.role !== 'SUPER_ADMIN') {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
+    res.status(200).json(article);
+  } catch (error) { next(error); }
 };
 
-exports.uploadImage = async (req, res) => {
-  if (!req.file) {
-    return res.status(400).json({ error: 'No image provided' });
-  }
-
-  const { articleId } = req.body;
-  const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-  const filename = `article-${uniqueSuffix}.webp`;
-  const uploadDir = path.join(__dirname, '../../uploads/articles/');
-  const filePath = path.join(uploadDir, filename);
-
+exports.getArticleById = async (req, res, next) => {
   try {
-    // Process and save image with Sharp
-    await sharp(req.file.buffer)
-      .resize(1200, null, { withoutEnlargement: true }) // Resize to max 1200px width
-      .webp({ quality: 80 }) // Convert to WebP with 80% quality
-      .toFile(filePath);
+    const article = await articleService.getArticleById(req.params.id);
+    if (!article) return res.status(404).json({ error: 'Article not found' });
+    res.status(200).json(article);
+  } catch (error) { next(error); }
+};
 
-    const protocol = req.protocol;
-    const host = req.get('host');
-    const fullBaseUrl = `${protocol}://${host}`;
+exports.createArticle = async (req, res, next) => {
+  try {
+    const { title, content } = req.body;
+    if (!title || !content) return res.status(400).json({ error: 'Title and content are required' });
 
-    const baseUrl = `${fullBaseUrl}/api/articles/images/${filename}`;
+    const newArticle = await articleService.createArticle(req.body, req.user.id, req.ip);
+    res.status(201).json(newArticle);
+  } catch (error) { next(error); }
+};
+
+exports.updateArticle = async (req, res, next) => {
+  try {
+    const updatedArticle = await articleService.updateArticle(req.params.id, req.body, req.user.id, req.ip);
+    res.status(200).json(updatedArticle);
+  } catch (error) {
+    if (error.message === 'NOT_FOUND') return res.status(404).json({ error: 'Article not found' });
+    next(error);
+  }
+};
+
+exports.deleteArticle = async (req, res, next) => {
+  try {
+    await articleService.deleteArticle(req.params.id, req.user.id, req.ip);
+    res.status(200).json({ message: 'Article deleted successfully' });
+  } catch (error) {
+    if (error.message === 'NOT_FOUND') return res.status(404).json({ error: 'Article not found' });
+    next(error);
+  }
+};
+
+exports.uploadImage = async (req, res, next) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'No image provided' });
+
+    const { articleId } = req.body;
+    const { filename, baseUrl } = await articleService.processAndUploadImage(
+      req.file.buffer, 
+      articleId, 
+      req.user.id, 
+      req.ip, 
+      req.protocol, 
+      req.get('host')
+    );
 
     const authHeader = req.headers.authorization;
     const token = authHeader?.split(' ')[1];
     const previewUrl = `${baseUrl}${token ? `?token=${token}` : ''}`;
 
-    try {
-      await articleService.logArticleImage(articleId, filename, baseUrl);
-      await logService.createActivityLog({
-        userId: req.user.id,
-        action: 'UPLOAD_ARTICLE_IMAGE',
-        details: `Uploaded and processed image: ${filename}`,
-        ipAddress: req.ip
-      });
-    } catch (logError) {
-      console.error("Non-critical logging error during upload:", logError.message);
-    }
-
     res.status(200).json({ url: previewUrl });
-  } catch (error) {
-    console.error("Error processing image with sharp:", error);
-    res.status(500).json({ error: "Failed to process image" });
-  }
+  } catch (error) { next(error); }
 };
 
 exports.serveImage = (req, res) => {
@@ -261,92 +111,47 @@ exports.serveImage = (req, res) => {
   }
 };
 
-exports.toggleFavorite = async (req, res) => {
+exports.toggleFavorite = async (req, res, next) => {
   try {
-    const { id } = req.params; // articleId
-    const result = await articleService.toggleFavorite(req.user.id, id);
+    const result = await articleService.toggleFavorite(req.user.id, req.params.id);
     res.status(200).json(result);
-  } catch (error) {
-    console.error("Error toggling favorite:", error.message);
-    res.status(500).json({ error: "Internal server error" });
-  }
+  } catch (error) { next(error); }
 };
 
-exports.getFavoriteStatus = async (req, res) => {
+exports.getFavoriteStatus = async (req, res, next) => {
   try {
-    const { id } = req.params; // articleId
-    const result = await articleService.getFavoriteStatus(req.user.id, id);
+    const result = await articleService.getFavoriteStatus(req.user.id, req.params.id);
     res.status(200).json(result);
-  } catch (error) {
-    console.error("Error fetching favorite status:", error.message);
-    res.status(500).json({ error: "Internal server error" });
-  }
+  } catch (error) { next(error); }
 };
 
-exports.getComments = async (req, res) => {
-  const { id } = req.params; // articleId
+exports.getComments = async (req, res, next) => {
   try {
-    const comments = await articleService.getCommentsByArticle(id);
+    const comments = await articleService.getCommentsByArticle(req.params.id);
     res.status(200).json(comments);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
+  } catch (error) { next(error); }
 };
 
-exports.createComment = async (req, res) => {
-  const { id } = req.params; // articleId
-  const { content, parentId } = req.body;
-
-  if (!content) {
-    return res.status(400).json({ error: 'Content is required' });
-  }
-
+exports.createComment = async (req, res, next) => {
   try {
+    if (!req.body.content) return res.status(400).json({ error: 'Content is required' });
+    
     const comment = await articleService.createComment({
-      content,
-      articleId: id,
-      userId: req.user.id,
-      parentId
-    });
-
-    try {
-      await logService.createActivityLog({
-        userId: req.user.id,
-        action: 'CREATE_COMMENT',
-        details: `Commented on article ID: ${id}`,
-        ipAddress: req.ip
-      });
-    } catch (logErr) {
-      console.error("Logging error:", logErr.message);
-    }
-
+      ...req.body,
+      articleId: req.params.id
+    }, req.user.id, req.ip);
+    
     res.status(201).json(comment);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
+  } catch (error) { next(error); }
 };
 
-exports.deleteComment = async (req, res) => {
-  const { commentId } = req.params;
+exports.deleteComment = async (req, res, next) => {
   try {
-    const result = await articleService.deleteComment(commentId, req.user.id, req.user.role);
-    if (result.error) {
-      return res.status(result.status).json({ error: result.error });
-    }
-
-    try {
-      await logService.createActivityLog({
-        userId: req.user.id,
-        action: 'DELETE_COMMENT',
-        details: `Deleted comment ID: ${commentId}`,
-        ipAddress: req.ip
-      });
-    } catch (logErr) {
-      console.error("Logging error:", logErr.message);
-    }
-
+    await articleService.deleteComment(req.params.commentId, req.user.id, req.user.role, req.ip);
     res.status(200).json({ message: 'Comment deleted' });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    if (error.message === 'NOT_FOUND') return res.status(404).json({ error: 'Comment not found' });
+    if (error.message === 'FORBIDDEN') return res.status(403).json({ error: 'Unauthorized' });
+    next(error);
   }
 };

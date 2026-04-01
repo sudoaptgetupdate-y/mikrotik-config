@@ -1,4 +1,39 @@
 const prisma = require('../config/prisma');
+const logService = require('./logService');
+const taxonomyService = require('./articleTaxonomyService');
+const path = require('path');
+const fs = require('fs');
+const sharp = require('sharp');
+
+// ==========================================
+// 🛠 Helper Functions (Private)
+// ==========================================
+
+const slugify = (text) => {
+  return text
+    .toString()
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, '-')
+    .replace(/[^\w\u0E00-\u0E7F-]+/g, '')
+    .replace(/--+/g, '-');
+};
+
+const cleanUrl = (url) => {
+  if (!url) return url;
+  try {
+    if (url.startsWith('data:')) return url;
+    const urlObj = new URL(url, 'http://localhost'); 
+    urlObj.searchParams.delete('token');
+    return url.startsWith('http') ? urlObj.toString() : urlObj.pathname;
+  } catch (e) {
+    return url.split('?')[0];
+  }
+};
+
+// ==========================================
+// 🎯 Article Services
+// ==========================================
 
 exports.getAllArticles = async (filters = {}) => {
   const { status, categoryId, authorId, tag, favoritedByUserId, limit, skip, search } = filters;
@@ -14,65 +49,28 @@ exports.getAllArticles = async (filters = {}) => {
       { title: searchCondition },
       { content: searchCondition },
       { excerpt: searchCondition },
-      {
-        tags: {
-          some: {
-            name: searchCondition
-          }
-        }
-      }
+      { tags: { some: { name: searchCondition } } }
     ];
-
-    // If search starts with #, also search for the tag name without #
     if (search.startsWith('#')) {
       const tagSearch = search.substring(1);
-      if (tagSearch) {
-        searchConditions.push({
-          tags: {
-            some: {
-              name: { contains: tagSearch }
-            }
-          }
-        });
-      }
+      if (tagSearch) searchConditions.push({ tags: { some: { name: { contains: tagSearch } } } });
     }
-
     where.OR = searchConditions;
   }
 
-  if (tag) {
-    where.tags = {
-      some: { name: tag }
-    };
-  }
-  
-  if (favoritedByUserId) {
-    where.favoritedBy = {
-      some: { userId: parseInt(favoritedByUserId) }
-    };
-  }
+  if (tag) where.tags = { some: { name: tag } };
+  if (favoritedByUserId) where.favoritedBy = { some: { userId: parseInt(favoritedByUserId) } };
 
   const [articles, total] = await Promise.all([
     prisma.article.findMany({
       where,
-      orderBy: [
-        { isPinned: 'desc' },
-        { createdAt: 'desc' }
-      ],
+      orderBy: [{ isPinned: 'desc' }, { createdAt: 'desc' }],
       skip: skip ? parseInt(skip) : undefined,
       take: limit ? parseInt(limit) : undefined,
       include: {
         category: true,
         tags: true,
-        author: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-            username: true,
-            role: true
-          }
-        }
+        author: { select: { id: true, firstName: true, lastName: true, username: true, role: true } }
       }
     }),
     prisma.article.count({ where })
@@ -87,40 +85,22 @@ exports.getArticleBySlug = async (slug) => {
     include: {
       category: true,
       tags: true,
-      author: {
-        select: {
-          id: true,
-          firstName: true,
-          lastName: true,
-          username: true,
-          role: true
-        }
-      }
+      author: { select: { id: true, firstName: true, lastName: true, username: true, role: true } }
     }
   });
 
   if (article) {
-    // Increment view count and get the updated version
     const updatedArticle = await prisma.article.update({
       where: { id: article.id },
       data: { viewCount: { increment: 1 } },
       include: {
         category: true,
         tags: true,
-        author: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-            username: true,
-            role: true
-          }
-        }
+        author: { select: { id: true, firstName: true, lastName: true, username: true, role: true } }
       }
     });
     return updatedArticle;
   }
-
   return article;
 };
 
@@ -130,167 +110,192 @@ exports.getArticleById = async (id) => {
       include: {
         category: true,
         tags: true,
-        author: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-            username: true,
-            role: true
-          }
-        }
+        author: { select: { id: true, firstName: true, lastName: true, username: true, role: true } }
       }
     });
 };
 
-exports.createArticle = async (data, authorId) => {
-  const { title, slug, content, excerpt, thumbnail, categoryId, status, tags, isPinned } = data;
+exports.createArticle = async (data, authorId, ipAddress) => {
+  const { title, content, excerpt, thumbnail, categoryId, status, tagNames, isPinned } = data;
   
-  return await prisma.article.create({
+  // 1. จัดการ Slug
+  let slug = slugify(title);
+  const existing = await prisma.article.findUnique({ where: { slug } });
+  if (existing) slug = `${slug}-${Date.now()}`;
+
+  // 2. จัดการ Tags
+  let tagIds = [];
+  if (tagNames && Array.isArray(tagNames)) {
+    const tags = await taxonomyService.getOrCreateTags(tagNames);
+    tagIds = tags.map(t => t.id);
+  }
+
+  // 3. สร้างบทความ
+  const newArticle = await prisma.article.create({
     data: {
       title,
       slug,
       content,
       excerpt,
-      thumbnail,
+      thumbnail: cleanUrl(thumbnail),
       status: status || 'DRAFT',
       isPinned: !!isPinned,
       authorId: parseInt(authorId),
       categoryId: categoryId ? parseInt(categoryId) : null,
-      tags: {
-        connect: tags ? tags.map(id => ({ id: parseInt(id) })) : []
-      }
+      tags: { connect: tagIds.map(id => ({ id: parseInt(id) })) }
     }
   });
+
+  // 4. บันทึก Log
+  await logService.createActivityLog({
+    userId: authorId,
+    action: 'CREATE_ARTICLE',
+    details: `Created article: ${title}`,
+    ipAddress
+  });
+
+  return newArticle;
 };
 
-exports.updateArticle = async (id, data) => {
-  const { tags, categoryId, isPinned, ...rest } = data;
-  
-  const updateData = { ...rest };
-  if (categoryId !== undefined) updateData.categoryId = categoryId ? parseInt(categoryId) : null;
-  if (isPinned !== undefined) updateData.isPinned = !!isPinned;
-  if (tags) {
-    updateData.tags = {
-      set: tags.map(tagId => ({ id: parseInt(tagId) }))
-    };
+exports.updateArticle = async (id, data, userId, ipAddress) => {
+  const { title, content, excerpt, thumbnail, categoryId, status, slug: requestedSlug, tagNames, isPinned } = data;
+  const articleId = parseInt(id);
+  const oldArticle = await prisma.article.findUnique({ where: { id: articleId } });
+  if (!oldArticle) throw new Error("NOT_FOUND");
+
+  // 1. จัดการ Tags
+  let tagUpdate = undefined;
+  if (tagNames && Array.isArray(tagNames)) {
+    const tags = await taxonomyService.getOrCreateTags(tagNames);
+    tagUpdate = { set: tags.map(t => ({ id: t.id })) };
   }
 
-  return await prisma.article.update({
-    where: { id: parseInt(id) },
-    data: updateData,
-    include: {
-      tags: true,
-      category: true
+  // 2. จัดการ Slug
+  let finalSlug = requestedSlug || oldArticle.slug;
+  if (title && title !== oldArticle.title && !requestedSlug) {
+    finalSlug = slugify(title);
+    const existing = await prisma.article.findUnique({ where: { slug: finalSlug } });
+    if (existing && existing.id !== articleId) finalSlug = `${finalSlug}-${Date.now()}`;
+  }
+
+  // 3. อัปเดตข้อมูล
+  const updatedArticle = await prisma.article.update({
+    where: { id: articleId },
+    data: {
+      title,
+      content,
+      excerpt,
+      thumbnail: cleanUrl(thumbnail),
+      status,
+      isPinned: isPinned !== undefined ? !!isPinned : undefined,
+      slug: finalSlug,
+      categoryId: categoryId !== undefined ? (categoryId ? parseInt(categoryId) : null) : undefined,
+      tags: tagUpdate
+    },
+    include: { tags: true, category: true }
+  });
+
+  // 4. บันทึก Log
+  await logService.createActivityLog({
+    userId,
+    action: 'UPDATE_ARTICLE',
+    details: `Updated article: ${updatedArticle.title}`,
+    ipAddress
+  });
+
+  return updatedArticle;
+};
+
+exports.deleteArticle = async (id, userId, ipAddress) => {
+  const articleId = parseInt(id);
+  const article = await prisma.article.findUnique({ where: { id: articleId } });
+  if (!article) throw new Error("NOT_FOUND");
+
+  const deleted = await prisma.article.delete({ where: { id: articleId } });
+
+  await logService.createActivityLog({
+    userId,
+    action: 'DELETE_ARTICLE',
+    details: `Deleted article: ${article.title}`,
+    ipAddress
+  });
+
+  return deleted;
+};
+
+// ==========================================
+// 🖼 Image Services
+// ==========================================
+
+exports.processAndUploadImage = async (fileBuffer, articleId, userId, ipAddress, protocol, host) => {
+  const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+  const filename = `article-${uniqueSuffix}.webp`;
+  const uploadDir = path.join(__dirname, '../../uploads/articles/');
+  const filePath = path.join(uploadDir, filename);
+
+  // 1. Process image with Sharp
+  await sharp(fileBuffer)
+    .resize(1200, null, { withoutEnlargement: true })
+    .webp({ quality: 80 })
+    .toFile(filePath);
+
+  const fullBaseUrl = `${protocol}://${host}`;
+  const baseUrl = `${fullBaseUrl}/api/articles/images/${filename}`;
+
+  // 2. บันทึกข้อมูลลง DB
+  const parsedId = articleId ? parseInt(articleId) : null;
+  const finalId = (!isNaN(parsedId) && parsedId !== null) ? parsedId : undefined;
+
+  await prisma.articleImage.create({
+    data: {
+      url: baseUrl,
+      filename,
+      ...(finalId && { articleId: finalId })
     }
   });
-};
 
-exports.deleteArticle = async (id) => {
-  // First, get the article to find associated images
-  const article = await prisma.article.findUnique({
-    where: { id: parseInt(id) },
-    include: { images: true }
+  // 3. บันทึก Log
+  await logService.createActivityLog({
+    userId,
+    action: 'UPLOAD_ARTICLE_IMAGE',
+    details: `Uploaded image: ${filename}`,
+    ipAddress
   });
 
-  if (!article) return null;
-
-  // Delete article (cascade images if needed, but let's handle it)
-  return await prisma.article.delete({
-    where: { id: parseInt(id) }
-  });
+  return { filename, baseUrl };
 };
 
-exports.logArticleImage = async (articleId, filename, url) => {
-  try {
-    const parsedId = articleId ? parseInt(articleId) : null;
-    const finalId = (!isNaN(parsedId) && parsedId !== null) ? parsedId : undefined;
-
-    return await prisma.articleImage.create({
-      data: {
-        url,
-        filename,
-        ...(finalId && { articleId: finalId }) // ใส่ articleId เฉพาะเมื่อมีค่าที่ถูกต้องเท่านั้น
-      }
-    });
-  } catch (error) {
-    console.error("Error logging article image:", error.message);
-    // ถึงแม้จะบันทึกลง DB ไม่สำเร็จ แต่ไฟล์ถูกบันทึกไปแล้ว เราควรปล่อยผ่านเพื่อให้ Editor ใช้งานต่อได้
-    return { url, filename }; 
-  }
-};
+// ==========================================
+// ⭐ Favorite & Comments Services
+// ==========================================
 
 exports.toggleFavorite = async (userId, articleId) => {
-  const favorite = await prisma.favoriteArticle.findUnique({
-    where: {
-      userId_articleId: {
-        userId: parseInt(userId),
-        articleId: parseInt(articleId)
-      }
-    }
-  });
+  const favWhere = { userId_articleId: { userId: parseInt(userId), articleId: parseInt(articleId) } };
+  const favorite = await prisma.favoriteArticle.findUnique({ where: favWhere });
 
   if (favorite) {
-    await prisma.favoriteArticle.delete({
-      where: {
-        userId_articleId: {
-          userId: parseInt(userId),
-          articleId: parseInt(articleId)
-        }
-      }
-    });
+    await prisma.favoriteArticle.delete({ where: favWhere });
     return { isFavorited: false };
   } else {
-    await prisma.favoriteArticle.create({
-      data: {
-        userId: parseInt(userId),
-        articleId: parseInt(articleId)
-      }
-    });
+    await prisma.favoriteArticle.create({ data: { userId: parseInt(userId), articleId: parseInt(articleId) } });
     return { isFavorited: true };
   }
 };
 
 exports.getFavoriteStatus = async (userId, articleId) => {
   const favorite = await prisma.favoriteArticle.findUnique({
-    where: {
-      userId_articleId: {
-        userId: parseInt(userId),
-        articleId: parseInt(articleId)
-      }
-    }
+    where: { userId_articleId: { userId: parseInt(userId), articleId: parseInt(articleId) } }
   });
   return { isFavorited: !!favorite };
 };
 
 exports.getCommentsByArticle = async (articleId) => {
   return await prisma.comment.findMany({
-    where: {
-      articleId: parseInt(articleId),
-      parentId: null // Get only top-level comments first
-    },
+    where: { articleId: parseInt(articleId), parentId: null },
     include: {
-      user: {
-        select: {
-          id: true,
-          firstName: true,
-          lastName: true,
-          username: true,
-          role: true
-        }
-      },
+      user: { select: { id: true, firstName: true, lastName: true, username: true, role: true } },
       replies: {
-        include: {
-          user: {
-            select: {
-              id: true,
-              firstName: true,
-              lastName: true,
-              username: true,
-              role: true
-            }
-          }
-        },
+        include: { user: { select: { id: true, firstName: true, lastName: true, username: true, role: true } } },
         orderBy: { createdAt: 'asc' }
       }
     },
@@ -298,42 +303,43 @@ exports.getCommentsByArticle = async (articleId) => {
   });
 };
 
-exports.createComment = async (data) => {
-  const { content, articleId, userId, parentId } = data;
-  return await prisma.comment.create({
+exports.createComment = async (data, userId, ipAddress) => {
+  const { content, articleId, parentId } = data;
+  const comment = await prisma.comment.create({
     data: {
       content,
       articleId: parseInt(articleId),
       userId: parseInt(userId),
       parentId: parentId ? parseInt(parentId) : null
     },
-    include: {
-      user: {
-        select: {
-          id: true,
-          firstName: true,
-          lastName: true,
-          username: true
-        }
-      }
-    }
+    include: { user: { select: { id: true, firstName: true, lastName: true, username: true } } }
   });
+
+  await logService.createActivityLog({
+    userId,
+    action: 'CREATE_COMMENT',
+    details: `Commented on article ID: ${articleId}`,
+    ipAddress
+  });
+
+  return comment;
 };
 
-exports.deleteComment = async (id, userId, userRole) => {
-  const comment = await prisma.comment.findUnique({
-    where: { id: parseInt(id) }
-  });
+exports.deleteComment = async (id, userId, userRole, ipAddress) => {
+  const comment = await prisma.comment.findUnique({ where: { id: parseInt(id) } });
+  if (!comment) throw new Error("NOT_FOUND");
 
-  if (!comment) return { error: 'Comment not found', status: 404 };
-
-  // Allow owner or SUPER_ADMIN to delete
   if (comment.userId !== userId && userRole !== 'SUPER_ADMIN') {
-    return { error: 'Unauthorized', status: 403 };
+    throw new Error("FORBIDDEN");
   }
 
-  await prisma.comment.delete({
-    where: { id: parseInt(id) }
+  await prisma.comment.delete({ where: { id: parseInt(id) } });
+
+  await logService.createActivityLog({
+    userId,
+    action: 'DELETE_COMMENT',
+    details: `Deleted comment ID: ${id}`,
+    ipAddress
   });
 
   return { success: true };

@@ -2,6 +2,7 @@ const prisma = require('../config/prisma');
 const crypto = require('crypto');
 const { encrypt, decrypt } = require('../utils/cryptoUtil');
 const { sendTelegramAlert } = require('../utils/telegramUtil'); 
+const logService = require('./logService'); // 🚀 ใช้นำเข้า logService
 
 // Helper: บันทึก History (Private Function)
 const saveConfigHistory = async (userId, name, configData, managedDeviceId) => {
@@ -24,45 +25,28 @@ const saveConfigHistory = async (userId, name, configData, managedDeviceId) => {
 };
 
 exports.checkDuplicate = async (name, circuitId, excludeId = null) => {
-  const where = {
-    status: { not: 'DELETED' }
-  };
-
-  if (excludeId) {
-    where.id = { not: parseInt(excludeId) };
-  }
-
+  const where = { status: { not: 'DELETED' } };
+  if (excludeId) where.id = { not: parseInt(excludeId) };
   const results = { nameExists: false, circuitExists: false };
-
   if (name) {
-    const d = await prisma.managedDevice.findFirst({
-      where: { ...where, name: { equals: name } }
-    });
+    const d = await prisma.managedDevice.findFirst({ where: { ...where, name: { equals: name } } });
     if (d) results.nameExists = true;
   }
-
   if (circuitId) {
-    const d = await prisma.managedDevice.findFirst({
-      where: { ...where, circuitId: { equals: circuitId, not: null } }
-    });
+    const d = await prisma.managedDevice.findFirst({ where: { ...where, circuitId: { equals: circuitId, not: null } } });
     if (d) results.circuitExists = true;
   }
-
   return results;
 };
 
-exports.createDevice = async (name, circuitId, groupIds, configData, actionUserId) => {
-  // 🎯 [NEW] ตรวจสอบข้อมูลซ้ำ (ชื่อ หรือ วงจร) - เฉพาะเครื่องที่ไม่ได้ถูกลบ (status != 'DELETED')
+exports.createDevice = async (name, circuitId, groupIds, configData, actionUserId, ipAddress) => {
+  // 1. ตรวจสอบข้อมูลซ้ำ
   const existingDevice = await prisma.managedDevice.findFirst({
     where: {
-      OR: [
-        { name: { equals: name } },
-        { circuitId: { equals: circuitId, not: null } }
-      ],
+      OR: [{ name: { equals: name } }, { circuitId: { equals: circuitId, not: null } }],
       status: { not: 'DELETED' }
     }
   });
-
   if (existingDevice) {
     if (existingDevice.name === name) throw new Error("CONFLICT: ชื่ออุปกรณ์นี้มีอยู่ในระบบแล้ว");
     if (existingDevice.circuitId === circuitId) throw new Error("CONFLICT: รหัสวงจรนี้มีอยู่ในระบบแล้ว");
@@ -70,48 +54,42 @@ exports.createDevice = async (name, circuitId, groupIds, configData, actionUserI
 
   const plainToken = crypto.randomUUID();
   const encryptedToken = encrypt(plainToken);
-
   const groupConnection = groupIds && Array.isArray(groupIds) && groupIds.length > 0 
-    ? { connect: groupIds.map(id => ({ id: parseInt(id) })) } 
-    : undefined;
+    ? { connect: groupIds.map(id => ({ id: parseInt(id) })) } : undefined;
 
+  // 2. สร้างอุปกรณ์
   const newDevice = await prisma.managedDevice.create({
     data: { 
-      name, 
-      circuitId, 
-      userId: actionUserId, 
-      configData: configData || {}, 
-      status: "ACTIVE", 
-      apiToken: encryptedToken,
+      name, circuitId, userId: actionUserId, configData: configData || {}, status: "ACTIVE", apiToken: encryptedToken,
       ...(groupConnection && { groups: groupConnection }) 
     }
   });
 
   const combinedToken = `${newDevice.id}-${plainToken}`;
   let finalConfigData = configData;
-
   if (configData) {
     finalConfigData = { ...configData, token: combinedToken };
-    await prisma.managedDevice.update({
-      where: { id: newDevice.id },
-      data: { configData: finalConfigData }
-    });
+    await prisma.managedDevice.update({ where: { id: newDevice.id }, data: { configData: finalConfigData } });
     await saveConfigHistory(actionUserId, name, finalConfigData, newDevice.id);
   }
 
-  await prisma.activityLog.create({
-    data: { userId: actionUserId, action: "CREATE_DEVICE", details: `Created device: ${name}` }
+  // 3. บันทึก Log & แจ้งเตือน (รวมไว้ที่เดียว)
+  await logService.createActivityLog({
+    userId: actionUserId,
+    action: 'CREATE_DEVICE',
+    details: `เพิ่มอุปกรณ์ใหม่: ${name} (Circuit: ${circuitId || 'N/A'})`,
+    ipAddress,
+    deviceId: newDevice.id
   });
 
   return { newDevice, combinedToken, finalConfigData };
 };
 
-exports.updateDevice = async (id, name, circuitId, groupIds, status, configData, actionUserId) => {
+exports.updateDevice = async (id, name, circuitId, groupIds, status, configData, actionUserId, ipAddress) => {
   const deviceId = parseInt(id);
   const oldDevice = await prisma.managedDevice.findUnique({ where: { id: deviceId } });
   if (!oldDevice) throw new Error("NOT_FOUND");
 
-  // 🎯 [NEW] ตรวจสอบข้อมูลซ้ำเมื่อมีการแก้ไขชื่อหรือวงจร (ไม่เช็คซ้ำกับตัวเอง)
   if (name || circuitId) {
     const duplicate = await prisma.managedDevice.findFirst({
       where: {
@@ -123,7 +101,6 @@ exports.updateDevice = async (id, name, circuitId, groupIds, status, configData,
         status: { not: 'DELETED' }
       }
     });
-
     if (duplicate) {
       if (name && duplicate.name === name) throw new Error("CONFLICT: ชื่ออุปกรณ์ใหม่ซ้ำกับเครื่องอื่นในระบบ");
       if (circuitId && duplicate.circuitId === circuitId) throw new Error("CONFLICT: รหัสวงจรใหม่ซ้ำกับเครื่องอื่นในระบบ");
@@ -132,15 +109,11 @@ exports.updateDevice = async (id, name, circuitId, groupIds, status, configData,
 
   const plainToken = decrypt(oldDevice.apiToken); 
   const combinedToken = `${deviceId}-${plainToken}`;
-
   let finalConfigData = configData;
-  if (configData) {
-      finalConfigData = { ...configData, token: combinedToken }; 
-  }
+  if (configData) finalConfigData = { ...configData, token: combinedToken }; 
 
   const groupUpdate = groupIds !== undefined 
-    ? { set: Array.isArray(groupIds) ? groupIds.map(gid => ({ id: parseInt(gid) })) : [] } 
-    : undefined;
+    ? { set: Array.isArray(groupIds) ? groupIds.map(gid => ({ id: parseInt(gid) })) : [] } : undefined;
 
   const updatedDevice = await prisma.managedDevice.update({
     where: { id: deviceId },
@@ -153,12 +126,14 @@ exports.updateDevice = async (id, name, circuitId, groupIds, status, configData,
     }
   });
 
-  if (finalConfigData) {
-    await saveConfigHistory(actionUserId, updatedDevice.name, finalConfigData, updatedDevice.id);
-  }
+  if (finalConfigData) await saveConfigHistory(actionUserId, updatedDevice.name, finalConfigData, updatedDevice.id);
 
-  await prisma.activityLog.create({
-    data: { userId: actionUserId, action: "UPDATE_DEVICE", details: `Updated config for device: ${updatedDevice.name}` }
+  // บันทึก Log
+  await logService.createActivityLog({
+    userId: actionUserId,
+    action: "UPDATE_DEVICE",
+    details: `แก้ไขข้อมูลอุปกรณ์: ${updatedDevice.name}`,
+    ipAddress
   });
 
   return { updatedDevice, combinedToken, finalConfigData };
@@ -169,28 +144,17 @@ exports.getUserDevices = async () => {
     orderBy: { createdAt: 'desc' },
     include: { groups: true } 
   });
-  
   return devices.map(d => {
-      const isOnline = d.lastSeen && (new Date() - new Date(d.lastSeen) < 5 * 60 * 1000);
-      return { 
-        ...d, 
-        isOnline, 
-        model: d.configData?.selectedModel || null,
-        apiToken: `${d.id}-${decrypt(d.apiToken)}` 
-      };
+      const isOnline = d.lastSeen && (new Date() - d.lastSeen < 5 * 60 * 1000);
+      return { ...d, isOnline, model: d.configData?.selectedModel || null, apiToken: `${d.id}-${decrypt(d.apiToken)}` };
   });
 };
 
 exports.getDeviceById = async (id) => {
-  const device = await prisma.managedDevice.findUnique({ 
-    where: { id: parseInt(id) },
-    include: { groups: true }
-  });
+  const device = await prisma.managedDevice.findUnique({ where: { id: parseInt(id) }, include: { groups: true } });
   if (!device) throw new Error("NOT_FOUND");
-
   const plainToken = decrypt(device.apiToken);
   device.apiToken = `${device.id}-${plainToken}`;
-  
   if (device.configData) {
     if (device.configData.selectedModel) device.model = device.configData.selectedModel;
     device.configData.token = device.apiToken; 
@@ -215,50 +179,42 @@ exports.getDeviceEvents = async (id) => {
   });
 };
 
-exports.deleteDevice = async (id, actionUserId) => {
+exports.deleteDevice = async (id, actionUserId, ipAddress) => {
   const device = await prisma.managedDevice.findUnique({ where: { id: parseInt(id) } });
   if (!device) throw new Error("NOT_FOUND");
-
   await prisma.managedDevice.update({ where: { id: parseInt(id) }, data: { status: 'DELETED' } });
-  await prisma.activityLog.create({ data: { userId: actionUserId, action: "UPDATE_DEVICE", details: `Soft deleted device: ${device.name}` } });
+  
+  await logService.createActivityLog({
+    userId: actionUserId, action: "UPDATE_DEVICE", ipAddress,
+    details: `เปลี่ยนสถานะอุปกรณ์เป็น INACTIVE: ${device.name}`
+  });
 };
 
-exports.restoreDevice = async (id, actionUserId) => {
+exports.restoreDevice = async (id, actionUserId, ipAddress) => {
   const device = await prisma.managedDevice.findUnique({ where: { id: parseInt(id) } });
   if (!device) throw new Error("NOT_FOUND");
-
   await prisma.managedDevice.update({ where: { id: parseInt(id) }, data: { status: 'ACTIVE' } });
-  await prisma.activityLog.create({ data: { userId: actionUserId, action: "UPDATE_DEVICE", details: `Restored device: ${device.name}` } });
+  
+  await logService.createActivityLog({
+    userId: actionUserId, action: "UPDATE_DEVICE", ipAddress,
+    details: `กู้คืนสถานะอุปกรณ์: ${device.name}`
+  });
 };
 
-exports.hardDeleteDevice = async (id, actionUserId) => {
+exports.hardDeleteDevice = async (id, actionUserId, ipAddress) => {
   const deviceId = parseInt(id);
-  
-  // 1. ตรวจสอบว่ามี Device อยู่จริงไหม
   const device = await prisma.managedDevice.findUnique({ where: { id: deviceId } });
   if (!device) throw new Error("NOT_FOUND");
+  await prisma.managedDevice.delete({ where: { id: deviceId } });
 
-  // 2. สั่งลบถาวรจาก Database (Cascade ข้อมูลที่เกี่ยวข้องจะถูกลบไปด้วย)
-  await prisma.managedDevice.delete({ 
-    where: { id: deviceId } 
-  });
-
-  // 3. เก็บ Log กิจกรรมว่าใครเป็นคนลบถาวร (เก็บไว้ตรวจสอบย้อนหลังได้)
-  await prisma.activityLog.create({ 
-    data: { 
-      userId: actionUserId, 
-      action: "DELETE_DEVICE", 
-      details: `Permanently deleted device: ${device.name} (IP: ${device.currentIp || 'Unknown'})` 
-    } 
+  await logService.createActivityLog({ 
+    userId: actionUserId, action: "DELETE_DEVICE", ipAddress,
+    details: `ลบอุปกรณ์ถาวรออกจากระบบ: ${device.name} (IP: ${device.currentIp || 'Unknown'})` 
   });
 };
 
-exports.acknowledgeWarning = async (id, reason, warningData, actionUserId, actionUserName) => {
-  const device = await prisma.managedDevice.findUnique({ 
-    where: { id: parseInt(id) },
-    include: { groups: true } 
-  });
-  
+exports.acknowledgeWarning = async (id, reason, warningData, actionUserId, actionUserName, ipAddress) => {
+  const device = await prisma.managedDevice.findUnique({ where: { id: parseInt(id) }, include: { groups: true } });
   if (!device) throw new Error("NOT_FOUND");
 
   let ackHistory = [];
@@ -266,62 +222,41 @@ exports.acknowledgeWarning = async (id, reason, warningData, actionUserId, actio
     if (Array.isArray(device.ackReason)) { ackHistory = device.ackReason; } 
     else if (typeof device.ackReason === 'string') { try { ackHistory = JSON.parse(device.ackReason); } catch(e) {} }
   }
-
-  ackHistory.push({
-    timestamp: new Date(), reason: reason, warningData: warningData || null,
-    userId: actionUserId, userName: actionUserName || "Unknown User" 
-  });
+  ackHistory.push({ timestamp: new Date(), reason, warningData: warningData || null, userId: actionUserId, userName: actionUserName || "Unknown User" });
 
   const updatedDevice = await prisma.managedDevice.update({
     where: { id: parseInt(id) },
     data: { isAcknowledged: true, ackReason: ackHistory, ackByUserId: actionUserId, ackAt: new Date() }
   });
 
-  // 🟢 1. แก้ไขการสร้าง Event Log (เปลี่ยนเป็น WARNING และใส่ warningData เข้าไปใน details)
   await prisma.deviceEventLog.create({
-    data: {
-      deviceId: parseInt(id),
-      eventType: 'WARNING', 
-      details: `[Ack] รับทราบปัญหา (${warningData || 'Unknown'}): ${reason} (โดย ${actionUserName || 'Admin'})`
-    }
+    data: { deviceId: parseInt(id), eventType: 'WARNING', details: `[Ack] รับทราบปัญหา (${warningData || 'Unknown'}): ${reason} (โดย ${actionUserName || 'Admin'})` }
   });
 
-  // 🟢 2. อัปเดต Activity Log ให้ชัดเจนขึ้น
-  await prisma.activityLog.create({ 
-    data: { 
-      userId: actionUserId, 
-      action: "UPDATE_DEVICE", 
-      details: `Acknowledged warning on: ${device.name} [Issue: ${warningData || 'Unknown'}]. Reason: ${reason}` 
-    } 
+  await logService.createActivityLog({ 
+    userId: actionUserId, action: "UPDATE_DEVICE", ipAddress,
+    details: `Acknowledge ปัญหาอุปกรณ์ ${device.name}: ${reason}` 
   });
 
-  // 🌟 3. อัปเดตข้อความใน Telegram 
   if (device.groups && device.groups.length > 0) {
-    // 🟢 ดึง ID เดิมออกมา
     let alertMsgIds = device.lastAlertMessageIds ? (typeof device.lastAlertMessageIds === 'string' ? JSON.parse(device.lastAlertMessageIds) : device.lastAlertMessageIds) : {};
-
     for (const group of device.groups) {
       const adminInfo = (group.adminName || group.adminContact) ? `\n\n👨‍🔧 <b>ผู้รับผิดชอบดูแล:</b> ${group.adminName || '-'}\n📞 <b>ติดต่อ:</b> ${group.adminContact || '-'}` : '';
-      
       const msg = `👁️‍🗨️ <b>[ISSUE ACKNOWLEDGED]</b>\nมีผู้รับทราบปัญหาแล้ว!\n\n🖥 <b>อุปกรณ์:</b> <code>${device.name}</code>\n✨ <b>วงจร:</b> <code>${device.circuitId || '-'}</code>\n⚠️ <b>ปัญหา:</b> <code>${warningData || 'Unknown'}</code>\n👤 <b>รับทราบโดย:</b> ${actionUserName || 'Admin'}\n📝 <b>หมายเหตุ/เหตุผล:</b> <i>${reason}</i>${adminInfo}`;
-      
       if (group.isNotifyEnabled && group.telegramBotToken && group.telegramChatId) {
-        // 🟢 ส่งแบบ Reply กลับไปหาข้อความแจ้งเตือนเดิม!
-        const replyId = alertMsgIds[group.telegramChatId];
-        await sendTelegramAlert(group.telegramBotToken, group.telegramChatId, msg, replyId);
+        await sendTelegramAlert(group.telegramBotToken, group.telegramChatId, msg, alertMsgIds[group.telegramChatId]);
       }
     }
   }
-  
   return updatedDevice;
 };
 
-exports.logDownload = async (id, configId, actionUserId) => {
+exports.logDownload = async (id, configId, actionUserId, ipAddress) => {
   const device = await prisma.managedDevice.findUnique({ where: { id: parseInt(id) } });
   if (!device) throw new Error("NOT_FOUND");
-
-  await prisma.activityLog.create({
-    data: { userId: actionUserId, action: "GENERATE_CONFIG", details: `Downloaded config for: ${device.name} ${configId ? `(History Version #${configId})` : '(Latest Version)'}` }
+  await logService.createActivityLog({
+    userId: actionUserId, action: "GENERATE_CONFIG", ipAddress,
+    details: `Downloaded config for: ${device.name} ${configId ? `(History Version #${configId})` : '(Latest Version)'}`
   });
 };
 
