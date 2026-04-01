@@ -120,7 +120,7 @@ PersistentKeepalive = 25`;
   <div className="max-w-6xl mx-auto space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-20 px-4 sm:px-0">
 
     {/* --- 1. Header Section (Internal) --- */}
-    <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-white p-5 rounded-2xl border border-slate-200 shadow-sm sticky top-4 z-40">
+    <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-white/90 backdrop-blur-md p-5 rounded-2xl border border-slate-200 shadow-sm sticky top-2 z-40">
         <div className="flex items-center gap-3 ml-2">
             <div className="w-10 h-10 bg-blue-600 text-white rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/20">
                 <Smartphone size={22} />

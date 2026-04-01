@@ -27,7 +27,7 @@ const VPNTools = ({ isModal = false }) => {
       )}
 
       {/* Main Container */}
-      <div className={`bg-white shadow-[0_20px_50px_-12px_rgba(0,0,0,0.05),0_10px_20px_-10px_rgba(0,0,0,0.02)] border-0 sm:border border-slate-100 overflow-hidden pb-10 ${isModal ? 'rounded-3xl' : 'sm:rounded-3xl'}`}>
+      <div className={`bg-white shadow-[0_20px_50px_-12px_rgba(0,0,0,0.05),0_10px_20px_-10px_rgba(0,0,0,0.02)] border-0 sm:border border-slate-100 pb-10 ${isModal ? 'rounded-3xl' : 'sm:rounded-3xl'}`}>
         
         {/* Tabs Selection */}
         <div className="bg-slate-50/50 border-b border-slate-100 p-4 sm:p-6 flex justify-center sm:justify-start">
