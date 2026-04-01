@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { ShieldCheck, UserPlus, Network } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import ClientToSiteTab from './components/ClientToSiteTab';
@@ -7,9 +7,21 @@ import SiteToSiteTab from './components/SiteToSiteTab';
 const VPNTools = ({ isModal = false }) => {
   const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState('c2s');
+  const containerRef = useRef(null);
+
+  // 🚀 บังคับเลื่อนขึ้นบนสุดเมื่อเปิดหน้าหรือเปลี่ยน Tab
+  useEffect(() => {
+    if (isModal) {
+      // สำหรับ Modal ให้เลื่อนตัว Modal เอง
+      window.scrollTo(0, 0);
+      containerRef.current?.scrollIntoView({ behavior: 'auto', block: 'start' });
+    } else {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }, [activeTab, isModal]);
 
   return (
-    <div className={`w-full space-y-6 animate-in fade-in duration-500 pb-10 ${!isModal ? 'max-w-5xl mx-auto' : ''}`}>
+    <div ref={containerRef} className={`w-full space-y-6 animate-in fade-in duration-500 pb-10 ${!isModal ? 'max-w-5xl mx-auto' : ''}`}>
       {/* Header - Only show if not in modal (Modal has its own header) */}
       {!isModal && (
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm relative overflow-hidden group">
