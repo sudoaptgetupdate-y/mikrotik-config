@@ -27,7 +27,8 @@ const DeviceList = () => {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
-  const { openWizard } = useOutletContext(); // ดึงฟังก์ชันเปิด Wizard จาก Layout
+  const context = useOutletContext(); // ดึง Context จาก Layout
+  const openWizard = context?.openWizard; // ดึงฟังก์ชันเปิด Wizard แบบปลอดภัย
   const { user } = useAuth(); 
   const canEdit = user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN';
   

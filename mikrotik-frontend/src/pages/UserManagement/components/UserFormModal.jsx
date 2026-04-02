@@ -80,6 +80,7 @@ const UserFormModal = ({
                             <option value="SUPER_ADMIN">{t('users.roles.super_admin_desc')}</option>
                             <option value="ADMIN">{t('users.roles.admin_desc')}</option>
                             <option value="EMPLOYEE">{t('users.roles.employee_desc')}</option>
+                            <option value="GUEST">{t('users.roles.guest_desc', 'Guest (Knowledge Base Only)')}</option>
                           </select>
                         </div>
                       </div>

@@ -3,7 +3,8 @@ import { Link, useNavigate } from 'react-router-dom';
 import { 
   Plus, Edit, Trash2, Eye, EyeOff, Search, 
   FileText, Calendar, User, BookOpen,
-  FolderTree, RefreshCw, Loader2, MoreVertical
+  FolderTree, RefreshCw, Loader2, MoreVertical,
+  Globe, ShieldAlert
 } from 'lucide-react';
 import articleService from '../../../services/articleService';
 import { useTranslation } from 'react-i18next';
@@ -150,6 +151,35 @@ const ArticleManager = () => {
   const from = totalItems > 0 ? (currentPage - 1) * itemsPerPage + 1 : 0;
   const to = Math.min(currentPage * itemsPerPage, totalItems);
 
+  const getVisibilityBadge = (visibility) => {
+    switch (visibility) {
+      case 'PUBLIC':
+        return (
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-50 text-emerald-600 border border-emerald-100">
+            <Globe size={12} /> {t('articles.vis_public')}
+          </span>
+        );
+      case 'EMPLOYEE':
+        return (
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-blue-50 text-blue-600 border border-blue-100">
+            <User size={12} /> {t('articles.vis_employee')}
+          </span>
+        );
+      case 'ADMIN':
+        return (
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-rose-50 text-rose-600 border border-rose-100">
+            <ShieldAlert size={12} /> {t('articles.vis_admin')}
+          </span>
+        );
+      default:
+        return (
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-slate-50 text-slate-600 border border-slate-100">
+            <Globe size={12} /> {t('articles.vis_public')}
+          </span>
+        );
+    }
+  };
+
   // 🟢 เปลี่ยนมาใช้โครงสร้างที่สมดุลกับ Dashboard (ลบ max-w-6xl และ Margin/Padding ที่ซ้ำซ้อนออก)
   return (
     <div className="w-full space-y-6 animate-in fade-in duration-500 pb-10">
@@ -232,9 +262,10 @@ const ArticleManager = () => {
               <table className={`w-full text-left border-collapse transition-opacity duration-200 ${isFetching ? 'opacity-50' : 'opacity-100'}`}>
                 <thead>
                   <tr className="bg-slate-50/80 border-b border-slate-200 text-xs uppercase tracking-wider text-slate-500 font-bold">
-                    <th className="p-4 pl-6 w-[40%] whitespace-nowrap">{t('articles.article_title')}</th>
-                    <th className="p-4 w-[20%] whitespace-nowrap">{t('articles.category')}</th>
-                    <th className="p-4 w-[20%] whitespace-nowrap">{t('devices.table.colStatus')}</th>
+                    <th className="p-4 pl-6 w-[35%] whitespace-nowrap">{t('articles.article_title')}</th>
+                    <th className="p-4 w-[15%] whitespace-nowrap">{t('articles.category')}</th>
+                    <th className="p-4 w-[15%] whitespace-nowrap">{t('articles.visibility')}</th>
+                    <th className="p-4 w-[15%] whitespace-nowrap">{t('devices.table.colStatus')}</th>
                     <th className="p-4 text-right pr-6 w-[20%] whitespace-nowrap">{t('devices.table.colActions')}</th>
                   </tr>
                 </thead>
@@ -259,6 +290,9 @@ const ArticleManager = () => {
                         <span className="inline-flex items-center px-2.5 py-1 rounded-md text-[11px] font-bold border bg-white border-slate-200 text-slate-600">
                            {article.category?.name || t('articles.uncategorized')}
                         </span>
+                      </td>
+                      <td className="p-4">
+                        {getVisibilityBadge(article.visibility)}
                       </td>
                       <td className="p-4">
                         <button 

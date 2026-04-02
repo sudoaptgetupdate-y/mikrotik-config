@@ -9,22 +9,18 @@ import {
 import { useAuth } from '../context/AuthContext'; 
 import Footer from '../components/Footer';
 import ConfigWizardModal from '../pages/ConfigWizard/ConfigWizardModal';
-import VPNToolsModal from '../pages/VPNTools/VPNToolsModal';
 
 const MainLayout = () => {
   const { t, i18n } = useTranslation();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   
-  // --- Global Wizard State ---
+  // --- Global Wizard State (Still used for Create/Edit Device from List) ---
   const [wizardState, setWizardState] = useState({
     isOpen: false,
     mode: 'create',
     initialData: null
   });
-
-  // --- VPN Tools Modal State ---
-  const [isVPNModalOpen, setIsVPNModalOpen] = useState(false);
 
   const { user, logout } = useAuth();
   const navigate = useNavigate();
@@ -55,7 +51,7 @@ const MainLayout = () => {
       title: t('sidebar.cat_main', 'Main'),
       items: [
         { to: '/dashboard', icon: LayoutDashboard, label: t('sidebar.dashboard'), roles: ['SUPER_ADMIN', 'ADMIN', 'EMPLOYEE'] },
-        { to: '/knowledge-base', icon: BookOpen, label: t('sidebar.knowledge_base', 'Knowledge Base'), roles: ['SUPER_ADMIN', 'ADMIN', 'EMPLOYEE'] },
+        { to: '/knowledge-base', icon: BookOpen, label: t('sidebar.knowledge_base', 'Knowledge Base'), roles: ['SUPER_ADMIN', 'ADMIN', 'EMPLOYEE', 'GUEST'] },
       ]
     },
     {
@@ -84,24 +80,26 @@ const MainLayout = () => {
     return items.filter(item => item.roles.includes(user?.role));
   };
 
+  // กรองหมวดหมู่ที่มีรายการที่เข้าถึงได้
+  const filteredCategories = menuCategories
+    .map(category => ({
+      ...category,
+      items: filterMenuItems(category.items)
+    }))
+    .filter(category => category.items.length > 0);
+
   // ==========================================
   // Render
   // ==========================================
   return (
     <div className="flex h-screen bg-slate-50 overflow-hidden text-slate-900">
       
-      {/* 🧙‍♂️ Global Config Wizard Modal */}
+      {/* 🧙‍♂️ Global Config Wizard Modal (Still used for Create/Edit from list) */}
       <ConfigWizardModal 
         isOpen={wizardState.isOpen} 
         onClose={closeWizard} 
         mode={wizardState.mode} 
         initialData={wizardState.initialData} 
-      />
-
-      {/* 🛡️ VPN Tools Modal */}
-      <VPNToolsModal 
-        isOpen={isVPNModalOpen} 
-        onClose={() => setIsVPNModalOpen(false)} 
       />
 
       {/* 📱 Mobile Menu Button */}
@@ -135,7 +133,10 @@ const MainLayout = () => {
           className="h-16 flex items-center justify-between px-4 bg-slate-950 border-b border-slate-800/80 shrink-0 relative overflow-hidden"
         >
           <div 
-            onClick={() => navigate('/dashboard')}
+            onClick={() => {
+               if (user?.role === 'GUEST') navigate('/knowledge-base');
+               else navigate('/dashboard');
+            }}
             className={`flex items-center cursor-pointer hover:opacity-80 transition-all duration-300 ${isSidebarCollapsed ? 'md:mx-auto ml-2' : 'ml-2'}`}
           >
             <span className="font-black text-xl text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-300 tracking-widest uppercase shrink-0">
@@ -162,7 +163,7 @@ const MainLayout = () => {
 
         {/* Sidebar Navigation */}
         <div className="flex-1 overflow-y-auto py-6 px-3 space-y-8 custom-scrollbar scroll-smooth">
-          {menuCategories.map((category, idx) => (
+          {filteredCategories.map((category, idx) => (
             <div key={idx}>
               <h3 className={`px-4 text-[11px] font-black text-slate-500 uppercase tracking-widest mb-3 transition-all duration-300 ${isSidebarCollapsed ? 'md:hidden opacity-0' : 'opacity-100'}`}>
                 {category.title}
@@ -171,39 +172,14 @@ const MainLayout = () => {
                 <div className="hidden md:block h-4 border-b border-slate-800/50 mb-3 mx-2"></div>
               )}
               <div className="space-y-1">
-                {filterMenuItems(category.items).map((item) => {
+                {category.items.map((item) => {
                   const Icon = item.icon;
                   
-                  // Special case for Config Builder or VPN Tools to open as Modal
-                  if (item.to === '/config-builder' || item.to === '/vpn-tools') {
-                    return (
-                      <button 
-                        key={item.to}
-                        onClick={() => {
-                          setIsMobileMenuOpen(false);
-                          if (item.to === '/config-builder') openWizard('standalone');
-                          else setIsVPNModalOpen(true);
-                        }}
-                        title={isSidebarCollapsed ? item.label : ''}
-                        className={`
-                          w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 group relative
-                          ${isSidebarCollapsed ? 'md:justify-center md:px-0' : ''}
-                          text-slate-400 hover:text-white hover:bg-slate-800/50
-                        `}
-                      >
-                        <Icon size={20} className="shrink-0 text-slate-500 group-hover:text-blue-400 transition-colors" />
-                        <span className={`truncate transition-all duration-300 ${isSidebarCollapsed ? 'md:hidden opacity-0 w-0' : 'opacity-100 w-auto'}`}>
-                          {item.label}
-                        </span>
-                      </button>
-                    );
-                  }
-
                   return (
                     <NavLink 
                       key={item.to} 
                       to={item.to}
-                      end={item.to === '/knowledge-base'}
+                      end={item.to === '/knowledge-base' || item.to === '/config-builder' || item.to === '/vpn-tools'}
                       title={isSidebarCollapsed ? item.label : ''}
                       onClick={() => setIsMobileMenuOpen(false)}
                       className={({ isActive }) => `

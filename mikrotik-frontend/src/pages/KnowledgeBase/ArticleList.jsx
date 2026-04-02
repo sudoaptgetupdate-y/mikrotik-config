@@ -1,10 +1,13 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { BookOpen, Search, Filter, Calendar, User, Eye, Loader2, Tag as TagIcon, Heart, LayoutGrid, Pin } from 'lucide-react';
+import { 
+  BookOpen, Search, Filter, Calendar, User, Eye, Loader2, 
+  Tag as TagIcon, Heart, LayoutGrid, Pin, Globe, ShieldAlert,
+  ArrowRight, Sparkles, TrendingUp, Clock
+} from 'lucide-react';
 import articleService from '../../services/articleService';
 import { useTranslation } from 'react-i18next';
 import { format } from 'date-fns';
-import { getToken } from '../../utils/apiClient';
 import { useAuth } from '../../context/AuthContext';
 import Pagination from '../../components/Pagination';
 
@@ -29,13 +32,12 @@ const ArticleList = () => {
   
   // Pagination States
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 6; // Show 6 articles per page
+  const itemsPerPage = 6;
 
   useEffect(() => {
     fetchInitialData();
   }, []);
 
-  // Sync searchTerm state with URL param
   useEffect(() => {
     const search = searchParams.get('search');
     if (search !== null && search !== searchTerm) {
@@ -44,16 +46,13 @@ const ArticleList = () => {
   }, [searchParams]);
 
   useEffect(() => {
-    // Reset to first page when tab or category or search changes
     setCurrentPage(1);
   }, [category, activeTab, searchTerm]);
 
   useEffect(() => {
-    // Debounce the search if needed, but for simplicity here we use the dependency array
     const delayDebounceFn = setTimeout(() => {
       fetchArticles();
     }, 300);
-
     return () => clearTimeout(delayDebounceFn);
   }, [category, activeTab, currentPage, searchTerm]);
 
@@ -81,7 +80,6 @@ const ArticleList = () => {
         params.favoritedByUserId = user.id;
       }
       
-      // Use server-side search
       if (searchTerm) {
         params.search = searchTerm;
       }
@@ -97,10 +95,7 @@ const ArticleList = () => {
     }
   };
 
-  const formatImageUrl = (url) => {
-    if (!url) return null;
-    return url;
-  };
+  const formatImageUrl = (url) => url;
 
   const handleTagClick = (e, tagName) => {
     e.preventDefault();
@@ -112,225 +107,242 @@ const ArticleList = () => {
 
   const totalPages = Math.ceil(totalItems / itemsPerPage) || 1;
 
-  // 🟢 เปลี่ยนมาใช้โครงสร้างที่สมดุลกับ Dashboard (ลบ Margin และ Padding ที่ซ้ำซ้อนออก)
+  const getVisibilityBadge = (visibility) => {
+    switch (visibility) {
+      case 'EMPLOYEE':
+        return (
+          <span className="flex items-center gap-1 px-2 py-1 rounded-lg text-[9px] font-black bg-blue-500/10 text-blue-600 border border-blue-200/50 backdrop-blur-sm">
+            <User size={10} /> {t('articles.vis_employee')}
+          </span>
+        );
+      case 'ADMIN':
+        return (
+          <span className="flex items-center gap-1 px-2 py-1 rounded-lg text-[9px] font-black bg-rose-500/10 text-rose-600 border border-rose-200/50 backdrop-blur-sm">
+            <ShieldAlert size={10} /> {t('articles.vis_admin')}
+          </span>
+        );
+      default:
+        return (
+          <span className="flex items-center gap-1 px-2 py-1 rounded-lg text-[9px] font-black bg-emerald-500/10 text-emerald-600 border border-emerald-200/50 backdrop-blur-sm">
+            <Globe size={10} /> {t('articles.vis_public')}
+          </span>
+        );
+    }
+  };
+
   return (
-    <div className="w-full space-y-6 animate-in fade-in duration-500 pb-10">
+    <div className="w-full animate-in fade-in duration-700 pb-20">
       
-      {/* 1. Page Header Section (Island Card) */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm relative overflow-hidden group">
-        <div className="relative z-10">
-          <h1 className="text-2xl font-bold text-slate-800 tracking-tight flex items-center gap-3">
-            <div className="p-2 bg-blue-600 rounded-xl text-white shadow-lg shadow-blue-200">
-              <BookOpen size={24} />
-            </div>
-            {t('articles.kb_title')}
+      {/* 🚀 1. Search Hero Section (Modern Support Portal Style) */}
+      <div className="relative mb-12 -mx-4 md:-mx-8 px-4 md:px-8 pt-12 pb-20 overflow-hidden">
+        {/* Animated Background Elements */}
+        <div className="absolute inset-0 bg-slate-950">
+          <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-blue-600/20 rounded-full blur-[120px] -mr-48 -mt-48 animate-pulse"></div>
+          <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-indigo-600/10 rounded-full blur-[100px] -ml-32 -mb-32"></div>
+          <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-[0.03] mix-blend-overlay"></div>
+        </div>
+
+        <div className="relative z-10 max-w-4xl mx-auto text-center">
+          <h1 className="text-4xl md:text-6xl font-black text-white tracking-tighter mb-6 leading-[1.1]">
+             {t('articles.kb_title')}
           </h1>
-          <p className="text-sm text-slate-500 mt-1 font-medium italic ml-1">
+          
+          <p className="text-slate-400 text-lg font-medium mb-10 max-w-2xl mx-auto leading-relaxed">
             {t('articles.kb_subtitle')}
           </p>
+
+          {/* Large Search Bar */}
+          <div className="relative max-w-2xl mx-auto group">
+            <div className="absolute inset-0 bg-blue-600/20 blur-2xl group-focus-within:bg-blue-600/30 transition-all duration-500"></div>
+            <div className="relative flex items-center bg-white rounded-[24px] p-2 shadow-2xl transition-all duration-300 group-focus-within:ring-4 group-focus-within:ring-blue-500/20">
+              <div className="pl-4 pr-2 text-slate-400">
+                <Search size={24} strokeWidth={2.5} />
+              </div>
+              <input 
+                type="text" 
+                placeholder={t('articles.search_placeholder')} 
+                className="flex-1 bg-transparent border-none outline-none py-4 px-2 text-lg font-bold text-slate-800 placeholder:text-slate-400"
+                value={searchTerm} 
+                onChange={(e) => {
+                  setSearchTerm(e.target.value);
+                  setSearchParams(e.target.value ? { search: e.target.value } : {});
+                }} 
+              />
+              <button className="bg-blue-600 text-white px-8 py-4 rounded-[18px] font-black text-sm uppercase tracking-widest hover:bg-blue-700 transition-all active:scale-95 shadow-lg shadow-blue-500/30">
+                {t('common.search')}
+              </button>
+            </div>
+          </div>
         </div>
-        
-        <div className="absolute right-0 top-0 w-48 h-48 bg-blue-50/50 rounded-full blur-3xl -mr-16 -mt-16 group-hover:bg-blue-100/50 transition-colors duration-700"></div>
       </div>
 
-      {/* 2. Control Toolbar (Tabs, Search, Filter) */}
-      <div className="space-y-4">
-        <div className="flex items-center gap-1 bg-white p-1 rounded-2xl border border-slate-200 shadow-sm w-max">
+      {/* 2. Category Chips & Tabs Section (Sticky) */}
+      <div className="sticky top-0 z-30 -mt-10 mb-12 flex flex-col items-center">
+        <div className="bg-white/80 backdrop-blur-xl p-2 rounded-[28px] border border-slate-200 shadow-xl shadow-slate-200/50 flex flex-wrap justify-center items-center gap-2 max-w-full overflow-x-auto no-scrollbar">
           <button 
-            onClick={() => setActiveTab('all')}
-            className={`flex items-center gap-2 px-6 py-2 rounded-xl text-sm font-black transition-all ${
-              activeTab === 'all' 
-              ? 'bg-slate-900 text-white shadow-lg shadow-slate-200' 
-              : 'text-slate-400 hover:text-slate-600 hover:bg-slate-50'
+            onClick={() => { setCategory(''); setActiveTab('all'); }}
+            className={`px-6 py-3 rounded-[20px] text-xs font-black uppercase tracking-widest transition-all ${
+              !category && activeTab === 'all' 
+              ? 'bg-slate-900 text-white shadow-lg' 
+              : 'text-slate-500 hover:bg-slate-50'
             }`}
           >
-            <LayoutGrid size={16} />
-            {t('articles.tab_all')}
+            {t('articles.all_categories')}
           </button>
+
+          {categories.map(cat => (
+            <button 
+              key={cat.id}
+              onClick={() => { setCategory(cat.id); setActiveTab('all'); }}
+              className={`px-6 py-3 rounded-[20px] text-xs font-black uppercase tracking-widest transition-all ${
+                category === cat.id 
+                ? 'bg-blue-600 text-white shadow-lg shadow-blue-200' 
+                : 'text-slate-500 hover:bg-slate-50'
+              }`}
+            >
+              {cat.name}
+            </button>
+          ))}
+
+          <div className="w-px h-6 bg-slate-200 mx-2 hidden sm:block"></div>
+
           <button 
             onClick={() => setActiveTab('favorites')}
-            className={`flex items-center gap-2 px-6 py-2 rounded-xl text-sm font-black transition-all ${
+            className={`flex items-center gap-2 px-6 py-3 rounded-[20px] text-xs font-black uppercase tracking-widest transition-all ${
               activeTab === 'favorites' 
               ? 'bg-rose-500 text-white shadow-lg shadow-rose-200' 
-              : 'text-slate-400 hover:text-rose-500 hover:bg-rose-50/50'
+              : 'text-slate-500 hover:text-rose-500 hover:bg-rose-50'
             }`}
           >
             <Heart size={16} fill={activeTab === 'favorites' ? "currentColor" : "none"} />
             {t('articles.tab_favorites')}
           </button>
         </div>
-
-        <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col sm:flex-row gap-4 items-center justify-between">
-          <div className="relative flex-1 w-full">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-            <input 
-              type="text" 
-              placeholder={t('articles.search_placeholder')} 
-              className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-sm font-medium" 
-              value={searchTerm} 
-              onChange={(e) => {
-                setSearchTerm(e.target.value);
-                if (e.target.value === '') {
-                  setSearchParams({});
-                } else {
-                  setSearchParams({ search: e.target.value });
-                }
-              }} 
-            />
-          </div>
-          
-          <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 px-3 py-2 rounded-xl w-full sm:w-auto">
-            <Filter size={16} className="text-slate-400" />
-            <select 
-              className="bg-transparent outline-none text-slate-700 font-bold text-sm min-w-[140px] cursor-pointer"
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
-            >
-              <option value="">{t('articles.all_categories')}</option>
-              {categories.map(cat => (
-                <option key={cat.id} value={cat.id}>{cat.name}</option>
-              ))}
-            </select>
-          </div>
-        </div>
       </div>
 
-      {/* 3. Content Area */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col min-h-[600px]">
+      {/* 3. Article Grid Area */}
+      <div className="max-w-7xl mx-auto px-4">
         {loading ? (
-          <div className="flex-1 flex flex-col items-center justify-center p-8 text-slate-400 font-bold uppercase tracking-widest">
-            <Loader2 size={36} className="animate-spin text-blue-600 mb-4" />
-            <p className="text-xs">{t('common.loading')}</p>
+          <div className="flex flex-col items-center justify-center py-40 text-slate-400">
+            <Loader2 size={48} className="animate-spin text-blue-600 mb-6" />
+            <p className="font-black uppercase tracking-widest text-xs animate-pulse">{t('common.loading')}</p>
           </div>
         ) : articles.length === 0 ? (
-          <div className="flex-1 flex flex-col items-center justify-center text-center p-12 min-h-[450px] md:min-h-[600px] animate-in fade-in duration-500">
-            <div className={`p-8 rounded-[40px] mb-6 border border-slate-100 shadow-inner ${activeTab === 'favorites' ? 'bg-rose-50 text-rose-200' : 'bg-slate-50 text-slate-200'}`}>
-              {activeTab === 'favorites' ? <Heart size={64} /> : <BookOpen size={64} />}
-            </div>
-            <h3 className="text-2xl font-black text-slate-800 tracking-tight">
-              {activeTab === 'favorites' ? t('common.no_data') : t('articles.no_articles')}
-            </h3>
-            <p className="text-slate-400 mt-2 font-medium max-w-xs mx-auto leading-relaxed">
-              {activeTab === 'favorites' 
-                ? "You haven't favorited any articles yet. Start exploring and save the ones you like!" 
-                : t('articles.no_articles_desc')}
-            </p>
-            {(activeTab === 'favorites' || searchTerm !== '' || category !== '') && (
-              <button 
-                onClick={() => {
-                  setActiveTab('all');
-                  setSearchTerm('');
-                  setCategory('');
-                  setSearchParams({});
-                }}
-                className="mt-8 px-8 py-3 bg-slate-900 text-white rounded-2xl font-black uppercase tracking-widest text-[10px] shadow-xl shadow-slate-200 transition-all active:scale-95"
-              >
-                {t('articles.tab_all')}
-              </button>
-            )}
+          <div className="bg-white rounded-[48px] border border-slate-200 p-20 text-center shadow-sm">
+             <div className="inline-flex p-10 bg-slate-50 rounded-full text-slate-200 mb-8">
+               <BookOpen size={80} strokeWidth={1} />
+             </div>
+             <h3 className="text-3xl font-black text-slate-800 mb-4">{t('articles.no_articles')}</h3>
+             <p className="text-slate-500 font-medium max-w-md mx-auto mb-10 text-lg">
+                ไม่พบบทความที่คุณกำลังมองหา ลองเปลี่ยนคำค้นหาหรือหมวดหมู่ดูนะครับ
+             </p>
+             <button 
+                onClick={() => { setSearchTerm(''); setCategory(''); setActiveTab('all'); setSearchParams({}); }}
+                className="bg-slate-900 text-white px-10 py-4 rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-black transition-all active:scale-95"
+             >
+                กลับไปดูทั้งหมด
+             </button>
           </div>
         ) : (
-          <>
-            <div className={`p-6 md:p-10 min-h-[450px] md:min-h-[600px] transition-opacity duration-300 ${isFetching ? 'opacity-50' : 'opacity-100'}`}>
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
-                {articles.map((article) => (
-                  <Link 
-                    key={article.id} 
-                    to={`/knowledge-base/${article.slug}`}
-                    className={`group flex flex-col h-full bg-white border rounded-[32px] overflow-hidden hover:shadow-2xl hover:shadow-blue-900/10 transition-all duration-500 hover:-translate-y-2 border-b-4 shadow-sm ${
-                      article.isPinned 
-                      ? 'border-blue-500/50 border-b-blue-600 ring-4 ring-blue-500/5' 
-                      : 'border-slate-100 border-b-slate-100 hover:border-b-blue-500'
-                    }`}
-                  >
-                    {/* Thumbnail */}
-                    <div className="aspect-[16/10] bg-slate-50 relative overflow-hidden shrink-0">
-                      {article.thumbnail ? (
-                        <img 
-                          src={formatImageUrl(article.thumbnail)} 
-                          alt={article.title} 
-                          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 ease-out" 
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-blue-50/50 to-indigo-50/50">
-                          <BookOpen size={56} className="text-blue-100" />
-                        </div>
-                      )}
-                      
-                      <div className="absolute top-4 left-4 flex gap-2">
-                        {article.isPinned && (
-                          <span className="backdrop-blur-md bg-blue-600/90 text-white text-[10px] font-black px-3 py-1.5 rounded-xl uppercase tracking-widest shadow-lg flex items-center gap-1.5 border border-blue-400/30 animate-pulse">
-                            <Pin size={12} fill="currentColor" />
-                            {t('articles.pin_article')}
-                          </span>
-                        )}
-                        <span className="backdrop-blur-md bg-white/90 text-blue-600 text-[10px] font-black px-3 py-1.5 rounded-xl uppercase tracking-widest shadow-sm border border-white/20">
-                          {article.category?.name || t('articles.uncategorized')}
-                        </span>
+          <div className={`transition-all duration-500 ${isFetching ? 'opacity-40 blur-[2px]' : 'opacity-100'}`}>
+            {/* Grid Layout */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
+              {articles.map((article) => (
+                <Link 
+                  key={article.id} 
+                  to={`/knowledge-base/${article.slug}`}
+                  className="group relative bg-white rounded-[40px] overflow-hidden border border-slate-100 shadow-[0_4px_20px_rgba(0,0,0,0.03)] hover:shadow-[0_20px_40px_rgba(0,0,0,0.08)] transition-all duration-500 hover:-translate-y-3 flex flex-col h-full"
+                >
+                  {/* Image/Thumbnail Wrapper */}
+                  <div className="relative aspect-[16/10] overflow-hidden">
+                    {article.thumbnail ? (
+                      <img 
+                        src={formatImageUrl(article.thumbnail)} 
+                        alt={article.title} 
+                        className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" 
+                      />
+                    ) : (
+                      <div className="w-full h-full bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center">
+                        <BookOpen size={64} className="text-slate-200" strokeWidth={1.5} />
                       </div>
+                    )}
+                    
+                    {/* Floating Badges */}
+                    <div className="absolute top-5 left-5 flex flex-wrap gap-2">
+                       {article.isPinned && (
+                         <div className="bg-blue-600 text-white text-[9px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full flex items-center gap-1.5 shadow-lg shadow-blue-500/30">
+                           <Pin size={10} fill="currentColor" />
+                           {t('articles.pin_article')}
+                         </div>
+                       )}
+                       {getVisibilityBadge(article.visibility)}
                     </div>
 
-                    {/* Content */}
-                    <div className="p-6 flex flex-col flex-1">
-                      <h3 className="text-xl font-black text-slate-800 mb-3 group-hover:text-blue-600 transition-colors line-clamp-2 leading-tight">
-                        {article.title}
-                      </h3>
-                      
-                      {article.tags && article.tags.length > 0 && (
-                        <div className="flex flex-wrap gap-1.5 mb-4">
-                          {article.tags.map(tag => (
-                            <button 
-                              key={tag.id} 
-                              onClick={(e) => handleTagClick(e, tag.name)}
-                              className="inline-flex items-center gap-1 text-[10px] font-bold text-slate-400 bg-slate-50 px-2 py-0.5 rounded-md border border-slate-100 hover:border-blue-300 hover:text-blue-600 hover:bg-blue-50 transition-all z-10"
-                            >
-                              <TagIcon size={10} />
-                              {tag.name}
-                            </button>
-                          ))}
-                        </div>
-                      )}
+                    {/* Category Overlay (Bottom Right) */}
+                    <div className="absolute bottom-5 right-5">
+                       <div className="bg-white/90 backdrop-blur-md px-4 py-1.5 rounded-full text-[10px] font-black text-slate-800 border border-white/50 shadow-sm uppercase tracking-widest">
+                         {article.category?.name || t('articles.uncategorized')}
+                       </div>
+                    </div>
+                  </div>
 
-                      <p className="text-slate-500 text-sm line-clamp-3 mb-6 leading-relaxed font-medium flex-1">
-                        {article.excerpt || t('devices.table.noData')}
-                      </p>
-                      
-                      <div className="flex items-center justify-between pt-5 border-t border-slate-50">
-                        <div className="flex items-center gap-2">
-                          <div className="size-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 font-black text-[10px] border border-white shadow-sm uppercase">
+                  {/* Card Content */}
+                  <div className="p-8 flex flex-col flex-1">
+                    <div className="flex items-center gap-3 text-slate-400 text-[10px] font-black uppercase tracking-widest mb-4">
+                       <TrendingUp size={12} className="text-blue-500" />
+                       <span>{article.viewCount} {t('common.views')}</span>
+                       <span className="text-slate-200">•</span>
+                       <div className="flex items-center gap-1">
+                          <Clock size={12} />
+                          <span>5 MIN READ</span>
+                       </div>
+                    </div>
+
+                    <h2 className="text-2xl font-black text-slate-800 leading-tight mb-4 group-hover:text-blue-600 transition-colors line-clamp-2">
+                      {article.title}
+                    </h2>
+
+                    <p className="text-slate-500 text-sm font-medium leading-relaxed line-clamp-3 mb-8 flex-1">
+                      {article.excerpt || "ไม่มีข้อมูลสรุปสำหรับบทความนี้..."}
+                    </p>
+
+                    {/* Card Footer */}
+                    <div className="flex items-center justify-between pt-6 border-t border-slate-50">
+                      <div className="flex items-center gap-3">
+                         <div className="w-10 h-10 rounded-full bg-slate-900 flex items-center justify-center text-white font-black text-xs border-2 border-white shadow-sm ring-1 ring-slate-100 uppercase">
                             {article.author?.firstName?.charAt(0)}
-                          </div>
-                          <span className="text-xs font-black text-slate-600">@{article.author?.username}</span>
-                        </div>
-                        <div className="flex items-center gap-3 text-slate-400 text-[10px] font-black uppercase tracking-tighter">
-                          <div className="flex items-center gap-1">
-                            <Calendar size={12} className="text-slate-300" />
-                            {format(new Date(article.createdAt), 'dd MMM yy')}
-                          </div>
-                          <div className="flex items-center gap-1 bg-slate-50 px-2 py-1 rounded-lg">
-                            <Eye size={12} className="text-slate-300" />
-                            {article.viewCount}
-                          </div>
-                        </div>
+                         </div>
+                         <div className="flex flex-col">
+                            <span className="text-[11px] font-black text-slate-800 uppercase tracking-tight">{article.author?.firstName} {article.author?.lastName}</span>
+                            <span className="text-[10px] font-bold text-slate-400">{format(new Date(article.createdAt), 'dd MMM yyyy')}</span>
+                         </div>
+                      </div>
+                      
+                      <div className="w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center text-slate-400 group-hover:bg-blue-600 group-hover:text-white transition-all duration-300 shadow-inner">
+                         <ArrowRight size={18} />
                       </div>
                     </div>
-                  </Link>
-                ))}
+                  </div>
+                </Link>
+              ))}
+            </div>
+
+            {/* Bottom Pagination */}
+            <div className="mt-20">
+              <div className="flex items-center justify-center gap-4 mb-8">
+                <div className="h-px bg-slate-200 flex-1"></div>
+                <div className="text-[10px] font-black uppercase tracking-widest text-slate-400 bg-white px-4">
+                   {t('common.found')}: <span className="text-slate-900">{totalItems} {t('common.items')}</span>
+                </div>
+                <div className="h-px bg-slate-200 flex-1"></div>
               </div>
+              <Pagination 
+                currentPage={currentPage} 
+                totalPages={totalPages} 
+                setCurrentPage={setCurrentPage} 
+              />
             </div>
-
-            <div className="flex justify-between items-center mt-10 mb-4 px-10">
-               <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">
-                  {t('common.found')}: <span className="text-slate-700">{totalItems} {t('common.items')}</span>
-               </div>
-            </div>
-
-            <Pagination 
-              currentPage={currentPage} 
-              totalPages={totalPages} 
-              setCurrentPage={setCurrentPage} 
-            />
-          </>
+          </div>
         )}
       </div>
     </div>

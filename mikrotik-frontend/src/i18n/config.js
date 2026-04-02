@@ -557,6 +557,7 @@ const resources = {
           super_admin_desc: "Super Admin (Full Access)",
           admin_desc: "Admin (Manage Staff & Devices)",
           employee_desc: "Employee (Standard Access)",
+          guest_desc: "Guest (Knowledge Base Only)",
           desc_super: "Can manage everything",
           desc_admin: "Can manage Employees and Devices",
           desc_employee: "Can view and config own devices"
@@ -1056,6 +1057,10 @@ const resources = {
         back_to_kb: "Back to Knowledge Base",
         back_to_top: "Back to top",
         publish_settings: "Publish Settings",
+        visibility: "Visibility Level",
+        vis_public: "Public",
+        vis_employee: "Employee Only",
+        vis_admin: "Admin Only",
         meta_data: "Meta Data",
         article_title: "Article Title",
         article_slug: "Article Slug",
@@ -1652,6 +1657,7 @@ const resources = {
           super_admin_desc: "Super Admin (จัดการได้ทุกอย่าง)",
           admin_desc: "Admin (จัดการพนักงานและอุปกรณ์)",
           employee_desc: "Employee (สิทธิ์ทั่วไป)",
+          guest_desc: "Guest (ดูคลังความรู้เท่านั้น)",
           desc_super: "จัดการได้ทุกอย่าง",
           desc_admin: "จัดการพนักงานและอุปกรณ์ได้",
           desc_employee: "ดูและตั้งค่าอุปกรณ์ตัวเองได้"
@@ -2076,8 +2082,8 @@ const resources = {
         footer_rights: "ระบบบริหารจัดการไมโครติก สงวนลิขสิทธิ์"
       },
       articles: {
-        kb_title: "บทความและเทคนิค",
-        kb_subtitle: "คลังข้อมูลสนับสนุนทางเทคนิคเพื่อการเพิ่มประสิทธิภาพและการจัดการปัญหาอย่างเป็นระบบ",
+        kb_title: "คลังบทความ",
+        kb_subtitle: "ค้นหาคู่มือการใช้งาน วิธีการแก้ปัญหา และเทคนิคอื่นๆของคุณได้ที่นี่",
         tab_all: "สำรวจทั้งหมด",
         tab_favorites: "รายการโปรดของฉัน",
         mgmt_title: "จัดการบทความ",
@@ -2124,6 +2130,10 @@ const resources = {
         back_to_kb: "กลับไปหน้าคลังความรู้",
         back_to_top: "กลับไปด้านบน",
         publish_settings: "ตั้งค่าการเผยแพร่",
+        visibility: "ระดับการเข้าถึง",
+        vis_public: "สาธารณะ (ทุกคน)",
+        vis_employee: "เฉพาะพนักงาน",
+        vis_admin: "เฉพาะผู้ดูแลระบบ",
         meta_data: "ข้อมูลเพิ่มเติม (Meta)",
         article_title: "หัวข้อบทความ",
         article_slug: "URL ย่อ (Slug)",

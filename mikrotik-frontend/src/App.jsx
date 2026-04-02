@@ -24,8 +24,25 @@ import ArticleManager from './pages/KnowledgeBase/Admin/ArticleManager';
 
 // --- Features (ระบบ Wizard แยกเฉพาะ) ---
 import ConfigWizard from './pages/ConfigWizard/ConfigWizard';
+import VPNTools from './pages/VPNTools/VPNTools';
+
+import { useAuth } from './context/AuthContext';
 
 // --- Wrapper Components ---
+const HomeRedirect = () => {
+  const { user } = useAuth();
+  if (user?.role === 'GUEST') return <Navigate to="/knowledge-base" replace />;
+  return <Navigate to="/dashboard" replace />;
+};
+
+const ConfigBuilderPage = () => {
+  return <div className="py-10"><ConfigWizard mode="standalone" /></div>;
+};
+
+const VPNToolsPage = () => {
+  return <div className="py-10"><VPNTools isModal={false} /></div>;
+};
+
 const CreateDevicePage = () => {
   const navigate = useNavigate();
   return <ConfigWizard mode="create" onFinish={() => navigate('/devices')} />;
@@ -59,13 +76,19 @@ function App() {
         <Route element={<ProtectedRoute />}>
           <Route path="/" element={<MainLayout />}>
             
-            {/* หน้าแรกให้ Redirect ไป Dashboard ทันที */}
-            <Route index element={<Navigate to="/dashboard" replace />} />
+            {/* หน้าแรกให้ Redirect ไปตาม Role */}
+            <Route index element={<HomeRedirect />} />
             
-            {/*หน้าที่ทุกคน (รวมถึง EMPLOYEE) เข้าดูได้ (Read-only) */}
-            <Route path="dashboard" element={<Dashboard />} />
-            <Route path="devices" element={<DeviceList />} />
-            <Route path="groups" element={<GroupManagement />} />
+            {/*หน้าที่ทุกคน (รวมถึง EMPLOYEE) เข้าดูได้ (Read-only) ยกเว้น GUEST */}
+            <Route element={<ProtectedRoute allowedRoles={['SUPER_ADMIN', 'ADMIN', 'EMPLOYEE']} />}>
+              <Route path="dashboard" element={<Dashboard />} />
+              <Route path="devices" element={<DeviceList />} />
+              <Route path="groups" element={<GroupManagement />} />
+              <Route path="config-builder" element={<ConfigBuilderPage />} />
+              <Route path="vpn-tools" element={<VPNToolsPage />} />
+            </Route>
+            
+            {/* หน้าที่ทุกคนเข้าได้รวมถึง GUEST */}
             <Route path="profile" element={<UserProfile />} />
             <Route path="knowledge-base" element={<ArticleList />} />
             <Route path="knowledge-base/:slug" element={<ArticleDetail />} />
@@ -86,8 +109,8 @@ function App() {
               <Route path="knowledge-base/admin" element={<ArticleManager />} />
             </Route>
 
-            {/* Catch-all Route: ถ้า URL ไม่ตรง ให้กลับไปหน้า dashboard */}
-            <Route path="*" element={<Navigate to="/dashboard" replace />} />
+            {/* Catch-all Route: ถ้า URL ไม่ตรง ให้กลับไปหน้าหลักตาม Role */}
+            <Route path="*" element={<HomeRedirect />} />
 
           </Route>
         </Route>

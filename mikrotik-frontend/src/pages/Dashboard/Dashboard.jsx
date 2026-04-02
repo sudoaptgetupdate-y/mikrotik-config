@@ -24,7 +24,8 @@ const Dashboard = () => {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { openWizard } = useOutletContext(); // ดึงฟังก์ชันเปิด Wizard จาก Layout
+  const context = useOutletContext(); // ดึง Context จาก Layout
+  const openWizard = context?.openWizard; // ดึงฟังก์ชันเปิด Wizard แบบปลอดภัย
 // ฟังก์ชันช่วยแปลง Uptime ของ MikroTik ให้เป็นวินาทีเพื่อใช้ในการเรียงลำดับ
 const uptimeToSeconds = (uptimeStr) => {
   if (!uptimeStr || uptimeStr === 'N/A') return 0;

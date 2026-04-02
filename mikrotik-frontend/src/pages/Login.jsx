@@ -26,9 +26,15 @@ const Login = () => {
     setIsLoading(true);
 
     try {
-      await login(identifier, password);
+      const user = await login(identifier, password);
       toast.success(t('login.success_toast')); 
-      navigate('/dashboard'); 
+      
+      // Redirect based on role
+      if (user?.role === 'GUEST') {
+        navigate('/knowledge-base');
+      } else {
+        navigate('/dashboard'); 
+      }
     } catch (err) {
       toast.error(err.response?.data?.error || t('login.error_default')); 
     } finally {
