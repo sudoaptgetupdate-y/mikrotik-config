@@ -17,11 +17,13 @@ exports.getArticles = async (req, res, next) => {
       skip 
     };
 
-    if (req.user.role !== 'SUPER_ADMIN') {
+    // If it's not admin, we only show published articles. 
+    // The service will further filter by visibility based on req.user.role
+    if (req.user.role !== 'SUPER_ADMIN' && req.user.role !== 'ADMIN') {
       queryFilters.status = 'PUBLISHED';
     }
     
-    const { articles, total } = await articleService.getAllArticles(queryFilters);
+    const { articles, total } = await articleService.getAllArticles(queryFilters, req.user.role);
     res.status(200).json({ articles, total, page: parseInt(page), limit: parseInt(limit) });
   } catch (error) { next(error); }
 };
@@ -29,10 +31,12 @@ exports.getArticles = async (req, res, next) => {
 exports.getArticle = async (req, res, next) => {
   try {
     const { slug } = req.params;
-    const article = await articleService.getArticleBySlug(slug);
+    const article = await articleService.getArticleBySlug(slug, req.user.role);
 
-    if (!article) return res.status(404).json({ error: 'Article not found' });
-    if (article.status !== 'PUBLISHED' && req.user.role !== 'SUPER_ADMIN') {
+    if (!article) return res.status(404).json({ error: 'Article not found or access denied' });
+    
+    // Status check for non-admins
+    if (article.status !== 'PUBLISHED' && req.user.role !== 'SUPER_ADMIN' && req.user.role !== 'ADMIN') {
       return res.status(403).json({ error: 'Access denied' });
     }
 
@@ -42,8 +46,8 @@ exports.getArticle = async (req, res, next) => {
 
 exports.getArticleById = async (req, res, next) => {
   try {
-    const article = await articleService.getArticleById(req.params.id);
-    if (!article) return res.status(404).json({ error: 'Article not found' });
+    const article = await articleService.getArticleById(req.params.id, req.user.role);
+    if (!article) return res.status(404).json({ error: 'Article not found or access denied' });
     res.status(200).json(article);
   } catch (error) { next(error); }
 };

@@ -21,7 +21,7 @@ const createUserSchema = z.object({
     firstName: z.string().min(1, "กรุณากรอกชื่อจริง"),
     lastName: z.string().min(1, "กรุณากรอกนามสกุล"),
     email: z.string().email("รูปแบบอีเมลไม่ถูกต้อง"),
-    role: z.enum(['SUPER_ADMIN', 'ADMIN', 'EMPLOYEE']),
+    role: z.enum(['SUPER_ADMIN', 'ADMIN', 'EMPLOYEE', 'GUEST']),
     password: z.string().regex(passwordRegex, "รหัสผ่านต้องมีอย่างน้อย 8 ตัวอักษร ประกอบด้วยพิมพ์ใหญ่ พิมพ์เล็ก ตัวเลข และอักขระพิเศษ")
   })
 });

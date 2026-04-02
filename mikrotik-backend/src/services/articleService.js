@@ -35,7 +35,7 @@ const cleanUrl = (url) => {
 // 🎯 Article Services
 // ==========================================
 
-exports.getAllArticles = async (filters = {}) => {
+exports.getAllArticles = async (filters = {}, userRole = null) => {
   const { status, categoryId, authorId, tag, favoritedByUserId, limit, skip, search } = filters;
   
   const where = {};
@@ -43,6 +43,18 @@ exports.getAllArticles = async (filters = {}) => {
   if (categoryId) where.categoryId = parseInt(categoryId);
   if (authorId) where.authorId = parseInt(authorId);
   
+  // Visibility Filter
+  if (userRole === 'GUEST') {
+    where.visibility = 'PUBLIC';
+  } else if (userRole === 'EMPLOYEE') {
+    where.visibility = { in: ['PUBLIC', 'EMPLOYEE'] };
+  } else if (userRole === 'ADMIN' || userRole === 'SUPER_ADMIN') {
+    // Admin sees everything
+  } else {
+    // Guest or Not logged in (if applicable)
+    where.visibility = 'PUBLIC';
+  }
+
   if (search) {
     const searchCondition = { contains: search };
     const searchConditions = [
@@ -79,7 +91,7 @@ exports.getAllArticles = async (filters = {}) => {
   return { articles, total };
 };
 
-exports.getArticleBySlug = async (slug) => {
+exports.getArticleBySlug = async (slug, userRole = null) => {
   const article = await prisma.article.findUnique({
     where: { slug },
     include: {
@@ -89,23 +101,33 @@ exports.getArticleBySlug = async (slug) => {
     }
   });
 
-  if (article) {
-    const updatedArticle = await prisma.article.update({
-      where: { id: article.id },
-      data: { viewCount: { increment: 1 } },
-      include: {
-        category: true,
-        tags: true,
-        author: { select: { id: true, firstName: true, lastName: true, username: true, role: true } }
-      }
-    });
-    return updatedArticle;
+  if (!article) return null;
+
+  // Visibility Check
+  const roleLevels = { 'GUEST': 0, 'EMPLOYEE': 1, 'ADMIN': 2, 'SUPER_ADMIN': 2 };
+  const visibilityLevels = { 'PUBLIC': 0, 'EMPLOYEE': 1, 'ADMIN': 2 };
+  
+  const userLevel = roleLevels[userRole] || 0;
+  const articleLevel = visibilityLevels[article.visibility] || 0;
+
+  if (userLevel < articleLevel) {
+    return null; // Or throw FORBIDDEN
   }
-  return article;
+
+  const updatedArticle = await prisma.article.update({
+    where: { id: article.id },
+    data: { viewCount: { increment: 1 } },
+    include: {
+      category: true,
+      tags: true,
+      author: { select: { id: true, firstName: true, lastName: true, username: true, role: true } }
+    }
+  });
+  return updatedArticle;
 };
 
-exports.getArticleById = async (id) => {
-    return await prisma.article.findUnique({
+exports.getArticleById = async (id, userRole = null) => {
+    const article = await prisma.article.findUnique({
       where: { id: parseInt(id) },
       include: {
         category: true,
@@ -113,10 +135,25 @@ exports.getArticleById = async (id) => {
         author: { select: { id: true, firstName: true, lastName: true, username: true, role: true } }
       }
     });
+
+    if (!article) return null;
+
+    // Visibility Check
+    const roleLevels = { 'GUEST': 0, 'EMPLOYEE': 1, 'ADMIN': 2, 'SUPER_ADMIN': 2 };
+    const visibilityLevels = { 'PUBLIC': 0, 'EMPLOYEE': 1, 'ADMIN': 2 };
+    
+    const userLevel = roleLevels[userRole] || 0;
+    const articleLevel = visibilityLevels[article.visibility] || 0;
+
+    if (userLevel < articleLevel) {
+      return null;
+    }
+
+    return article;
 };
 
 exports.createArticle = async (data, authorId, ipAddress) => {
-  const { title, content, excerpt, thumbnail, categoryId, status, tagNames, isPinned } = data;
+  const { title, content, excerpt, thumbnail, categoryId, status, visibility, tagNames, isPinned } = data;
   
   // 1. จัดการ Slug
   let slug = slugify(title);
@@ -139,6 +176,7 @@ exports.createArticle = async (data, authorId, ipAddress) => {
       excerpt,
       thumbnail: cleanUrl(thumbnail),
       status: status || 'DRAFT',
+      visibility: visibility || 'PUBLIC',
       isPinned: !!isPinned,
       authorId: parseInt(authorId),
       categoryId: categoryId ? parseInt(categoryId) : null,
@@ -158,7 +196,7 @@ exports.createArticle = async (data, authorId, ipAddress) => {
 };
 
 exports.updateArticle = async (id, data, userId, ipAddress) => {
-  const { title, content, excerpt, thumbnail, categoryId, status, slug: requestedSlug, tagNames, isPinned } = data;
+  const { title, content, excerpt, thumbnail, categoryId, status, visibility, slug: requestedSlug, tagNames, isPinned } = data;
   const articleId = parseInt(id);
   const oldArticle = await prisma.article.findUnique({ where: { id: articleId } });
   if (!oldArticle) throw new Error("NOT_FOUND");
@@ -187,6 +225,7 @@ exports.updateArticle = async (id, data, userId, ipAddress) => {
       excerpt,
       thumbnail: cleanUrl(thumbnail),
       status,
+      visibility,
       isPinned: isPinned !== undefined ? !!isPinned : undefined,
       slug: finalSlug,
       categoryId: categoryId !== undefined ? (categoryId ? parseInt(categoryId) : null) : undefined,
