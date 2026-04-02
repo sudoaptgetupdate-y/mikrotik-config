@@ -161,33 +161,53 @@ const ArticleDetail = () => {
 
   useEffect(() => {
     const mainElement = document.querySelector('main');
+    
     const handleScroll = () => {
-      const scrollTop = mainElement ? mainElement.scrollTop : window.scrollY;
-      const scrollHeight = mainElement ? mainElement.scrollHeight : document.documentElement.scrollHeight;
-      const clientHeight = mainElement ? mainElement.clientHeight : window.innerHeight;
+      if (!mainElement) return;
 
+      // 1. ดึงค่าตำแหน่งการสกรอลจาก main element โดยตรง
+      const scrollTop = mainElement.scrollTop;
+      
+      // 2. คำนวณความสูงทั้งหมดที่สกรอลได้ของตัว main เอง
+      const scrollHeight = mainElement.scrollHeight;
+      const clientHeight = mainElement.clientHeight;
+      const height = scrollHeight - clientHeight;
+      
+      // 3. ปรับปรุงการแสดงผล Scroll Top Button และ Progress
       setShowScrollTop(scrollTop > 400);
-      const totalScroll = scrollHeight - clientHeight;
-      if (totalScroll > 0) {
-        setReadingProgress(Math.min((scrollTop / totalScroll) * 100, 100));
+
+      if (height > 0) {
+        const scrolled = (scrollTop / height) * 100;
+        setReadingProgress(Math.min(scrolled, 100));
       }
 
+      // 4. Update Active ToC Section
       if (article) {
         const headings = document.querySelectorAll('.article-content h2, .article-content h3');
         let currentActive = '';
         headings.forEach((heading) => {
-          if (heading.getBoundingClientRect().top < 150) currentActive = heading.id;
+          const rect = heading.getBoundingClientRect();
+          // สำหรับ ToC เราใช้ตำแหน่งสัมพัทธ์กับหน้าจอ (viewport) 
+          // ซึ่ง getBoundingClientRect() ให้ค่านี้อยู่แล้ว
+          if (rect.top >= 0 && rect.top <= 250) {
+            currentActive = heading.id;
+          }
         });
-        setActiveId(currentActive);
+        if (currentActive) setActiveId(currentActive);
       }
     };
 
-    window.addEventListener('scroll', handleScroll);
-    if (mainElement) mainElement.addEventListener('scroll', handleScroll);
-    handleScroll();
+    // ใช้ Passive Listener บน mainElement เพราะเป็นตัวที่ overflow-y-auto
+    if (mainElement) {
+      mainElement.addEventListener('scroll', handleScroll, { passive: true });
+      // เรียกครั้งแรกเพื่อตั้งค่าเริ่มต้น
+      handleScroll();
+    }
+
     return () => {
-      window.removeEventListener('scroll', handleScroll);
-      if (mainElement) mainElement.removeEventListener('scroll', handleScroll);
+      if (mainElement) {
+        mainElement.removeEventListener('scroll', handleScroll);
+      }
     };
   }, [slug, article, loading]);
 
