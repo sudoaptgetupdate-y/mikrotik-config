@@ -102,8 +102,8 @@ app.use('/api/auth/login', loginLimiter);
 // ==========================================
 // 🛡️ 4. Body Parser & Payload Limit
 // ==========================================
-app.use(express.json({ limit: '5MB' }));
-app.use(express.urlencoded({ extended: true, limit: '5MB' }));
+app.use(express.json({ limit: '50MB' }));
+app.use(express.urlencoded({ extended: true, limit: '50MB' }));
 app.use(cookieParser());
 
 // ==========================================

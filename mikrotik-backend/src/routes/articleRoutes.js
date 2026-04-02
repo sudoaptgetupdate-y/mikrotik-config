@@ -42,7 +42,7 @@ const attachStorage = multer.diskStorage({
 
 const attachUpload = multer({
   storage: attachStorage,
-  limits: { fileSize: 20 * 1024 * 1024 } // 20MB limit
+  limits: { fileSize: 1024 * 1024 * 1024 } // 1GB limit
 });
 
 // --- Taxonomy Routes (Categories & Tags) ---

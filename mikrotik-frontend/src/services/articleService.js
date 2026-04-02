@@ -1,4 +1,4 @@
-import apiClient from '../utils/apiClient';
+import apiClient, { getToken } from '../utils/apiClient';
 
 // --- Attachments Functions (Exported individually for reliability) ---
 export const uploadAttachment = async (articleId, file) => {
@@ -22,7 +22,7 @@ export const toggleAttachmentVisibility = async (id) => {
 };
 
 export const getDownloadUrl = (id) => {
-  const token = localStorage.getItem('token');
+  const token = getToken();
   return `${apiClient.defaults.baseURL}/api/articles/attachments/download/${id}?token=${token}`;
 };
 

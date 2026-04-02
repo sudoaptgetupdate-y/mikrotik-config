@@ -1,4 +1,5 @@
 const articleService = require('../services/articleService');
+const prisma = require('../config/prisma');
 const path = require('path');
 const fs = require('fs');
 

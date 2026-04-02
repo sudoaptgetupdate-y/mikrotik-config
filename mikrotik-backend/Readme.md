@@ -1,4 +1,3 @@
-
 [[1]] .env ฝั่ง Backend
 DATABASE_URL="mysql://username:password@localhost:3306/db_name"
 JWT_SECRET="long_key"
@@ -123,45 +122,57 @@ pm2 restart all
 
 -------------------------------------------
 
-[[3]] การตั้งค่าขนาดการอัพโหลดรูปภาพ (Image Upload Size)
+[[3]] การตั้งค่าขนาดการอัพโหลดไฟล์ (File Upload Size & Timeouts)
 
-หากต้องการเพิ่มขีดจำกัดการอัพโหลดรูปภาพ (เช่น 5MB) ต้องตั้งค่าทั้ง 3 ส่วนดังนี้:
+หากต้องการเพิ่มขีดจำกัดการอัพโหลดไฟล์ (เช่น 1GB) ต้องตั้งค่าทั้ง 3 ส่วนดังนี้:
 
-🛠️ ส่วนที่ 1: เครื่อง Reverse Proxy (ด่านแรก)
-แก้ไขไฟล์ Nginx ในเครื่องที่รับ Traffic จากภายนอก เพิ่ม `client_max_body_size` ใน `server` block:
+🛠️ ส่วนที่ 1: เครื่อง Reverse Proxy (ด่านแรก - 192.168.191.80)
+แก้ไขไฟล์ Nginx เพิ่ม `client_max_body_size` และ `timeouts` ใน `server` block:
 Nginx
 server {
     server_name yourdomain.com;
-    client_max_body_size 5M; # ✅ อนุญาตให้ส่งไฟล์ขนาด 5MB ผ่าน Proxy ได้
+    client_max_body_size 1024M; # ✅ อนุญาตให้ส่งไฟล์ขนาด 1GB ผ่าน Proxy ได้
+
+    # ✅ เพิ่มเวลา Timeout เพื่อรองรับการอัปโหลดไฟล์ขนาดใหญ่
+    proxy_connect_timeout       600;
+    proxy_send_timeout          600;
+    proxy_read_timeout          600;
+    send_timeout                600;
     
     # ... config อื่นๆ ...
 }
 
-🛠️ ส่วนที่ 2: เครื่อง Web Server (เครื่องที่รัน Backend)
-แก้ไขไฟล์ Nginx ในเครื่องที่รัน Node.js เพิ่ม `client_max_body_size` ใน `location /api/`:
+🛠️ ส่วนที่ 2: เครื่อง Web Server (เครื่องที่รัน Backend - 192.168.191.88)
+แก้ไขไฟล์ Nginx ในเครื่องที่รัน Node.js เพิ่มใน `location /api/`:
 Nginx
 server {
     # ...
     location /api/ {
-        client_max_body_size 5M; # ✅ อนุญาตให้ API รับไฟล์ขนาด 5MB
+        client_max_body_size 1024M; # ✅ อนุญาตให้ API รับไฟล์ขนาด 1GB
+        
+        # ✅ เพิ่มเวลา Timeout
+        proxy_connect_timeout       600;
+        proxy_send_timeout          600;
+        proxy_read_timeout          600;
+        send_timeout                600;
+
         proxy_pass http://localhost:3000/api/;
         # ...
     }
 }
 
-🛠️ ส่วนที่ 3: Backend (app.js)
-ตรวจสอบให้แน่ใจว่า Body Parser ใน `app.js` รองรับขนาดที่ต้องการ:
+🛠️ ส่วนที่ 3: Backend (app.js & articleRoutes.js)
+1. ตรวจสอบ Body Parser ใน `app.js` สำหรับ JSON Payload (เช่น Metadata):
 JavaScript
 // 🛡️ 4. Body Parser & Payload Limit
-app.use(express.json({ limit: '5MB' }));
-app.use(express.urlencoded({ extended: true, limit: '5MB' }));
+app.use(express.json({ limit: '50MB' }));
+app.use(express.urlencoded({ extended: true, limit: '50MB' }));
 
-และตรวจสอบขีดจำกัดใน `multer` (เช่นใน `src/routes/articleRoutes.js`):
+2. ตรวจสอบขีดจำกัดใน `multer` (ใน `src/routes/articleRoutes.js`):
 JavaScript
-const upload = multer({ 
-  storage: storage,
-  limits: { fileSize: 5 * 1024 * 1024 }, // ✅ 5MB
-  // ...
+const attachUpload = multer({
+  storage: attachStorage,
+  limits: { fileSize: 1024 * 1024 * 1024 } // ✅ 1GB limit
 });
 
 บันทึกและตรวจสอบ Syntax Nginx ก่อน Restart เสมอ:
