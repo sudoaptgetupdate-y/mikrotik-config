@@ -39,7 +39,7 @@ const CommentSection = ({
       </div>
 
       {/* Comment Form */}
-      <div className="bg-white rounded-[40px] p-2 border border-slate-200 shadow-xl shadow-slate-200/40 relative overflow-hidden group/form">
+      <div className="bg-white rounded-[40px] p-2 border border-slate-200 shadow-xl shadow-slate-200/40 relative group/form z-10">
         <div className="absolute top-0 right-0 size-64 bg-blue-500/5 blur-[100px] -mr-32 -mt-32 pointer-events-none group-hover/form:bg-blue-500/10 transition-colors" />
         
         {replyTo && (
