@@ -38,7 +38,9 @@ const ConfigWizard = ({ mode = 'create', initialData, onFinish }) => {
     circuitId: initialData?.circuitId || "",
     groupIds: initialData?.groups?.map(g => g.id) || [],
     token: initialData?.token || initialData?.apiToken || "",
-    apiHost: getApiHost()
+    apiHost: getApiHost(),
+    adminUser: mode === 'standalone' ? '' : (initialData?.adminUser || ''),
+    adminPassword: mode === 'standalone' ? '' : (initialData?.adminPassword || '')
   });
 
   const [selectedModel, setSelectedModel] = useState(null);
@@ -196,7 +198,13 @@ const ConfigWizard = ({ mode = 'create', initialData, onFinish }) => {
 
   const canGoNext = () => {
     const stepId = currentStepData.id;
-    if (stepId === 'model') return !!selectedModel && deviceMeta.name.trim() !== "" && deviceMeta.circuitId.trim() !== "";
+    if (stepId === 'model') {
+      const basicInfoOk = !!selectedModel && deviceMeta.name.trim() !== "" && deviceMeta.circuitId.trim() !== "";
+      if (mode === 'standalone') {
+        return basicInfoOk && deviceMeta.adminUser?.trim() !== "" && deviceMeta.adminPassword?.trim() !== "";
+      }
+      return basicInfoOk;
+    }
     if (stepId === 'wan') return wanList.length > 0 && wanList.every(wan => (wan.type === 'pppoe' ? wan.username : wan.ipAddress));
     if (stepId === 'dns') return dnsConfig.servers.every(ip => ip.trim() !== '');
     if (stepId === 'lan') return networks.every(n => n.name && n.vlanId && n.ip);

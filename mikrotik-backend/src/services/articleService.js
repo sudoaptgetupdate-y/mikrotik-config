@@ -97,7 +97,8 @@ exports.getArticleBySlug = async (slug, userRole = null) => {
     include: {
       category: true,
       tags: true,
-      author: { select: { id: true, firstName: true, lastName: true, username: true, role: true } }
+      author: { select: { id: true, firstName: true, lastName: true, username: true, role: true } },
+      attachments: true
     }
   });
 
@@ -111,7 +112,12 @@ exports.getArticleBySlug = async (slug, userRole = null) => {
   const articleLevel = visibilityLevels[article.visibility] || 0;
 
   if (userLevel < articleLevel) {
-    return null; // Or throw FORBIDDEN
+    return null;
+  }
+
+  // กรองไฟล์แนบที่ซ่อนอยู่ (สำหรับ Non-Admins)
+  if (userRole !== 'SUPER_ADMIN' && userRole !== 'ADMIN') {
+    article.attachments = article.attachments.filter(a => a.isVisible);
   }
 
   const updatedArticle = await prisma.article.update({
@@ -120,9 +126,16 @@ exports.getArticleBySlug = async (slug, userRole = null) => {
     include: {
       category: true,
       tags: true,
-      author: { select: { id: true, firstName: true, lastName: true, username: true, role: true } }
+      author: { select: { id: true, firstName: true, lastName: true, username: true, role: true } },
+      attachments: true
     }
   });
+
+  // กรองอีกรอบหลังอัปเดต
+  if (userRole !== 'SUPER_ADMIN' && userRole !== 'ADMIN') {
+    updatedArticle.attachments = updatedArticle.attachments.filter(a => a.isVisible);
+  }
+
   return updatedArticle;
 };
 
@@ -132,7 +145,8 @@ exports.getArticleById = async (id, userRole = null) => {
       include: {
         category: true,
         tags: true,
-        author: { select: { id: true, firstName: true, lastName: true, username: true, role: true } }
+        author: { select: { id: true, firstName: true, lastName: true, username: true, role: true } },
+        attachments: true
       }
     });
 
@@ -247,15 +261,28 @@ exports.updateArticle = async (id, data, userId, ipAddress) => {
 
 exports.deleteArticle = async (id, userId, ipAddress) => {
   const articleId = parseInt(id);
-  const article = await prisma.article.findUnique({ where: { id: articleId } });
+  const article = await prisma.article.findUnique({ 
+    where: { id: articleId },
+    include: { attachments: true }
+  });
   if (!article) throw new Error("NOT_FOUND");
 
+  // 1. ลบไฟล์จริงบน Disk
+  const uploadDir = path.join(__dirname, '../../uploads/attachments/');
+  for (const attachment of article.attachments) {
+    const filePath = path.join(uploadDir, attachment.storageName);
+    if (fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
+    }
+  }
+
+  // 2. ลบจาก DB
   const deleted = await prisma.article.delete({ where: { id: articleId } });
 
   await logService.createActivityLog({
     userId,
     action: 'DELETE_ARTICLE',
-    details: `Deleted article: ${article.title}`,
+    details: `Deleted article: ${article.title} and its attachments`,
     ipAddress
   });
 
@@ -382,4 +409,89 @@ exports.deleteComment = async (id, userId, userRole, ipAddress) => {
   });
 
   return { success: true };
+};
+
+// ==========================================
+// 📎 Attachment Services
+// ==========================================
+
+exports.uploadAttachment = async (file, articleId, userId, ipAddress) => {
+  const parsedArticleId = parseInt(articleId);
+  const originalName = file.originalname;
+  const fileExt = path.extname(originalName).toLowerCase();
+  
+  // 1. ตรวจสอบว่ามีไฟล์ชื่อเดียวกันในบทความเดียวกันหรือไม่ (ระบบ Overwrite)
+  const existing = await prisma.articleAttachment.findFirst({
+    where: { articleId: parsedArticleId, filename: originalName }
+  });
+
+  const uploadDir = path.join(__dirname, '../../uploads/attachments/');
+  
+  if (existing) {
+    // ลบไฟล์เก่าจาก Disk
+    const oldPath = path.join(uploadDir, existing.storageName);
+    if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
+    
+    // อัปเดตข้อมูลไฟล์ใหม่ทับ Record เดิม
+    const uniqueName = `attach-${Date.now()}-${Math.round(Math.random() * 1E9)}${fileExt}`;
+    const newPath = path.join(uploadDir, uniqueName);
+    fs.renameSync(file.path, newPath);
+
+    return await prisma.articleAttachment.update({
+      where: { id: existing.id },
+      data: {
+        storageName: uniqueName,
+        fileSize: file.size,
+        fileExt: fileExt.replace('.', ''),
+        isVisible: true // รีเซ็ตให้มองเห็นเมื่ออัปเดตใหม่
+      }
+    });
+  } else {
+    // สร้าง Record ใหม่
+    const uniqueName = `attach-${Date.now()}-${Math.round(Math.random() * 1E9)}${fileExt}`;
+    const newPath = path.join(uploadDir, uniqueName);
+    fs.renameSync(file.path, newPath);
+
+    return await prisma.articleAttachment.create({
+      data: {
+        filename: originalName,
+        storageName: uniqueName,
+        fileSize: file.size,
+        fileExt: fileExt.replace('.', ''),
+        articleId: parsedArticleId
+      }
+    });
+  }
+};
+
+exports.deleteAttachment = async (id, userId, ipAddress) => {
+  const attachment = await prisma.articleAttachment.findUnique({ where: { id: parseInt(id) } });
+  if (!attachment) throw new Error("NOT_FOUND");
+
+  // 1. ลบจาก Disk
+  const uploadDir = path.join(__dirname, '../../uploads/attachments/');
+  const filePath = path.join(uploadDir, attachment.storageName);
+  if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+
+  // 2. ลบจาก DB
+  await prisma.articleAttachment.delete({ where: { id: attachment.id } });
+
+  return { success: true };
+};
+
+exports.toggleAttachmentVisibility = async (id) => {
+  const attachment = await prisma.articleAttachment.findUnique({ where: { id: parseInt(id) } });
+  if (!attachment) throw new Error("NOT_FOUND");
+
+  return await prisma.articleAttachment.update({
+    where: { id: attachment.id },
+    data: { isVisible: !attachment.isVisible }
+  });
+};
+
+exports.incrementDownloadCount = async (id) => {
+  return await prisma.articleAttachment.update({
+    where: { id: parseInt(id) },
+    data: { downloadCount: { increment: 1 } }
+  });
 };

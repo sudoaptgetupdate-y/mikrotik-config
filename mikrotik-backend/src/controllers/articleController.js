@@ -159,3 +159,68 @@ exports.deleteComment = async (req, res, next) => {
     next(error);
   }
 };
+
+// ==========================================
+// 📎 Attachment Controllers
+// ==========================================
+
+exports.uploadAttachment = async (req, res, next) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'No file provided' });
+    const { articleId } = req.body;
+    if (!articleId) return res.status(400).json({ error: 'articleId is required' });
+
+    const attachment = await articleService.uploadAttachment(req.file, articleId, req.user.id, req.ip);
+    res.status(201).json(attachment);
+  } catch (error) { next(error); }
+};
+
+exports.deleteAttachment = async (req, res, next) => {
+  try {
+    await articleService.deleteAttachment(req.params.id, req.user.id, req.ip);
+    res.status(200).json({ message: 'Attachment deleted' });
+  } catch (error) {
+    if (error.message === 'NOT_FOUND') return res.status(404).json({ error: 'Attachment not found' });
+    next(error);
+  }
+};
+
+exports.toggleAttachmentVisibility = async (req, res, next) => {
+  try {
+    const attachment = await articleService.toggleAttachmentVisibility(req.params.id);
+    res.status(200).json(attachment);
+  } catch (error) {
+    if (error.message === 'NOT_FOUND') return res.status(404).json({ error: 'Attachment not found' });
+    next(error);
+  }
+};
+
+exports.serveAttachment = async (req, res) => {
+  const { filename } = req.params;
+  const filePath = path.join(__dirname, '../../uploads/attachments', filename);
+
+  if (fs.existsSync(filePath)) {
+    res.sendFile(filePath);
+  } else {
+    res.status(404).json({ error: 'File not found' });
+  }
+};
+
+exports.downloadAttachment = async (req, res, next) => {
+  try {
+    const attachment = await prisma.articleAttachment.findUnique({
+      where: { id: parseInt(req.params.id) }
+    });
+
+    if (!attachment) return res.status(404).json({ error: 'File not found' });
+
+    const filePath = path.join(__dirname, '../../uploads/attachments', attachment.storageName);
+    
+    if (fs.existsSync(filePath)) {
+      await articleService.incrementDownloadCount(attachment.id);
+      res.download(filePath, attachment.filename);
+    } else {
+      res.status(404).json({ error: 'File not found on disk' });
+    }
+  } catch (error) { next(error); }
+};

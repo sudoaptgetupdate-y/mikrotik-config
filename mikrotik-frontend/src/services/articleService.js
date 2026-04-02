@@ -1,5 +1,31 @@
 import apiClient from '../utils/apiClient';
 
+// --- Attachments Functions (Exported individually for reliability) ---
+export const uploadAttachment = async (articleId, file) => {
+  const formData = new FormData();
+  formData.append('articleId', articleId);
+  formData.append('file', file);
+  const response = await apiClient.post('/api/articles/attachments/upload', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  });
+  return response.data;
+};
+
+export const deleteAttachment = async (id) => {
+  const response = await apiClient.delete(`/api/articles/attachments/${id}`);
+  return response.data;
+};
+
+export const toggleAttachmentVisibility = async (id) => {
+  const response = await apiClient.patch(`/api/articles/attachments/${id}/visibility`);
+  return response.data;
+};
+
+export const getDownloadUrl = (id) => {
+  const token = localStorage.getItem('token');
+  return `${apiClient.defaults.baseURL}/api/articles/attachments/download/${id}?token=${token}`;
+};
+
 const articleService = {
   getArticles: async (params = {}) => {
     const response = await apiClient.get('/api/articles', { params });
@@ -98,6 +124,12 @@ const articleService = {
     const response = await apiClient.delete(`/api/articles/comments/${commentId}`);
     return response.data;
   },
+
+  // Attachment shortcuts in object
+  uploadAttachment,
+  deleteAttachment,
+  toggleAttachmentVisibility,
+  getDownloadUrl
 };
 
 export default articleService;

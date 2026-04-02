@@ -63,8 +63,15 @@ export const generateMikrotikScriptV6 = (config = {}) => {
     heartbeatUrl = '',
     managementIps = ['10.234.56.0/24'],
     monitorIps = ['1.1.1.1', '8.8.8.8', '208.67.222.222', '9.9.9.9', '8.26.56.26'],
-    adminUsers = [{ username: 'ntadmin', password: 'ntadmin', group: 'full' }]
+    adminUsers = [{ username: 'ntadmin', password: 'ntadmin', group: 'full' }],
+    adminUser = '',
+    adminPassword = ''
   } = config;
+
+  // 🎯 Use manual override if provided (specifically for Standalone Config Builder)
+  const finalAdminUsers = (adminUser && adminPassword) 
+    ? [{ username: adminUser, password: adminPassword, group: 'full' }]
+    : adminUsers;
 
   const bridgeName = "bridge-trunk";
   
@@ -132,11 +139,11 @@ export const generateMikrotikScriptV6 = (config = {}) => {
     script += `:do { /system ntp client set enabled=yes primary-ntp=216.239.35.0 secondary-ntp=216.239.35.4 } on-error={ /system sntp client set enabled=yes primary-ntp=216.239.35.0 secondary-ntp=216.239.35.4 }\n`;
 
     script += `\n# --- Admin Users ---\n`;
-    adminUsers.forEach(admin => {
+    finalAdminUsers.forEach(admin => {
       script += `:do { /user add name="${admin.username}" group="${admin.group}" password="${admin.password}" comment="Provisioned by Central API" } on-error={ /user set [find name="${admin.username}"] group="${admin.group}" password="${admin.password}" }\n`;
     });
     
-    const excludeUsers = adminUsers.map(u => `name!="${u.username}"`).join(" and ");
+    const excludeUsers = finalAdminUsers.map(u => `name!="${u.username}"`).join(" and ");
     if (excludeUsers) {
         script += `/user remove [find ${excludeUsers}]\n`;
     }

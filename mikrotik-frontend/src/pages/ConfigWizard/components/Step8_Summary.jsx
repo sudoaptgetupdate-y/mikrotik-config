@@ -16,6 +16,8 @@ const Step8_Summary = ({
   circuitId, 
   token, 
   apiHost,
+  adminUser,
+  adminPassword,
   heartbeatUrl,
   onSaveAndFinish,
   onFinish,
@@ -56,6 +58,7 @@ const Step8_Summary = ({
       let configData = {
         selectedModel, wanList, networks, portConfig, pbrConfig, wirelessConfig,
         dnsConfig, circuitId, token, apiHost,
+        adminUser, adminPassword,
         heartbeatUrl: heartbeatUrl || dbHeartbeatUrl,
         managementIps: globalSettings.MANAGEMENT_IPS,
         monitorIps: globalSettings.MONITOR_IPS,

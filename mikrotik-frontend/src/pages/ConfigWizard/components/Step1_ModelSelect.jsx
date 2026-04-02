@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { Router, CheckCircle, MapPin, Search, Star, ChevronLeft, ChevronRight, FolderKanban, Bell, AlertCircle, Loader2 } from 'lucide-react';
+import { Router, CheckCircle, MapPin, Search, Star, ChevronLeft, ChevronRight, FolderKanban, Bell, AlertCircle, Loader2, Shield, Key, User } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { groupService } from '../../../services/groupService'; 
 import apiClient from '../../../utils/apiClient';
@@ -218,6 +218,56 @@ const Step1_ModelSelect = ({
             </div>
           </div>
         </div>
+
+        {/* --- [NEW] Section: กำหนดรหัสผ่านอุปกรณ์ (เฉพาะ Config Builder) --- */}
+        {mode === 'standalone' && (
+          <div className="pt-6 border-t border-slate-200">
+            <div className="mb-4">
+              <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
+                <Shield size={18} className="text-blue-600" /> {t('wizard.step1.router_creds', 'Router Credentials')}
+              </h3>
+              <p className="text-xs text-slate-500 mt-1">{t('wizard.step1.creds_desc', 'กำหนดชื่อผู้ใช้และรหัสผ่านสำหรับเข้าใช้งานอุปกรณ์ MikroTik ในสคริปต์นี้')}</p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1 flex items-center justify-between">
+                  {t('wizard.step1.label_admin_user', 'Admin Username')}
+                  <span className="text-[10px] bg-blue-100 text-blue-600 px-1.5 py-0.5 rounded font-bold uppercase">Required</span>
+                </label>
+                <div className="relative">
+                  <User className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                  <input 
+                    type="text" 
+                    name="adminUser" 
+                    value={deviceMeta.adminUser || ''} 
+                    onChange={handleChange}
+                    placeholder="e.g. admin" 
+                    className="w-full pl-10 pr-4 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-blue-500 outline-none transition" 
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1 flex items-center justify-between">
+                  {t('wizard.step1.label_admin_pass', 'Admin Password')}
+                  <span className="text-[10px] bg-blue-100 text-blue-600 px-1.5 py-0.5 rounded font-bold uppercase">Required</span>
+                </label>
+                <div className="relative">
+                  <Key className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                  <input 
+                    type="password" 
+                    name="adminPassword" 
+                    value={deviceMeta.adminPassword || ''} 
+                    onChange={handleChange}
+                    placeholder="••••••••" 
+                    className="w-full pl-10 pr-4 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-blue-500 outline-none transition" 
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* --- Section: เลือกกลุ่มอุปกรณ์ --- */}
         {mode !== 'standalone' && (

@@ -27,7 +27,25 @@ const upload = multer({
   }
 });
 
-// --- Taxonomy Routes ---
+// Multer for Attachments
+const attachStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const dir = path.join(__dirname, '../../uploads/attachments/');
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    cb(null, dir);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, 'temp-' + uniqueSuffix + path.extname(file.originalname));
+  }
+});
+
+const attachUpload = multer({
+  storage: attachStorage,
+  limits: { fileSize: 20 * 1024 * 1024 } // 20MB limit
+});
+
+// --- Taxonomy Routes (Categories & Tags) ---
 router.get('/categories', verifyToken, taxonomyController.getCategories);
 router.post('/categories', verifyToken, requireRole(['SUPER_ADMIN']), taxonomyController.createCategory);
 router.put('/categories/:id', verifyToken, requireRole(['SUPER_ADMIN']), taxonomyController.updateCategory);
@@ -39,18 +57,27 @@ router.delete('/tags/:id', verifyToken, requireRole(['SUPER_ADMIN']), taxonomyCo
 // --- Article Routes ---
 router.get('/', verifyToken, articleController.getArticles);
 router.get('/view/:slug', verifyToken, articleController.getArticle);
+router.get('/images/:filename', articleController.serveImage); 
+router.get('/attachments/:filename', articleController.serveAttachment); 
+router.get('/attachments/download/:id', verifyToken, articleController.downloadAttachment);
+
+// Specific ID route must be after more specific paths
 router.get('/:id', verifyToken, articleController.getArticleById);
-router.get('/images/:filename', articleController.serveImage); // Publicly accessible
 
 // Favorites
 router.post('/favorites/:id', verifyToken, articleController.toggleFavorite);
 router.get('/favorites/:id/status', verifyToken, articleController.getFavoriteStatus);
 
-// Super Admin Only
+// Admin Actions
 router.post('/', verifyToken, requireRole(['SUPER_ADMIN']), articleController.createArticle);
 router.put('/:id', verifyToken, requireRole(['SUPER_ADMIN']), articleController.updateArticle);
 router.delete('/:id', verifyToken, requireRole(['SUPER_ADMIN']), articleController.deleteArticle);
 router.post('/upload', verifyToken, requireRole(['SUPER_ADMIN']), upload.single('image'), articleController.uploadImage);
+
+// Attachments Admin
+router.post('/attachments/upload', verifyToken, requireRole(['SUPER_ADMIN']), attachUpload.single('file'), articleController.uploadAttachment);
+router.delete('/attachments/:id', verifyToken, requireRole(['SUPER_ADMIN']), articleController.deleteAttachment);
+router.patch('/attachments/:id/visibility', verifyToken, requireRole(['SUPER_ADMIN']), articleController.toggleAttachmentVisibility);
 
 // --- Comment Routes ---
 router.get('/:id/comments', verifyToken, articleController.getComments);

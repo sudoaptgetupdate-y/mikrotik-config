@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { BookOpen, ArrowUp, Clock } from 'lucide-react';
+import { BookOpen, ArrowUp, Clock, Download, FileText } from 'lucide-react';
 import articleService from '../../services/articleService';
 import { useTranslation } from 'react-i18next';
 import { format } from 'date-fns';
@@ -143,6 +143,14 @@ const ArticleDetail = () => {
   const hasFetchedRef = useRef(false);
 
   const emojis = ['😀', '😂', '😍', '😮', '😢', '😡', '👍', '👎', '🙌', '👏', '🔥', '✨', '💡', '✅', '❌', '🚀', '💻', '⚙️', '📡', '🔒'];
+
+  const formatFileSize = (bytes) => {
+    if (!bytes) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  };
 
   useEffect(() => {
     if (hasFetchedRef.current !== slug) {
@@ -421,6 +429,45 @@ const ArticleDetail = () => {
               <div className="article-detail-content max-w-none">
                 <ArticleContentRenderer content={article.content} loading={loading} />
               </div>
+
+              {/* --- 📎 Attachments Section --- */}
+              {article.attachments && article.attachments.length > 0 && (
+                <div className="mt-16 pt-10 border-t border-slate-100 animate-in fade-in slide-in-from-bottom-4 duration-1000">
+                  <h3 className="text-xl font-black text-slate-800 mb-8 flex items-center gap-3">
+                    <div className="size-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shadow-sm">
+                      <Download size={20} />
+                    </div>
+                    {t('articles.download_files', 'Download Documents')}
+                  </h3>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {article.attachments.map((file) => (
+                      <a 
+                        key={file.id} 
+                        href={articleService.getDownloadUrl(file.id)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="group bg-slate-50/50 hover:bg-white border border-slate-100 hover:border-blue-200 p-5 rounded-[32px] flex items-center gap-4 transition-all hover:shadow-2xl hover:shadow-blue-900/5 active:scale-[0.98]"
+                      >
+                        <div className="size-14 rounded-2xl bg-white border border-slate-100 flex items-center justify-center text-slate-400 group-hover:text-blue-600 group-hover:border-blue-100 shadow-sm transition-all group-hover:scale-110">
+                          <FileText size={28} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-black text-slate-700 truncate group-hover:text-blue-600 transition-colors uppercase tracking-tight mb-1">{file.filename}</p>
+                          <div className="flex items-center gap-2 text-[10px] font-black text-slate-400">
+                            <span className="bg-slate-200/50 px-2 py-0.5 rounded-md uppercase text-slate-500">{file.fileExt}</span>
+                            <span className="text-slate-200">•</span>
+                            <span>{formatFileSize(file.fileSize)}</span>
+                          </div>
+                        </div>
+                        <div className="size-10 rounded-full bg-white border border-slate-100 flex items-center justify-center text-slate-300 group-hover:bg-blue-600 group-hover:text-white group-hover:border-blue-600 transition-all shadow-sm">
+                          <Download size={18} />
+                        </div>
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* Divider */}
               <div className="my-28 flex items-center gap-12">

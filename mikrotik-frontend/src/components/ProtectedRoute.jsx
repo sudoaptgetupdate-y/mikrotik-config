@@ -1,10 +1,11 @@
 import React from 'react';
-import { Navigate, Outlet } from 'react-router-dom';
+import { Navigate, Outlet, useOutletContext } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Activity } from 'lucide-react';
 
 const ProtectedRoute = ({ allowedRoles }) => {
   const { user, loading } = useAuth();
+  const context = useOutletContext();
 
   // 1. ระหว่างรอโหลดข้อมูลจาก LocalStorage ให้แสดงหน้าต่างโหลด
   if (loading) {
@@ -29,7 +30,7 @@ const ProtectedRoute = ({ allowedRoles }) => {
   }
 
   // ถ้าผ่านทุกด่าน ก็อนุญาตให้เข้าไปดูเนื้อหา (Children/Outlet) ได้
-  return <Outlet />;
+  return <Outlet context={context} />;
 };
 
 export default ProtectedRoute;
