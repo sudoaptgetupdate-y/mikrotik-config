@@ -120,27 +120,43 @@ exports.processHeartbeat = async (token, payload, remoteIp) => {
   let { warningStartedAt, isWarningAlerted, isOfflineAlerted, isAcknowledged } = device;
 
   // ==========================================
-  // 3. ตรวจสอบการกลับมาออนไลน์ (Offline Recovery)
+  // 3. ตรวจสอบการกลับมาออนไลน์ (Offline Recovery / First Time Online)
   // ==========================================
+  const isFirstTime = !device.lastSeen;
   const diffMinutesFromLastSeen = device.lastSeen ? (now - new Date(device.lastSeen)) / 1000 / 60 : 0;
-  let alertMsgIds = device.lastAlertMessageIds ? (typeof device.lastAlertMessageIds === 'string' ? JSON.parse(device.lastAlertMessageIds) : device.lastAlertMessageIds) : {};
-  
-  if (isOfflineAlerted || diffMinutesFromLastSeen > 3) {
-    await prisma.deviceEventLog.create({ 
-      data: { deviceId: device.id, eventType: 'ONLINE', details: 'Device is back online' } 
+  let alertMsgIds = device.lastAlertMessageIds ? (typeof device.lastAlertMessageIds === "string" ? JSON.parse(device.lastAlertMessageIds) : device.lastAlertMessageIds) : {};
+
+  if (isFirstTime || isOfflineAlerted || diffMinutesFromLastSeen > 3) {
+    const logDetails = isFirstTime ? "Device activated for the first time" : "Device is back online";
+    await prisma.deviceEventLog.create({
+      data: { deviceId: device.id, eventType: "ONLINE", details: logDetails },
     });
 
-    if (isOfflineAlerted && device.groups && device.groups.length > 0) {
-      const offlineDurationStr = formatDuration(diffMinutesFromLastSeen);
+    if ((isFirstTime || isOfflineAlerted) && device.groups && device.groups.length > 0) {
       const separator = "━━━━━━━━━━━━━━━━━━";
-      const msgOnline = `✅ <b><u>[ DEVICE ONLINE ]</u></b>\n${separator}\n` +
-                        `🖥 <b>ชื่อ:</b> <b>${device.name}</b>\n` +
-                        `✨ <b>วงจร:</b> <code>${device.circuitId || '-'}</code>\n\n` +
-                        `📊 <b>สถานะ:</b> <u>กลับมาออนไลน์ปกติแล้ว</u>\n` +
-                        `⏱️ <b>ขาดหายไป:</b> <code>${offlineDurationStr}</code>\n` +
-                        `⏳ <b>เวลาบันทึก:</b> <code>${now.toLocaleDateString('th-TH')} ${now.toLocaleTimeString('th-TH')}</code>\n` +
-                        `${separator}\n🌐 <b>Dashboard:</b> <a href="https://mikrotik.ntnakhon.com">ดูรายละเอียด</a>`;
-      
+      let msgOnline;
+
+      if (isFirstTime) {
+        msgOnline =
+          `🆕 <b><u>[ NEW DEVICE ONLINE ]</u></b>\n${separator}\n` +
+          `🖥 <b>ชื่อ:</b> <b>${device.name}</b>\n` +
+          `✨ <b>วงจร:</b> <code>${device.circuitId || "-"}</code>\n\n` +
+          `🚀 <b>สถานะ:</b> <u>ดำเนินการติดตั้งอุปกรณ์ใหม่เรียบร้อย</u>\n` +
+          `📡 <b>IP:</b> <code>${remoteIp}</code>\n` +
+          `⏳ <b>เวลา:</b> <code>${now.toLocaleDateString("th-TH")} ${now.toLocaleTimeString("th-TH")}</code>\n` +
+          `${separator}\n🌐 <b>Dashboard:</b> <a href="https://mikrotik.ntnakhon.com">ดูรายละเอียด</a>`;
+      } else {
+        const offlineDurationStr = formatDuration(diffMinutesFromLastSeen);
+        msgOnline =
+          `✅ <b><u>[ DEVICE ONLINE ]</u></b>\n${separator}\n` +
+          `🖥 <b>ชื่อ:</b> <b>${device.name}</b>\n` +
+          `✨ <b>วงจร:</b> <code>${device.circuitId || "-"}</code>\n\n` +
+          `📊 <b>สถานะ:</b> <u>กลับมาออนไลน์ปกติแล้ว</u>\n` +
+          `⏱️ <b>ขาดหายไป:</b> <code>${offlineDurationStr}</code>\n` +
+          `⏳ <b>เวลาบันทึก:</b> <code>${now.toLocaleDateString("th-TH")} ${now.toLocaleTimeString("th-TH")}</code>\n` +
+          `${separator}\n🌐 <b>Dashboard:</b> <a href="https://mikrotik.ntnakhon.com">ดูรายละเอียด</a>`;
+      }
+
       for (const group of device.groups) {
         if (group.isNotifyEnabled && group.telegramBotToken && group.telegramChatId) {
           const replyId = alertMsgIds[group.telegramChatId];
@@ -150,7 +166,7 @@ exports.processHeartbeat = async (token, payload, remoteIp) => {
       }
     }
     isOfflineAlerted = false;
-    isAcknowledged = false; 
+    isAcknowledged = false;
   }
 
   // ==========================================
