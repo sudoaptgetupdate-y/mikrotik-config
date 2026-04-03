@@ -19,6 +19,9 @@ const VideoPlayer = ({ videoUrl, title }) => {
   };
 
   const renderPlayer = () => {
+    // Resolve relative URL if it starts with /
+    const finalUrl = videoUrl.startsWith('/') ? `${window.location.origin}${videoUrl}` : videoUrl;
+
     if (isYouTube) {
       const id = getYouTubeId(videoUrl);
       if (!id) return null;
@@ -56,7 +59,7 @@ const VideoPlayer = ({ videoUrl, title }) => {
         controls
         preload="metadata"
       >
-        <source src={videoUrl} />
+        <source src={finalUrl} />
         Your browser does not support the video tag.
       </video>
     );

@@ -107,13 +107,33 @@ sudo systemctl restart nginx
 
 🛠️ ขั้นตอนที่ 3: เช็คไฟล์ Backend (app.js)
 
-คุณทำส่วนนี้ไว้ดีแล้ว แค่แก้ไข trust proxy นิดเดียวเพื่อให้ Rate Limit ทำงานได้ถูกต้องที่สุดครับ
+เพื่อให้ระบบสามารถระบุ IP จริงของ Client และรองรับการทำงานของ Rate Limit ข้ามวง Subnet ได้อย่างถูกต้อง
 
 เข้าไปที่ไฟล์ app.js หาบรรทัด app.set('trust proxy', ...) แล้วแก้เป็น:
 JavaScript
 
-// 🌟 2. เชื่อใจ Reverse Proxy ภายในวงแลน
-app.set('trust proxy', ['loopback', 'linklocal', 'uniquelocal', '192.168.191.0/24']);
+// 🌟 2. เชื่อใจ Reverse Proxy และ Subnets ภายในวงแลนทั้งหมดที่ใช้งาน
+app.set('trust proxy', ['loopback', 'linklocal', 'uniquelocal', '192.168.191.0/24', '192.168.88.0/24', '172.16.15.0/24']);
+
+🛠️ ขั้นตอนที่ 4: การตั้งค่า CORS เพื่อรองรับการเข้าใช้งานผ่าน Local IP (app.js)
+
+ในกรณีที่ต้องการเข้าใช้งาน Dashboard ผ่าน IP ตรงๆ ภายในวงแลน (เช่น http://192.168.191.88) ต้องตั้งค่า `origin` ให้รองรับ Subnet นั้นๆ โดยใช้ Regex เพื่อความยืดหยุ่น:
+
+JavaScript
+const corsOptions = {
+  origin: function (origin, callback) {
+    if (!origin || allowedOrigins.includes(origin)) return callback(null, true);
+
+    // ✅ อนุญาตวง IP Local (192.168.191.x, 192.168.88.x, 172.16.15.x) พร้อมรองรับ Port
+    const localNetworkPattern = /^https?:\/\/(192\.168\.191\.\d+|192\.168\.88\.\d+|172\.16\.15\.\d+)(:\d+)?$/;
+    if (localNetworkPattern.test(origin)) {
+      return callback(null, true);
+    }
+
+    callback(new Error('Not allowed by CORS'));
+  },
+  credentials: true,
+};
 
 จากนั้น Restart Backend ครับ:
 Bash

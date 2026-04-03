@@ -333,8 +333,7 @@ exports.processAndUploadImage = async (fileBuffer, articleId, userId, ipAddress,
     .webp({ quality: 80 })
     .toFile(filePath);
 
-  const fullBaseUrl = `${protocol}://${host}`;
-  const baseUrl = `${fullBaseUrl}/api/articles/images/${filename}`;
+  const baseUrl = `/api/articles/images/${filename}`;
 
   // 2. บันทึกข้อมูลลง DB
   const parsedId = articleId ? parseInt(articleId) : null;
@@ -375,8 +374,7 @@ exports.processAndUploadVideo = async (file, articleId, userId, ipAddress, proto
     fs.copyFileSync(file.path, filePath);
     fs.unlinkSync(file.path);
 
-    const fullBaseUrl = `${protocol}://${host}`;
-    const baseUrl = `${fullBaseUrl}/api/articles/videos/${filename}`;
+    const baseUrl = `/api/articles/videos/${filename}`;
 
     // บันทึกข้อมูลลง DB
     const parsedId = articleId ? parseInt(articleId) : null;
