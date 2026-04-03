@@ -59,12 +59,21 @@ const allowedOrigins = [
 
 const corsOptions = {
   origin: function (origin, callback) {
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      console.warn(`CORS blocked request from origin: ${origin}`); 
-      callback(new Error('Not allowed by CORS'));
+    // 1. อนุญาตหากไม่มี origin (เช่น ยิงผ่าน Postman หรือ Server-to-Server)
+    if (!origin) return callback(null, true);
+
+    // 2. ตรวจสอบว่าอยู่ในรายการ allowedOrigins หรือไม่
+    if (allowedOrigins.includes(origin)) return callback(null, true);
+
+    // 3. ตรวจสอบว่าเป็น IP ในวงแลนที่อนุญาตหรือไม่ (192.168.88.x หรือ 172.16.15.x)
+    const localNetworkPattern = /^https?:\/\/(192\.168\.88\.\d+|172\.16\.15\.\d+)(:\d+)?$/;
+    if (localNetworkPattern.test(origin)) {
+      return callback(null, true);
     }
+
+    // หากไม่ผ่านเงื่อนไขใดเลย ให้ Block
+    console.warn(`CORS blocked request from origin: ${origin}`); 
+    callback(new Error('Not allowed by CORS'));
   },
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'], 
   credentials: true,
