@@ -45,6 +45,31 @@ const attachUpload = multer({
   limits: { fileSize: 1024 * 1024 * 1024 } // 1GB limit
 });
 
+// Multer for Videos
+const videoStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const dir = path.join(__dirname, '../../uploads/videos/');
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    cb(null, dir);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, 'temp-vid-' + uniqueSuffix + path.extname(file.originalname));
+  }
+});
+
+const videoUpload = multer({
+  storage: videoStorage,
+  limits: { fileSize: 500 * 1024 * 1024 }, // 500MB limit
+  fileFilter: (req, file, cb) => {
+    const filetypes = /mp4|webm|ogg|mov|avi/;
+    const mimetype = filetypes.test(file.mimetype);
+    const extname = filetypes.test(path.extname(file.originalname).toLowerCase());
+    if (mimetype && extname) return cb(null, true);
+    cb(new Error("Only videos are allowed (mp4, webm, ogg, mov, avi)"));
+  }
+});
+
 // --- Taxonomy Routes (Categories & Tags) ---
 router.get('/categories', verifyToken, taxonomyController.getCategories);
 router.post('/categories', verifyToken, requireRole(['SUPER_ADMIN']), taxonomyController.createCategory);
@@ -58,6 +83,7 @@ router.delete('/tags/:id', verifyToken, requireRole(['SUPER_ADMIN']), taxonomyCo
 router.get('/', verifyToken, articleController.getArticles);
 router.get('/view/:slug', verifyToken, articleController.getArticle);
 router.get('/images/:filename', articleController.serveImage); 
+router.get('/videos/:filename', articleController.serveVideo);
 router.get('/attachments/:filename', articleController.serveAttachment); 
 router.get('/attachments/download/:id', verifyToken, articleController.downloadAttachment);
 
@@ -73,6 +99,7 @@ router.post('/', verifyToken, requireRole(['SUPER_ADMIN']), articleController.cr
 router.put('/:id', verifyToken, requireRole(['SUPER_ADMIN']), articleController.updateArticle);
 router.delete('/:id', verifyToken, requireRole(['SUPER_ADMIN']), articleController.deleteArticle);
 router.post('/upload', verifyToken, requireRole(['SUPER_ADMIN']), upload.single('image'), articleController.uploadImage);
+router.post('/upload-video', verifyToken, requireRole(['SUPER_ADMIN']), videoUpload.single('video'), articleController.uploadVideo);
 
 // Attachments Admin
 router.post('/attachments/upload', verifyToken, requireRole(['SUPER_ADMIN']), attachUpload.single('file'), articleController.uploadAttachment);

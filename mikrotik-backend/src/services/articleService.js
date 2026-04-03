@@ -167,7 +167,7 @@ exports.getArticleById = async (id, userRole = null) => {
 };
 
 exports.createArticle = async (data, authorId, ipAddress) => {
-  const { title, content, excerpt, thumbnail, categoryId, status, visibility, tagNames, isPinned } = data;
+  const { title, content, excerpt, thumbnail, videoUrl, categoryId, status, visibility, tagNames, isPinned } = data;
   
   // 1. จัดการ Slug
   let slug = slugify(title);
@@ -189,6 +189,7 @@ exports.createArticle = async (data, authorId, ipAddress) => {
       content,
       excerpt,
       thumbnail: cleanUrl(thumbnail),
+      videoUrl: cleanUrl(videoUrl),
       status: status || 'DRAFT',
       visibility: visibility || 'PUBLIC',
       isPinned: !!isPinned,
@@ -210,7 +211,7 @@ exports.createArticle = async (data, authorId, ipAddress) => {
 };
 
 exports.updateArticle = async (id, data, userId, ipAddress) => {
-  const { title, content, excerpt, thumbnail, categoryId, status, visibility, slug: requestedSlug, tagNames, isPinned } = data;
+  const { title, content, excerpt, thumbnail, videoUrl, categoryId, status, visibility, slug: requestedSlug, tagNames, isPinned } = data;
   const articleId = parseInt(id);
   const oldArticle = await prisma.article.findUnique({ where: { id: articleId } });
   if (!oldArticle) throw new Error("NOT_FOUND");
@@ -238,6 +239,7 @@ exports.updateArticle = async (id, data, userId, ipAddress) => {
       content,
       excerpt,
       thumbnail: cleanUrl(thumbnail),
+      videoUrl: cleanUrl(videoUrl),
       status,
       visibility,
       isPinned: isPinned !== undefined ? !!isPinned : undefined,
@@ -267,7 +269,7 @@ exports.deleteArticle = async (id, userId, ipAddress) => {
   });
   if (!article) throw new Error("NOT_FOUND");
 
-  // 1. ลบไฟล์จริงบน Disk
+  // 1. ลบไฟล์จริงบน Disk (Attachments)
   const uploadDir = path.join(__dirname, '../../uploads/attachments/');
   for (const attachment of article.attachments) {
     const filePath = path.join(uploadDir, attachment.storageName);
@@ -276,7 +278,16 @@ exports.deleteArticle = async (id, userId, ipAddress) => {
     }
   }
 
-  // 2. ลบจาก DB
+  // 2. ลบไฟล์วิดีโอ (ถ้ามี)
+  if (article.videoUrl && article.videoUrl.includes('/api/articles/videos/')) {
+    const videoFilename = article.videoUrl.split('/').pop().split('?')[0];
+    const videoPath = path.join(__dirname, '../../uploads/videos/', videoFilename);
+    if (fs.existsSync(videoPath)) {
+      fs.unlinkSync(videoPath);
+    }
+  }
+
+  // 3. ลบจาก DB
   const deleted = await prisma.article.delete({ where: { id: articleId } });
 
   await logService.createActivityLog({
@@ -290,7 +301,7 @@ exports.deleteArticle = async (id, userId, ipAddress) => {
 };
 
 // ==========================================
-// 🖼 Image Services
+// 🖼 Image & Video Services
 // ==========================================
 
 exports.processAndUploadImage = async (fileBuffer, articleId, userId, ipAddress, protocol, host) => {
@@ -325,6 +336,34 @@ exports.processAndUploadImage = async (fileBuffer, articleId, userId, ipAddress,
     userId,
     action: 'UPLOAD_ARTICLE_IMAGE',
     details: `Uploaded image: ${filename}`,
+    ipAddress
+  });
+
+  return { filename, baseUrl };
+};
+
+exports.processAndUploadVideo = async (file, articleId, userId, ipAddress, protocol, host) => {
+  const originalName = file.originalname;
+  const fileExt = path.extname(originalName).toLowerCase();
+  const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+  const filename = `vid-${uniqueSuffix}${fileExt}`;
+  
+  const uploadDir = path.join(__dirname, '../../uploads/videos/');
+  if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
+  
+  const filePath = path.join(uploadDir, filename);
+  
+  // ย้ายไฟล์จาก temp ไปยัง uploads/videos
+  fs.renameSync(file.path, filePath);
+
+  const fullBaseUrl = `${protocol}://${host}`;
+  const baseUrl = `${fullBaseUrl}/api/articles/videos/${filename}`;
+
+  // บันทึก Log
+  await logService.createActivityLog({
+    userId,
+    action: 'UPLOAD_ARTICLE_VIDEO',
+    details: `Uploaded video: ${filename}`,
     ipAddress
   });
 

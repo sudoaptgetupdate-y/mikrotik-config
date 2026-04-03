@@ -15,13 +15,14 @@ import AttachmentSection from './ArticleFormModal/AttachmentSection';
 import PublishSettings from './ArticleFormModal/PublishSettings';
 import TagManager from './ArticleFormModal/TagManager';
 import ThumbnailUploader from './ArticleFormModal/ThumbnailUploader';
+import VideoSection from './ArticleFormModal/VideoSection';
 
 const ArticleFormModal = ({ isOpen, onClose, articleId, onSaveSuccess }) => {
   const { t } = useTranslation();
   const { user } = useAuth();
 
   const [formData, setFormData] = useState({
-    title: '', content: '', excerpt: '', thumbnail: '', 
+    title: '', content: '', excerpt: '', thumbnail: '', videoUrl: '',
     categoryId: '', status: 'DRAFT', visibility: 'PUBLIC', slug: '', tagNames: [], isPinned: false
   });
 
@@ -78,6 +79,7 @@ const ArticleFormModal = ({ isOpen, onClose, articleId, onSaveSuccess }) => {
           content: article.content || '',
           excerpt: article.excerpt || '',
           thumbnail: article.thumbnail || '',
+          videoUrl: article.videoUrl || '',
           categoryId: article.categoryId || '',
           status: article.status || 'DRAFT',
           visibility: article.visibility || 'PUBLIC',
@@ -246,6 +248,13 @@ const ArticleFormModal = ({ isOpen, onClose, articleId, onSaveSuccess }) => {
                         articleId={articleId}
                         attachments={attachments}
                         setAttachments={setAttachments}
+                      />
+
+                      {/* Video Section */}
+                      <VideoSection 
+                        formData={formData}
+                        setFormData={setFormData}
+                        articleId={articleId}
                       />
                     </div>
 

@@ -66,6 +66,15 @@ const articleService = {
     return response.data;
   },
 
+  uploadVideo: async (formData) => {
+    const response = await apiClient.post('/api/articles/upload-video', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response.data;
+  },
+
   // --- Category Methods ---
   getCategories: async () => {
     const response = await apiClient.get('/api/articles/categories');

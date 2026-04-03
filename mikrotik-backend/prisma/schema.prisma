@@ -197,6 +197,7 @@ model Article {
   
   status      ArticleStatus     @default(DRAFT)
   visibility  ArticleVisibility @default(PUBLIC)
+  videoUrl    String?           @db.Text
   isPinned    Boolean           @default(false)
   viewCount   Int               @default(0)
   authorId    Int
@@ -322,6 +323,7 @@ enum ActionType {
   UPDATE_ARTICLE
   DELETE_ARTICLE
   UPLOAD_ARTICLE_IMAGE
+  UPLOAD_ARTICLE_VIDEO
   CREATE_CATEGORY
   UPDATE_CATEGORY
   DELETE_CATEGORY

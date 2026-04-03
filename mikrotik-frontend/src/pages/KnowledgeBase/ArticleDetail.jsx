@@ -14,6 +14,7 @@ import CommentSection from './components/ArticleDetail/CommentSection';
 import RelatedArticles from './components/ArticleDetail/RelatedArticles';
 import ArticleToc from './components/ArticleDetail/ArticleToc';
 import ShareModal from './components/ArticleDetail/ShareModal';
+import VideoPlayer from './components/ArticleDetail/VideoPlayer';
 
 // Memoized Content Component
 const ArticleContentRenderer = React.memo(({ content, loading }) => {
@@ -446,6 +447,11 @@ const ArticleDetail = () => {
           {/* Main Card - Crisp White Floating on Slate-50 */}
           <div className="bg-white rounded-[60px] shadow-[0_40px_100px_-30px_rgba(0,0,0,0.06),0_10px_40px_-20px_rgba(0,0,0,0.03)] border border-slate-100 overflow-hidden">
             <main className="px-6 sm:px-12 md:px-20 lg:px-24 pt-12 sm:pt-16 pb-20">
+              {/* --- 🎬 Video Player Section --- */}
+              {article.videoUrl && (
+                <VideoPlayer videoUrl={article.videoUrl} title={article.title} />
+              )}
+
               <div className="article-detail-content max-w-none">
                 <ArticleContentRenderer content={article.content} loading={loading} />
               </div>
