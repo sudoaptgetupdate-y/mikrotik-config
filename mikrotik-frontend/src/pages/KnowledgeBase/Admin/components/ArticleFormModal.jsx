@@ -61,7 +61,23 @@ const ArticleFormModal = ({ isOpen, onClose, articleId, onSaveSuccess }) => {
 
   const handleInsertShortcode = (type, url, title = '') => {
     if (editorRef.current) {
-      const shortcode = title ? `[${type}:${url}|${title}]` : `[${type}:${url}]`;
+      // ✅ ทำความสะอาด URL: หากเป็นลิงก์ภายในระบบ (มี /api/articles/) ให้ตัดเหลือแค่ Path
+      let finalUrl = url;
+      if (url && (url.includes('/api/articles/videos/') || url.includes('/api/articles/images/'))) {
+        try {
+          // ใช้ URL object เพื่อดึงเฉพาะ pathname (เช่น /api/articles/...)
+          const urlObj = new URL(url, window.location.origin);
+          finalUrl = urlObj.pathname;
+        } catch (e) {
+          // หากแปลงไม่ได้ (เช่น เป็น path อยู่แล้ว) ให้พยายามหาตำแหน่ง /api/
+          const apiIndex = url.indexOf('/api/');
+          if (apiIndex !== -1) {
+            finalUrl = url.substring(apiIndex);
+          }
+        }
+      }
+
+      const shortcode = title ? `[${type}:${finalUrl}|${title}]` : `[${type}:${finalUrl}]`;
       editorRef.current.insertText(shortcode);
     }
   };
