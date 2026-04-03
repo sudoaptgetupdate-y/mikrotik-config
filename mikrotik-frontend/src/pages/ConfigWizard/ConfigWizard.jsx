@@ -213,10 +213,10 @@ const ConfigWizard = ({ mode = 'create', initialData, onFinish }) => {
 
   // 🟢 ปรับโครงสร้างให้ดูเป็น Card ที่ลอยเด่น (Balanced & Premium)
   return (
-    <div className="max-w-5xl mx-auto w-full bg-white sm:rounded-3xl shadow-[0_20px_50px_-12px_rgba(0,0,0,0.05),0_10px_20px_-10px_rgba(0,0,0,0.02)] border-0 sm:border border-slate-100 overflow-hidden pb-10">
+    <div className="max-w-7xl mx-auto w-full bg-white sm:rounded-3xl shadow-[0_20px_50px_-12px_rgba(0,0,0,0.05),0_10px_20px_-10px_rgba(0,0,0,0.02)] border-0 sm:border border-slate-100 overflow-hidden">
       {/* 1. Header & Stepper Area */}
-      <div className="p-6 sm:p-10 bg-slate-50/50 border-b border-slate-100 relative">
-        <div className="absolute top-[2.4rem] sm:top-[3.4rem] left-0 w-full h-1 bg-slate-200/50 hidden sm:block" /> 
+      <div className="p-5 sm:p-8 bg-slate-50/50 border-b border-slate-100 relative">
+        <div className="absolute top-[2.2rem] sm:top-[2.9rem] left-0 w-full h-1 bg-slate-200/50 hidden sm:block" /> 
         
         <div className="flex items-start justify-between gap-4 sm:gap-0 overflow-x-auto px-1 sm:px-4 pb-2 relative z-10 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
           {activeSteps.map((step, idx) => {
@@ -239,7 +239,7 @@ const ConfigWizard = ({ mode = 'create', initialData, onFinish }) => {
       </div>
 
       {/* 2. Content Area */}
-      <div className="min-h-[350px] sm:min-h-[500px] px-6 sm:px-12 py-10">
+      <div className="min-h-[300px] sm:min-h-[450px] px-6 sm:px-10">
         {loading ? (
           <div className="flex flex-col items-center justify-center py-20 gap-4">
              <div className="size-12 border-4 border-blue-600/20 border-t-blue-600 rounded-full animate-spin" />
@@ -275,7 +275,7 @@ const ConfigWizard = ({ mode = 'create', initialData, onFinish }) => {
       </div>
 
       {/* 3. Navigation Buttons */}
-      <div className="flex flex-col-reverse sm:flex-row justify-between items-center px-6 sm:px-12 pt-8 border-t border-slate-50 gap-4">
+      <div className="flex flex-col-reverse sm:flex-row justify-between items-center px-6 sm:px-10 pt-6 border-t border-slate-50 gap-4">
         <button 
           onClick={prevStep} 
           disabled={currentStepIndex === 0} 

@@ -21,10 +21,10 @@ const VPNTools = ({ isModal = false }) => {
   }, [activeTab, isModal]);
 
   return (
-    <div ref={containerRef} className={`w-full space-y-6 animate-in fade-in duration-500 pb-10 ${!isModal ? 'max-w-5xl mx-auto' : ''}`}>
+    <div ref={containerRef} className={`w-full space-y-6 animate-in fade-in duration-500 ${!isModal ? 'max-w-7xl mx-auto' : ''}`}>
       {/* Header - Only show if not in modal (Modal has its own header) */}
       {!isModal && (
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm relative overflow-hidden group">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-5 rounded-2xl border border-slate-200 shadow-sm relative overflow-hidden group">
           <div className="relative z-10">
             <h1 className="text-2xl font-bold text-slate-800 flex items-center gap-2 tracking-tight">
               <ShieldCheck size={32} className="text-blue-600" />
@@ -39,10 +39,10 @@ const VPNTools = ({ isModal = false }) => {
       )}
 
       {/* Main Container */}
-      <div className={`bg-white shadow-[0_20px_50px_-12px_rgba(0,0,0,0.05),0_10px_20px_-10px_rgba(0,0,0,0.02)] border-0 sm:border border-slate-100 pb-10 ${isModal ? 'rounded-3xl' : 'sm:rounded-3xl'}`}>
+      <div className={`bg-white shadow-[0_20px_50px_-12px_rgba(0,0,0,0.05),0_10px_20px_-10px_rgba(0,0,0,0.02)] border-0 sm:border border-slate-100 pb-8 ${isModal ? 'rounded-3xl' : 'sm:rounded-3xl'}`}>
         
         {/* Tabs Selection */}
-        <div className="bg-slate-50/50 border-b border-slate-100 p-4 sm:p-6 flex justify-center sm:justify-start">
+        <div className="bg-slate-50/50 border-b border-slate-100 p-4 sm:p-5 flex justify-center sm:justify-start">
           <div className="flex bg-slate-200/60 p-1.5 rounded-2xl w-full sm:w-fit shadow-inner">
             <button
               onClick={() => setActiveTab('c2s')}
@@ -60,7 +60,7 @@ const VPNTools = ({ isModal = false }) => {
         </div>
 
         {/* Tab Content Area */}
-        <div className="p-4 sm:p-8 min-h-[500px]">
+        <div className="p-4 sm:p-6 min-h-[450px]">
           <div className="animate-in slide-in-from-bottom-4 duration-500">
             {activeTab === 'c2s' ? <ClientToSiteTab /> : <SiteToSiteTab />}
           </div>
