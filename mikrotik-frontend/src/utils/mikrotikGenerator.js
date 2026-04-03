@@ -230,7 +230,7 @@ export const generateMikrotikScript = (config = {}) => {
 
       if (net.dhcp || net.hotspot) {
         script += `/ip pool add name="${poolName}" ranges=${poolRange}\n`;
-        script += `/ip dhcp-server add name="dhcp-${net.name}" interface=${vlanInterface} address-pool="${poolName}" disabled=no lease-time=1d\n`;
+        script += `/ip dhcp-server add name="dhcp-${net.name}" interface=${vlanInterface} address-pool="${poolName}" disabled=no lease-time=1h\n`;
         script += `/ip dhcp-server network add address=${networkAddr} gateway=${gatewayIP} dns-server=${clientDnsServers}\n`;
       }
 
