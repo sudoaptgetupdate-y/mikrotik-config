@@ -1,4 +1,4 @@
-import React, { useState, useEffect, Fragment } from 'react';
+import React, { useState, useEffect, useRef, Fragment } from 'react';
 import { X, Layout, CheckCircle, Loader2 } from 'lucide-react';
 import { Dialog, Transition } from '@headlessui/react';
 import { useTranslation } from 'react-i18next';
@@ -34,6 +34,7 @@ const ArticleFormModal = ({ isOpen, onClose, articleId, onSaveSuccess }) => {
   const [fetching, setFetching] = useState(false);
   const [attachments, setAttachments] = useState([]);
   const [videos, setVideos] = useState([]);
+  const editorRef = useRef(null);
 
   // 1. Initial Data Fetching
   useEffect(() => {
@@ -57,6 +58,13 @@ const ArticleFormModal = ({ isOpen, onClose, articleId, onSaveSuccess }) => {
       }
     }
   }, [isOpen, articleId]);
+
+  const handleInsertShortcode = (type, url, title = '') => {
+    if (editorRef.current) {
+      const shortcode = title ? `[${type}:${url}|${title}]` : `[${type}:${url}]`;
+      editorRef.current.insertText(shortcode);
+    }
+  };
 
   const fetchInitialData = async () => {
     try {
@@ -144,7 +152,11 @@ const ArticleFormModal = ({ isOpen, onClose, articleId, onSaveSuccess }) => {
         }
       }
 
-      const submissionData = { ...formData, thumbnail: finalThumbnailUrl };
+      const submissionData = { 
+        ...formData, 
+        thumbnail: finalThumbnailUrl,
+        videoIds: videos.map(v => v.id) 
+      };
       const savePromise = articleId 
         ? articleService.updateArticle(articleId, submissionData)
         : articleService.createArticle(submissionData);
@@ -238,6 +250,7 @@ const ArticleFormModal = ({ isOpen, onClose, articleId, onSaveSuccess }) => {
                       
                       {/* Editor Section */}
                       <EditorSection 
+                        ref={editorRef}
                         content={formData.content} 
                         onChange={(content) => setFormData(prev => ({ ...prev, content }))}
                         fetching={fetching}
@@ -257,6 +270,7 @@ const ArticleFormModal = ({ isOpen, onClose, articleId, onSaveSuccess }) => {
                         articleId={articleId}
                         videos={videos}
                         setVideos={setVideos}
+                        onInsert={(url, title) => handleInsertShortcode('video', url, title)}
                       />
                     </div>
 

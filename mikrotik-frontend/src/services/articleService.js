@@ -66,11 +66,12 @@ const articleService = {
     return response.data;
   },
 
-  uploadVideo: async (formData) => {
+  uploadVideo: async (formData, onUploadProgress) => {
     const response = await apiClient.post('/api/articles/upload-video', formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
+      onUploadProgress
     });
     return response.data;
   },

@@ -170,7 +170,7 @@ exports.getArticleById = async (id, userRole = null) => {
 };
 
 exports.createArticle = async (data, authorId, ipAddress) => {
-  const { title, content, excerpt, thumbnail, categoryId, status, visibility, tagNames, isPinned } = data;
+  const { title, content, excerpt, thumbnail, categoryId, status, visibility, tagNames, isPinned, videoIds } = data;
   
   // 1. จัดการ Slug
   let slug = slugify(title);
@@ -201,6 +201,14 @@ exports.createArticle = async (data, authorId, ipAddress) => {
     }
   });
 
+  // 3.1 เชื่อมโยงวิดีโอที่อัปโหลดก่อนหน้า
+  if (videoIds && Array.isArray(videoIds) && videoIds.length > 0) {
+    await prisma.articleVideo.updateMany({
+      where: { id: { in: videoIds.map(id => parseInt(id)) } },
+      data: { articleId: newArticle.id }
+    });
+  }
+
   // 4. บันทึก Log
   await logService.createActivityLog({
     userId: authorId,
@@ -213,7 +221,7 @@ exports.createArticle = async (data, authorId, ipAddress) => {
 };
 
 exports.updateArticle = async (id, data, userId, ipAddress) => {
-  const { title, content, excerpt, thumbnail, categoryId, status, visibility, slug: requestedSlug, tagNames, isPinned } = data;
+  const { title, content, excerpt, thumbnail, categoryId, status, visibility, slug: requestedSlug, tagNames, isPinned, videoIds } = data;
   const articleId = parseInt(id);
   const oldArticle = await prisma.article.findUnique({ where: { id: articleId } });
   if (!oldArticle) throw new Error("NOT_FOUND");
@@ -250,6 +258,17 @@ exports.updateArticle = async (id, data, userId, ipAddress) => {
     },
     include: { tags: true, category: true }
   });
+
+  // 3.1 เชื่อมโยงวิดีโอที่อาจเพิ่งอัปโหลด
+  if (videoIds && Array.isArray(videoIds) && videoIds.length > 0) {
+    await prisma.articleVideo.updateMany({
+      where: { 
+        id: { in: videoIds.map(id => parseInt(id)) },
+        articleId: null // เฉพาะตัวที่ยังไม่มีการเชื่อมโยง
+      },
+      data: { articleId: updatedArticle.id }
+    });
+  }
 
   // 4. บันทึก Log
   await logService.createActivityLog({
@@ -351,33 +370,41 @@ exports.processAndUploadVideo = async (file, articleId, userId, ipAddress, proto
   
   const filePath = path.join(uploadDir, filename);
   
-  // ย้ายไฟล์จาก temp ไปยัง uploads/videos
-  fs.renameSync(file.path, filePath);
+  try {
+    // ใช้ copy + unlink แทน rename เพื่อเลี่ยงปัญหา cross-device link (EXDEV)
+    fs.copyFileSync(file.path, filePath);
+    fs.unlinkSync(file.path);
 
-  const fullBaseUrl = `${protocol}://${host}`;
-  const baseUrl = `${fullBaseUrl}/api/articles/videos/${filename}`;
+    const fullBaseUrl = `${protocol}://${host}`;
+    const baseUrl = `${fullBaseUrl}/api/articles/videos/${filename}`;
 
-  // บันทึกข้อมูลลง DB
-  const parsedId = articleId ? parseInt(articleId) : null;
-  const finalId = (!isNaN(parsedId) && parsedId !== null) ? parsedId : undefined;
+    // บันทึกข้อมูลลง DB
+    const parsedId = articleId ? parseInt(articleId) : null;
+    const finalId = (!isNaN(parsedId) && parsedId !== null) ? parsedId : undefined;
 
-  const newVideo = await prisma.articleVideo.create({
-    data: {
-      url: baseUrl,
-      filename: originalName,
-      ...(finalId && { articleId: finalId })
-    }
-  });
+    const newVideo = await prisma.articleVideo.create({
+      data: {
+        url: baseUrl,
+        filename: originalName,
+        ...(finalId && { articleId: finalId })
+      }
+    });
 
-  // บันทึก Log
-  await logService.createActivityLog({
-    userId,
-    action: 'UPLOAD_ARTICLE_VIDEO',
-    details: `Uploaded video: ${filename}`,
-    ipAddress
-  });
+    // บันทึก Log
+    await logService.createActivityLog({
+      userId,
+      action: 'UPLOAD_ARTICLE_VIDEO',
+      details: `Uploaded video: ${filename}`,
+      ipAddress
+    });
 
-  return { ...newVideo, baseUrl }; // คืนค่าข้อมูลที่บันทึก
+    return { ...newVideo, baseUrl };
+  } catch (error) {
+    // ลบไฟล์ที่ค้างอยู่ถ้าเกิด error
+    if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+    console.error('Video process error:', error);
+    throw error;
+  }
 };
 
 exports.deleteVideo = async (id, userId, ipAddress) => {

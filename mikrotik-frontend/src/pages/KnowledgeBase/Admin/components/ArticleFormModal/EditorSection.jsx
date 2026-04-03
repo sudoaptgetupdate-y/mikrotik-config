@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useImperativeHandle, forwardRef } from 'react';
 import { Loader2, AlertCircle } from 'lucide-react';
 import Quill from 'quill';
 import 'quill/dist/quill.snow.css';
@@ -6,11 +6,24 @@ import { useTranslation } from 'react-i18next';
 import articleService from '../../../../../services/articleService';
 import Swal from 'sweetalert2';
 
-const EditorSection = ({ content, onChange, fetching, articleId, isOpen }) => {
+const EditorSection = forwardRef(({ content, onChange, fetching, articleId, isOpen }, ref) => {
   const { t } = useTranslation();
   const editorRef = useRef(null);
   const quillInstance = useRef(null);
   const contentInjected = useRef(false);
+
+  // Expose methods to parent
+  useImperativeHandle(ref, () => ({
+    insertText: (text) => {
+      if (quillInstance.current) {
+        const range = quillInstance.current.getSelection();
+        const index = range ? range.index : quillInstance.current.getLength();
+        quillInstance.current.insertText(index, text);
+        quillInstance.current.setSelection(index + text.length);
+        quillInstance.current.focus();
+      }
+    }
+  }));
 
   // Initial Quill setup
   useEffect(() => {
@@ -237,6 +250,6 @@ const EditorSection = ({ content, onChange, fetching, articleId, isOpen }) => {
       ` }} />
     </div>
   );
-};
+});
 
 export default EditorSection;

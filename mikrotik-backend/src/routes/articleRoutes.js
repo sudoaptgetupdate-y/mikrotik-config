@@ -62,10 +62,13 @@ const videoUpload = multer({
   storage: videoStorage,
   limits: { fileSize: 500 * 1024 * 1024 }, // 500MB limit
   fileFilter: (req, file, cb) => {
-    const filetypes = /mp4|webm|ogg|mov|avi/;
-    const mimetype = filetypes.test(file.mimetype);
-    const extname = filetypes.test(path.extname(file.originalname).toLowerCase());
-    if (mimetype && extname) return cb(null, true);
+    const allowedMimeTypes = /video\/(mp4|webm|ogg|quicktime|x-msvideo|mpeg)/;
+    const allowedExtensions = /mp4|webm|ogg|mov|avi|mpeg/;
+    
+    const mimetype = allowedMimeTypes.test(file.mimetype);
+    const extname = allowedExtensions.test(path.extname(file.originalname).toLowerCase());
+    
+    if (mimetype || extname) return cb(null, true);
     cb(new Error("Only videos are allowed (mp4, webm, ogg, mov, avi)"));
   }
 });

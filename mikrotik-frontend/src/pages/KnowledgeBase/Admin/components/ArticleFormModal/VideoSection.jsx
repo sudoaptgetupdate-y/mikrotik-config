@@ -1,13 +1,14 @@
 import React, { useState, useRef } from 'react';
-import { Video, Link, Upload, X, Film, AlertCircle, Loader2, Copy, Play, Trash2 } from 'lucide-react';
+import { Video, Link, Upload, X, Film, AlertCircle, Loader2, Copy, Play, Trash2, PlusCircle } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import articleService from '../../../../../services/articleService';
 import toast from 'react-hot-toast';
 import Swal from 'sweetalert2';
 
-const VideoSection = ({ articleId, videos, setVideos }) => {
+const VideoSection = ({ articleId, videos, setVideos, onInsert }) => {
   const { t } = useTranslation();
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [activeTab, setActiveTab] = useState('upload');
   const [externalUrl, setExternalUrl] = useState('');
   const fileInputRef = useRef(null);
@@ -28,11 +29,15 @@ const VideoSection = ({ articleId, videos, setVideos }) => {
 
     try {
       setIsUploading(true);
+      setUploadProgress(0);
       const uploadFormData = new FormData();
       uploadFormData.append('video', file);
       if (articleId) uploadFormData.append('articleId', articleId);
 
-      const res = await articleService.uploadVideo(uploadFormData);
+      const res = await articleService.uploadVideo(uploadFormData, (progressEvent) => {
+        const progress = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+        setUploadProgress(progress);
+      });
       
       // Add to list
       setVideos(prev => [...prev, res]);
@@ -42,6 +47,7 @@ const VideoSection = ({ articleId, videos, setVideos }) => {
       toast.error(t('articles.video.upload_error', 'เกิดข้อผิดพลาดในการอัปโหลดวิดีโอ'));
     } finally {
       setIsUploading(false);
+      setUploadProgress(0);
       if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
@@ -49,13 +55,14 @@ const VideoSection = ({ articleId, videos, setVideos }) => {
   const handleAddExternal = () => {
     if (!externalUrl) return;
     
-    // In a real app, you might want to save external URLs to the DB too.
-    // For now, we can just allow users to copy the shortcode directly or add to list if backend supports it.
-    // Since our backend ArticleVideo supports a URL, we can treat external links as a special case or just help them copy.
-    
-    const shortcode = `[video:${externalUrl}]`;
-    navigator.clipboard.writeText(shortcode);
-    toast.success(t('articles.video.shortcode_copied', 'คัดลอก Shortcode แล้ว'));
+    if (onInsert) {
+      onInsert(externalUrl);
+      toast.success(t('articles.video.inserted', 'แทรกวิดีโอในเนื้อหาแล้ว'));
+    } else {
+      const shortcode = `[video:${externalUrl}]`;
+      navigator.clipboard.writeText(shortcode);
+      toast.success(t('articles.video.shortcode_copied', 'คัดลอก Shortcode แล้ว'));
+    }
     setExternalUrl('');
   };
 
@@ -90,6 +97,13 @@ const VideoSection = ({ articleId, videos, setVideos }) => {
     const shortcode = `[video:${url}]`;
     navigator.clipboard.writeText(shortcode);
     toast.success(t('articles.video.shortcode_copied', 'คัดลอก Shortcode สำหรับใส่ในเนื้อหาแล้ว'));
+  };
+
+  const handleInsert = (video) => {
+    if (onInsert) {
+      onInsert(video.url, video.filename);
+      toast.success(t('articles.video.inserted', 'แทรกวิดีโอในเนื้อหาแล้ว'));
+    }
   };
 
   return (
@@ -133,15 +147,32 @@ const VideoSection = ({ articleId, videos, setVideos }) => {
               className="hidden"
             />
             {isUploading ? (
-              <Loader2 size={24} className="text-indigo-500 animate-spin" />
+              <div className="w-full space-y-3">
+                <div className="flex items-center justify-between text-[10px] font-black uppercase tracking-widest text-indigo-600 px-1">
+                  <div className="flex items-center gap-2">
+                    <Loader2 size={14} className="animate-spin" />
+                    <span>{t('common.uploading', 'Uploading...')}</span>
+                  </div>
+                  <span>{uploadProgress}%</span>
+                </div>
+                <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden border border-slate-200/50">
+                  <div 
+                    className="h-full bg-indigo-500 transition-all duration-300 ease-out shadow-[0_0_10px_rgba(99,102,241,0.5)]"
+                    style={{ width: `${uploadProgress}%` }}
+                  />
+                </div>
+                <p className="text-[9px] text-slate-400 font-medium text-center">Please do not close this window</p>
+              </div>
             ) : (
-              <Video size={24} className="text-slate-300 group-hover:text-indigo-400 transition-colors" />
+              <>
+                <Video size={24} className="text-slate-300 group-hover:text-indigo-400 transition-colors" />
+                <div className="text-center">
+                  <p className="text-[10px] font-bold text-slate-600 uppercase tracking-wider">
+                    {t('articles.video.click_to_upload', 'Add New Video to Library')}
+                  </p>
+                </div>
+              </>
             )}
-            <div className="text-center">
-              <p className="text-[10px] font-bold text-slate-600 uppercase tracking-wider">
-                {isUploading ? t('common.uploading', 'Uploading...') : t('articles.video.click_to_upload', 'Add New Video to Library')}
-              </p>
-            </div>
           </div>
         ) : (
           <div className="flex gap-2">
@@ -160,7 +191,7 @@ const VideoSection = ({ articleId, videos, setVideos }) => {
               onClick={handleAddExternal}
               className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 whitespace-nowrap"
             >
-              Get Shortcode
+              {onInsert ? t('common.insert', 'Insert') : 'Get Shortcode'}
             </button>
           </div>
         )}
@@ -193,12 +224,20 @@ const VideoSection = ({ articleId, videos, setVideos }) => {
                   <p className="text-[11px] font-black text-slate-700 truncate mb-0.5 group-hover:text-indigo-600 transition-colors uppercase tracking-tight">
                     {video.filename || 'Unnamed Video'}
                   </p>
-                  <p className="text-[9px] font-medium text-slate-400 truncate max-w-[200px]">
+                  <p className="text-[9px] font-medium text-slate-400 truncate max-w-[150px]">
                     {video.url}
                   </p>
                 </div>
 
                 <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button
+                    type="button"
+                    onClick={() => handleInsert(video)}
+                    className="p-2 rounded-lg bg-emerald-50 text-emerald-600 hover:bg-emerald-600 hover:text-white transition-all shadow-sm"
+                    title="Insert into Editor"
+                  >
+                    <PlusCircle size={14} />
+                  </button>
                   <button
                     type="button"
                     onClick={() => copyShortcode(video.url)}

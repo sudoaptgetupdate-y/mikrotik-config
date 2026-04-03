@@ -2,6 +2,7 @@ const articleService = require('../services/articleService');
 const prisma = require('../config/prisma');
 const path = require('path');
 const fs = require('fs');
+const mime = require('mime-types');
 
 /**
  * 🎯 [Slim Controller] จัดการบทความ (Articles)
@@ -158,6 +159,7 @@ exports.serveVideo = (req, res) => {
     const stat = fs.statSync(filePath);
     const fileSize = stat.size;
     const range = req.headers.range;
+    const contentType = mime.lookup(filePath) || 'video/mp4';
 
     if (range) {
       const parts = range.replace(/bytes=/, "").split("-");
@@ -169,14 +171,14 @@ exports.serveVideo = (req, res) => {
         'Content-Range': `bytes ${start}-${end}/${fileSize}`,
         'Accept-Ranges': 'bytes',
         'Content-Length': chunksize,
-        'Content-Type': 'video/mp4',
+        'Content-Type': contentType,
       };
       res.writeHead(206, head);
       file.pipe(res);
     } else {
       const head = {
         'Content-Length': fileSize,
-        'Content-Type': 'video/mp4',
+        'Content-Type': contentType,
       };
       res.writeHead(200, head);
       fs.createReadStream(filePath).pipe(res);
