@@ -39,7 +39,7 @@ app.use((req, res, next) => {
 });
 
 // 🌟 2. เชื่อใจ Reverse Proxy ภายในวงแลนตามปกติ
-app.set('trust proxy', ['loopback', 'linklocal', 'uniquelocal', '192.168.191.0/24']);
+app.set('trust proxy', ['loopback', 'linklocal', 'uniquelocal', '192.168.191.0/24', '192.168.88.0/24', '172.16.15.0/24']);
 
 // ==========================================
 // 🛡️ 1. Security Headers (Helmet)
@@ -65,8 +65,8 @@ const corsOptions = {
     // 2. ตรวจสอบว่าอยู่ในรายการ allowedOrigins หรือไม่
     if (allowedOrigins.includes(origin)) return callback(null, true);
 
-    // 3. ตรวจสอบว่าเป็น IP ในวงแลนที่อนุญาตหรือไม่ (192.168.88.x หรือ 172.16.15.x)
-    const localNetworkPattern = /^https?:\/\/(192\.168\.88\.\d+|172\.16\.15\.\d+)(:\d+)?$/;
+    // 3. ตรวจสอบว่าเป็น IP ในวงแลนที่อนุญาตหรือไม่ (192.168.191.x, 192.168.88.x หรือ 172.16.15.x)
+    const localNetworkPattern = /^https?:\/\/(192\.168\.191\.\d+|192\.168\.88\.\d+|172\.16\.15\.\d+)(:\d+)?$/;
     if (localNetworkPattern.test(origin)) {
       return callback(null, true);
     }
