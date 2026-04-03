@@ -24,6 +24,7 @@ const ArticleContentRenderer = React.memo(({ content, loading }) => {
     if (!content || loading) return;
 
     const timer = setTimeout(() => {
+      // Find all code blocks inside any element with class .article-content
       const codeBlocks = document.querySelectorAll('.article-content pre, .article-content .ql-syntax, .article-content .ql-code-block-container');
       
       codeBlocks.forEach(block => {
@@ -108,9 +109,70 @@ const ArticleContentRenderer = React.memo(({ content, loading }) => {
     return () => clearTimeout(timer);
   }, [content, loading]);
 
+  const renderContentWithVideos = (html) => {
+    if (!html) return null;
+
+    // Regex for [video:URL] or [video:URL|TITLE]
+    // Improved regex to handle various URL characters and avoid greedy matching
+    const videoRegex = /\[video:([^|\]\n]+)(?:\|([^\]\n]+))?\]/g;
+    
+    const parts = [];
+    let lastIndex = 0;
+    let match;
+
+    while ((match = videoRegex.exec(html)) !== null) {
+      // Add text before the video
+      if (match.index > lastIndex) {
+        parts.push(
+          <div 
+            key={`text-${lastIndex}`} 
+            className="ql-editor" 
+            style={{ padding: 0, minHeight: 'auto' }} 
+            dangerouslySetInnerHTML={{ __html: html.substring(lastIndex, match.index) }} 
+          />
+        );
+      }
+
+      const videoUrl = match[1].trim();
+      const videoTitle = match[2] ? match[2].trim() : '';
+
+      // Add the video player
+      parts.push(
+        <div key={`video-${match.index}`} className="my-8 first:mt-0 last:mb-0">
+          <VideoPlayer 
+            videoUrl={videoUrl} 
+            title={videoTitle} 
+          />
+        </div>
+      );
+
+      lastIndex = videoRegex.lastIndex;
+    }
+
+    // Add remaining text
+    if (lastIndex < html.length) {
+      parts.push(
+        <div 
+          key={`text-${lastIndex}`} 
+          className="ql-editor" 
+          style={{ padding: 0, minHeight: 'auto' }} 
+          dangerouslySetInnerHTML={{ __html: html.substring(lastIndex) }} 
+        />
+      );
+    }
+
+    return parts;
+  };
+
   return (
     <div className="ql-container ql-snow" style={{ border: 'none' }}>
-      <div ref={contentRef} className="article-content ql-editor article-render-container" style={{ padding: 0, minHeight: 'auto' }} dangerouslySetInnerHTML={{ __html: content }} />
+      <div 
+        ref={contentRef} 
+        className="article-content article-render-container" 
+        style={{ padding: 0, minHeight: 'auto' }}
+      >
+        {renderContentWithVideos(content)}
+      </div>
     </div>
   );
 });
@@ -447,11 +509,6 @@ const ArticleDetail = () => {
           {/* Main Card - Crisp White Floating on Slate-50 */}
           <div className="bg-white rounded-[60px] shadow-[0_40px_100px_-30px_rgba(0,0,0,0.06),0_10px_40px_-20px_rgba(0,0,0,0.03)] border border-slate-100 overflow-hidden">
             <main className="px-6 sm:px-12 md:px-20 lg:px-24 pt-12 sm:pt-16 pb-20">
-              {/* --- 🎬 Video Player Section --- */}
-              {article.videoUrl && (
-                <VideoPlayer videoUrl={article.videoUrl} title={article.title} />
-              )}
-
               <div className="article-detail-content max-w-none">
                 <ArticleContentRenderer content={article.content} loading={loading} />
               </div>

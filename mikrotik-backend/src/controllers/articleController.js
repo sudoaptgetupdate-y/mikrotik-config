@@ -110,7 +110,7 @@ exports.uploadVideo = async (req, res, next) => {
     if (!req.file) return res.status(400).json({ error: 'No video provided' });
 
     const { articleId } = req.body;
-    const { filename, baseUrl } = await articleService.processAndUploadVideo(
+    const result = await articleService.processAndUploadVideo(
       req.file, 
       articleId, 
       req.user.id, 
@@ -121,10 +121,21 @@ exports.uploadVideo = async (req, res, next) => {
 
     const authHeader = req.headers.authorization;
     const token = authHeader?.split(' ')[1];
-    const finalUrl = `${baseUrl}${token ? `?token=${token}` : ''}`;
+    const finalUrl = `${result.baseUrl}${token ? `?token=${token}` : ''}`;
 
-    res.status(200).json({ url: finalUrl });
+    // ส่งคืนข้อมูลวิดีโอทั้งหมดพร้อม URL ที่มี Token
+    res.status(200).json({ ...result, url: finalUrl });
   } catch (error) { next(error); }
+};
+
+exports.deleteVideo = async (req, res, next) => {
+  try {
+    await articleService.deleteVideo(req.params.id, req.user.id, req.ip);
+    res.status(200).json({ message: 'Video deleted' });
+  } catch (error) {
+    if (error.message === 'NOT_FOUND') return res.status(404).json({ error: 'Video not found' });
+    next(error);
+  }
 };
 
 exports.serveImage = (req, res) => {

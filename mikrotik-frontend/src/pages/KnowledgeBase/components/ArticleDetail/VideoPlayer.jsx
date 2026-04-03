@@ -68,7 +68,9 @@ const VideoPlayer = ({ videoUrl, title }) => {
         <div className="size-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center shadow-sm">
           <Play size={20} fill="currentColor" />
         </div>
-        <h3 className="text-xl font-black text-slate-800 tracking-tight uppercase">Video Tutorial / Presentation</h3>
+        <h3 className="text-xl font-black text-slate-800 tracking-tight uppercase line-clamp-1">
+          {title || "Video Tutorial / Presentation"}
+        </h3>
       </div>
       
       <div className="rounded-[32px] overflow-hidden shadow-2xl border-4 border-white ring-1 ring-slate-100 bg-slate-900">

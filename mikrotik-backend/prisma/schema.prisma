@@ -197,7 +197,6 @@ model Article {
   
   status      ArticleStatus     @default(DRAFT)
   visibility  ArticleVisibility @default(PUBLIC)
-  videoUrl    String?           @db.Text
   isPinned    Boolean           @default(false)
   viewCount   Int               @default(0)
   authorId    Int
@@ -205,12 +204,24 @@ model Article {
   createdAt   DateTime          @default(now())
   updatedAt   DateTime          @updatedAt
   images      ArticleImage[]
+  videos      ArticleVideo[]
   attachments ArticleAttachment[]
   favoritedBy FavoriteArticle[]
   comments    Comment[]
 
   @@index([authorId])
   @@index([categoryId])
+}
+
+model ArticleVideo {
+  id        Int      @id @default(autoincrement())
+  url       String   @db.Text
+  filename  String
+  articleId Int?
+  article   Article? @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@index([articleId])
 }
 
 model ArticleAttachment {

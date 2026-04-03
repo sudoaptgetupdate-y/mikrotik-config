@@ -37,7 +37,7 @@ const EditorSection = ({ content, onChange, fetching, articleId, isOpen }) => {
                 [{ 'list': 'ordered' }, { 'list': 'bullet' }],
                 [{ 'color': [] }, { 'background': [] }],
                 ['blockquote'],
-                ['link', 'image'],
+                ['link', 'image', 'video'],
                 ['clean']
               ]
             }
@@ -48,6 +48,7 @@ const EditorSection = ({ content, onChange, fetching, articleId, isOpen }) => {
         const toolbar = quill.getModule('toolbar');
         const codeButton = toolbar.container.querySelector('.ql-code');
         const codeBlockButton = toolbar.container.querySelector('.ql-code-block');
+        const videoButton = toolbar.container.querySelector('.ql-video');
         
         if (codeButton) {
           codeButton.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>';
@@ -57,8 +58,13 @@ const EditorSection = ({ content, onChange, fetching, articleId, isOpen }) => {
           codeBlockButton.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"></polyline><line x1="12" y1="19" x2="20" y2="19"></line></svg>';
           codeBlockButton.title = "Script Block (MikroTik)";
         }
+        if (videoButton) {
+          videoButton.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m22 8-6 4 6 4V8Z"/><rect width="14" height="12" x="2" y="6" rx="2" ry="2"/></svg>';
+          videoButton.title = t('articles.video.insert_shortcode', "Insert Video Shortcode");
+        }
 
         quill.getModule('toolbar').addHandler('image', imageHandler);
+        quill.getModule('toolbar').addHandler('video', videoHandler);
 
         quill.on('text-change', () => {
           const html = quill.root.innerHTML;
@@ -97,6 +103,53 @@ const EditorSection = ({ content, onChange, fetching, articleId, isOpen }) => {
       contentInjected.current = true;
     }
   }, [fetching, content]);
+
+  const videoHandler = async () => {
+    const { value: url } = await Swal.fire({
+      title: t('articles.video.insert_title', 'เพิ่มวิดีโอ'),
+      text: t('articles.video.insert_desc', 'ใส่ URL ของวิดีโอ (YouTube, Vimeo หรือไฟล์ MP4)'),
+      input: 'url',
+      inputPlaceholder: 'https://...',
+      showCancelButton: true,
+      confirmButtonText: t('common.next', 'ถัดไป'),
+      cancelButtonText: t('common.cancel'),
+      buttonsStyling: false,
+      customClass: {
+        popup: 'rounded-[32px] p-8 border border-slate-100 shadow-2xl',
+        title: 'text-2xl font-black text-slate-800 tracking-tight',
+        htmlContainer: 'text-sm text-slate-500 font-medium mt-3',
+        input: 'w-full px-5 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all font-medium text-slate-700 mt-4',
+        confirmButton: 'bg-slate-900 hover:bg-black text-white px-8 py-3 rounded-2xl text-sm font-black uppercase tracking-widest shadow-lg shadow-slate-200 transition-all active:scale-95 ml-3',
+        cancelButton: 'px-8 py-3 rounded-2xl text-sm font-black uppercase tracking-widest text-slate-400 hover:bg-slate-50 transition-all'
+      }
+    });
+
+    if (url) {
+      const { value: title } = await Swal.fire({
+        title: t('articles.video.title_optional', 'ชื่อวิดีโอ (ไม่บังคับ)'),
+        input: 'text',
+        inputPlaceholder: t('articles.video.title_placeholder', 'คำอธิบายวิดีโอ...'),
+        showCancelButton: true,
+        confirmButtonText: t('common.insert', 'ใส่ในเนื้อหา'),
+        cancelButtonText: t('common.cancel'),
+        buttonsStyling: false,
+        customClass: {
+          popup: 'rounded-[32px] p-8 border border-slate-100 shadow-2xl',
+          title: 'text-2xl font-black text-slate-800 tracking-tight',
+          htmlContainer: 'text-sm text-slate-500 font-medium mt-3',
+          input: 'w-full px-5 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all font-medium text-slate-700 mt-4',
+          confirmButton: 'bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-2xl text-sm font-black uppercase tracking-widest shadow-lg shadow-blue-200 transition-all active:scale-95 ml-3',
+          cancelButton: 'px-8 py-3 rounded-2xl text-sm font-black uppercase tracking-widest text-slate-400 hover:bg-slate-50 transition-all'
+        }
+      });
+
+      const shortcode = title ? `[video:${url}|${title}]` : `[video:${url}]`;
+      if (quillInstance.current) {
+        const range = quillInstance.current.getSelection();
+        quillInstance.current.insertText(range?.index || 0, shortcode);
+      }
+    }
+  };
 
   const imageHandler = () => {
     const input = document.createElement('input');

@@ -1,26 +1,26 @@
 import React, { useState, useRef } from 'react';
-import { Video, Link, Upload, X, Film, AlertCircle, Loader2 } from 'lucide-react';
+import { Video, Link, Upload, X, Film, AlertCircle, Loader2, Copy, Play, Trash2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import articleService from '../../../../../services/articleService';
 import toast from 'react-hot-toast';
+import Swal from 'sweetalert2';
 
-const VideoSection = ({ formData, setFormData, articleId }) => {
+const VideoSection = ({ articleId, videos, setVideos }) => {
   const { t } = useTranslation();
   const [isUploading, setIsUploading] = useState(false);
-  const [activeTab, setActiveTab] = useState(formData.videoUrl && !formData.videoUrl.includes('/api/articles/videos/') ? 'link' : 'upload');
+  const [activeTab, setActiveTab] = useState('upload');
+  const [externalUrl, setExternalUrl] = useState('');
   const fileInputRef = useRef(null);
 
   const handleFileUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
 
-    // Check file type
     if (!file.type.startsWith('video/')) {
       toast.error(t('articles.video.invalid_type', 'กรุณาเลือกไฟล์วิดีโอเท่านั้น'));
       return;
     }
 
-    // Check file size (e.g., 500MB)
     if (file.size > 500 * 1024 * 1024) {
       toast.error(t('articles.video.too_large', 'ไฟล์วิดีโอมีขนาดใหญ่เกินไป (จำกัด 500MB)'));
       return;
@@ -33,7 +33,9 @@ const VideoSection = ({ formData, setFormData, articleId }) => {
       if (articleId) uploadFormData.append('articleId', articleId);
 
       const res = await articleService.uploadVideo(uploadFormData);
-      setFormData({ ...formData, videoUrl: res.url });
+      
+      // Add to list
+      setVideos(prev => [...prev, res]);
       toast.success(t('articles.video.upload_success', 'อัปโหลดวิดีโอเรียบร้อยแล้ว'));
     } catch (error) {
       console.error('Video upload error:', error);
@@ -44,139 +46,191 @@ const VideoSection = ({ formData, setFormData, articleId }) => {
     }
   };
 
-  const removeVideo = () => {
-    setFormData({ ...formData, videoUrl: '' });
+  const handleAddExternal = () => {
+    if (!externalUrl) return;
+    
+    // In a real app, you might want to save external URLs to the DB too.
+    // For now, we can just allow users to copy the shortcode directly or add to list if backend supports it.
+    // Since our backend ArticleVideo supports a URL, we can treat external links as a special case or just help them copy.
+    
+    const shortcode = `[video:${externalUrl}]`;
+    navigator.clipboard.writeText(shortcode);
+    toast.success(t('articles.video.shortcode_copied', 'คัดลอก Shortcode แล้ว'));
+    setExternalUrl('');
   };
 
-  const isExternal = formData.videoUrl && !formData.videoUrl.includes('/api/articles/videos/');
+  const deleteVideo = async (video) => {
+    const result = await Swal.fire({
+      title: t('common.are_you_sure'),
+      text: t('articles.video.delete_confirm', 'คุณต้องการลบวิดีโอนี้ออกจากคลังหรือไม่?'),
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: t('common.delete'),
+      cancelButtonText: t('common.cancel'),
+      buttonsStyling: false,
+      customClass: {
+        popup: 'rounded-[32px] p-8 border border-slate-100 shadow-2xl',
+        confirmButton: 'bg-rose-500 hover:bg-rose-600 text-white px-8 py-3 rounded-2xl text-sm font-black uppercase tracking-widest shadow-lg shadow-rose-200 transition-all active:scale-95 ml-3',
+        cancelButton: 'px-8 py-3 rounded-2xl text-sm font-black uppercase tracking-widest text-slate-400 hover:bg-slate-50 transition-all'
+      }
+    });
+
+    if (result.isConfirmed) {
+      try {
+        await articleService.deleteVideo(video.id);
+        setVideos(prev => prev.filter(v => v.id !== video.id));
+        toast.success(t('common.deleted_success'));
+      } catch (error) {
+        toast.error(t('common.error_default'));
+      }
+    }
+  };
+
+  const copyShortcode = (url) => {
+    const shortcode = `[video:${url}]`;
+    navigator.clipboard.writeText(shortcode);
+    toast.success(t('articles.video.shortcode_copied', 'คัดลอก Shortcode สำหรับใส่ในเนื้อหาแล้ว'));
+  };
 
   return (
-    <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm space-y-4">
+    <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm space-y-6">
       <div className="flex items-center justify-between">
         <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-wider ml-1 flex items-center gap-2">
           <div className="w-1 h-3 bg-indigo-500 rounded-full"></div>
-          {t('articles.video_content', 'Video Content')}
+          {t('articles.video_library', 'Video Library')}
         </h4>
-        
-        {formData.videoUrl && (
-          <button 
-            onClick={removeVideo}
-            className="text-[10px] font-black text-rose-500 uppercase tracking-widest flex items-center gap-1 hover:text-rose-600 transition-colors"
+      </div>
+
+      {/* Upload/Link Area */}
+      <div className="space-y-4 bg-slate-50/50 p-4 rounded-2xl border border-slate-100">
+        <div className="flex bg-white p-1 rounded-xl w-fit shadow-sm border border-slate-100">
+          <button
+            type="button"
+            onClick={() => setActiveTab('upload')}
+            className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${activeTab === 'upload' ? 'bg-slate-900 text-white shadow-md' : 'text-slate-500 hover:text-slate-700'}`}
           >
-            <X size={12} /> {t('common.remove', 'Remove')}
+            <Upload size={14} className="inline mr-1.5" /> {t('articles.video.tab_upload', 'Upload File')}
           </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('link')}
+            className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${activeTab === 'link' ? 'bg-slate-900 text-white shadow-md' : 'text-slate-500 hover:text-slate-700'}`}
+          >
+            <Link size={14} className="inline mr-1.5" /> {t('articles.video.tab_link', 'External Link')}
+          </button>
+        </div>
+
+        {activeTab === 'upload' ? (
+          <div 
+            onClick={() => !isUploading && fileInputRef.current?.click()}
+            className={`border-2 border-dashed border-slate-200 bg-white rounded-2xl p-6 flex flex-col items-center justify-center gap-3 transition-all cursor-pointer hover:border-indigo-300 hover:bg-indigo-50/30 group ${isUploading ? 'opacity-50 cursor-not-allowed' : ''}`}
+          >
+            <input 
+              type="file" 
+              ref={fileInputRef}
+              onChange={handleFileUpload}
+              accept="video/*"
+              className="hidden"
+            />
+            {isUploading ? (
+              <Loader2 size={24} className="text-indigo-500 animate-spin" />
+            ) : (
+              <Video size={24} className="text-slate-300 group-hover:text-indigo-400 transition-colors" />
+            )}
+            <div className="text-center">
+              <p className="text-[10px] font-bold text-slate-600 uppercase tracking-wider">
+                {isUploading ? t('common.uploading', 'Uploading...') : t('articles.video.click_to_upload', 'Add New Video to Library')}
+              </p>
+            </div>
+          </div>
+        ) : (
+          <div className="flex gap-2">
+            <div className="relative flex-1">
+              <Link size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input 
+                type="url"
+                placeholder="YouTube, Vimeo, or MP4 URL..."
+                className="w-full pl-11 pr-4 py-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-100 focus:border-indigo-500 outline-none transition-all text-xs font-medium"
+                value={externalUrl}
+                onChange={(e) => setExternalUrl(e.target.value)}
+              />
+            </div>
+            <button 
+              type="button"
+              onClick={handleAddExternal}
+              className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 whitespace-nowrap"
+            >
+              Get Shortcode
+            </button>
+          </div>
         )}
       </div>
 
-      {!formData.videoUrl ? (
-        <div className="space-y-4">
-          {/* Tabs */}
-          <div className="flex bg-slate-100 p-1 rounded-xl w-fit">
-            <button
-              type="button"
-              onClick={() => setActiveTab('upload')}
-              className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${activeTab === 'upload' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-            >
-              <Upload size={14} className="inline mr-1.5" /> {t('articles.video.tab_upload', 'Upload')}
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveTab('link')}
-              className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${activeTab === 'link' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-            >
-              <Link size={14} className="inline mr-1.5" /> {t('articles.video.tab_link', 'External Link')}
-            </button>
-          </div>
+      {/* Video List */}
+      <div className="space-y-3">
+        <h5 className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] px-1 flex items-center justify-between">
+          <span>{t('articles.video.stored_videos', 'Stored Videos')} ({videos.length})</span>
+          {videos.length > 0 && <span className="text-indigo-500 text-[8px] animate-pulse">Ready to embed</span>}
+        </h5>
 
-          {activeTab === 'upload' ? (
-            <div 
-              onClick={() => !isUploading && fileInputRef.current?.click()}
-              className={`border-2 border-dashed border-slate-200 rounded-2xl p-8 flex flex-col items-center justify-center gap-3 transition-all cursor-pointer hover:border-indigo-300 hover:bg-indigo-50/30 group ${isUploading ? 'opacity-50 cursor-not-allowed' : ''}`}
-            >
-              <input 
-                type="file" 
-                ref={fileInputRef}
-                onChange={handleFileUpload}
-                accept="video/*"
-                className="hidden"
-              />
-              {isUploading ? (
-                <Loader2 size={32} className="text-indigo-500 animate-spin" />
-              ) : (
-                <Video size={32} className="text-slate-300 group-hover:text-indigo-400 transition-colors" />
-              )}
-              <div className="text-center">
-                <p className="text-xs font-bold text-slate-600 uppercase tracking-wider">
-                  {isUploading ? t('common.uploading', 'Uploading...') : t('articles.video.click_to_upload', 'Click to upload video')}
-                </p>
-                <p className="text-[9px] text-slate-400 font-medium mt-1 uppercase">MP4, WebM (Max 500MB)</p>
-              </div>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              <div className="relative">
-                <Link size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
-                <input 
-                  type="url"
-                  placeholder="https://www.youtube.com/watch?v=..."
-                  className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-100 focus:border-indigo-500 outline-none transition-all text-sm font-medium"
-                  value={formData.videoUrl}
-                  onChange={(e) => setFormData({ ...formData, videoUrl: e.target.value })}
-                />
-              </div>
-              <p className="text-[10px] text-slate-400 flex items-center gap-1.5 px-1 font-medium">
-                <AlertCircle size={12} /> Supports YouTube, Vimeo, and direct MP4 links
-              </p>
-            </div>
-          )}
-        </div>
-      ) : (
-        <div className="relative rounded-2xl overflow-hidden border border-slate-200 bg-slate-900 group">
-          <div className="aspect-video flex items-center justify-center">
-            {isExternal ? (
-              <div className="flex flex-col items-center gap-3">
-                <Film size={48} className="text-white/20" />
-                <p className="text-white/50 text-[10px] font-black uppercase tracking-widest">{t('articles.video.external_preview', 'External Video Attached')}</p>
-                <code className="text-[10px] text-indigo-300 bg-indigo-500/10 px-3 py-1 rounded-full max-w-[200px] truncate">{formData.videoUrl}</code>
-              </div>
-            ) : (
-              <video 
-                src={formData.videoUrl} 
-                className="w-full h-full object-contain"
-                controls
-              />
-            )}
+        {videos.length === 0 ? (
+          <div className="py-10 border border-slate-100 rounded-2xl flex flex-col items-center justify-center gap-2 text-slate-300">
+            <Film size={32} strokeWidth={1} />
+            <p className="text-[10px] font-bold uppercase tracking-widest">{t('articles.video.no_videos', 'No videos in library')}</p>
           </div>
-          
-          <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-4 backdrop-blur-sm">
-             <div className="flex flex-col items-center gap-1">
-                <p className="text-white text-[10px] font-black uppercase tracking-[0.2em]">{isExternal ? 'Linked Video' : 'Uploaded Video'}</p>
-                <p className="text-white/50 text-[9px] font-medium max-w-[250px] truncate px-4">{formData.videoUrl}</p>
-             </div>
-             <div className="flex gap-2">
-                <button 
-                  onClick={() => setFormData({ ...formData, videoUrl: '' })}
-                  className="bg-rose-500 hover:bg-rose-600 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 flex items-center gap-2"
-                >
-                  <X size={14} /> {t('common.remove')}
-                </button>
-                <button 
-                  onClick={() => !isUploading && fileInputRef.current?.click()}
-                  className="bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 flex items-center gap-2 backdrop-blur-md border border-white/10"
-                >
-                  <Upload size={14} /> {t('common.replace', 'Replace')}
-                </button>
-                <input 
-                  type="file" 
-                  ref={fileInputRef}
-                  onChange={handleFileUpload}
-                  accept="video/*"
-                  className="hidden"
-                />
-             </div>
+        ) : (
+          <div className="grid grid-cols-1 gap-3">
+            {videos.map((video) => (
+              <div 
+                key={video.id}
+                className="group bg-slate-50/50 hover:bg-white border border-slate-100 hover:border-indigo-200 p-4 rounded-2xl flex items-center gap-4 transition-all"
+              >
+                <div className="size-12 rounded-xl bg-white border border-slate-100 flex items-center justify-center text-slate-300 group-hover:text-indigo-500 transition-all shadow-sm">
+                  <Play size={20} fill="currentColor" />
+                </div>
+                
+                <div className="flex-1 min-w-0">
+                  <p className="text-[11px] font-black text-slate-700 truncate mb-0.5 group-hover:text-indigo-600 transition-colors uppercase tracking-tight">
+                    {video.filename || 'Unnamed Video'}
+                  </p>
+                  <p className="text-[9px] font-medium text-slate-400 truncate max-w-[200px]">
+                    {video.url}
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button
+                    type="button"
+                    onClick={() => copyShortcode(video.url)}
+                    className="p-2 rounded-lg bg-indigo-50 text-indigo-600 hover:bg-indigo-600 hover:text-white transition-all shadow-sm"
+                    title="Copy Shortcode"
+                  >
+                    <Copy size={14} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => deleteVideo(video)}
+                    className="p-2 rounded-lg bg-rose-50 text-rose-600 hover:bg-rose-600 hover:text-white transition-all shadow-sm"
+                    title="Delete"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+              </div>
+            ))}
           </div>
+        )}
+      </div>
+
+      <div className="p-4 bg-indigo-50/50 rounded-2xl border border-indigo-100/50 flex items-start gap-3">
+        <AlertCircle size={16} className="text-indigo-500 mt-0.5" />
+        <div className="space-y-1">
+          <p className="text-[10px] font-bold text-indigo-700 uppercase tracking-wider">{t('articles.video.guide_title', 'How to use')}</p>
+          <p className="text-[9px] text-indigo-600/70 font-medium leading-relaxed">
+            {t('articles.video.guide_desc', 'คัดลอก Shortcode ของวิดีโอที่ต้องการ แล้วนำไปวางใน Content Editor เพื่อแสดงผลในตำแหน่งที่ต้องการ')}
+          </p>
         </div>
-      )}
+      </div>
     </div>
   );
 };

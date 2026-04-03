@@ -22,7 +22,7 @@ const ArticleFormModal = ({ isOpen, onClose, articleId, onSaveSuccess }) => {
   const { user } = useAuth();
 
   const [formData, setFormData] = useState({
-    title: '', content: '', excerpt: '', thumbnail: '', videoUrl: '',
+    title: '', content: '', excerpt: '', thumbnail: '', 
     categoryId: '', status: 'DRAFT', visibility: 'PUBLIC', slug: '', tagNames: [], isPinned: false
   });
 
@@ -33,6 +33,7 @@ const ArticleFormModal = ({ isOpen, onClose, articleId, onSaveSuccess }) => {
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(false);
   const [attachments, setAttachments] = useState([]);
+  const [videos, setVideos] = useState([]);
 
   // 1. Initial Data Fetching
   useEffect(() => {
@@ -48,6 +49,7 @@ const ArticleFormModal = ({ isOpen, onClose, articleId, onSaveSuccess }) => {
           categoryId: '', status: 'DRAFT', visibility: 'PUBLIC', slug: '', tagNames: [], isPinned: false
         });
         setAttachments([]);
+        setVideos([]);
       }
     } else {
       if (previewUrl) {
@@ -79,7 +81,6 @@ const ArticleFormModal = ({ isOpen, onClose, articleId, onSaveSuccess }) => {
           content: article.content || '',
           excerpt: article.excerpt || '',
           thumbnail: article.thumbnail || '',
-          videoUrl: article.videoUrl || '',
           categoryId: article.categoryId || '',
           status: article.status || 'DRAFT',
           visibility: article.visibility || 'PUBLIC',
@@ -88,6 +89,7 @@ const ArticleFormModal = ({ isOpen, onClose, articleId, onSaveSuccess }) => {
           isPinned: article.isPinned || false
         });
         setAttachments(article.attachments || []);
+        setVideos(article.videos || []);
       }
     } catch (error) {
       console.error('Failed to fetch article:', error);
@@ -252,9 +254,9 @@ const ArticleFormModal = ({ isOpen, onClose, articleId, onSaveSuccess }) => {
 
                       {/* Video Section */}
                       <VideoSection 
-                        formData={formData}
-                        setFormData={setFormData}
                         articleId={articleId}
+                        videos={videos}
+                        setVideos={setVideos}
                       />
                     </div>
 

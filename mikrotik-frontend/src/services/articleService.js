@@ -75,6 +75,11 @@ const articleService = {
     return response.data;
   },
 
+  deleteVideo: async (id) => {
+    const response = await apiClient.delete(`/api/articles/videos/${id}`);
+    return response.data;
+  },
+
   // --- Category Methods ---
   getCategories: async () => {
     const response = await apiClient.get('/api/articles/categories');

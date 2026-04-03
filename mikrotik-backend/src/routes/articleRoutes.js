@@ -99,7 +99,8 @@ router.post('/', verifyToken, requireRole(['SUPER_ADMIN']), articleController.cr
 router.put('/:id', verifyToken, requireRole(['SUPER_ADMIN']), articleController.updateArticle);
 router.delete('/:id', verifyToken, requireRole(['SUPER_ADMIN']), articleController.deleteArticle);
 router.post('/upload', verifyToken, requireRole(['SUPER_ADMIN']), upload.single('image'), articleController.uploadImage);
-router.post('/upload-video', verifyToken, requireRole(['SUPER_ADMIN']), videoUpload.single('video'), articleController.uploadVideo);
+router.post('/upload-video', verifyToken, requireRole(['SUPER_ADMIN', 'ADMIN']), videoUpload.single('video'), articleController.uploadVideo);
+router.delete('/videos/:id', verifyToken, requireRole(['SUPER_ADMIN', 'ADMIN']), articleController.deleteVideo);
 
 // Attachments Admin
 router.post('/attachments/upload', verifyToken, requireRole(['SUPER_ADMIN']), attachUpload.single('file'), articleController.uploadAttachment);

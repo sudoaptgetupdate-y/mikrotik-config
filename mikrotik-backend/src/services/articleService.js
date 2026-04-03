@@ -98,7 +98,8 @@ exports.getArticleBySlug = async (slug, userRole = null) => {
       category: true,
       tags: true,
       author: { select: { id: true, firstName: true, lastName: true, username: true, role: true } },
-      attachments: true
+      attachments: true,
+      videos: true
     }
   });
 
@@ -127,7 +128,8 @@ exports.getArticleBySlug = async (slug, userRole = null) => {
       category: true,
       tags: true,
       author: { select: { id: true, firstName: true, lastName: true, username: true, role: true } },
-      attachments: true
+      attachments: true,
+      videos: true
     }
   });
 
@@ -146,7 +148,8 @@ exports.getArticleById = async (id, userRole = null) => {
         category: true,
         tags: true,
         author: { select: { id: true, firstName: true, lastName: true, username: true, role: true } },
-        attachments: true
+        attachments: true,
+        videos: true
       }
     });
 
@@ -167,7 +170,7 @@ exports.getArticleById = async (id, userRole = null) => {
 };
 
 exports.createArticle = async (data, authorId, ipAddress) => {
-  const { title, content, excerpt, thumbnail, videoUrl, categoryId, status, visibility, tagNames, isPinned } = data;
+  const { title, content, excerpt, thumbnail, categoryId, status, visibility, tagNames, isPinned } = data;
   
   // 1. จัดการ Slug
   let slug = slugify(title);
@@ -189,7 +192,6 @@ exports.createArticle = async (data, authorId, ipAddress) => {
       content,
       excerpt,
       thumbnail: cleanUrl(thumbnail),
-      videoUrl: cleanUrl(videoUrl),
       status: status || 'DRAFT',
       visibility: visibility || 'PUBLIC',
       isPinned: !!isPinned,
@@ -211,7 +213,7 @@ exports.createArticle = async (data, authorId, ipAddress) => {
 };
 
 exports.updateArticle = async (id, data, userId, ipAddress) => {
-  const { title, content, excerpt, thumbnail, videoUrl, categoryId, status, visibility, slug: requestedSlug, tagNames, isPinned } = data;
+  const { title, content, excerpt, thumbnail, categoryId, status, visibility, slug: requestedSlug, tagNames, isPinned } = data;
   const articleId = parseInt(id);
   const oldArticle = await prisma.article.findUnique({ where: { id: articleId } });
   if (!oldArticle) throw new Error("NOT_FOUND");
@@ -239,7 +241,6 @@ exports.updateArticle = async (id, data, userId, ipAddress) => {
       content,
       excerpt,
       thumbnail: cleanUrl(thumbnail),
-      videoUrl: cleanUrl(videoUrl),
       status,
       visibility,
       isPinned: isPinned !== undefined ? !!isPinned : undefined,
@@ -265,35 +266,32 @@ exports.deleteArticle = async (id, userId, ipAddress) => {
   const articleId = parseInt(id);
   const article = await prisma.article.findUnique({ 
     where: { id: articleId },
-    include: { attachments: true }
+    include: { attachments: true, videos: true }
   });
   if (!article) throw new Error("NOT_FOUND");
 
   // 1. ลบไฟล์จริงบน Disk (Attachments)
-  const uploadDir = path.join(__dirname, '../../uploads/attachments/');
+  const attachDir = path.join(__dirname, '../../uploads/attachments/');
   for (const attachment of article.attachments) {
-    const filePath = path.join(uploadDir, attachment.storageName);
-    if (fs.existsSync(filePath)) {
-      fs.unlinkSync(filePath);
-    }
+    const filePath = path.join(attachDir, attachment.storageName);
+    if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
   }
 
-  // 2. ลบไฟล์วิดีโอ (ถ้ามี)
-  if (article.videoUrl && article.videoUrl.includes('/api/articles/videos/')) {
-    const videoFilename = article.videoUrl.split('/').pop().split('?')[0];
-    const videoPath = path.join(__dirname, '../../uploads/videos/', videoFilename);
-    if (fs.existsSync(videoPath)) {
-      fs.unlinkSync(videoPath);
-    }
+  // 2. ลบไฟล์วิดีโอจาก Disk
+  const videoDir = path.join(__dirname, '../../uploads/videos/');
+  for (const video of article.videos) {
+    const videoFilename = video.url.split('/').pop().split('?')[0];
+    const videoPath = path.join(videoDir, videoFilename);
+    if (fs.existsSync(videoPath)) fs.unlinkSync(videoPath);
   }
 
-  // 3. ลบจาก DB
+  // 3. ลบจาก DB (Prisma will Cascade delete attachments and videos records if configured)
   const deleted = await prisma.article.delete({ where: { id: articleId } });
 
   await logService.createActivityLog({
     userId,
     action: 'DELETE_ARTICLE',
-    details: `Deleted article: ${article.title} and its attachments`,
+    details: `Deleted article: ${article.title} and all its media`,
     ipAddress
   });
 
@@ -359,6 +357,18 @@ exports.processAndUploadVideo = async (file, articleId, userId, ipAddress, proto
   const fullBaseUrl = `${protocol}://${host}`;
   const baseUrl = `${fullBaseUrl}/api/articles/videos/${filename}`;
 
+  // บันทึกข้อมูลลง DB
+  const parsedId = articleId ? parseInt(articleId) : null;
+  const finalId = (!isNaN(parsedId) && parsedId !== null) ? parsedId : undefined;
+
+  const newVideo = await prisma.articleVideo.create({
+    data: {
+      url: baseUrl,
+      filename: originalName,
+      ...(finalId && { articleId: finalId })
+    }
+  });
+
   // บันทึก Log
   await logService.createActivityLog({
     userId,
@@ -367,7 +377,22 @@ exports.processAndUploadVideo = async (file, articleId, userId, ipAddress, proto
     ipAddress
   });
 
-  return { filename, baseUrl };
+  return { ...newVideo, baseUrl }; // คืนค่าข้อมูลที่บันทึก
+};
+
+exports.deleteVideo = async (id, userId, ipAddress) => {
+  const video = await prisma.articleVideo.findUnique({ where: { id: parseInt(id) } });
+  if (!video) throw new Error("NOT_FOUND");
+
+  // 1. ลบจาก Disk
+  const videoFilename = video.url.split('/').pop().split('?')[0];
+  const videoPath = path.join(__dirname, '../../uploads/videos/', videoFilename);
+  if (fs.existsSync(videoPath)) fs.unlinkSync(videoPath);
+
+  // 2. ลบจาก DB
+  await prisma.articleVideo.delete({ where: { id: video.id } });
+
+  return { success: true };
 };
 
 // ==========================================
